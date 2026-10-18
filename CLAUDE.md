@@ -170,3 +170,11 @@ export const doThing = createServerFn({ method: "POST" })
 
 - [`project_oralia_aurora_state.md`](../.claude/projects/-Users-walterlamadriz-Documents/memory/project_oralia_aurora_state.md) — cronología completa de commits + patrones históricos.
 - [`oralia_audit_fase6.md`](../.claude/projects/-Users-walterlamadriz-Documents/memory/oralia_audit_fase6.md) — 17 findings de la auditoría multi-agente + estado de aplicación.
+
+## Auditoría de seguridad (18-oct-2026) — sin vulnerabilidades
+
+Revisión defensiva en local contra la base reconstruida (111 migraciones aplicadas en autocommit; `supabase start` aborta por "unsafe use of new enum value" si se corre normal). Método transversal: memoria `auditoria-seguridad-metodo`.
+
+- **64/64 tablas con RLS** (verdad del catálogo `pg_class`, no grep). **Ninguna** policy SELECT/ALL con `using (true)`. Tablas sensibles (`patients`, `clinical_notes`, `patient_medical_history`, `payments`, `whatsapp_leads`) scopeadas por `is_clinic_member`/`has_clinic_role`/`can_manage_clinic`.
+- Aislamiento multi-clínica **probado EN VIVO** (lectura y escritura, incluida `clinical_notes`): A no ve ni toca nada de B.
+- `whatsapp_credentials` guarda los tokens cifrados (`business_token_enc`/`registration_pin_enc`) y es *fail-closed* (RLS ON sin policy = solo `service_role`). Otras 4 tablas de backend igual (`lifecycle_emails`, `marketing_events`, `marketing_leads`, `stripe_events`). Secretos limpios.
