@@ -19,7 +19,6 @@ import { toast } from "sonner";
 import { CalendarCheck, Phone, PhoneCall } from "lucide-react";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
-import { VerificacionDosPasosCard } from "@/components/verificacion-dos-pasos";
 import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import {
   activadaEn72h,
@@ -53,7 +52,7 @@ export const Route = createFileRoute("/_authenticated/admin/clinicas")({
 
 /** Mismo criterio que `admin.leads.tsx`: `listClinicsForStaff` siempre tira
  *  con `Error("...")` con texto ya seguro para mostrar tal cual. */
-function AccesoRestringido({ error: errorDesconocido, reset }: ErrorComponentProps) {
+function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
   const error =
     errorDesconocido instanceof Error ? errorDesconocido : new Error(String(errorDesconocido));
   return (
@@ -70,13 +69,18 @@ function AccesoRestringido({ error: errorDesconocido, reset }: ErrorComponentPro
         >
           Volver al dashboard
         </Link>
-        {/* SEG-01: el staff sin verificación en dos pasos la activa acá
-            mismo (puede no tener clínica y por eso no llegar a /preferencias).
-            Al activarla la sesión pasa a aal2 y se reintenta la carga. */}
+        {/* SEG-01: acá NO se ofrece activar el factor (revisión del PR #65):
+            con una contraseña robada de staff, eso alcanzaba para inscribir
+            un TOTP propio y subir a aal2. Se activa desde /preferencias, con
+            un inicio de sesión reciente. */}
         {error.message === MENSAJE_STAFF_REQUIERE_MFA && (
-          <div className="mt-6 text-left">
-            <VerificacionDosPasosCard obligatoria onActivada={reset} />
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Actívala desde{" "}
+            <Link to="/preferencias" className="font-medium text-brand-700 hover:underline">
+              Preferencias
+            </Link>{" "}
+            justo después de iniciar sesión.
+          </p>
         )}
       </div>
     </div>

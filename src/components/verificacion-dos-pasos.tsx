@@ -9,7 +9,7 @@
 // Todo pasa por supabase-js en el navegador: la inscripción la hace el propio
 // usuario con su sesión, no hay server function ni service_role en el medio.
 import { useState } from "react";
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, ShieldAlert, ShieldCheck, X } from "lucide-react";
 import { toast } from "sonner";
@@ -19,14 +19,22 @@ import { esCuentaDemo } from "@/lib/demo-cuenta";
 import {
   factoresTotpSinVerificar,
   factoresTotpVerificados,
+  MINUTOS_SESION_RECIENTE,
   normalizarCodigoTotp,
+  sesionReciente,
   tieneFactorVerificado,
 } from "@/lib/auth/mfa";
 import { cn } from "@/lib/utils";
 
 export const MFA_QUERY_KEY = ["mfa-estado"] as const;
 
-type EstadoMfa = { tieneFactor: boolean; factorId: string | null; esDemo: boolean };
+type EstadoMfa = {
+  tieneFactor: boolean;
+  factorId: string | null;
+  esDemo: boolean;
+  /** `amr` del JWT: cuándo inició sesión (para exigir sesión reciente). */
+  amr: readonly unknown[];
+};
 
 /** Lee el estado de la sesión local (sin red): si la cuenta tiene un factor
  *  verificado y cuál. `listFactors` también sale de la sesión guardada. */
@@ -42,6 +50,7 @@ async function leerEstadoMfa(): Promise<EstadoMfa> {
     tieneFactor: tieneFactorVerificado(niveles) || Boolean(verificado),
     factorId: verificado?.id ?? null,
     esDemo: esCuentaDemo(sesion.session?.user.email),
+    amr: niveles?.currentAuthenticationMethods ?? [],
   };
 }
 
@@ -51,29 +60,34 @@ export function useEstadoMfa() {
 
 type Inscripcion = { factorId: string; qr: string; secreto: string };
 
-export function VerificacionDosPasosCard({
-  obligatoria = false,
-  onActivada,
-}: {
-  /** Texto para el staff de /admin, donde no es opcional. */
-  obligatoria?: boolean;
-  onActivada?: () => void;
-}) {
+/**
+ * Solo se monta en /preferencias, dentro de la app. NO en la pantalla de
+ * acceso restringido de /admin: ahí cualquiera con una contraseña robada de
+ * staff podría inscribir su propio TOTP y subir a aal2 (revisión del PR #65).
+ */
+export function VerificacionDosPasosCard() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const navigate = useNavigate();
   const { data: estado, isLoading } = useEstadoMfa();
   const [inscripcion, setInscripcion] = useState<Inscripcion | null>(null);
   const [codigo, setCodigo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [confirmandoBaja, setConfirmandoBaja] = useState(false);
+  const [pedirReingreso, setPedirReingreso] = useState(false);
 
   const refrescar = async () => {
     await queryClient.invalidateQueries({ queryKey: MFA_QUERY_KEY });
   };
 
   const iniciar = useMutation({
-    mutationFn: async (): Promise<Inscripcion> => {
+    mutationFn: async (): Promise<Inscripcion | null> => {
       const supabase = await getSupabase();
+      // Inscribir un factor exige haber iniciado sesión hace poco: una sesión
+      // olvidada abierta (o robada) no alcanza para atarle un TOTP ajeno.
+      // Se relee del JWT en el momento del clic, no del cache.
+      const { data: niveles } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (!sesionReciente(niveles?.currentAuthenticationMethods, Date.now())) return null;
       // Un QR abierto y abandonado deja un factor sin verificar; se limpia
       // antes de crear otro para no acumularlos.
       const { data: factores } = await supabase.auth.mfa.listFactors();
@@ -88,6 +102,11 @@ export function VerificacionDosPasosCard({
       return { factorId: data.id, qr: data.totp.qr_code, secreto: data.totp.secret };
     },
     onSuccess: (datos) => {
+      if (!datos) {
+        setPedirReingreso(true);
+        return;
+      }
+      setPedirReingreso(false);
       setInscripcion(datos);
       setCodigo("");
       setError(null);
@@ -116,7 +135,6 @@ export function VerificacionDosPasosCard({
       await refrescar();
       // La sesión ya es aal2: lo que dependía de eso (ej. /admin) se recarga.
       await router.invalidate();
-      onActivada?.();
     },
     onError: (e: Error) => setError(e.message),
   });
@@ -170,9 +188,9 @@ export function VerificacionDosPasosCard({
         <div className="min-w-0 flex-1">
           <h2 className="font-heading text-base font-semibold">Verificación en dos pasos</h2>
           <p className="text-sm text-muted-foreground">
-            {obligatoria
-              ? "El panel interno de Esmalia la exige: además de tu contraseña, se te pide un código de una app de autenticación."
-              : "Además de tu contraseña, Esmalia te pide un código de 6 números de una app de autenticación. Si alguien consigue tu contraseña, igual no puede entrar a las fichas de tus pacientes."}
+            {
+              "Además de tu contraseña, Esmalia te pide un código de 6 números de una app de autenticación. Si alguien consigue tu contraseña, igual no puede entrar a las fichas de tus pacientes."
+            }
           </p>
 
           {isLoading ? (
@@ -304,6 +322,26 @@ export function VerificacionDosPasosCard({
               {iniciar.isPending && <Loader2 className="mr-1 inline size-4 animate-spin" />}
               Activar verificación en dos pasos
             </button>
+          )}
+
+          {pedirReingreso && !inscripcion && !estado?.tieneFactor && (
+            <div className="mt-3 rounded-lg border border-border bg-muted/40 p-3 text-sm">
+              <p>
+                Por seguridad, para activarla tienes que haber iniciado sesión hace menos de{" "}
+                {MINUTOS_SESION_RECIENTE} minutos. Vuelve a entrar y actívala de inmediato.
+              </p>
+              <button
+                type="button"
+                onClick={async () => {
+                  const supabase = await getSupabase();
+                  await supabase.auth.signOut({ scope: "local" });
+                  void navigate({ to: "/auth" });
+                }}
+                className="mt-2 rounded-lg border border-brand bg-transparent px-3 py-2 text-sm font-medium text-brand-700 transition-colors hover:bg-brand/12"
+              >
+                Volver a iniciar sesión
+              </button>
+            </div>
           )}
         </div>
       </div>

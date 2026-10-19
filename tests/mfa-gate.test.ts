@@ -15,7 +15,9 @@ import {
   nivelAal,
   normalizarCodigoTotp,
   politicaMfaDeRol,
+  sesionReciente,
   tieneFactorVerificado,
+  ultimoInicioDeSesion,
 } from "@/lib/auth/mfa";
 
 describe("nivelAal", () => {
@@ -242,5 +244,39 @@ describe("filtros de factores", () => {
   it("separa TOTP verificados de los abandonados, sin tocar otros tipos", () => {
     expect(factoresTotpVerificados(factores).map((f) => f.id)).toEqual(["a"]);
     expect(factoresTotpSinVerificar(factores).map((f) => f.id)).toEqual(["b"]);
+  });
+});
+
+describe("sesión reciente para inscribir un factor", () => {
+  const ahora = Date.UTC(2026, 9, 19, 12, 0, 0);
+  const haceMin = (m: number) => Math.floor((ahora - m * 60_000) / 1000);
+
+  it("toma el método más reciente del amr", () => {
+    expect(
+      ultimoInicioDeSesion([
+        { method: "password", timestamp: haceMin(30) },
+        { method: "oauth", timestamp: haceMin(2) },
+      ]),
+    ).toBe(haceMin(2));
+  });
+
+  it("acepta un inicio de sesión de hace menos de 10 minutos", () => {
+    expect(sesionReciente([{ method: "password", timestamp: haceMin(3) }], ahora)).toBe(true);
+    expect(sesionReciente([{ method: "password", timestamp: haceMin(10) }], ahora)).toBe(true);
+  });
+
+  it("rechaza una sesión vieja (refrescada, pero de login antiguo)", () => {
+    expect(sesionReciente([{ method: "password", timestamp: haceMin(11) }], ahora)).toBe(false);
+    expect(sesionReciente([{ method: "oauth", timestamp: haceMin(60 * 24) }], ahora)).toBe(false);
+  });
+
+  it("sin fechas (amr en formato string[]) o vacío: no es reciente", () => {
+    expect(sesionReciente(["password"], ahora)).toBe(false);
+    expect(sesionReciente([], ahora)).toBe(false);
+    expect(sesionReciente(undefined, ahora)).toBe(false);
+  });
+
+  it("una fecha muy en el futuro no cuenta", () => {
+    expect(sesionReciente([{ method: "password", timestamp: haceMin(-30) }], ahora)).toBe(false);
   });
 });

@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { necesitaDesafioMfa } from "@/lib/auth/mfa";
+import { esCuentaDemo } from "@/lib/demo-cuenta";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -28,8 +29,12 @@ export const Route = createFileRoute("/_authenticated")({
     // restaurada) porque todos terminan acá. Sin argumentos,
     // `getAuthenticatorAssuranceLevel` lee la sesión local y no toca la red,
     // así que no rompe el modo sin conexión.
-    const { data: niveles } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (necesitaDesafioMfa(niveles)) throw redirect({ to: "/auth/verificar" });
+    // La demo es compartida: nunca se le pide código, aunque alguien le haya
+    // inscrito un factor desde la consola (ver migración 20261019120000).
+    if (!esCuentaDemo(data.session.user.email)) {
+      const { data: niveles } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+      if (necesitaDesafioMfa(niveles)) throw redirect({ to: "/auth/verificar" });
+    }
 
     return { user: data.session.user };
   },

@@ -12,6 +12,7 @@ import { Loader2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { getSupabase } from "@/integrations/supabase/lazy";
+import { esCuentaDemo } from "@/lib/demo-cuenta";
 import { factoresTotpVerificados, necesitaDesafioMfa, normalizarCodigoTotp } from "@/lib/auth/mfa";
 import { peekPlanIntent } from "@/lib/marketing/plan-intent";
 import { cn } from "@/lib/utils";
@@ -51,7 +52,8 @@ function VerificarPage() {
         return;
       }
       const { data: niveles } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (!necesitaDesafioMfa(niveles)) {
+      // La demo nunca pasa por el desafío (cuenta compartida).
+      if (esCuentaDemo(sesion.session.user.email) || !necesitaDesafioMfa(niveles)) {
         // Ya está en aal2, o la cuenta no tiene factor: nada que pedir.
         if (!cancelado) void navigate({ to: destino() });
         return;

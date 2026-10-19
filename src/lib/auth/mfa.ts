@@ -133,3 +133,40 @@ export function factoresTotpSinVerificar<T extends FactorMinimo>(factores: reado
 export function factoresTotpVerificados<T extends FactorMinimo>(factores: readonly T[]): T[] {
   return factores.filter((f) => f.factor_type === "totp" && f.status === "verified");
 }
+
+// ---------------------------------------------------------------------------
+// Inscripción solo con inicio de sesión reciente
+// ---------------------------------------------------------------------------
+
+export const MINUTOS_SESION_RECIENTE = 10;
+
+/**
+ * Momento (segundos UNIX) del último inicio de sesión, según el `amr` del
+ * JWT: cada método (`password`, `oauth`, `otp`…) trae cuándo se usó. Con el
+ * formato viejo (`string[]`, sin fechas) no se puede saber: `null`.
+ * Ojo: NO sirve el `iat` del JWT, que se renueva con cada refresh.
+ */
+export function ultimoInicioDeSesion(amr: readonly unknown[] | null | undefined): number | null {
+  let ultimo: number | null = null;
+  for (const entrada of amr ?? []) {
+    if (entrada && typeof entrada === "object" && "timestamp" in entrada) {
+      const t = Number((entrada as { timestamp: unknown }).timestamp);
+      if (Number.isFinite(t) && (ultimo === null || t > ultimo)) ultimo = t;
+    }
+  }
+  return ultimo;
+}
+
+/** `true` si el último inicio de sesión fue hace menos de
+ *  `MINUTOS_SESION_RECIENTE`. Sin dato, `false`: ante la duda se pide volver
+ *  a entrar. Una fecha en el futuro (reloj corrido) tampoco cuenta. */
+export function sesionReciente(
+  amr: readonly unknown[] | null | undefined,
+  ahoraMs: number,
+  minutos = MINUTOS_SESION_RECIENTE,
+): boolean {
+  const ultimo = ultimoInicioDeSesion(amr);
+  if (ultimo === null) return false;
+  const edadMs = ahoraMs - ultimo * 1000;
+  return edadMs >= -60_000 && edadMs <= minutos * 60_000;
+}
