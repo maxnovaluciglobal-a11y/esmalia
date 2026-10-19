@@ -2,13 +2,17 @@ import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   FUNCION_AAL2,
+  GUARDIA_AAL2_PLPGSQL,
   MIGRACION_AAL2,
+  RPC_CON_GUARDIA_AAL2,
   POLITICA_AAL2,
   TABLAS_CON_AAL2,
   TABLAS_SIN_AAL2,
   sqlPoliticaAal2,
   sqlReversaAal2,
+  conGuardiaAal2,
   tablasConAal2,
+  ultimaDefinicionDeFuncion,
 } from "../src/lib/auth/mfa-rls";
 
 /**
@@ -36,6 +40,15 @@ function tablasDelSchema(): string[] {
     for (const [, , tabla] of sql.matchAll(CREATE_TABLE)) encontradas.add(tabla);
   }
   return [...encontradas].sort();
+}
+
+/** Todas las migraciones anteriores a la de aal2, concatenadas en orden. */
+function migracionesPrevias(): string {
+  return readdirSync(DIR_MIGRACIONES)
+    .filter((f) => f.endsWith(".sql") && f < MIGRACION_AAL2)
+    .sort()
+    .map((f) => readFileSync(new URL(f, DIR_MIGRACIONES), "utf8"))
+    .join("\n");
 }
 
 function migracion(): string {
@@ -173,5 +186,101 @@ describe(`migración ${MIGRACION_AAL2}`, () => {
   it("corre en una transacción", () => {
     expect(sql).toMatch(/^begin;$/m);
     expect(sql).toMatch(/^commit;$/m);
+  });
+});
+
+describe("guard aal2 en RPC SECURITY DEFINER", () => {
+  const sql = migracion();
+  const previas = migracionesPrevias();
+
+  it("ultimaDefinicionDeFuncion toma la última y corta en el cierre del cuerpo", () => {
+    const fuente = [
+      "create or replace function public.f(a int) returns int language plpgsql as $$",
+      "begin return 1; end;",
+      "$$;",
+      "select 1;",
+      "CREATE OR REPLACE FUNCTION public.f(a int) RETURNS int LANGUAGE plpgsql AS $fn$",
+      "BEGIN RETURN 2; END;",
+      "$fn$;",
+      "select 2;",
+    ].join("\n");
+    const def = ultimaDefinicionDeFuncion(fuente, "f");
+    expect(def).toContain("RETURN 2");
+    expect(def?.endsWith("$fn$;")).toBe(true);
+    expect(ultimaDefinicionDeFuncion(fuente, "g")).toBeNull();
+  });
+
+  it("conGuardiaAal2 inserta el guard justo después del primer BEGIN", () => {
+    const def = [
+      "create function public.f() returns void language plpgsql as $$",
+      "declare x int;",
+      "begin",
+      "  x := 1;",
+      "end;",
+      "$$;",
+    ].join("\n");
+    const out = conGuardiaAal2(def);
+    expect(out).toContain(`begin\n${GUARDIA_AAL2_PLPGSQL}\n  x := 1;`);
+    expect(() =>
+      conGuardiaAal2("create function public.f() returns int language sql as $$ select 1 $$;"),
+    ).toThrow();
+  });
+
+  it.each(Object.keys(RPC_CON_GUARDIA_AAL2).sort())(
+    "%s: la migración copia la definición vigente y solo le agrega el guard",
+    (nombre) => {
+      const vigente = ultimaDefinicionDeFuncion(previas, nombre);
+      expect(vigente, `${nombre} no está definida en ninguna migración anterior`).not.toBeNull();
+      const esperada = conGuardiaAal2(vigente!);
+      expect(
+        sql.includes(esperada),
+        `${MIGRACION_AAL2} no tiene la definición vigente de ${nombre} con el guard. ` +
+          "Si otra migración la redefinió, copiala de nuevo (conGuardiaAal2(ultimaDefinicionDeFuncion(...))).",
+      ).toBe(true);
+    },
+  );
+
+  it("no redefine otras funciones", () => {
+    const definidas = [
+      ...sql.matchAll(/^create\s+or\s+replace\s+function\s+public\.([a-z0-9_]+)\s*\(/gim),
+    ].map((m) => m[1]);
+    expect(definidas.sort()).toEqual(
+      ["sesion_cumple_mfa", ...Object.keys(RPC_CON_GUARDIA_AAL2)].sort(),
+    );
+  });
+
+  it("toda RPC SECURITY DEFINER que lee o escribe pacientes está clasificada", () => {
+    // Guardia contra el olvido: una función SECURITY DEFINER nueva cuyo cuerpo
+    // toca `patients` o tablas clínicas tiene que tener guard o una excepción
+    // explícita acá.
+    const SIN_GUARDIA: Record<string, string> = {
+      anotar_auditoria_de_nota: "solo la llaman triggers y registrar_evento_de_nota",
+      cifrar_documento_id: "solo service_role y el trigger de patients",
+      reset_demo_clinic: "solo actúa sobre la clínica demo",
+    };
+    const nombres = new Set(
+      [
+        ...previas.matchAll(
+          /create\s+(?:or\s+replace\s+)?function\s+(?:public\.)?"?([a-z0-9_]+)"?\s*\(/gi,
+        ),
+      ].map((m) => m[1].toLowerCase()),
+    );
+    const sinClasificar: string[] = [];
+    for (const n of nombres) {
+      const def = ultimaDefinicionDeFuncion(previas, n);
+      if (!def || !/security\s+definer/i.test(def)) continue;
+      if (/returns\s+trigger/i.test(def)) continue;
+      const cabecera = def.slice(0, /\bas\s+\$/i.exec(def)?.index ?? 0);
+      if (/returns\s+boolean/i.test(cabecera) && !/registrar_/.test(n)) continue; // helpers de RLS
+      if (
+        !/\b(patients|clinical_|patient_|odontogram_marks|periodontal_|payments|prescriptions)\b/i.test(
+          def,
+        )
+      )
+        continue;
+      if (n in RPC_CON_GUARDIA_AAL2 || n in SIN_GUARDIA) continue;
+      sinClasificar.push(n);
+    }
+    expect(sinClasificar.sort()).toEqual([]);
   });
 });

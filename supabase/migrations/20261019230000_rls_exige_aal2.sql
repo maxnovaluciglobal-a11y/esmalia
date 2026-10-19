@@ -36,10 +36,12 @@
 -- SQL que genera `sqlPoliticaAal2` para cada una, y que toda tabla nueva del
 -- schema quede clasificada (con o sin aal2).
 --
--- Fuera de alcance (ver docs/MFA.md): las funciones SECURITY DEFINER
--- llamables por RPC que devuelven datos de pacientes
--- (list_patients_with_last_and_next_appointment, get_patient_document_id)
--- saltean RLS por diseño y por lo tanto también esta política.
+-- RPC SECURITY DEFINER: saltean RLS, así que las que leen o escriben datos
+-- de pacientes reciben un guard al inicio del cuerpo (sección final). Cada
+-- `create or replace` copia la ÚLTIMA definición vigente de la función en
+-- supabase/migrations/ y le agrega solo el guard; el test lo verifica, así que
+-- si otra migración la redefine, el CI pide volver a copiarla. CREATE OR
+-- REPLACE conserva dueño y GRANTs.
 --
 -- Idempotente (create or replace / drop policy if exists). Reversa al pie.
 --
@@ -99,6 +101,14 @@ create policy mfa_exige_aal2 on public.appointments
 
 drop policy if exists mfa_exige_aal2 on public.cash_registers;
 create policy mfa_exige_aal2 on public.cash_registers
+  as restrictive
+  for all
+  to authenticated
+  using ((select public.sesion_cumple_mfa()))
+  with check ((select public.sesion_cumple_mfa()));
+
+drop policy if exists mfa_exige_aal2 on public.clinical_access_log;
+create policy mfa_exige_aal2 on public.clinical_access_log
   as restrictive
   for all
   to authenticated
@@ -225,6 +235,22 @@ create policy mfa_exige_aal2 on public.patient_documents
   using ((select public.sesion_cumple_mfa()))
   with check ((select public.sesion_cumple_mfa()));
 
+drop policy if exists mfa_exige_aal2 on public.patient_guardians;
+create policy mfa_exige_aal2 on public.patient_guardians
+  as restrictive
+  for all
+  to authenticated
+  using ((select public.sesion_cumple_mfa()))
+  with check ((select public.sesion_cumple_mfa()));
+
+drop policy if exists mfa_exige_aal2 on public.patient_guardians_audit;
+create policy mfa_exige_aal2 on public.patient_guardians_audit
+  as restrictive
+  for all
+  to authenticated
+  using ((select public.sesion_cumple_mfa()))
+  with check ((select public.sesion_cumple_mfa()));
+
 drop policy if exists mfa_exige_aal2 on public.patient_medical_history;
 create policy mfa_exige_aal2 on public.patient_medical_history
   as restrictive
@@ -235,6 +261,14 @@ create policy mfa_exige_aal2 on public.patient_medical_history
 
 drop policy if exists mfa_exige_aal2 on public.patient_medical_history_audit;
 create policy mfa_exige_aal2 on public.patient_medical_history_audit
+  as restrictive
+  for all
+  to authenticated
+  using ((select public.sesion_cumple_mfa()))
+  with check ((select public.sesion_cumple_mfa()));
+
+drop policy if exists mfa_exige_aal2 on public.patient_vital_signs;
+create policy mfa_exige_aal2 on public.patient_vital_signs
   as restrictive
   for all
   to authenticated
@@ -344,6 +378,306 @@ create policy mfa_exige_aal2_clinical_documents on storage.objects
   using (bucket_id <> 'clinical-documents' or (select public.sesion_cumple_mfa()))
   with check (bucket_id <> 'clinical-documents' or (select public.sesion_cumple_mfa()));
 
+
+-- ---------------------------------------------------------------------------
+-- RPC SECURITY DEFINER con datos de pacientes
+-- (definición vigente de cada una + guard; ver src/lib/auth/mfa-rls.ts)
+-- ---------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.get_patient_document_id(p_patient_id uuid)
+ RETURNS text
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public', 'extensions', 'vault'
+AS $function$
+DECLARE
+  v_key text;
+  v_enc bytea;
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  SELECT p.document_id_enc INTO v_enc
+  FROM public.patients p
+  JOIN public.clinic_members m ON m.clinic_id = p.clinic_id
+  WHERE p.id = p_patient_id AND m.user_id = auth.uid();
+
+  IF v_enc IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT decrypted_secret INTO v_key FROM vault.decrypted_secrets WHERE name = 'esmalia_document_id_key';
+  RETURN pgp_sym_decrypt(v_enc, v_key);
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.list_patients_with_last_and_next_appointment(p_clinic_id uuid)
+RETURNS TABLE (
+  patient_id uuid,
+  last_appointment_at timestamptz,
+  last_appointment_status appointment_status,
+  next_appointment_at timestamptz,
+  next_appointment_status appointment_status
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT public.is_clinic_member(p_clinic_id) THEN
+    RAISE EXCEPTION 'No tienes permisos sobre esta clínica.';
+  END IF;
+
+  RETURN QUERY
+  WITH scoped AS (
+    SELECT a.patient_id, a.starts_at, a.status
+    FROM public.appointments a
+    WHERE a.clinic_id = p_clinic_id AND a.status <> 'cancelada'
+  ),
+  ranked AS (
+    SELECT
+      s.patient_id,
+      s.starts_at,
+      s.status,
+      s.starts_at < now() AS is_past,
+      ROW_NUMBER() OVER (
+        PARTITION BY s.patient_id, s.starts_at < now()
+        ORDER BY CASE WHEN s.starts_at < now() THEN s.starts_at END DESC,
+                 CASE WHEN s.starts_at >= now() THEN s.starts_at END ASC
+      ) AS rn
+    FROM scoped s
+  )
+  SELECT
+    p.id AS patient_id,
+    MAX(CASE WHEN r.is_past AND r.rn = 1 THEN r.starts_at END) AS last_appointment_at,
+    (array_agg(r.status) FILTER (WHERE r.is_past AND r.rn = 1))[1] AS last_appointment_status,
+    MAX(CASE WHEN NOT r.is_past AND r.rn = 1 THEN r.starts_at END) AS next_appointment_at,
+    (array_agg(r.status) FILTER (WHERE NOT r.is_past AND r.rn = 1))[1] AS next_appointment_status
+  FROM public.patients p
+  LEFT JOIN ranked r ON r.patient_id = p.id
+  WHERE p.clinic_id = p_clinic_id
+  GROUP BY p.id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.merge_patients(
+  p_clinic_id uuid,
+  p_source_id uuid,
+  p_target_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF p_source_id = p_target_id THEN
+    RAISE EXCEPTION 'No se puede fusionar una ficha consigo misma.';
+  END IF;
+
+  IF NOT public.has_clinic_role(
+    p_clinic_id, ARRAY['owner','admin']::public.app_role[]
+  ) THEN
+    RAISE EXCEPTION 'No tienes permisos para fusionar fichas.';
+  END IF;
+
+  -- Las dos fichas tienen que ser de la clínica que pide la fusión.
+  IF NOT EXISTS (
+    SELECT 1 FROM public.patients
+     WHERE id = p_source_id AND clinic_id = p_clinic_id
+  ) OR NOT EXISTS (
+    SELECT 1 FROM public.patients
+     WHERE id = p_target_id AND clinic_id = p_clinic_id
+  ) THEN
+    RAISE EXCEPTION 'Alguna de las dos fichas no pertenece a esta clínica.';
+  END IF;
+
+  UPDATE public.appointments        SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.payments            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.quotes              SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.treatment_plans     SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.clinical_notes      SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.odontogram_marks    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.periodontal_charts  SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.patient_documents   SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.patient_consents    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.messages            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.lab_orders          SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+
+  -- La historia médica NO se mueve: es una fila por paciente y fusionar dos
+  -- anamnesis automáticamente inventaría un cuadro clínico que nadie revisó.
+  -- Queda en la ficha origen, accesible, para que un profesional la mire.
+
+  UPDATE public.patients
+     SET merged_into = p_target_id,
+         merged_at = now(),
+         status = 'inactive'
+   WHERE id = p_source_id AND clinic_id = p_clinic_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.registrar_evento_de_nota(
+  p_clinic_id uuid,
+  p_action text,
+  p_note_id uuid DEFAULT NULL,
+  p_patient_ref text DEFAULT NULL,
+  p_detail text DEFAULT NULL
+) RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor uuid := auth.uid();
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF p_action NOT IN ('conflict', 'ai_draft', 'ai_summary', 'ai_polish', 'ai_structure') THEN
+    RAISE EXCEPTION 'accion % no se puede registrar desde la app: la escribe un trigger', p_action
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF v_actor IS NULL OR NOT public.is_clinic_member(p_clinic_id) THEN
+    RAISE EXCEPTION 'sin permiso sobre esta clinica' USING ERRCODE = '42501';
+  END IF;
+
+  -- La nota, si viene, tiene que ser de esa clínica: si no, se podría ensuciar
+  -- el historial de una nota ajena desde una clínica propia.
+  IF p_note_id IS NOT NULL AND NOT EXISTS (
+    SELECT 1 FROM public.clinical_notes
+    WHERE id = p_note_id AND clinic_id = p_clinic_id
+  ) THEN
+    RAISE EXCEPTION 'la nota no pertenece a esta clinica' USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM public.anotar_auditoria_de_nota(
+    p_note_id, p_clinic_id, coalesce(p_patient_ref, ''), p_action, p_detail, v_actor);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.registrar_exportacion_de_clinica(
+  p_clinic_id uuid,
+  p_detalle jsonb DEFAULT '{}'::jsonb
+) RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor uuid := auth.uid();
+  v_id uuid;
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF v_actor IS NULL OR NOT public.can_manage_clinic(p_clinic_id) THEN
+    RAISE EXCEPTION 'sin permiso para exportar los datos de esta clinica' USING ERRCODE = '42501';
+  END IF;
+
+  INSERT INTO public.clinic_data_exports (clinic_id, actor_id, formato, detalle)
+  VALUES (p_clinic_id, v_actor, 'zip_csv', coalesce(p_detalle, '{}'::jsonb))
+  RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.registrar_lectura_ficha(
+  p_clinic_id uuid,
+  p_patient_id uuid,
+  p_seccion text
+) RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_actor uuid := auth.uid();
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF v_actor IS NULL OR NOT public.is_clinic_member(p_clinic_id) THEN
+    RAISE EXCEPTION 'sin permiso para leer fichas de esta clinica' USING ERRCODE = '42501';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.patients p
+     WHERE p.id = p_patient_id AND p.clinic_id = p_clinic_id
+  ) THEN
+    RAISE EXCEPTION 'el paciente no pertenece a esta clinica' USING ERRCODE = '42501';
+  END IF;
+
+  -- Las pestañas de la ficha cargan en paralelo y a veces dos veces la misma
+  -- sección (odontograma vigente + historial): sin este candado, dos
+  -- llamadas simultáneas pasan las dos el chequeo de abajo y anotan doble.
+  PERFORM pg_advisory_xact_lock(
+    hashtextextended(v_actor::text || ':' || p_patient_id::text || ':' || coalesce(p_seccion, ''), 0)
+  );
+
+  IF EXISTS (
+    SELECT 1 FROM public.clinical_access_log l
+     WHERE l.actor_id = v_actor
+       AND l.patient_id = p_patient_id
+       AND l.section = p_seccion
+       AND l.accessed_at > now() - interval '15 minutes'
+  ) THEN
+    RETURN false;
+  END IF;
+
+  -- Una sección fuera del vocabulario la rechaza el CHECK de la tabla.
+  INSERT INTO public.clinical_access_log (clinic_id, patient_id, actor_id, section)
+  VALUES (p_clinic_id, p_patient_id, v_actor, p_seccion);
+
+  RETURN true;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.set_patient_document_id(p_patient_id uuid, p_document_id text)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions, vault
+AS $$
+DECLARE
+  v_enc bytea;
+  v_hash text;
+BEGIN
+  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
+  IF NOT public.sesion_cumple_mfa() THEN
+    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM public.patients p
+    WHERE p.id = p_patient_id
+      AND public.has_clinic_role(p.clinic_id, ARRAY['owner','admin','dentist','reception']::public.app_role[])
+  ) THEN
+    RAISE EXCEPTION 'No tienes permisos para modificar este paciente.';
+  END IF;
+
+  SELECT c.documento_enc, c.documento_hash INTO v_enc, v_hash
+    FROM public.cifrar_documento_id(p_document_id) c;
+
+  UPDATE public.patients
+     SET document_id_enc = v_enc,
+         document_id_hash = v_hash
+   WHERE id = p_patient_id;
+END;
+$$;
+
 commit;
 
 -- ---------------------------------------------------------------------------
@@ -354,6 +688,7 @@ commit;
 -- drop policy if exists mfa_exige_aal2 on public.appointment_requests;
 -- drop policy if exists mfa_exige_aal2 on public.appointments;
 -- drop policy if exists mfa_exige_aal2 on public.cash_registers;
+-- drop policy if exists mfa_exige_aal2 on public.clinical_access_log;
 -- drop policy if exists mfa_exige_aal2 on public.clinical_note_audit;
 -- drop policy if exists mfa_exige_aal2 on public.clinical_note_entities;
 -- drop policy if exists mfa_exige_aal2 on public.clinical_note_reviews;
@@ -369,8 +704,11 @@ commit;
 -- drop policy if exists mfa_exige_aal2 on public.ortho_controls;
 -- drop policy if exists mfa_exige_aal2 on public.patient_consents;
 -- drop policy if exists mfa_exige_aal2 on public.patient_documents;
+-- drop policy if exists mfa_exige_aal2 on public.patient_guardians;
+-- drop policy if exists mfa_exige_aal2 on public.patient_guardians_audit;
 -- drop policy if exists mfa_exige_aal2 on public.patient_medical_history;
 -- drop policy if exists mfa_exige_aal2 on public.patient_medical_history_audit;
+-- drop policy if exists mfa_exige_aal2 on public.patient_vital_signs;
 -- drop policy if exists mfa_exige_aal2 on public.patients;
 -- drop policy if exists mfa_exige_aal2 on public.payments;
 -- drop policy if exists mfa_exige_aal2 on public.periodontal_charts;
@@ -382,5 +720,7 @@ commit;
 -- drop policy if exists mfa_exige_aal2 on public.treatment_plans;
 -- drop policy if exists mfa_exige_aal2 on public.waitlist_entries;
 -- drop policy if exists mfa_exige_aal2 on public.whatsapp_leads;
+-- -- Las RPC: volver a correr su definición anterior (la última de cada una
+-- -- en supabase/migrations/ antes de este archivo), que es esta sin el guard.
 -- drop function if exists public.sesion_cumple_mfa();
 -- commit;

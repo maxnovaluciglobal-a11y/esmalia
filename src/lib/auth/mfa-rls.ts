@@ -34,6 +34,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   appointment_requests: "pedidos de hora: paciente y motivo de consulta",
   appointments: "agenda: quién se atiende, cuándo y por qué",
   cash_registers: "caja: montos de apertura, cierre y diferencias",
+  clinical_access_log: "quién abrió qué sección de qué ficha",
   clinical_note_audit: "bitácora de la historia clínica",
   clinical_note_entities: "entidades clínicas extraídas de las notas",
   clinical_note_reviews: "revisiones de notas clínicas",
@@ -49,8 +50,11 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   ortho_controls: "controles de ortodoncia",
   patient_consents: "consentimientos informados",
   patient_documents: "documentos clínicos (radiografías, informes)",
+  patient_guardians: "tutor o representante legal del paciente menor",
+  patient_guardians_audit: "cambios del tutor del paciente",
   patient_medical_history: "anamnesis",
   patient_medical_history_audit: "cambios de la anamnesis",
+  patient_vital_signs: "signos vitales",
   patients: "identidad, contacto y alertas clínicas del paciente",
   payments: "pagos de pacientes",
   periodontal_charts: "periodontograma",
@@ -92,6 +96,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   marketing_leads: "backend: solo service_role (sin políticas)",
   message_templates: "plantillas sin datos de pacientes",
   notification_preferences: "preferencias propias del usuario",
+  odontogram_condition_catalog: "catálogo de condiciones del odontograma",
   operatories: "estructura de la clínica",
   payment_methods: "catálogo de medios de pago",
   procedure_supplies: "catálogo de insumos por prestación",
@@ -131,4 +136,72 @@ export function sqlPoliticaAal2(tabla: string): string {
 export function sqlReversaAal2(tabla: string): string {
   if (!/^[a-z0-9_]+$/.test(tabla)) throw new Error(`Nombre de tabla inválido: ${tabla}`);
   return `drop policy if exists ${POLITICA_AAL2} on public.${tabla};`;
+}
+
+// ---------------------------------------------------------------------------
+// RPC SECURITY DEFINER
+// ---------------------------------------------------------------------------
+//
+// Las funciones SECURITY DEFINER saltean RLS, y por lo tanto también la
+// política de arriba. Las que lee o escribe datos de pacientes y se pueden
+// llamar por /rest/v1/rpc reciben un guard al inicio del cuerpo. La migración
+// las redefine con `create or replace` copiando la ÚLTIMA definición de cada
+// una en `supabase/migrations/` (anterior a `MIGRACION_AAL2`) más el guard; el
+// test vuelve a extraer esa definición y exige que coincida, así que si otra
+// migración redefine una de estas funciones, el CI avisa que hay que copiarla
+// de nuevo.
+
+/** RPC que reciben el guard, con el motivo. Orden alfabético. */
+export const RPC_CON_GUARDIA_AAL2: Readonly<Record<string, string>> = {
+  get_patient_document_id: "devuelve el documento de identidad descifrado",
+  list_patients_with_last_and_next_appointment: "lista los pacientes con su última y próxima cita",
+  merge_patients: "fusiona dos fichas (mueve historia clínica, pagos y citas)",
+  registrar_evento_de_nota: "escribe en la bitácora de la historia clínica",
+  registrar_exportacion_de_clinica: "habilita la exportación completa de la clínica",
+  registrar_lectura_ficha: "confirma si un paciente existe y anota la lectura de su ficha",
+  set_patient_document_id: "escribe el documento de identidad de un paciente",
+};
+
+/** Líneas que se insertan después del primer `BEGIN` del cuerpo. */
+export const GUARDIA_AAL2_PLPGSQL = [
+  "  -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).",
+  `  IF NOT ${FUNCION_AAL2} THEN`,
+  "    RAISE EXCEPTION 'Se requiere verificación en dos pasos.' USING ERRCODE = '42501';",
+  "  END IF;",
+].join("\n");
+
+/**
+ * Devuelve el texto completo de la ÚLTIMA definición `create [or replace]
+ * function public.<nombre>(` dentro de `sql` (de `create` hasta el `;` que
+ * sigue al cierre del cuerpo con dólares), o `null` si no hay ninguna.
+ */
+export function ultimaDefinicionDeFuncion(sql: string, nombre: string): string | null {
+  if (!/^[a-z0-9_]+$/.test(nombre)) throw new Error(`Nombre de función inválido: ${nombre}`);
+  const inicio = new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.)?"?${nombre}"?\\s*\\(`,
+    "gi",
+  );
+  const coincidencias = [...sql.matchAll(inicio)];
+  const ultima = coincidencias.at(-1);
+  if (ultima?.index === undefined) return null;
+  const resto = sql.slice(ultima.index);
+  const apertura = /\bas\s+(\$[a-z_]*\$)/i.exec(resto);
+  if (!apertura) return null;
+  const etiqueta = apertura[1];
+  const cierre = resto.indexOf(etiqueta, apertura.index + apertura[0].length);
+  if (cierre < 0) return null;
+  const fin = resto.indexOf(";", cierre + etiqueta.length);
+  return fin < 0 ? null : resto.slice(0, fin + 1);
+}
+
+/** Inserta `GUARDIA_AAL2_PLPGSQL` después del primer `BEGIN` del cuerpo. */
+export function conGuardiaAal2(definicion: string): string {
+  const apertura = /\bas\s+(\$[a-z_]*\$)/i.exec(definicion);
+  if (!apertura) throw new Error("Definición sin cuerpo entre dólares");
+  if (!/language\s+plpgsql/i.test(definicion)) throw new Error("El guard solo sirve en plpgsql");
+  const desde = apertura.index + apertura[0].length;
+  const begin = /^\s*begin\s*$/im.exec(definicion.slice(desde));
+  if (!begin) throw new Error("Cuerpo sin BEGIN en una línea propia");
+  const corte = desde + begin.index + begin[0].length;
+  return `${definicion.slice(0, corte)}\n${GUARDIA_AAL2_PLPGSQL}${definicion.slice(corte)}`;
 }
