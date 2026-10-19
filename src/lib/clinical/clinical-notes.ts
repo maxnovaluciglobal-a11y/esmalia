@@ -46,6 +46,12 @@ export interface ClinicalNote {
   reviewRequestedByName: string | null;
   reviewRequestedAt: string | null;
   reviewedAt: string | null;
+  /** CLI-07: nota firmada que esta adenda corrige o completa. null = nota normal. */
+  addendumOf: string | null;
+  /** CLI-08: foto de la firma (quién, con qué registro, cuándo). null en borradores y en firmas anteriores al 19-oct-2026. */
+  signedAt: string | null;
+  signerName: string | null;
+  signerLicense: string | null;
 }
 
 export interface ClinicalNoteReview {
@@ -149,6 +155,7 @@ export const AUDIT_LABELS: Record<string, string> = {
 
   sign: "Firmó la nota",
   reopen: "Reabrió la nota",
+  addendum: "Agregó una adenda",
   review_requested: "Solicitó revisión",
   review_approved: "Aprobó la nota en revisión",
   review_changes_requested: "Solicitó cambios en la revisión",
@@ -169,4 +176,73 @@ export function formatoFechaHora(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/**
+ * Orden de la lista de notas (CLI-07): cada nota seguida de sus adendas, de
+ * la más vieja a la más nueva, para que se lean como un solo registro. Las
+ * notas se mantienen en el orden en que llegan (la consulta ya las trae por
+ * última modificación). Una adenda cuya nota no vino (no debería pasar) se
+ * muestra igual, al final, para no esconder nada.
+ */
+export function ordenarConAdendas<
+  T extends { id: string; addendumOf: string | null; createdAt: string },
+>(notas: T[]): T[] {
+  const ids = new Set(notas.map((n) => n.id));
+  const adendasDe = new Map<string, T[]>();
+  const sueltas: T[] = [];
+  for (const n of notas) {
+    if (!n.addendumOf) continue;
+    if (!ids.has(n.addendumOf)) {
+      sueltas.push(n);
+      continue;
+    }
+    adendasDe.set(n.addendumOf, [...(adendasDe.get(n.addendumOf) ?? []), n]);
+  }
+  const resultado: T[] = [];
+  for (const n of notas) {
+    if (n.addendumOf) continue;
+    resultado.push(n);
+    const propias = (adendasDe.get(n.id) ?? []).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+    resultado.push(...propias);
+  }
+  return [...resultado, ...sueltas];
+}
+
+/**
+ * Texto de la firma para la ficha y el PDF (CLI-08). Las notas firmadas
+ * antes de que el registro fuera obligatorio no tienen foto del firmante: se
+ * dice tal cual en vez de inventar un nombre (regla 11 del repo).
+ */
+export function lineaDeFirma(nota: {
+  status: NoteStatus;
+  signedAt: string | null;
+  signerName: string | null;
+  signerLicense: string | null;
+}): string | null {
+  if (nota.status !== "signed") return null;
+  if (!nota.signerName || !nota.signerLicense) {
+    return "Firmada (sin datos del firmante: firma anterior al registro profesional obligatorio)";
+  }
+  const fecha = nota.signedAt ? ` · ${formatoFechaHora(nota.signedAt)}` : "";
+  return `Firmada por ${nota.signerName} · Registro profesional ${nota.signerLicense}${fecha}`;
+}
+
+/** Mismos límites que `registrar_mis_datos_de_firma` en la base. */
+export function validarDatosDeFirma(datos: { nombre: string; registro: string }): string | null {
+  const nombre = datos.nombre.trim();
+  const registro = datos.registro.trim();
+  if (nombre.length < 3 || nombre.length > 160)
+    return "Escribe tu nombre completo, tal como figura en tu registro profesional.";
+  if (registro.length < 2 || registro.length > 60)
+    return "Escribe tu número de registro o colegiatura profesional.";
+  return null;
+}
+
+/** Título por defecto de una adenda nueva. */
+export function tituloDeAdenda(tituloOriginal: string): string {
+  const base = tituloOriginal.trim() || "Nota clínica";
+  return `Adenda: ${base}`.slice(0, 160);
 }

@@ -194,27 +194,48 @@ describe("RLS y transiciones de notas clínicas", () => {
       expect(msg).toMatch(/no puede firmar/i);
     });
 
-    it("un doctor puede firmar y reabrir su nota", async () => {
+    // CLI-07/CLI-08 (migración 20261019220000): una nota firmada no vuelve a
+    // borrador. La corrección va en una adenda (otra nota con addendum_of).
+    it("un doctor firma su nota y después no la puede reabrir", async () => {
       await sembrar();
       await actualizar(esc.usuarios.dentist, "status = 'signed'");
       expect((await leerNota()).status).toBe("signed");
-      await actualizar(esc.usuarios.dentist, "status = 'draft'");
-      expect((await leerNota()).status).toBe("draft");
+      const msg = await esperaError(client, () =>
+        actualizar(esc.usuarios.dentist, "status = 'draft'"),
+      );
+      expect(msg).toMatch(/adenda/i);
+      expect((await leerNota()).status).toBe("signed");
     });
 
-    it("con revisión pendiente el autor no puede reabrir, el revisor sí", async () => {
+    it("ni el revisor ni la administración reabren una nota firmada", async () => {
       await sembrar({
         status: "signed",
         reviewStatus: "pending",
         reviewerKey: "dentist2",
         requesterKey: "dentist",
       });
+      for (const key of ["dentist2", "admin", "owner"]) {
+        const msg = await esperaError(client, () =>
+          actualizar(esc.usuarios[key], "status = 'draft'"),
+        );
+        expect(msg, key).toMatch(/adenda/i);
+      }
+    });
+
+    it("los datos de la firma no se editan a mano", async () => {
+      await sembrar({ status: "signed" });
       const msg = await esperaError(client, () =>
-        actualizar(esc.usuarios.dentist, "status = 'draft'"),
+        actualizar(esc.usuarios.admin, "signer_license = 'FALSO'"),
       );
-      expect(msg).toMatch(/revisión/i);
-      await actualizar(esc.usuarios.dentist2, "status = 'draft'");
-      expect((await leerNota()).status).toBe("draft");
+      expect(msg).toMatch(/firma no se editan/i);
+    });
+
+    it("una adenda no se reasigna a otra nota", async () => {
+      await sembrar();
+      const msg = await esperaError(client, () =>
+        actualizar(esc.usuarios.admin, "addendum_of = gen_random_uuid()"),
+      );
+      expect(msg).toMatch(/adenda no se puede reasignar/i);
     });
   });
 
