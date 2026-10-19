@@ -14,12 +14,17 @@ import {
  */
 
 /** Stripe falso con estado: `checkout.sessions.create` agrega una suscripción viva. */
-function stripeFalso(subsIniciales: { status: string }[] = []) {
+function stripeFalso(
+  subsIniciales: { status: string }[] = [],
+  /** Lo que devuelve `subscriptions.search` por metadata.clinic_id. */
+  porMetadata: { status: string; customer: string }[] = [],
+) {
   const subs = [...subsIniciales];
   const sesionesPorClave = new Map<string, { url: string }>();
   const stripe = {
     subscriptions: {
       list: vi.fn(async () => ({ data: subs })),
+      search: vi.fn(async () => ({ data: porMetadata })),
     },
     checkout: {
       sessions: {
@@ -116,7 +121,37 @@ describe("crearCheckoutOPortal (BIL-03)", () => {
     expect(res.destino).toBe("checkout");
   });
 
-  it("sin customer no consulta Stripe y abre checkout con el email del owner", async () => {
+  it("fila sin customer (webhook perdido) pero con suscripción viva por metadata.clinic_id: portal, no otro checkout", async () => {
+    const { stripe } = stripeFalso([], [{ status: "active", customer: "cus_huerfano" }]);
+    const res = await crearCheckoutOPortal(stripe, params(null));
+    expect(res.destino).toBe("portal");
+    expect(stripe.subscriptions.search).toHaveBeenCalledWith({
+      query: "metadata['clinic_id']:'clinic-1'",
+      limit: 20,
+    });
+    expect(stripe.billingPortal.sessions.create).toHaveBeenCalledWith({
+      customer: "cus_huerfano",
+      return_url: "https://esmalia.test/suscripcion",
+    });
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("por metadata solo cuentan las vivas: una cancelada no bloquea el checkout", async () => {
+    const { stripe } = stripeFalso([], [{ status: "canceled", customer: "cus_viejo" }]);
+    const res = await crearCheckoutOPortal(stripe, params(null));
+    expect(res.destino).toBe("checkout");
+  });
+
+  it("el checkout setea metadata.clinic_id en la suscripción (lo que la búsqueda usa)", async () => {
+    const { stripe } = stripeFalso();
+    await crearCheckoutOPortal(stripe, params(null));
+    const [payload] = stripe.checkout.sessions.create.mock.calls[0] as [
+      { subscription_data: { metadata: Record<string, string> } },
+    ];
+    expect(payload.subscription_data.metadata.clinic_id).toBe("clinic-1");
+  });
+
+  it("sin customer no lista por customer y abre checkout con el email del owner", async () => {
     const { stripe } = stripeFalso();
     const res = await crearCheckoutOPortal(stripe, params(null));
     expect(res.destino).toBe("checkout");

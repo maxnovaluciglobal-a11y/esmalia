@@ -16,7 +16,7 @@ export function esSuscripcionViva(status: string): boolean {
 }
 
 type StripeParaCheckout = {
-  subscriptions: Pick<Stripe["subscriptions"], "list">;
+  subscriptions: Pick<Stripe["subscriptions"], "list" | "search">;
   checkout: { sessions: Pick<Stripe["checkout"]["sessions"], "create"> };
   billingPortal: { sessions: Pick<Stripe["billingPortal"]["sessions"], "create"> };
 };
@@ -38,6 +38,31 @@ export async function tieneSuscripcionViva(
     limit: 20,
   });
   return data.some((s) => esSuscripcionViva(s.status));
+}
+
+/**
+ * Suscripción viva de la clínica buscada por `metadata.clinic_id` (que el
+ * checkout siempre setea en `subscription_data.metadata`). Cubre el caso en
+ * que la fila local no tiene `stripe_customer_id` porque el webhook falló:
+ * sin esto se creaba otro customer y otra suscripción (revisión del PR #69).
+ * Devuelve el customer de esa suscripción, para abrir su portal.
+ *
+ * Ojo: la Search API de Stripe es eventualmente consistente (hasta ~1 min);
+ * la clave de idempotencia por hora cubre el doble click inmediato.
+ */
+export async function customerConSuscripcionVivaDeLaClinica(
+  stripe: Pick<StripeParaCheckout, "subscriptions">,
+  clinicId: string,
+): Promise<string | null> {
+  // clinicId llega validado como UUID (zod); igual se escapan las comillas.
+  const valor = clinicId.replace(/'/g, "\\'");
+  const { data } = await stripe.subscriptions.search({
+    query: `metadata['clinic_id']:'${valor}'`,
+    limit: 20,
+  });
+  const viva = data.find((s) => esSuscripcionViva(s.status));
+  if (!viva) return null;
+  return typeof viva.customer === "string" ? viva.customer : viva.customer.id;
 }
 
 /**
@@ -123,9 +148,13 @@ export async function crearCheckoutOPortal(
 ): Promise<ResultadoCheckout> {
   const customerId = p.fila?.stripe_customer_id ?? null;
 
-  if (customerId && (await tieneSuscripcionViva(stripe, customerId))) {
+  const customerConSuscripcion =
+    customerId && (await tieneSuscripcionViva(stripe, customerId))
+      ? customerId
+      : await customerConSuscripcionVivaDeLaClinica(stripe, p.clinicId);
+  if (customerConSuscripcion) {
     const portal = await stripe.billingPortal.sessions.create({
-      customer: customerId,
+      customer: customerConSuscripcion,
       return_url: p.portalReturnUrl,
     });
     return { url: portal.url, destino: "portal" };
