@@ -108,6 +108,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   specialties: "catálogo de especialidades",
   stripe_events: "backend: solo service_role (sin políticas)",
   subscriptions: "suscripción de la clínica a Esmalia: la app la lee para el estado de cuenta",
+  trial_extensions: "backend: solo service_role (sin políticas)",
   warehouses: "estructura de inventario",
   whatsapp_accounts: "configuración del canal",
   whatsapp_credentials: "backend: solo service_role (sin políticas)",

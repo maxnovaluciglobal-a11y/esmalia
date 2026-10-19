@@ -114,6 +114,7 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   // Fuera de una clínica existente.
   completeClinicSetup: "Alta de una clínica nueva (todavía no tiene suscripción).",
   marcarLlamadaHecha: "Herramienta del staff de Esmalia (/admin), no del equipo de la clínica.",
+  extenderPrueba: "Herramienta del staff de Esmalia (/admin), no del equipo de la clínica.",
 
   // Sin sesión del equipo: los usa alguien de afuera de la clínica.
   openPortalSession: "Portal del paciente (sin login): abrir la sesión.",
