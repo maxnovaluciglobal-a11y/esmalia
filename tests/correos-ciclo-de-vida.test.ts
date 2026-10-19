@@ -301,8 +301,9 @@ describe("plantillas", () => {
     });
     expect(c.subject).toBe("No pudimos cobrar tu suscripción a Esmalia");
     expect(c.text).toContain("$29.000 CLP");
-    expect(c.text).toContain("tu equipo sigue usando la agenda");
-    expect(c.text).toContain("Gestionar facturación");
+    expect(c.text).toContain("durante los próximos 7 días todo sigue funcionando igual");
+    expect(c.text).toContain("nunca se bloquean");
+    expect(c.text).not.toContain("te lleva a la página de Suscripción");
     expect(c.html).toContain(`${APP}/suscripcion`);
     expect(c.text).not.toContain("volverá a intentar");
     revisarTono("pago fallido", c);
