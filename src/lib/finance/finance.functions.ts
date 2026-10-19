@@ -31,6 +31,7 @@ import {
   netAfterRetention,
   repartirCobertura,
 } from "@/lib/finance/finance";
+import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 
 const SURFACE_ENUM = z.enum(TOOTH_SURFACES);
 const TOOTH_NUMBER_OPT = z
@@ -158,7 +159,7 @@ function procedureRow(d: {
 }
 
 export const createProcedure = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), ...ProcedureFields }).parse(input),
   )
@@ -180,7 +181,7 @@ export const createProcedure = createServerFn({ method: "POST" })
   });
 
 export const updateProcedure = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -213,7 +214,7 @@ export const updateProcedure = createServerFn({ method: "POST" })
  * saber qué prestación del arancel generó una línea vieja.
  */
 export const setProcedureActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -250,7 +251,7 @@ export const setProcedureActive = createServerFn({ method: "POST" })
  * decide alta contra actualización.
  */
 export const importProcedures = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -690,7 +691,7 @@ async function cargarCoberturaDelPaciente(
 }
 
 export const createQuote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -785,7 +786,7 @@ export const createQuote = createServerFn({ method: "POST" })
  * createQuote) y recalcula subtotal/total; conserva el número correlativo.
  */
 export const updateQuote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -863,7 +864,7 @@ export const updateQuote = createServerFn({ method: "POST" })
  * trigger de base convierte el quote en un plan de tratamiento con sus ítems.
  */
 export const setQuoteStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("quotes", "quoteId")])
   .validator((input: unknown) =>
     z
       .object({
@@ -1181,7 +1182,7 @@ export const listClinicTreatmentPlans = createServerFn({ method: "GET" })
   );
 
 export const setTreatmentItemStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("treatment_items", "itemId")])
   .validator((input: unknown) =>
     z
       .object({
@@ -1240,7 +1241,7 @@ export const setTreatmentItemStatus = createServerFn({ method: "POST" })
   });
 
 export const setTreatmentPlanStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("treatment_plans", "planId")])
   .validator((input: unknown) =>
     z.object({ planId: z.string().uuid(), status: z.enum(TREATMENT_PLAN_STATUSES) }).parse(input),
   )
@@ -1315,7 +1316,7 @@ export const listPayments = createServerFn({ method: "GET" })
   });
 
 export const registerPayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -1440,7 +1441,7 @@ export const registerPayment = createServerFn({ method: "POST" })
  * `getFinanceSummary` y `closeCashRegister`.
  */
 export const reversePayment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

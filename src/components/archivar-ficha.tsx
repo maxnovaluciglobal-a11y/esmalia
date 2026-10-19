@@ -20,6 +20,7 @@ import { setPatientArchived } from "@/lib/patients/patients.functions";
 import { EXPLICACION_CONSERVACION } from "@/lib/patients/archivo";
 import { formatoFecha } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 
 /**
  * Archivar o restaurar una ficha (LEG-08 / CLI-05). No existe "eliminar
@@ -56,14 +57,16 @@ export function ArchivarFichaButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className={buttonVariants({ variant: "outline" })}
-      >
-        {archivada ? <ArchiveRestore aria-hidden /> : <Archive aria-hidden />}
-        {archivada ? "Restaurar ficha" : "Archivar ficha"}
-      </button>
+      <BloqueoEscritura>
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          {archivada ? <ArchiveRestore aria-hidden /> : <Archive aria-hidden />}
+          {archivada ? "Restaurar ficha" : "Archivar ficha"}
+        </button>
+      </BloqueoEscritura>
 
       <AlertDialog open={abierto} onOpenChange={(next) => !cambiar.isPending && setAbierto(next)}>
         <AlertDialogContent>

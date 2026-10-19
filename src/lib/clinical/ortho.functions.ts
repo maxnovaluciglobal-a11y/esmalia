@@ -11,6 +11,7 @@ import {
   type OrthoCaseStatus,
   type OrthoControl,
 } from "@/lib/clinical/ortho";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const ORTHO_CASE_COLUMNS =
   "id, patient_id, professional_id, treatment_plan_id, kind, status, started_on, expected_end_on, currency, monthly_fee_cents, notes";
@@ -97,7 +98,7 @@ export const listOrthoCases = createServerFn({ method: "GET" })
   });
 
 export const createOrthoCase = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -143,7 +144,7 @@ export const createOrthoCase = createServerFn({ method: "POST" })
   });
 
 export const setOrthoCaseStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -193,7 +194,7 @@ export const listOrthoControls = createServerFn({ method: "GET" })
  * único motor de pagos que ya existe.
  */
 export const addOrthoControl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

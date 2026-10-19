@@ -18,10 +18,10 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
 import { validarHorarioYSolapamiento, type Solapamiento } from "./appointments.functions";
 import type { Database } from "@/integrations/supabase/types";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const IMPORT_APPT_CHUNK_SIZE = 50;
 const DURACION_FALLBACK_MIN = 30;
@@ -255,7 +255,7 @@ const importAppointmentsInput = z.object({
  *  saltear y por qué, y el aviso soft de solapamiento cuando corresponde
  *  (mismo criterio no-bloqueante que `createAppointment` manual). */
 export const previewImportAppointments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => importAppointmentsInput.parse(input))
   .handler(async ({ data, context }): Promise<ImportAppointmentPreviewRow[]> => {
     const ctx = await cargarContexto(context.supabase, data.clinicId);
@@ -331,7 +331,7 @@ export const previewImportAppointments = createServerFn({ method: "POST" })
  *  cambiado en la base entre las dos llamadas (otra cita creada en el medio),
  *  que es exactamente para lo que existe el aviso soft de solapamiento. */
 export const importAppointments = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => importAppointmentsInput.parse(input))
   .handler(async ({ data, context }): Promise<ImportAppointmentsResult> => {
     const ctx = await cargarContexto(context.supabase, data.clinicId);

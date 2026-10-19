@@ -8,6 +8,7 @@ import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { ClinicSwitcher } from "@/components/clinic-switcher";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { SoloLecturaProvider } from "@/components/solo-lectura";
 import { StatusStrip } from "@/components/status-strip";
 import { getSupabase } from "@/integrations/supabase/lazy";
 import { resetOfflineCache } from "@/lib/offline/offline-cache";
@@ -514,7 +515,9 @@ export function AppShell({
           </nav>
         )}
 
-        <div className="flex-1 p-5 pb-28 sm:p-8 md:pb-8">{children}</div>
+        <div className="flex-1 p-5 pb-28 sm:p-8 md:pb-8">
+          <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
+        </div>
 
         <BarraInferior
           destinos={destinos}

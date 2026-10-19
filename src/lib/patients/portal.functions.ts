@@ -19,6 +19,7 @@ import {
 } from "@/lib/patients/portal-token.server";
 import { motivoParaNoEnviarWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 // ────────────────────────────────────────────────────────────
 // Cara clínica: generar link firmado + mandar por WhatsApp
@@ -29,7 +30,7 @@ const SIN_PERMISOS_PORTAL =
 
 /** Genera link firmado del portal para un paciente. Solo staff de la clínica. */
 export const generatePortalLink = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -186,7 +187,7 @@ export const generatePortalLink = createServerFn({ method: "POST" })
  * nuevo después funciona sin pasos extra — su `iat` va a ser posterior.
  */
 export const revokePortalAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
@@ -485,7 +486,7 @@ export const listPendingAppointmentRequests = createServerFn({ method: "GET" })
 
 /** Marca una solicitud como rechazada. Requiere rol con permiso de agenda. */
 export const declineAppointmentRequest = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), requestId: z.string().uuid() }).parse(input),
   )
@@ -547,7 +548,7 @@ export const listPortalAccessLog = createServerFn({ method: "GET" })
 
 /** Vincula una solicitud a la cita real recién creada y la cierra. */
 export const markAppointmentRequestScheduled = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

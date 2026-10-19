@@ -11,6 +11,7 @@ import {
   type PeriodontalPoint,
   type PeriodontalToothMeasurement,
 } from "@/lib/clinical/periodontal";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const TOOTH_NUMBER = z
   .number()
@@ -251,7 +252,7 @@ export const getPeriodontalChartById = createServerFn({ method: "GET" })
  * clinical_notes: la historia clínica no se corrige en duro).
  */
 export const createPeriodontalChart = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

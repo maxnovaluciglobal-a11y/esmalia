@@ -9,6 +9,7 @@ import { filaYaCreada } from "@/lib/idempotency";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
 import { requireFinanceViewRole } from "@/lib/finance/finance-reports.functions";
 import type { Database } from "@/integrations/supabase/types";
+import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 
 const DEFAULT_TIMEZONE = "America/Santiago";
 
@@ -374,7 +375,7 @@ export async function validarHorarioYSolapamiento(
 }
 
 export const createAppointment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -461,7 +462,7 @@ export const createAppointment = createServerFn({ method: "POST" })
  * nuevo horario propuesto.
  */
 export const updateAppointment = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -503,7 +504,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
   });
 
 export const setAppointmentStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("appointments", "appointmentId")])
   .validator((input: unknown) =>
     z
       .object({
@@ -541,7 +542,7 @@ export const setAppointmentStatus = createServerFn({ method: "POST" })
  * policy de UPDATE existente), justamente porque no es una confirmación.
  */
 export const setPatientConfirmation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("appointments", "appointmentId")])
   .validator((input: unknown) =>
     z
       .object({

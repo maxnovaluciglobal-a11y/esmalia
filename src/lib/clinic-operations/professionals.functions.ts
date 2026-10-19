@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type ProfessionalDetail = {
   id: string;
@@ -95,7 +96,7 @@ const professionalInputSchema = z.object({
  * branches.functions.ts::createBranch: antes solo se podían cargar
  * profesionales durante el wizard de primera configuración. */
 export const createProfessional = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), professional: professionalInputSchema }).parse(input),
   )
@@ -115,7 +116,7 @@ export const createProfessional = createServerFn({ method: "POST" })
   });
 
 export const updateProfessional = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -171,7 +172,7 @@ export const getProfessionalSchedule = createServerFn({ method: "GET" })
  * simple y a prueba de duplicados que un diff incremental para una grilla
  * de 7 días que el usuario edita como un todo. */
 export const setProfessionalSchedule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

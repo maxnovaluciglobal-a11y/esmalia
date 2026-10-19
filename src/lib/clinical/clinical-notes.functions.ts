@@ -23,6 +23,11 @@ import type {
   NoteReviewStatus,
   NoteStatus,
 } from "@/lib/clinical/clinical-notes";
+import {
+  requireEscritura,
+  requireEscrituraDeNotaClinica,
+  requireEscrituraPorFila,
+} from "@/lib/solo-lectura.middleware";
 
 /** Devuelve el mensaje de la base de datos (reglas de permisos) o un texto por defecto. */
 const clinicPatient = z.object({
@@ -294,7 +299,7 @@ export type SaveNoteResult =
  * conflicto para que una persona decida entre las dos.
  */
 export const saveClinicalNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraDeNotaClinica])
   .validator((input: unknown) => saveInput.parse(input))
   .handler(async ({ data, context }): Promise<SaveNoteResult> => {
     const { supabase, userId } = context;
@@ -417,7 +422,7 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
  * (CLI-07): se corrige con una adenda.
  */
 export const restoreNoteVersion = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinical_note_versions", "versionId")])
   .validator((input: unknown) => z.object({ versionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
@@ -481,7 +486,7 @@ export type SignNoteResult =
  * los datos en vez de mostrarle un error.
  */
 export const signClinicalNote = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraDeNotaClinica])
   .validator((input: unknown) => z.object({ noteId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<SignNoteResult> => {
     const { supabase, userId } = context;
@@ -608,7 +613,7 @@ async function identificadoresDelPaciente(
 
 /** Genera texto con IA y registra la acción en la auditoría. */
 export const generateNoteText = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => aiInput.parse(input))
   .handler(async ({ data, context }): Promise<{ text: string }> => {
     const { supabase, userId } = context;
@@ -713,7 +718,7 @@ const structureInput = clinicPatient.extend({
 
 /** Convierte la nota SOAP en campos estructurados (diagnósticos, tratamientos, medicamentos, alergias). */
 export const extractNoteEntities = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => structureInput.parse(input))
   .handler(async ({ data, context }): Promise<{ entities: ClinicalNoteEntity[] }> => {
     const { supabase, userId } = context;
@@ -816,7 +821,7 @@ export const extractNoteEntities = createServerFn({ method: "POST" })
 
 /** Confirma (valida clínicamente) un campo estructurado extraído por IA. */
 export const confirmNoteEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinical_note_entities", "entityId")])
   .validator((input: unknown) =>
     z.object({ entityId: z.string().uuid(), confirmed: z.boolean() }).parse(input),
   )
@@ -837,7 +842,7 @@ export const confirmNoteEntity = createServerFn({ method: "POST" })
 
 /** Elimina un campo estructurado incorrecto. */
 export const deleteNoteEntity = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinical_note_entities", "entityId")])
   .validator((input: unknown) => z.object({ entityId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -919,7 +924,7 @@ async function nombreDe(supabase: SupabaseCtx, userId: string): Promise<string> 
 
 /** Solicita la revisión de una nota firmada. */
 export const requestNoteReview = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinical_notes", "noteId")])
   .validator((input: unknown) =>
     z
       .object({
@@ -999,7 +1004,7 @@ export const requestNoteReview = createServerFn({ method: "POST" })
 
 /** Resuelve o comenta una revisión: aprobar, pedir cambios, comentar o cancelar. */
 export const resolveNoteReview = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinical_notes", "noteId")])
   .validator((input: unknown) =>
     z
       .object({

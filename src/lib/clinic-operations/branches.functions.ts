@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type BranchDetail = {
   id: string;
@@ -75,7 +76,7 @@ export const listBranchesDetailed = createServerFn({ method: "GET" })
  * pueda agregar una sede sin tocar la base de datos a mano. RLS
  * (branches_write / operatories_write) ya exige can_manage_clinic. */
 export const createBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), branch: branchInputSchema }).parse(input),
   )
@@ -122,7 +123,7 @@ export const createBranch = createServerFn({ method: "POST" })
  * addOperatory). isActive permite dar de baja una sucursal sin borrar su
  * historial de citas/pacientes asociados. */
 export const updateBranch = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -158,7 +159,7 @@ export const updateBranch = createServerFn({ method: "POST" })
 
 /** Agrega un box/operatorio a una sucursal existente. */
 export const addOperatory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

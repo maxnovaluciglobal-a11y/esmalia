@@ -15,6 +15,7 @@ import {
 } from "@/lib/messaging/conversations";
 import { sendMetaTextMessage } from "@/lib/messaging/whatsapp.functions";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Cuántos mensajes se leen para armar la bandeja. La query NO puede hacer
@@ -231,7 +232,7 @@ export interface ReplyResult {
  * asumimos que lo mandó. Sin esto la bandeja mostraría el hilo cortado.
  */
 export const replyToConversation = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

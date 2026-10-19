@@ -11,6 +11,7 @@ import {
   type ConsumptionType,
   type SupplyMovementRecord,
 } from "@/lib/clinic-operations/procedure-supply-consumption";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type ProcedureSupply = {
   itemId: string;
@@ -95,7 +96,7 @@ export const listProcedureSupplies = createServerFn({ method: "GET" })
  * nuevo — son pocas líneas de configuración, no eventos históricos). RLS
  * (`procedure_supplies_write_managers`) ya exige owner/admin/dentist. */
 export const setProcedureSupplies = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

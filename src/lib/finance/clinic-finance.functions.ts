@@ -13,6 +13,7 @@ import type {
 } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
 import { writePatientFields } from "@/lib/patients/patients.functions";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Medios de pago configurables por clínica y módulo de gastos (Tanda B).
@@ -109,7 +110,7 @@ const PaymentMethodFields = {
 };
 
 export const createPaymentMethod = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), ...PaymentMethodFields }).parse(input),
   )
@@ -140,7 +141,7 @@ export const createPaymentMethod = createServerFn({ method: "POST" })
   });
 
 export const updatePaymentMethod = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -180,7 +181,7 @@ export const updatePaymentMethod = createServerFn({ method: "POST" })
  * recibo, borrarlo pierde el vínculo con lo ya cobrado.
  */
 export const setPaymentMethodActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -310,7 +311,7 @@ async function snapshotMedioDePago(
 }
 
 export const createExpense = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), ...ExpenseFields }).parse(input),
   )
@@ -345,7 +346,7 @@ export const createExpense = createServerFn({ method: "POST" })
   });
 
 export const updateExpense = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({ clinicId: z.string().uuid(), expenseId: z.string().uuid(), ...ExpenseFields })
@@ -386,7 +387,7 @@ export const updateExpense = createServerFn({ method: "POST" })
  * puede haberse cargado por error y no tiene contraparte externa que proteger.
  */
 export const deleteExpense = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), expenseId: z.string().uuid() }).parse(input),
   )
@@ -497,7 +498,7 @@ function agreementRow(d: {
 }
 
 export const createAgreement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), ...AgreementFields }).parse(input),
   )
@@ -520,7 +521,7 @@ export const createAgreement = createServerFn({ method: "POST" })
   });
 
 export const updateAgreement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -549,7 +550,7 @@ export const updateAgreement = createServerFn({ method: "POST" })
   });
 
 export const setAgreementActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -606,7 +607,7 @@ export const listAgreementCoverage = createServerFn({ method: "GET" })
  * hay que interpretar.
  */
 export const setAgreementCoverage = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -672,7 +673,7 @@ export const setAgreementCoverage = createServerFn({ method: "POST" })
 
 /** Asigna (o quita) el convenio de un paciente. */
 export const setPatientAgreement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

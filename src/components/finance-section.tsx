@@ -85,6 +85,7 @@ import {
   AceptarPresupuestoDialog,
   ConfirmarConsumoDialog,
 } from "@/components/finance/dialogos-presupuesto";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 interface Props {
   clinicId: string;
   clinicaNombre: string;
@@ -781,11 +782,13 @@ function NuevoPresupuestoDialog({
 
   return (
     <Dialog open={open} onOpenChange={cerrar}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" /> Nuevo presupuesto
-        </Button>
-      </DialogTrigger>
+      <BloqueoEscritura>
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <Plus className="size-4" /> Nuevo presupuesto
+          </Button>
+        </DialogTrigger>
+      </BloqueoEscritura>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Nuevo presupuesto</DialogTitle>

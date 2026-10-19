@@ -16,12 +16,14 @@ import { useColaOffline } from "@/hooks/use-offline-mutation";
 import type { ClinicAccess } from "@/lib/access/access";
 import { debeMostrarAvisoMfa } from "@/lib/auth/mfa";
 import { trialBannerVisible } from "@/lib/billing";
+import { soloLectura } from "@/lib/solo-lectura";
 import { getMySubscription } from "@/lib/billing.functions";
 
 /**
  * Una sola franja de estado (rediseño, fase 4). Antes podían apilarse hasta
  * cinco banners; ahora se muestra el más importante, en este orden:
- * demo > sin conexión > sincronización pendiente > simulación de rol >
+ * demo > sin conexión > sincronización pendiente > modo solo lectura >
+ * simulación de rol >
  * verificación en dos pasos (owner sin factor, se puede posponer) > trial.
  *
  * La simulación va antes que el trial (el handoff decía al revés): casi
@@ -65,6 +67,9 @@ export function StatusStrip({ access }: { access: ClinicAccess }) {
   if (pendientes.length + fallidos.length + conflictos.length > 0) {
     return <PendingSyncBanner userId={access.userId} />;
   }
+  // Solo lectura (BIL-01) antes que la simulación y el aviso de MFA: explica
+  // por qué no se puede guardar nada, y es lo que el equipo tiene que ver.
+  if (clinicId && soloLectura(sub)) return <TrialBanner clinicId={clinicId} />;
   if (access.simulatedRole) return <RoleSimulationBar access={access} soloSiSimula />;
   if (avisoMfa) return <AvisoMfaRecomendado onPosponer={posponerMfa} />;
   if (clinicId && trialBannerVisible(sub)) return <TrialBanner clinicId={clinicId} />;

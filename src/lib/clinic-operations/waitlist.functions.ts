@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export interface EntradaEspera {
   id: string;
@@ -70,7 +71,7 @@ export const listWaitlist = createServerFn({ method: "GET" })
  * WhatsApp — la UI lo deja claro en vez de fingir que sí puede.
  */
 export const createWaitlistEntry = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -125,7 +126,7 @@ export const createWaitlistEntry = createServerFn({ method: "POST" })
 
 /** Saca de la lista de espera (soft: status='cancelled', no borra la fila). */
 export const removeWaitlistEntry = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), id: z.string().uuid() }).parse(input),
   )

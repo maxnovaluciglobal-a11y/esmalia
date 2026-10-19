@@ -18,6 +18,7 @@ import {
 import { isUndefinedColumnError, isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { alergiasConFusionadas, cargarFusiones, fichasAbsorbidas } from "@/lib/patients/fusion";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type MedicalHistory = {
   allergies: string[];
@@ -218,7 +219,7 @@ const listField = z.array(z.string().trim().min(1).max(80)).max(30);
  * actualiza las columnas que van en el payload).
  */
 export const setMedicalHistory = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -344,7 +345,7 @@ export const listVitalSigns = createServerFn({ method: "GET" })
 
 /** Una medición nueva. No hay edición: un error se corrige registrando otra. */
 export const recordVitalSigns = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

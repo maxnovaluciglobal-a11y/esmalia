@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   calcularAprobado,
   esDominioValido,
@@ -12,6 +11,7 @@ import {
   type DnsCheckResult,
   type DnsVerification,
 } from "@/lib/messaging/dns-email";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Consulta real de los registros de autenticación de email vía DNS-over-HTTPS.
@@ -20,7 +20,7 @@ import {
  * único endpoint sin middleware y se prestaba a DoH-resolver gratuito y DoS.
  */
 export const verificarDnsEmail = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

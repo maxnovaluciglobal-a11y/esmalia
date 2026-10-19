@@ -12,6 +12,7 @@ import {
   type CashRegister,
   type CashRegisterMethodBreakdown,
 } from "@/lib/finance/cash-registers";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const SIN_PERMISOS_CAJA = "No tienes permisos para operar la caja.";
 
@@ -131,7 +132,7 @@ export const listCashRegisters = createServerFn({ method: "GET" })
   });
 
 export const openCashRegister = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -175,7 +176,7 @@ export const openCashRegister = createServerFn({ method: "POST" })
  * una caja nueva, la historia queda intacta.
  */
 export const closeCashRegister = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

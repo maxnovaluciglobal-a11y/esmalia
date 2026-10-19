@@ -1,8 +1,9 @@
-import { QueryClient } from "@tanstack/react-query";
+import { MutationCache, QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { routeTree } from "./routeTree.gen";
 import { fuentesSupabaseParaCsp } from "@/lib/csp";
+import { esErrorSoloLectura } from "@/lib/solo-lectura";
 
 /** Igual que el cache persistido en disco (ver `lib/offline-cache.ts`). */
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -94,7 +95,17 @@ const nonceForRequest = createIsomorphicFn()
 export const getRouter = async () => {
   const nonce = await nonceForRequest();
 
-  const queryClient = new QueryClient({
+  const queryClient: QueryClient = new QueryClient({
+    // Si el servidor rechaza una escritura por modo solo lectura (BIL-01) y
+    // la pantalla todavía no lo sabía (suscripción en caché), se refresca
+    // la suscripción para que aparezcan el banner y los botones bloqueados.
+    mutationCache: new MutationCache({
+      onError: (error) => {
+        if (esErrorSoloLectura(error)) {
+          void queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
+        }
+      },
+    }),
     defaultOptions: {
       queries: {
         // El default ("online") deja las queries en pausa y SIN datos apenas

@@ -6,6 +6,7 @@ import { esPiezaFdi, type OrigenPlantilla } from "@/lib/clinical/consentimientos
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import { idsDeLaFicha } from "@/lib/patients/fusion";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -100,7 +101,7 @@ export const listPatientDocuments = createServerFn({ method: "GET" })
   });
 
 export const uploadPatientDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -146,7 +147,7 @@ export const uploadPatientDocument = createServerFn({ method: "POST" })
   });
 
 export const archivePatientDocument = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), documentId: z.string().uuid() }).parse(input),
   )
@@ -238,7 +239,7 @@ const PlantillaSchema = z.object({
 });
 
 export const createConsentTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => PlantillaSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("consent_templates").insert({
@@ -259,7 +260,7 @@ export const createConsentTemplate = createServerFn({ method: "POST" })
  * propio snapshot del texto.
  */
 export const updateConsentTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     PlantillaSchema.extend({ templateId: z.string().uuid() }).parse(input),
   )
@@ -281,7 +282,7 @@ export const updateConsentTemplate = createServerFn({ method: "POST" })
 
 /** Marca (o desmarca) un modelo como revisado. Quién y cuándo lo estampa la base. */
 export const setConsentTemplateReviewed = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({ clinicId: z.string().uuid(), templateId: z.string().uuid(), reviewed: z.boolean() })
@@ -298,7 +299,7 @@ export const setConsentTemplateReviewed = createServerFn({ method: "POST" })
   });
 
 export const setConsentTemplateActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({ clinicId: z.string().uuid(), templateId: z.string().uuid(), active: z.boolean() })
@@ -413,7 +414,7 @@ export const listPatientConsents = createServerFn({ method: "GET" })
   });
 
 export const signPatientConsent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -500,7 +501,7 @@ export const signPatientConsent = createServerFn({ method: "POST" })
   });
 
 export const revokePatientConsent = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), consentId: z.string().uuid() }).parse(input),
   )

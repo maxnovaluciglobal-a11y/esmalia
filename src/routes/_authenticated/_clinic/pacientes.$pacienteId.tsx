@@ -67,6 +67,7 @@ import {
   validarBusquedaFicha,
   type PestanaFicha,
 } from "@/components/ficha-busqueda";
+import { BloqueoEscritura, SegunSoloLectura } from "@/components/solo-lectura";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/$pacienteId")({
   validateSearch: validarBusquedaFicha,
@@ -504,34 +505,46 @@ function PacienteDetalle() {
                 />
               )}
               {puedeFacturar && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPestana("finanzas");
-                    setAbrirPago(true);
-                  }}
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  <Wallet aria-hidden /> Cobrar
-                </button>
+                <BloqueoEscritura>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPestana("finanzas");
+                      setAbrirPago(true);
+                    }}
+                    className={buttonVariants({ variant: "outline" })}
+                  >
+                    <Wallet aria-hidden /> Cobrar
+                  </button>
+                </BloqueoEscritura>
               )}
               {hasPermission(access.role, "agenda:manage") && (
-                <Link
-                  to="/agenda"
-                  search={{
-                    q: "",
-                    fecha: "",
-                    vista: "dia",
-                    sucursal: "",
-                    profesional: "",
-                    estado: "",
-                    page: 1,
-                    nueva: paciente.id,
-                  }}
-                  className={buttonVariants()}
+                <SegunSoloLectura
+                  bloqueado={
+                    <BloqueoEscritura>
+                      <button type="button" className={buttonVariants()}>
+                        <CalendarPlus aria-hidden /> Agendar
+                      </button>
+                    </BloqueoEscritura>
+                  }
                 >
-                  <CalendarPlus aria-hidden /> Agendar
-                </Link>
+                  <Link
+                    to="/agenda"
+                    search={{
+                      q: "",
+                      fecha: "",
+                      vista: "dia",
+                      sucursal: "",
+                      profesional: "",
+                      estado: "",
+                      page: 1,
+                      nueva: paciente.id,
+                    }}
+                    className={buttonVariants()}
+                  >
+                    <CalendarPlus aria-hidden /> Agendar
+                  </Link>
+                </SegunSoloLectura>
               )}
             </div>
           </div>
