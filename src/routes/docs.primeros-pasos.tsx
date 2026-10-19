@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { LegalH2, LegalP, LegalUl, LegalLi } from "@/components/legal-page";
 import { canonicalHead } from "@/lib/seo";
 
@@ -37,7 +37,15 @@ function PrimerosPasos() {
       <LegalH2>2. Carga tus pacientes</LegalH2>
       <LegalP>
         Puedes cargar pacientes uno por uno desde la ficha, o importar tu base actual con el
-        importador CSV (pacientes y citas) si venías de otro sistema o de una planilla.
+        importador CSV (pacientes y citas) si venías de otro sistema o de una planilla. Hay
+        plantillas descargables y una{" "}
+        <Link
+          to="/docs/migrar-desde-otro-sistema"
+          className="text-brand-700 underline underline-offset-2"
+        >
+          guía para migrar
+        </Link>
+        .
       </LegalP>
 
       <LegalH2>3. Agrega a tu equipo</LegalH2>

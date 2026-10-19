@@ -1107,7 +1107,15 @@ function ImportarCitasDialog({ clinicId }: { clinicId: string }) {
           <DialogDescription>
             Columnas: documento_paciente, fecha_hora (AAAA-MM-DD HH:mm), tratamiento. profesional y
             sucursal son obligatorias solo si la clínica tiene más de una — si hay una sola, se
-            asigna sola. El paciente tiene que existir ya (importalo primero desde /pacientes).
+            asigna sola. El paciente tiene que existir ya (impórtalo primero desde /pacientes).{" "}
+            <a
+              href="/plantillas/plantilla-citas.csv"
+              download
+              className="font-medium text-brand-700 underline underline-offset-2"
+            >
+              Descargar plantilla
+            </a>{" "}
+            (trae una fila de ejemplo: bórrala antes de subirla).
           </DialogDescription>
         </DialogHeader>
 

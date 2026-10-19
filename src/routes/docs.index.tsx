@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, MessageCircle, Shield, Sparkles } from "lucide-react";
+import { CalendarDays, FileUp, MessageCircle, Shield, Sparkles } from "lucide-react";
 import { canonicalHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/docs/")({
@@ -13,6 +13,12 @@ const cards = [
     icon: Sparkles,
     title: "Primeros pasos",
     text: "Cómo dar de alta tu clínica, cargar pacientes y agendar tu primera cita.",
+  },
+  {
+    to: "/docs/migrar-desde-otro-sistema" as const,
+    icon: FileUp,
+    title: "Migrar desde otro sistema",
+    text: "Plantillas CSV para traer tus pacientes y citas, qué se importa y cómo correr los dos sistemas en paralelo.",
   },
   {
     to: "/docs/whatsapp" as const,
