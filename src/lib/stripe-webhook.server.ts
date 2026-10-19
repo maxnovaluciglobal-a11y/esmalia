@@ -36,8 +36,10 @@ export type AdminClient = SupabaseClient<Database>;
 export interface StripeWebhookDeps {
   stripe: {
     webhooks: Pick<Stripe["webhooks"], "constructEvent">;
-    subscriptions: Pick<Stripe["subscriptions"], "retrieve" | "list">;
+    subscriptions: Pick<Stripe["subscriptions"], "retrieve" | "list" | "cancel">;
     charges: Pick<Stripe["charges"], "retrieve">;
+    /** Cobro → factura → suscripción (reembolso total y disputa perdida). */
+    invoicePayments: Pick<Stripe["invoicePayments"], "list">;
   };
   admin: AdminClient;
   webhookSecret: string;
@@ -137,11 +139,6 @@ function suscripcionDeLaFactura(invoice: Stripe.Invoice): string | null {
   const ref = invoice.parent?.subscription_details?.subscription ?? null;
   if (!ref) return null;
   return typeof ref === "string" ? ref : ref.id;
-}
-
-async function actualizarEstado(admin: AdminClient, clinicId: string, status: string) {
-  const { error } = await admin.from("subscriptions").update({ status }).eq("clinic_id", clinicId);
-  if (error) throw new ErrorDeBaseEnWebhook(`update subscriptions → ${status}`, error);
 }
 
 /**
@@ -277,6 +274,154 @@ async function escribirMarcaDeDisputa(
   throw new ErrorDeBaseEnWebhook("marcar disputa en subscriptions", error);
 }
 
+/** Estados de los que una suscripción ya no vuelve: no hay nada que cancelar. */
+const ESTADOS_TERMINALES: ReadonlySet<string> = new Set(["canceled", "incomplete_expired"]);
+
+export type HechoDeCancelacion = {
+  motivo: "reembolso-total" | "disputa-perdida";
+  /** id del cobro (reembolso) o de la disputa: deriva la clave de idempotencia. */
+  referencia: string;
+};
+
+/**
+ * Suscripción a la que pertenece un cobro: payment_intent → factura (API
+ * InvoicePayments, porque con la versión dahlia ni el Charge ni el
+ * PaymentIntent traen la factura) → `parent.subscription_details`. `null` si
+ * el cobro no salió de una factura de suscripción.
+ */
+async function suscripcionDelCobro(
+  deps: StripeWebhookDeps,
+  charge: Pick<Stripe.Charge, "payment_intent">,
+): Promise<string | null> {
+  const pi = charge.payment_intent;
+  const piId = typeof pi === "string" ? pi : (pi?.id ?? null);
+  if (!piId) return null;
+  try {
+    const pagos = await deps.stripe.invoicePayments.list({
+      payment: { type: "payment_intent", payment_intent: piId },
+      expand: ["data.invoice"],
+      limit: 1,
+    });
+    const factura = pagos.data[0]?.invoice;
+    if (!factura || typeof factura === "string" || factura.deleted) return null;
+    return suscripcionDeLaFactura(factura);
+  } catch (err) {
+    // Sin permiso en la clave restringida o Stripe caído en esta lectura: se
+    // usa la suscripción de la fila y el aviso al staff pide confirmarla. Un
+    // 500 acá haría que Stripe reintentara días sin que nada cambie.
+    await deps.reportarError(err, { ruta: `${RUTA} suscripcion-del-cobro`, metodo: "POST" });
+    return null;
+  }
+}
+
+/**
+ * Reembolso total o disputa perdida (BIL-02): cancela la suscripción EN STRIPE,
+ * no solo en la base. Antes se escribía `canceled` en la fila local, Stripe
+ * seguía cobrando el mes siguiente y el próximo `subscription.updated` volvía
+ * a pisar la fila con `active`.
+ *
+ * Idempotente por tres lados: (1) si la suscripción ya está en un estado
+ * terminal no se llama a `cancel`; (2) la llamada lleva una clave de
+ * idempotencia derivada del hecho (motivo + id del cobro o de la disputa), así
+ * que un reintento tras un 500 o dos entregas concurrentes reciben la misma
+ * respuesta; (3) el aviso al staff deduplica por la misma clave.
+ *
+ * Cancela de inmediato y sin prorrateo: el dinero ya se devolvió (o lo
+ * devolvió el banco), no hay crédito que generar. La fila local se actualiza
+ * con lo que devuelve Stripe, y solo si es la suscripción de la fila: si el
+ * cobro era de otra (una duplicada de BIL-03), la fila no se toca. Si Stripe
+ * o la base fallan, lanza: el webhook responde 500 y Stripe reintenta.
+ *
+ * El acceso no cambia de regla: `canceled` pausa los informes y nunca
+ * bloquea agenda, pacientes ni ficha (`accesoPorSuscripcion`).
+ */
+export async function cancelarSuscripcionEnStripe(
+  deps: StripeWebhookDeps,
+  fila: { clinic_id: string; stripe_subscription_id: string | null },
+  subId: string,
+  hecho: HechoDeCancelacion,
+): Promise<{ cancelada: boolean; estadoPrevio: string }> {
+  const esLaDeLaFila = fila.stripe_subscription_id === subId;
+  const actual = await deps.stripe.subscriptions.retrieve(subId);
+  if (ESTADOS_TERMINALES.has(actual.status)) {
+    if (esLaDeLaFila) await upsertSubscription(deps.admin, fila.clinic_id, actual);
+    return { cancelada: false, estadoPrevio: actual.status };
+  }
+  const cancelada = await deps.stripe.subscriptions.cancel(
+    subId,
+    {
+      invoice_now: false,
+      prorate: false,
+      cancellation_details: { comment: `Esmalia: ${hecho.motivo} (${hecho.referencia}).` },
+    },
+    { idempotencyKey: `cancelar-${hecho.motivo}-${hecho.referencia}` },
+  );
+  if (esLaDeLaFila) await upsertSubscription(deps.admin, fila.clinic_id, cancelada);
+  return { cancelada: true, estadoPrevio: actual.status };
+}
+
+/**
+ * Cancela en Stripe la suscripción de un cobro reembolsado o perdido en
+ * disputa y avisa al staff en todos los casos (también cuando no hubo nada
+ * que cancelar, para revisar a mano). Devuelve la clínica, o null.
+ */
+async function cancelarPorCobro(
+  deps: StripeWebhookDeps,
+  customerId: string,
+  charge: Pick<Stripe.Charge, "payment_intent">,
+  hecho: HechoDeCancelacion,
+  contexto: string[],
+): Promise<string | null> {
+  const fila = await filaPorCustomer(deps.admin, customerId);
+  const titulo = hecho.motivo === "reembolso-total" ? "Reembolso total" : "Disputa perdida";
+  // La del cobro manda; la de la fila es el respaldo (cobro sin factura o
+  // con la factura ya borrada).
+  const delCobro = await suscripcionDelCobro(deps, charge);
+  const subId = delCobro ?? fila?.stripe_subscription_id ?? null;
+
+  let asunto: string;
+  const lineas = [...contexto];
+  if (fila && subId) {
+    const r = await cancelarSuscripcionEnStripe(deps, fila, subId, hecho);
+    if (r.cancelada) {
+      asunto = `${titulo}: suscripción cancelada en Stripe`;
+      lineas.push(
+        `Se canceló la suscripción ${subId} en Stripe (estaba ${r.estadoPrevio}), de inmediato y sin prorrateo.`,
+        "La clínica conserva agenda, pacientes y ficha; los informes quedan pausados.",
+      );
+    } else {
+      asunto = `${titulo}: la suscripción ya estaba cancelada`;
+      lineas.push(
+        `La suscripción ${subId} ya estaba ${r.estadoPrevio}: no hubo que cancelar nada.`,
+      );
+    }
+    if (!delCobro) {
+      lineas.push(
+        "No se pudo leer la suscripción desde la factura del cobro: se usó la de la fila de la clínica. Confirmar en Stripe que era esa.",
+      );
+    } else if (fila.stripe_subscription_id && fila.stripe_subscription_id !== subId) {
+      lineas.push(
+        `Ojo: la fila de la clínica apunta a otra suscripción (${fila.stripe_subscription_id}), que sigue viva y no se tocó.`,
+      );
+    }
+  } else {
+    asunto = `${titulo}: revisar a mano`;
+    lineas.push(
+      fila
+        ? "La clínica no tiene suscripción de Stripe asociada: no se canceló nada."
+        : "No se encontró la clínica de este customer: no se canceló nada.",
+    );
+  }
+
+  await deps.avisos.staff({
+    asunto,
+    clinicId: fila?.clinic_id ?? null,
+    clave: `cancelar-${hecho.motivo}-${hecho.referencia}`,
+    lineas,
+  });
+  return fila?.clinic_id ?? null;
+}
+
 /** Fecha `YYYY-MM-DD` (UTC) de un timestamp de Stripe, para el aviso al staff. */
 function fechaDeStripe(ts: number | null | undefined): string {
   return ts ? new Date(ts * 1000).toISOString().slice(0, 10) : "sin dato";
@@ -365,13 +510,20 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
       // `refunded` es true solo cuando el charge quedó reembolsado por
-      // completo — un reembolso parcial no debe tocar el estado.
+      // completo — un reembolso parcial no toca la suscripción.
       if (charge.refunded) {
-        const customerId =
-          typeof charge.customer === "string" ? charge.customer : charge.customer?.id;
+        const customerId = idDelCustomer(charge.customer);
         if (customerId) {
-          clinicId = await clinicaPorCustomer(admin, customerId);
-          if (clinicId) await actualizarEstado(admin, clinicId, "canceled");
+          clinicId = await cancelarPorCobro(
+            deps,
+            customerId,
+            charge,
+            { motivo: "reembolso-total", referencia: charge.id },
+            [
+              `Cobro ${charge.id} reembolsado por completo (customer ${customerId}).`,
+              `Monto: ${charge.amount_refunded} en unidad mínima de ${charge.currency.toUpperCase()}.`,
+            ],
+          );
         }
       }
       break;
@@ -398,6 +550,13 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
       // `subscription.updated` volvía a pisar. Ahora: marca para revisión
       // manual + aviso al staff con la fecha límite de evidencia. El acceso
       // de la clínica no cambia (ni la ficha ni nada).
+      //
+      // DECISIÓN PENDIENTE (Walter): NO se pausa el cobro mientras la
+      // disputa está abierta. BIL-02 recomienda `pause_collection`, pero
+      // pausar es una decisión comercial (¿se le sigue cobrando a quien
+      // disputa?), y una suscripción pausada no se reanuda sola. Hoy: la
+      // marca + el aviso, y si la disputa se pierde, `dispute.closed` cancela
+      // la suscripción en Stripe. Ver docs/STRIPE_SETUP.md.
       const dispute = event.data.object as Stripe.Dispute;
       const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
       const disputedCharge = await stripe.charges.retrieve(chargeId);
@@ -438,6 +597,18 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
           clinicId,
           { disputed_at: null, dispute_id: null },
           dispute.id,
+        );
+      }
+      if (dispute.status === "lost" && customerId) {
+        // Disputa perdida (BIL-02): el banco devolvió el dinero. Se cancela la
+        // suscripción en Stripe para que no vuelva a cobrar; el aviso al
+        // staff sale aparte (clave propia) además del de cierre.
+        await cancelarPorCobro(
+          deps,
+          customerId,
+          disputedCharge,
+          { motivo: "disputa-perdida", referencia: dispute.id },
+          [`Disputa ${dispute.id} sobre el cobro ${chargeId} cerrada como perdida.`],
         );
       }
       await avisos.staff({
