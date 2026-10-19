@@ -75,6 +75,7 @@ export const TABLES = [
   "subscriptions",
   "treatment_items",
   "treatment_plans",
+  "trial_extensions",
   "waitlist_entries",
   "warehouses",
   "whatsapp_accounts",

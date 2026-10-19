@@ -16,7 +16,7 @@ import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tan
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CalendarCheck, Phone, PhoneCall, ShieldAlert } from "lucide-react";
+import { CalendarCheck, CalendarPlus, Phone, PhoneCall, ShieldAlert } from "lucide-react";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { marcarEquipoInterno } from "@/lib/marketing/eventos";
@@ -24,8 +24,10 @@ import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import { estadoCobroStaff, estadoComoSubscription } from "@/lib/admin/estado-cobro";
 import {
   activadaEn72h,
+  extenderPrueba,
   listClinicsForStaff,
   marcarLlamadaHecha,
+  puedeExtenderPrueba,
   type ClinicaStaffRow,
 } from "@/lib/admin/clinicas.functions";
 import {
@@ -188,6 +190,15 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
             : "informes pausados por pago"}
         </span>
       )}
+      {row.ultimaExtension && (
+        <span
+          className="text-xs text-muted-foreground"
+          title={row.ultimaExtension.reason ?? undefined}
+        >
+          Prueba extendida {row.ultimaExtension.days} días por {row.ultimaExtension.byEmail} el{" "}
+          {formatFecha(row.ultimaExtension.at)}
+        </span>
+      )}
       {disputa && (
         <span
           className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
@@ -197,6 +208,59 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
           Disputa abierta desde {formatFecha(disputa.desde)}
         </span>
       )}
+    </div>
+  );
+}
+
+const OPCIONES_EXTENSION = [30, 60, 90] as const;
+
+/** Extiende la prueba N días a partir de hoy. Pide confirmación porque deja
+ *  registro (quién y cuándo) y reabre los informes si la prueba ya había
+ *  vencido. */
+function ExtenderPruebaControl({ row }: { row: ClinicaStaffRow }) {
+  const router = useRouter();
+  const extenderFn = useServerFn(extenderPrueba);
+  const [dias, setDias] = useState<number>(90);
+  const extender = useMutation({
+    mutationFn: () => extenderFn({ data: { clinicId: row.id, dias } }),
+    onSuccess: async (r) => {
+      await router.invalidate();
+      toast.success(`Prueba extendida hasta el ${formatFecha(r.nuevoFin)}`);
+    },
+    onError: (e: Error) => toast.error(mensajeDeError(e)),
+  });
+
+  return (
+    <div className="inline-flex items-center gap-1.5">
+      <select
+        aria-label={`Días de prueba para ${row.name}`}
+        value={dias}
+        onChange={(e) => setDias(Number(e.target.value))}
+        className="rounded-lg border border-border bg-transparent px-2 py-1.5 text-xs"
+      >
+        {OPCIONES_EXTENSION.map((d) => (
+          <option key={d} value={d}>
+            {d} días
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => {
+          if (
+            window.confirm(
+              `¿Extender la prueba de ${row.name} hasta dentro de ${dias} días? Queda registrado a tu nombre.`,
+            )
+          ) {
+            extender.mutate();
+          }
+        }}
+        disabled={extender.isPending}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <CalendarPlus className="size-3.5" />
+        {extender.isPending ? "Extendiendo…" : "Extender prueba"}
+      </button>
     </div>
   );
 }
@@ -268,7 +332,7 @@ function AdminClinicasPage() {
                     <th className="px-3 py-2 text-left font-medium">Suscripción</th>
                     <th className="px-3 py-2 text-left font-medium">Activación</th>
                     <th className="px-3 py-2 text-left font-medium">Llamada de puesta en marcha</th>
-                    <th className="px-3 py-2 text-right font-medium">Acción</th>
+                    <th className="px-3 py-2 text-right font-medium">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -295,19 +359,22 @@ function AdminClinicasPage() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-right">
-                        {!row.onboardingCallAt && (
-                          <button
-                            type="button"
-                            onClick={() => marcar.mutate(row.id)}
-                            disabled={marcar.isPending && clinicIdEnVuelo === row.id}
-                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <Phone className="size-3.5" />
-                            {marcar.isPending && clinicIdEnVuelo === row.id
-                              ? "Marcando…"
-                              : "Marcar llamada hecha"}
-                          </button>
-                        )}
+                        <div className="flex flex-col items-end gap-1.5">
+                          {puedeExtenderPrueba(row.cobro) && <ExtenderPruebaControl row={row} />}
+                          {!row.onboardingCallAt && (
+                            <button
+                              type="button"
+                              onClick={() => marcar.mutate(row.id)}
+                              disabled={marcar.isPending && clinicIdEnVuelo === row.id}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <Phone className="size-3.5" />
+                              {marcar.isPending && clinicIdEnVuelo === row.id
+                                ? "Marcando…"
+                                : "Marcar llamada hecha"}
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

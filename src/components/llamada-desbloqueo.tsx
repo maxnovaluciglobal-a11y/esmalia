@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
 import { Calendar, Lock, Sparkles } from "lucide-react";
 
+import { MINUTOS_PUESTA_EN_MARCHA, urlPuestaEnMarcha } from "@/lib/marketing/calendly";
+
 /**
  * Gate de features avanzadas desde el día 1 del trial.
  *
@@ -34,13 +36,7 @@ export function LlamadaDesbloqueo({
   clinicEmail?: string | null;
   variante?: "pagina" | "inline";
 }) {
-  // Arma el link de Calendly con prefill si hay datos.
-  let calendlyUrl = "https://calendly.com/maxnovaluciglobal/30min";
-  const params = new URLSearchParams();
-  if (clinicName) params.set("name", clinicName);
-  if (clinicEmail) params.set("email", clinicEmail);
-  const qs = params.toString();
-  if (qs) calendlyUrl += `?${qs}`;
+  const calendlyUrl = urlPuestaEnMarcha({ clinicName, clinicEmail });
 
   if (variante === "inline") {
     return (
@@ -57,7 +53,7 @@ export function LlamadaDesbloqueo({
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 rounded-lg border border-brand bg-transparent px-3 py-1.5 text-xs font-medium text-brand-700 transition-opacity hover:bg-brand/12"
           >
-            <Calendar className="size-3.5" /> Agendar 15 min
+            <Calendar className="size-3.5" /> Agendar {MINUTOS_PUESTA_EN_MARCHA} min
           </a>
           <Link
             to="/suscripcion"
@@ -90,7 +86,7 @@ export function LlamadaDesbloqueo({
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 rounded-lg border border-brand bg-transparent px-5 py-2.5 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12"
         >
-          <Calendar className="size-4" /> Agendar 15 minutos
+          <Calendar className="size-4" /> Agendar {MINUTOS_PUESTA_EN_MARCHA} minutos
         </a>
         <Link
           to="/suscripcion"

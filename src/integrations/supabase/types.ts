@@ -4337,6 +4337,50 @@ export type Database = {
           },
         ];
       };
+      trial_extensions: {
+        Row: {
+          clinic_id: string;
+          days: number;
+          extended_at: string;
+          extended_by: string | null;
+          extended_by_email: string;
+          id: string;
+          new_trial_end: string;
+          previous_trial_end: string;
+          reason: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          days: number;
+          extended_at?: string;
+          extended_by?: string | null;
+          extended_by_email: string;
+          id?: string;
+          new_trial_end: string;
+          previous_trial_end: string;
+          reason?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          days?: number;
+          extended_at?: string;
+          extended_by?: string | null;
+          extended_by_email?: string;
+          id?: string;
+          new_trial_end?: string;
+          previous_trial_end?: string;
+          reason?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trial_extensions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       waitlist_entries: {
         Row: {
           branch_id: string | null;
@@ -4613,6 +4657,16 @@ export type Database = {
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
+      };
+      extender_prueba_de_la_clinica: {
+        Args: {
+          p_actor_email: string;
+          p_actor_id: string;
+          p_clinic_id: string;
+          p_dias: number;
+          p_motivo?: string;
+        };
+        Returns: string;
       };
       guardar_nota_clinica: {
         Args: {

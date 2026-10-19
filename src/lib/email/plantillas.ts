@@ -11,6 +11,7 @@
  */
 import { formatMoney } from "@/lib/finance/finance";
 import { GRACIA_PAGO_FALLIDO_DIAS } from "@/lib/billing";
+import { CALENDLY_PUESTA_EN_MARCHA, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/calendly";
 
 import {
   elegirAccionSugerida,
@@ -64,10 +65,10 @@ export function correoBienvenida(d: DatosBienvenida): CorreoRenderizado {
       tipo: "recuadro",
       titulo: "Tres funciones se activan con una llamada",
       partes: [
-        "WhatsApp oficial, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de 30 minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.",
+        `El WhatsApp de la clínica, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de ${MINUTOS_PUESTA_EN_MARCHA} minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.`,
       ],
       // Mismo Calendly que `LlamadaDesbloqueo` (llamada-desbloqueo.tsx).
-      enlace: { texto: "Agendar la llamada", href: "https://calendly.com/maxnovaluciglobal/30min" },
+      enlace: { texto: "Agendar la llamada", href: CALENDLY_PUESTA_EN_MARCHA },
     },
     { tipo: "boton", texto: "Entrar a Esmalia", href: unir(d.appUrl, "/dashboard") },
     { tipo: "subtitulo", texto: "Primeros pasos" },

@@ -37,7 +37,46 @@ export type ClinicaStaffRow = {
    *  agendó ninguna. Derivada de `appointments.created_at` — sin tabla ni
    *  evento nuevo, para no necesitar una migración de schema. */
   firstAppointmentAt: string | null;
+  /** Última vez que el staff extendió la prueba (quién, cuándo y cuántos
+   *  días), o `null` si nunca. Sale de `trial_extensions`. */
+  ultimaExtension: {
+    at: string;
+    byEmail: string;
+    days: number;
+    newTrialEnd: string;
+    reason: string | null;
+  } | null;
 };
+
+/** Máximo de días que se puede dar en una sola extensión (3 meses de la
+ *  oferta de clínicas fundadoras, con margen). Misma cota que el CHECK de
+ *  `trial_extensions.days`. */
+export const MAX_DIAS_EXTENSION = 120;
+
+/** ¿Se puede extender la prueba de esta clínica? Solo la prueba de la base:
+ *  `trialing` y SIN suscripción en Stripe (si ya pasó por el checkout, el
+ *  calendario lo lleva Stripe). Mismo criterio que la función SQL
+ *  `extender_prueba_de_la_clinica`, que es la que manda; esto solo decide si
+ *  se muestra el botón. */
+export function puedeExtenderPrueba(cobro: CobroStaffFila | null): boolean {
+  return !!cobro && cobro.status === "trialing" && !cobro.stripeSubscriptionId && !!cobro.trialEnd;
+}
+
+/** Traduce el error de la función SQL a un texto seguro para mostrar. */
+export function mensajeDeExtensionFallida(codigo: string | undefined): string {
+  switch (codigo) {
+    case "sin_prueba":
+      return "Esta clínica no tiene una prueba registrada.";
+    case "no_es_prueba_de_la_base":
+      return "Solo se puede extender una prueba que no pasó por Stripe.";
+    case "no_extiende":
+      return "La nueva fecha no es posterior al fin de prueba actual. Elige más días.";
+    case "dias_invalidos":
+      return `Los días tienen que estar entre 1 y ${MAX_DIAS_EXTENSION}.`;
+    default:
+      return "No pudimos extender la prueba.";
+  }
+}
 
 const VENTANA_ACTIVACION_HORAS = 72;
 
@@ -104,6 +143,33 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
       }
     }
 
+    // Última extensión por clínica (orden descendente: la primera aparición
+    // de cada `clinic_id` es la más reciente). Si la migración todavía no
+    // está aplicada la tabla no existe: se muestra "sin dato" en vez de
+    // romper la pantalla entera.
+    const { data: extensiones } = clinicIds.length
+      ? await supabaseAdmin
+          .from("trial_extensions")
+          .select("clinic_id, extended_at, extended_by_email, days, new_trial_end, reason")
+          .in("clinic_id", clinicIds)
+          .order("extended_at", { ascending: false })
+      : { data: [] };
+    const ultimaExtensionPorClinica = new Map<
+      string,
+      NonNullable<ClinicaStaffRow["ultimaExtension"]>
+    >();
+    for (const e of extensiones ?? []) {
+      if (!ultimaExtensionPorClinica.has(e.clinic_id)) {
+        ultimaExtensionPorClinica.set(e.clinic_id, {
+          at: e.extended_at,
+          byEmail: e.extended_by_email,
+          days: e.days,
+          newTrialEnd: e.new_trial_end,
+          reason: e.reason,
+        });
+      }
+    }
+
     return (clinics ?? []).map((c) => {
       const sub = subPorClinica.get(c.id);
       return {
@@ -126,6 +192,7 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
           : null,
         onboardingCallAt: c.onboarding_call_at,
         firstAppointmentAt: primeraCitaPorClinica.get(c.id) ?? null,
+        ultimaExtension: ultimaExtensionPorClinica.get(c.id) ?? null,
       };
     });
   });
@@ -153,4 +220,38 @@ export const marcarLlamadaHecha = createServerFn({ method: "POST" })
     if (error) throw new Error("No pudimos marcar la llamada como hecha.");
 
     return { ok: true };
+  });
+
+/**
+ * Extiende la prueba de una clínica `p_dias` días a partir de hoy y deja
+ * registrado quién y cuándo (`trial_extensions`). Toda la lógica y el
+ * registro viven en la función SQL `extender_prueba_de_la_clinica`, que hace
+ * el UPDATE y el INSERT en una sola transacción: acá solo se autoriza (staff
+ * + MFA) y se traduce el error.
+ */
+export const extenderPrueba = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        dias: z.number().int().min(1).max(MAX_DIAS_EXTENSION),
+        motivo: z.string().trim().max(200).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; nuevoFin: string }> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const email = await requireEsmaliaStaffEmail(supabaseAdmin, context.userId, context.claims);
+
+    const { data: nuevoFin, error } = await supabaseAdmin.rpc("extender_prueba_de_la_clinica", {
+      p_clinic_id: data.clinicId,
+      p_dias: data.dias,
+      p_actor_id: context.userId,
+      p_actor_email: email,
+      p_motivo: data.motivo || undefined,
+    });
+    if (error || !nuevoFin) throw new Error(mensajeDeExtensionFallida(error?.message));
+
+    return { ok: true, nuevoFin };
   });
