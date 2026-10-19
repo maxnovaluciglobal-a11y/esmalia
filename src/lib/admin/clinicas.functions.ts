@@ -19,6 +19,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireEsmaliaStaffEmail } from "@/lib/admin/staff-gate";
+import type { CobroStaffFila } from "@/lib/admin/estado-cobro";
 
 export type ClinicaStaffRow = {
   id: string;
@@ -28,6 +29,8 @@ export type ClinicaStaffRow = {
    *  (clínica piloto anterior al trigger — ver `requiereLlamadaOSuscripcion`). */
   subscriptionStatus: string | null;
   trialEnd: string | null;
+  /** Fila de cobro completa (mora, gracia, disputa). `null` = sin fila. */
+  cobro: CobroStaffFila | null;
   onboardingCallAt: string | null;
   /** Métrica de activación (benchmark de onboarding, 25-sep): fecha de la
    *  PRIMERA cita real que se creó en esta clínica, o `null` si todavía no
@@ -71,12 +74,13 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
     if (error) throw new Error("No pudimos cargar las clínicas.");
 
     const clinicIds = (clinics ?? []).map((c) => c.id);
-    const { data: subs } = clinicIds.length
-      ? await supabaseAdmin
-          .from("subscriptions")
-          .select("clinic_id, status, trial_end")
-          .in("clinic_id", clinicIds)
-      : { data: [] as { clinic_id: string; status: string; trial_end: string | null }[] };
+    // `*` y no columnas sueltas: `past_due_since` y `disputed_at`/`dispute_id`
+    // llegan con migraciones propias; si alguna faltara, la pantalla muestra
+    // "sin dato" en vez de fallar entera.
+    const { data: subs, error: subsError } = clinicIds.length
+      ? await supabaseAdmin.from("subscriptions").select("*").in("clinic_id", clinicIds)
+      : { data: [], error: null };
+    if (subsError) throw new Error("No pudimos cargar las suscripciones.");
 
     const subPorClinica = new Map((subs ?? []).map((s) => [s.clinic_id, s]));
 
@@ -108,6 +112,18 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
         createdAt: c.created_at,
         subscriptionStatus: sub?.status ?? null,
         trialEnd: sub?.trial_end ?? null,
+        cobro: sub
+          ? {
+              clinicId: c.id,
+              status: sub.status,
+              trialEnd: sub.trial_end,
+              currentPeriodEnd: sub.current_period_end,
+              stripeSubscriptionId: sub.stripe_subscription_id,
+              pastDueSince: sub.past_due_since ?? null,
+              disputedAt: sub.disputed_at ?? null,
+              disputeId: sub.dispute_id ?? null,
+            }
+          : null,
         onboardingCallAt: c.onboarding_call_at,
         firstAppointmentAt: primeraCitaPorClinica.get(c.id) ?? null,
       };
