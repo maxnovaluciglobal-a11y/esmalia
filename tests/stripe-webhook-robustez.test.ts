@@ -110,7 +110,7 @@ describe("esClaveLive", () => {
 });
 
 describe("webhook de Stripe: modo del evento (FN-01)", () => {
-  it("un evento de modo prueba en un deploy live se rechaza con 400 sin tocar la base", async () => {
+  it("un evento de modo prueba en un deploy live se ignora (200 + log + Sentry) sin tocar la base", async () => {
     const { admin, llamadas } = adminFalso();
     const ev = evento({
       type: "customer.subscription.updated",
@@ -119,22 +119,25 @@ describe("webhook de Stripe: modo del evento (FN-01)", () => {
     });
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    const res = await procesarWebhookStripe(entrada, deps(ev, admin));
+    const d = deps(ev, admin);
+    const res = await procesarWebhookStripe(entrada, d);
 
-    expect(res.status).toBe(400);
+    // 200 para que Stripe no reintente días ni desactive el endpoint.
+    expect(res.status).toBe(200);
     expect(llamadas).toHaveLength(0);
     expect(warn).toHaveBeenCalled();
+    expect(d.reportarError).toHaveBeenCalledTimes(1);
     warn.mockRestore();
   });
 
-  it("un evento live en un deploy de prueba también se rechaza", async () => {
+  it("un evento live en un deploy de prueba también se ignora", async () => {
     const { admin, llamadas } = adminFalso();
     const ev = evento({ type: "customer.subscription.updated", livemode: true, object: subActiva });
     vi.spyOn(console, "warn").mockImplementationOnce(() => {});
 
     const res = await procesarWebhookStripe(entrada, deps(ev, admin, { secretKey: "sk_test_x" }));
 
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(200);
     expect(llamadas).toHaveLength(0);
   });
 
@@ -166,10 +169,13 @@ describe("webhook de Stripe: errores de escritura (COD-02)", () => {
     expect(d.reportarError).toHaveBeenCalledTimes(1);
   });
 
-  it("si falla el update a past_due: 500 sin marcar y sin mandar el correo", async () => {
+  it("si falla la escritura tras un pago fallido: 500 sin marcar y sin mandar el correo", async () => {
     const { admin, llamadas } = adminFalso({
-      "subscriptions.select": { data: { clinic_id: "clinic-1" }, error: null },
-      "subscriptions.update": { error: { message: "timeout" } },
+      "subscriptions.select": {
+        data: { clinic_id: "clinic-1", stripe_subscription_id: "sub_1" },
+        error: null,
+      },
+      "subscriptions.upsert": { error: { message: "timeout" } },
     });
     const ev = evento({
       type: "invoice.payment_failed",
@@ -241,5 +247,81 @@ describe("webhook de Stripe: idempotencia", () => {
     const ev = evento({ type: "customer.subscription.updated", object: subActiva });
     const res = await procesarWebhookStripe({ rawBody: "{}", signature: null }, deps(ev, admin));
     expect(res.status).toBe(400);
+  });
+});
+
+/**
+ * Revisión del PR #69: los eventos llegan repetidos y fuera de orden. Se
+ * guarda el estado ACTUAL de Stripe, nunca la foto del evento ni un
+ * `past_due` fijo.
+ */
+describe("webhook de Stripe: eventos fuera de orden", () => {
+  const upserts = (ll: Llamada[]) =>
+    ll
+      .filter((l) => l.tabla === "subscriptions" && l.op === "upsert")
+      .map((l) => (l.args[0] as { status: string }).status);
+
+  it("un invoice.payment_failed tardío, llegado después de que el cliente pagó, deja active y no avisa", async () => {
+    const { admin, llamadas } = adminFalso({
+      "subscriptions.select": {
+        data: { clinic_id: "clinic-1", stripe_subscription_id: "sub_1" },
+        error: null,
+      },
+    });
+    const ev = evento({
+      type: "invoice.payment_failed",
+      object: { id: "in_viejo", customer: "cus_1", parent: null },
+    });
+    const d = deps(ev, admin); // retrieve devuelve la suscripción active
+
+    const res = await procesarWebhookStripe(entrada, d);
+
+    expect(res.status).toBe(200);
+    expect(d.stripe.subscriptions.retrieve).toHaveBeenCalledWith("sub_1");
+    expect(upserts(llamadas)).toEqual(["active"]);
+    expect(llamadas.some((l) => l.op === "update")).toBe(false);
+    expect(d.avisos.pagoFallido).not.toHaveBeenCalled();
+  });
+
+  it("un payment_failed vigente guarda past_due y avisa una vez", async () => {
+    const { admin, llamadas } = adminFalso({
+      "subscriptions.select": {
+        data: { clinic_id: "clinic-1", stripe_subscription_id: null },
+        error: null,
+      },
+    });
+    const ev = evento({
+      type: "invoice.payment_failed",
+      object: {
+        id: "in_1",
+        customer: "cus_1",
+        parent: { subscription_details: { subscription: "sub_1" } },
+      },
+    });
+    const d = deps(ev, admin);
+    d.stripe.subscriptions.retrieve = vi.fn(async () => ({
+      ...subActiva,
+      status: "past_due",
+    })) as unknown as StripeWebhookDeps["stripe"]["subscriptions"]["retrieve"];
+
+    const res = await procesarWebhookStripe(entrada, d);
+
+    expect(res.status).toBe(200);
+    expect(upserts(llamadas)).toEqual(["past_due"]);
+    expect(d.avisos.pagoFallido).toHaveBeenCalledTimes(1);
+  });
+
+  it("un customer.subscription.updated viejo (past_due) no pisa el estado actual (active)", async () => {
+    const { admin, llamadas } = adminFalso();
+    const ev = evento({
+      type: "customer.subscription.updated",
+      object: { ...subActiva, status: "past_due" },
+    });
+    const d = deps(ev, admin);
+
+    await procesarWebhookStripe(entrada, d);
+
+    expect(d.stripe.subscriptions.retrieve).toHaveBeenCalledWith("sub_1");
+    expect(upserts(llamadas)).toEqual(["active"]);
   });
 });

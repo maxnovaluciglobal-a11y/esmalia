@@ -13,8 +13,11 @@ import type { Database, Json } from "@/integrations/supabase/types";
  * 1. **El modo del evento tiene que coincidir con el de la clave.** En prod
  *    llegaron eventos `livemode=false` (de la cuenta de pruebas) mezclados con
  *    los reales: un `checkout.session.completed` de prueba podía activar o
- *    cancelar la suscripción de una clínica real. Si no coinciden → 400 sin
- *    procesar ni marcar.
+ *    cancelar la suscripción de una clínica real. Si no coinciden → se ignora
+ *    (200, log y Sentry) sin procesar ni marcar.
+ * 1b. **Estado actual, no el del evento.** Los eventos llegan repetidos y
+ *    fuera de orden: se re-consulta la suscripción en Stripe y se guarda lo
+ *    que diga ahora.
  * 2. **supabase-js nunca lanza**: devuelve `{ error }`. Cada lectura y
  *    escritura se revisa; si algo falla se reporta y se responde 500 SIN
  *    insertar en `stripe_events`, para que Stripe reintente. Antes el flujo
@@ -97,6 +100,26 @@ async function clinicaPorCustomer(admin: AdminClient, customerId: string): Promi
   return data?.clinic_id ?? null;
 }
 
+async function filaPorCustomer(
+  admin: AdminClient,
+  customerId: string,
+): Promise<{ clinic_id: string; stripe_subscription_id: string | null } | null> {
+  const { data, error } = await admin
+    .from("subscriptions")
+    .select("clinic_id, stripe_subscription_id")
+    .eq("stripe_customer_id", customerId)
+    .maybeSingle();
+  if (error) throw new ErrorDeBaseEnWebhook("buscar suscripción por customer", error);
+  return data ?? null;
+}
+
+/** id de la suscripción de una factura (API dahlia: `parent.subscription_details`). */
+function suscripcionDeLaFactura(invoice: Stripe.Invoice): string | null {
+  const ref = invoice.parent?.subscription_details?.subscription ?? null;
+  if (!ref) return null;
+  return typeof ref === "string" ? ref : ref.id;
+}
+
 async function actualizarEstado(admin: AdminClient, clinicId: string, status: string) {
   const { error } = await admin.from("subscriptions").update({ status }).eq("clinic_id", clinicId);
   if (error) throw new ErrorDeBaseEnWebhook(`update subscriptions → ${status}`, error);
@@ -126,17 +149,22 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
-      clinicId = (sub.metadata?.clinic_id as string | undefined) ?? null;
-      if (!clinicId && typeof sub.customer === "string") {
-        clinicId = await clinicaPorCustomer(admin, sub.customer);
+      const delEvento = event.data.object as Stripe.Subscription;
+      clinicId = (delEvento.metadata?.clinic_id as string | undefined) ?? null;
+      if (!clinicId && typeof delEvento.customer === "string") {
+        clinicId = await clinicaPorCustomer(admin, delEvento.customer);
       }
       if (clinicId) {
+        // Fuera de orden: los eventos pueden llegar tarde o repetidos (un
+        // `updated` viejo después de uno nuevo). Se guarda el estado ACTUAL
+        // de Stripe, nunca la foto que trae el evento.
+        const sub = await stripe.subscriptions.retrieve(delEvento.id);
         await upsertSubscription(admin, clinicId, sub);
         const previo = (event.data as { previous_attributes?: Partial<Stripe.Subscription> })
           .previous_attributes?.status;
         const recienActiva =
           sub.status === "active" &&
+          delEvento.status === "active" &&
           (event.type === "customer.subscription.created" ||
             (event.type === "customer.subscription.updated" &&
               previo !== undefined &&
@@ -150,11 +178,21 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
       const customerId =
         typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
       if (customerId) {
-        clinicId = await clinicaPorCustomer(admin, customerId);
-        if (clinicId) {
-          await actualizarEstado(admin, clinicId, "past_due");
-          // Correo "No pudimos cobrar": una vez por factura. Nunca lanza.
-          if (invoice.id) await avisos.pagoFallido(clinicId, invoice.id, invoice);
+        const fila = await filaPorCustomer(admin, customerId);
+        clinicId = fila?.clinic_id ?? null;
+        const subId = suscripcionDeLaFactura(invoice) ?? fila?.stripe_subscription_id ?? null;
+        if (clinicId && subId) {
+          // Antes se escribía `past_due` fijo: un reintento tardío de este
+          // evento, llegado después de que el cliente pagó, lo volvía a
+          // marcar moroso (y reiniciaba `past_due_since`). Se guarda el
+          // estado actual de Stripe; el trigger conserva `past_due_since`
+          // mientras siga en past_due.
+          const sub = await stripe.subscriptions.retrieve(subId);
+          await upsertSubscription(admin, clinicId, sub);
+          // Correo "No pudimos cobrar": solo si sigue impaga. Nunca lanza.
+          if (invoice.id && (sub.status === "past_due" || sub.status === "unpaid")) {
+            await avisos.pagoFallido(clinicId, invoice.id, invoice);
+          }
         }
       }
       break;
@@ -214,16 +252,21 @@ export async function procesarWebhookStripe(
   // FN-01: un evento de modo prueba nunca toca datos de un deploy live (ni al revés).
   const deployLive = esClaveLive(deps.secretKey);
   if (event.livemode !== deployLive) {
-    console.warn(
-      "[stripe webhook] evento rechazado por modo",
-      JSON.stringify({
-        id: event.id,
-        type: event.type,
-        eventoLive: event.livemode,
-        deployLive,
-      }),
-    );
-    return new Response("livemode mismatch", { status: 400 });
+    const detalle = JSON.stringify({
+      id: event.id,
+      type: event.type,
+      eventoLive: event.livemode,
+      deployLive,
+    });
+    console.warn("[stripe webhook] evento ignorado por modo", detalle);
+    await deps.reportarError(new Error(`Stripe webhook: evento de otro modo ignorado ${detalle}`), {
+      ruta: `${RUTA} livemode`,
+      metodo: "POST",
+    });
+    // 200 y no 400: es un error de configuración (clave y endpoint en modos
+    // distintos), no algo que un reintento arregle. Con 4xx Stripe reintenta
+    // durante días y puede desactivar el endpoint. Se ignora sin tocar la base.
+    return new Response("ignored (livemode mismatch)", { status: 200 });
   }
 
   const { admin } = deps;
