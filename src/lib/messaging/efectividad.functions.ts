@@ -18,6 +18,7 @@ import {
   type MensajeMedible,
   type Proporcion,
 } from "@/lib/messaging/efectividad";
+import { esPalabraDeBaja } from "@/lib/messaging/baja-whatsapp";
 import { hoyEnLaClinica, interpretarMensajeDeAgenda } from "@/lib/messaging/intencion-de-agenda";
 import { esConfirmacionDePaciente } from "@/lib/messaging/patient-confirmation";
 
@@ -28,7 +29,6 @@ const TOPE_CITAS = 3000;
 const TOPE_MENSAJES = 3000;
 
 const KINDS_DE_RECORDATORIO = ["appointment_reminder", "appointment_checkin"];
-const OPT_OUT = new Set(["BAJA", "STOP", "CANCELAR", "UNSUBSCRIBE"]);
 
 const SIN_PERMISOS_EFECTIVIDAD =
   "Para ver Efectividad primero tienes que agendar la llamada de puesta en marcha o suscribirte.";
@@ -123,7 +123,7 @@ export const getEfectividad = createServerFn({ method: "GET" })
     // pantalla mida lo que realmente pasa y no una versión idealizada.
     const hoy = hoyEnLaClinica(clinicaRes.data?.timezone ?? "America/Santiago");
     const clasificar = (texto: string): "agenda" | "aviso" | "baja" | null => {
-      if (OPT_OUT.has(texto.trim().toUpperCase())) return "baja";
+      if (esPalabraDeBaja(texto)) return "baja";
       if (esConfirmacionDePaciente(texto)) return "aviso";
       return interpretarMensajeDeAgenda(texto, hoy) ? "agenda" : null;
     };

@@ -122,6 +122,12 @@ export function PortalLinkButton({ clinicId, patientId, bloqueado }: Props) {
           </button>
         )}
       </div>
+      {mut.data.dadoDeBajaWhatsApp && (
+        <p className="text-xs text-muted-foreground">
+          Este paciente pidió la baja de WhatsApp: no se le envió nada. Puedes copiar el link y
+          dárselo por otro medio.
+        </p>
+      )}
     </div>
   );
 }

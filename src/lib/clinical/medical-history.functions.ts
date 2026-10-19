@@ -16,6 +16,7 @@ import {
   type CuestionarioRiesgo,
 } from "@/lib/clinical/anamnesis";
 import { isUndefinedColumnError, isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 
 export type MedicalHistory = {
   allergies: string[];
@@ -56,6 +57,12 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<MedicalHistory> => {
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "anamnesis",
+    });
     const consulta = (columnas: string) =>
       context.supabase
         .from("patient_medical_history")
@@ -74,6 +81,7 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
     }
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar los antecedentes médicos del paciente."));
+    await lectura;
     if (!row) return { ...EMPTY_HISTORY, estructuradaDisponible };
     const fila = row as unknown as {
       allergies: string[] | null;
@@ -231,6 +239,12 @@ export const listVitalSigns = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<{ disponible: boolean; items: SignosVitales[] }> => {
+    // SEG-02: los signos vitales son parte de la anamnesis (misma sección del registro).
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "anamnesis",
+    });
     const { data: rows, error } = await context.supabase
       .from("patient_vital_signs")
       .select(
@@ -240,6 +254,7 @@ export const listVitalSigns = createServerFn({ method: "GET" })
       .eq("patient_id", data.patientId)
       .order("measured_at", { ascending: false })
       .limit(20);
+    await lectura;
     if (error && isUndefinedTableError(error)) return { disponible: false, items: [] };
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar los signos vitales."));
     return {

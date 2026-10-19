@@ -108,7 +108,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Patty, la asistente de IA, hoy trabaja en las notas clínicas: pasa tus apuntes a una nota SOAP y resume la nota. La nota la firma el profesional, no Patty.",
+            "Patty, la IA de Esmalia, está en habilitación: trabajará en las notas clínicas, pasando tus apuntes a una nota SOAP y resumiendo la nota. La nota la firma el profesional, no Patty.",
         },
       ],
     },

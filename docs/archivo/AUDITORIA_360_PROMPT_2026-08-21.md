@@ -1,3 +1,5 @@
+> **Archivado el 2026-10-19: histórico, no vigente.** Lo reemplaza la auditoría 360 total del 18-oct-2026 (fuera del repo: `04 - Esmalia/00 - Gestion/auditorias/2026-10-18-auditoria-360-total/`); lo que quedó por hacer está en [`docs/ROADMAP.md`](../ROADMAP.md). Se conserva como registro de cómo se pensó y decidió en su momento; no lo uses como fuente de estado ni de planes. Las rutas `docs/…` que aparecen abajo apuntan a la ubicación anterior (hoy `docs/archivo/`). Motivo: hallazgo GOB-03 de la auditoría 360 del 18-oct-2026.
+
 # Prompt: Auditoría 360° de Esmalia (pre-implementación)
 
 > Uso: este documento es el brief para correr una auditoría multi-agente en rondas (investigación → contraauditoría → defensa → síntesis). Está pensado para ejecutarse con el tool `Workflow` de Claude Code (subagentes en paralelo, fases con barrera donde corresponde). No implementar nada hasta tener el reporte final aprobado por Walter.

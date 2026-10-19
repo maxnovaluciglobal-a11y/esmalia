@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -55,6 +56,12 @@ export const listPatientDocuments = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<PatientDocument[]> => {
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "documentos",
+    });
     const { data: rows, error } = await context.supabase
       .from("patient_documents")
       .select("id, kind, storage_path, filename, notes, created_at, uploaded_by, archived_at")
@@ -83,6 +90,7 @@ export const listPatientDocuments = createServerFn({ method: "GET" })
         url,
       });
     }
+    await lectura;
     return documents;
   });
 
@@ -244,6 +252,12 @@ export const listPatientConsents = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<PatientConsent[]> => {
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "documentos",
+    });
     const columnas =
       "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at";
     const consulta = (cols: string) =>
@@ -281,6 +295,7 @@ export const listPatientConsents = createServerFn({ method: "GET" })
         signatureUrl: signed?.signedUrl ?? null,
       });
     }
+    await lectura;
     return consents;
   });
 

@@ -9,7 +9,9 @@ import {
   type EventoClinico,
   type Paciente,
 } from "@/lib/clinic-operations/clinic-data";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { mensajeDb } from "@/lib/db-errors";
+import { vigilarCifradoDeDocumento } from "@/lib/patients/documento-cifrado.server";
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
 import type { Database } from "@/integrations/supabase/types";
@@ -279,6 +281,12 @@ export const getPatient = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<Paciente | null> => {
     const { supabase } = context;
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "datos",
+    });
 
     // Auditoría de código 01-sep-2026: patients/appointments/billing no
     // dependen entre sí (todas filtran solo por clinicId/patientId de la
@@ -347,6 +355,7 @@ export const getPatient = createServerFn({ method: "GET" })
       balances.get(data.patientId) ?? {};
     const balance = totalBilled - totalPaid;
 
+    await lectura;
     return {
       ...mapPatientRow(row as PatientRow, ultimaYProxima(appointments, data.patientId)),
       // null cuando no hay actividad financiera (nada facturado, nada pagado);
@@ -419,22 +428,13 @@ export const createPatient = createServerFn({ method: "POST" })
 
     if (error) throw new Error("No pudimos crear el paciente. " + error.message);
 
-    // security-6 Fase 1: escritura en paralelo del documento cifrado, sin
-    // depender de ella todavía (document_id en claro sigue siendo la fuente
-    // de verdad hasta la Fase 1b). Si la migración de Vault/pgcrypto todavía
-    // no está aplicada en este entorno, esto falla silenciosamente — nunca
-    // debe romper el alta del paciente. Ver docs/SECURITY6_CIFRADO_PLAN.md.
+    // SEG-03: el documento lo cifra la base al insertar (trigger
+    // patients_cifrar_documento, migración 20261019160100). Acá solo se
+    // verifica que haya quedado cifrado y, si no, se avisa a Sentry. No
+    // bloquea el alta. document_id en claro sigue siendo la fuente de verdad
+    // hasta el corte de la Fase 1b (docs/SECURITY6_CIFRADO_PLAN.md).
     if (data.documento) {
-      const { error: encError } = await supabase.rpc("set_patient_document_id", {
-        p_patient_id: inserted.id,
-        p_document_id: data.documento,
-      });
-      if (encError) {
-        console.error(
-          "[security-6 fase1] set_patient_document_id falló (no bloqueante):",
-          encError.message,
-        );
-      }
+      await vigilarCifradoDeDocumento(supabase, [inserted.id], "alta");
     }
 
     return { id: inserted.id };
@@ -647,32 +647,12 @@ export const importPatients = createServerFn({ method: "POST" })
         });
       } else {
         created += chunk.length;
-        // security-6 Fase 1: mismo criterio que createPatient/updatePatient —
-        // escritura en paralelo del documento cifrado, no bloqueante (ver
-        // docs/SECURITY6_CIFRADO_PLAN.md). El importador es el único de los 3
-        // puntos de escritura que traía este gap: si un CSV cargaba 500
-        // pacientes con RUT, ninguno quedaba con document_id_enc/hash. Con
-        // concurrencia acotada (no 1 por 1, no las 100 del chunk a la vez)
-        // para no saturar el pooler de Supabase.
-        const conDocumento = (insertedRows ?? []).filter((r) => r.document_id);
-        const ENC_CONCURRENCY = 20;
-        for (let j = 0; j < conDocumento.length; j += ENC_CONCURRENCY) {
-          const lote = conDocumento.slice(j, j + ENC_CONCURRENCY);
-          await Promise.allSettled(
-            lote.map(async (row) => {
-              const { error: encError } = await supabase.rpc("set_patient_document_id", {
-                p_patient_id: row.id,
-                p_document_id: row.document_id as string,
-              });
-              if (encError) {
-                console.error(
-                  "[security-6 fase1] set_patient_document_id falló en importPatients (no bloqueante):",
-                  encError.message,
-                );
-              }
-            }),
-          );
-        }
+        // SEG-03: mismo criterio que createPatient — el trigger cifra cada
+        // fila al insertarla; acá se verifica el lote entero en una sola
+        // consulta (antes eran hasta 100 RPC por chunk) y se avisa a Sentry
+        // si alguna quedó en claro.
+        const conDocumento = (insertedRows ?? []).filter((r) => r.document_id).map((r) => r.id);
+        await vigilarCifradoDeDocumento(supabase, conDocumento, "importacion");
       }
     }
 
@@ -763,24 +743,10 @@ export const updatePatient = createServerFn({ method: "POST" })
     const { error } = await writePatientFields(supabase, clinicId, patientId, patch);
     if (error) throw new Error("No tienes permisos para editar este paciente.");
 
-    // security-6 Fase 1: mismo criterio que createPatient — doble escritura
-    // no bloqueante, ver comentario ahí.
+    // SEG-03: el trigger recifra (o limpia) el documento cuando cambia;
+    // acá solo se verifica, ver createPatient.
     if (rest.documento !== undefined) {
-      const { error: encError } = await supabase.rpc("set_patient_document_id", {
-        p_patient_id: patientId,
-        // El tipo generado marca este parámetro como no-nullable, pero la
-        // función SQL sí acepta NULL a propósito (limpia el documento
-        // cifrado) — ver supabase/migrations/20260822160000_*. Limitación
-        // conocida del generador con parámetros de funciones RPC, no un
-        // cambio real de la firma.
-        p_document_id: (rest.documento || null) as string,
-      });
-      if (encError) {
-        console.error(
-          "[security-6 fase1] set_patient_document_id falló (no bloqueante):",
-          encError.message,
-        );
-      }
+      await vigilarCifradoDeDocumento(supabase, [patientId], "edicion");
     }
 
     return { ok: true };

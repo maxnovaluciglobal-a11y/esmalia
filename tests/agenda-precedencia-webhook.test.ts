@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { esPalabraDeBaja } from "@/lib/messaging/baja-whatsapp";
 import { interpretarMensajeDeAgenda } from "@/lib/messaging/intencion-de-agenda";
 import { esConfirmacionDePaciente } from "@/lib/messaging/patient-confirmation";
 
@@ -7,7 +8,7 @@ import { esConfirmacionDePaciente } from "@/lib/messaging/patient-confirmation";
  * El webhook resuelve un mensaje entrante en un orden fijo, y ese orden es lo
  * que impide que F4 pise a F1 o al opt-out:
  *
- *   1. baja (BAJA/STOP/CANCELAR/UNSUBSCRIBE, mensaje completo)
+ *   1. baja (BAJA/STOP/NO MÁS/UNSUBSCRIBE, mensaje completo; `esPalabraDeBaja`)
  *   2. aviso del paciente ("sí", "ahí voy")  → patient_confirmed_at
  *   3. solicitud de agenda (F4)              → appointment_requests
  *   4. aviso genérico
@@ -16,13 +17,12 @@ import { esConfirmacionDePaciente } from "@/lib/messaging/patient-confirmation";
  * lo que se verifica es que las funciones puras no reclamen el mismo mensaje.
  */
 
-const OPT_OUT = new Set(["BAJA", "STOP", "CANCELAR", "UNSUBSCRIBE"]);
-const esBaja = (t: string) => OPT_OUT.has(t.trim().toUpperCase());
+const esBaja = esPalabraDeBaja;
 const HOY = new Date(2026, 8, 7);
 
 describe("las tres lecturas no se pisan", () => {
   it("una baja no se lee como pedido de agenda ni como confirmación", () => {
-    for (const t of ["BAJA", "stop", "Cancelar", "UNSUBSCRIBE"]) {
+    for (const t of ["BAJA", "stop", "No más", "UNSUBSCRIBE"]) {
       expect(esBaja(t)).toBe(true);
       expect(interpretarMensajeDeAgenda(t, HOY)).toBeNull();
       expect(esConfirmacionDePaciente(t)).toBe(false);
@@ -48,12 +48,14 @@ describe("las tres lecturas no se pisan", () => {
     }
   });
 
-  it("⚠️ 'CANCELAR' pelado sigue siendo una BAJA, no una cancelación de cita", () => {
-    // Ambigüedad real y conocida del vocabulario de opt-out. Se deja como
-    // está a propósito: leer mal una baja es un problema legal (Ley 21.719),
-    // y equivocarse hacia "el paciente pidió la baja" es el error barato.
-    // Con contexto, en cambio, sí se lee como cancelación de cita.
-    expect(esBaja("CANCELAR")).toBe(true);
+  it("'CANCELAR' ya no es una baja: el paciente quiere anular su cita (CON-09)", () => {
+    // Antes "CANCELAR" pelado daba de baja de todo al paciente que solo
+    // quería anular una hora. Ahora pelado cae al aviso genérico (no es baja,
+    // ni confirmación, ni pedido con fecha) y con contexto se lee como
+    // cancelación de cita.
+    expect(esBaja("CANCELAR")).toBe(false);
+    expect(esBaja("cancelar")).toBe(false);
+    expect(esConfirmacionDePaciente("CANCELAR")).toBe(false);
     expect(esBaja("quiero cancelar mi hora")).toBe(false);
     expect(interpretarMensajeDeAgenda("quiero cancelar mi hora", HOY)?.intencion).toBe("cancelar");
   });

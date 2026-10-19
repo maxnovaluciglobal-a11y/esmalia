@@ -125,7 +125,7 @@ export const pagina: PaginaContenido = {
               "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
               "Sí, FDI versionado",
               "Sí: recordatorios 48 h y 3 h; ninguno sale solo",
-              "Sí: Patty, para notas SOAP y resúmenes",
+              "En habilitación: Patty, para notas SOAP y resúmenes",
               "Sí, sincroniza al volver la conexión",
               "No",
               "Sí, 14 días sin tarjeta",
@@ -178,7 +178,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Patty, la IA de Esmalia, pasa tus apuntes a una nota SOAP y resume la nota clínica para la próxima consulta. La lectura de pedidos de hora por WhatsApp llega con el número conectado, en habilitación. No firma notas, no le escribe a pacientes y no mueve la agenda. Más en [Patty IA](/funciones/patty-ia).",
+            "Patty, la IA de Esmalia, está en habilitación: pasará tus apuntes a una nota SOAP y resumirá la nota clínica para la próxima consulta. La lectura de pedidos de hora por WhatsApp llegará con el número conectado. No firma notas, no le escribe a pacientes y no mueve la agenda. Más en [Patty IA](/funciones/patty-ia).",
         },
         {
           tipo: "aviso",
