@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 
 export type MedicalHistory = {
   allergies: string[];
@@ -30,6 +31,12 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<MedicalHistory> => {
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "anamnesis",
+    });
     const { data: row, error } = await context.supabase
       .from("patient_medical_history")
       .select("allergies, chronic_medications, conditions, notes, updated_at")
@@ -38,6 +45,7 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar los antecedentes médicos del paciente."));
+    await lectura;
     if (!row) return EMPTY_HISTORY;
     return {
       allergies: row.allergies ?? [],

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { AppShell } from "@/components/app-shell";
 import { ComplianceExport } from "@/components/compliance-export";
+import { LecturasDeFichas } from "@/components/lecturas-de-fichas";
 import { requirePermission } from "@/lib/access/route-guards";
 
 export const Route = createFileRoute("/_authenticated/_clinic/compliance")({
@@ -12,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/compliance")({
       {
         name: "description",
         content:
-          "Exporta en CSV o PDF el historial de revisión y auditoría clínica filtrado por clínica y rango de fechas.",
+          "Exporta en CSV o PDF el historial de revisión y auditoría clínica, y revisa quién abrió cada ficha de paciente.",
       },
       { property: "og:title", content: "Compliance y auditoría | Esmalia" },
       {
@@ -32,7 +33,10 @@ function CompliancePage() {
   return (
     <AppShell title="Compliance y auditoría" access={access}>
       {access.clinic ? (
-        <ComplianceExport clinicId={access.clinic.id} clinicName={access.clinic.name} />
+        <div className="space-y-6">
+          <ComplianceExport clinicId={access.clinic.id} clinicName={access.clinic.name} />
+          <LecturasDeFichas clinicId={access.clinic.id} />
+        </div>
       ) : (
         <p className="text-muted-foreground">
           Necesitas una clínica activa para consultar el historial de compliance.
