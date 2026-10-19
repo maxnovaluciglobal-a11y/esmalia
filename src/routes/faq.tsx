@@ -89,9 +89,7 @@ const grupos: { t: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: "Si me quiero ir, ¿puedo llevarme mis datos?",
-        // TODO(export): cuando exista "Exportar todo" en Ajustes, volver a ofrecer la
-        // exportación desde la app ("Antes de cerrar tu cuenta te damos la opción de exportar…").
-        a: "Sí. Si te vas, te entregamos todos los datos de tu clínica en formato estándar dentro de 72 horas, a pedido: escríbenos a soporte@esmalia.com.",
+        a: "Sí. Quien administra la clínica puede exportar todos sus datos desde Ajustes en cualquier momento, también antes de cerrar la cuenta. Si lo prefieres, escríbenos a soporte@esmalia.com y te los enviamos.",
       },
     ],
   },

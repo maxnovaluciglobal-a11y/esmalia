@@ -29,7 +29,7 @@ function Terminos() {
     <LegalPage
       label="Legal"
       title="Términos de servicio"
-      updated="Versión 2 · 10 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 3 · 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
     >
       <LegalNotice>
         Esmalia está en etapa de piloto: plan Solo a US$29/mes (1 profesional), plan Clínica a
@@ -40,6 +40,11 @@ function Terminos() {
         </a>
         . Estos términos van a evolucionar cuando el producto salga de piloto — te vamos a avisar
         antes de cualquier cambio importante.
+        <br />
+        <br />
+        <strong>Qué cambió en la versión 3 (19 de octubre de 2026).</strong> Exportas los datos de
+        tu clínica desde la aplicación cuando quieras (secciones 6 y 10), Patty, el asistente de IA,
+        está pausado (sección 7) y las historias clínicas se archivan, no se borran (sección 10).
       </LegalNotice>
 
       <LegalH2>1. Qué es Esmalia</LegalH2>
@@ -123,10 +128,10 @@ function Terminos() {
       <LegalUl>
         <LegalLi>
           <strong>Prueba gratis.</strong> Cada clínica nueva tiene 14 días gratis, sin dejar
-          tarjeta. Si al terminar no te suscribes, agenda, pacientes y ficha clínica siguen
-          abiertos, y puedes pedirnos tus datos cuando quieras; finanzas, comisiones, inventario y
-          los demás informes se activan al suscribirte. Si te suscribes durante la prueba, el primer
-          cobro ocurre al terminar la prueba, y si cancelas antes no te cobramos.
+          tarjeta. Si al terminar no te suscribes, agenda, pacientes, ficha clínica y la exportación
+          de datos siguen abiertos; finanzas, comisiones, inventario y los demás informes se activan
+          al suscribirte. Si te suscribes durante la prueba, el primer cobro ocurre al terminar la
+          prueba, y si cancelas antes no te cobramos.
         </LegalLi>
         <LegalLi>
           <strong>Cobro mensual por adelantado y renovación automática.</strong> La suscripción es
@@ -179,7 +184,8 @@ function Terminos() {
         odontograma, los presupuestos y los planes de tratamiento es responsabilidad del profesional
         y de la clínica que lo registra. Lo mismo vale para los borradores y resúmenes que genera
         Patty, el asistente de IA: son una ayuda para redactar, pueden contener errores, y el
-        profesional debe revisarlos antes de firmarlos o usarlos.
+        profesional debe revisarlos antes de firmarlos o usarlos. Hoy Patty está pausada: no genera
+        borradores ni resúmenes y no se envían datos a ningún proveedor de IA.
       </LegalP>
 
       <LegalH2>8. Propiedad intelectual</LegalH2>
@@ -206,16 +212,15 @@ function Terminos() {
 
       <LegalH2>10. Terminación y tus datos</LegalH2>
       <LegalP>
-        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "Puedes exportar los
-            datos de tu clínica desde la aplicación en cualquier momento". */}
-        Puedes dejar de usar Esmalia y pedir el cierre de tu cuenta cuando quieras. En cualquier
-        momento, también antes de cerrar la cuenta, puedes pedirnos todos los datos de tu clínica
-        escribiendo a{" "}
+        Puedes dejar de usar Esmalia y pedir el cierre de tu cuenta cuando quieras. Puedes exportar
+        todos los datos de tu clínica desde Ajustes en cualquier momento, también antes de cerrar la
+        cuenta (lo hace el dueño o un administrador). Si lo prefieres, escríbenos a{" "}
         <a href="mailto:soporte@esmalia.com" className={enlace}>
           soporte@esmalia.com
-        </a>
-        : te los entregamos en formato estándar dentro de las 72 horas siguientes al pedido. Después
-        de que termina el servicio, si nos lo pides por escrito a{" "}
+        </a>{" "}
+        y te los enviamos. Dentro de la aplicación las historias clínicas no se borran: un paciente
+        se archiva y su historia se conserva, para que puedas cumplir los plazos de conservación de
+        tu país (sección 3). Después de que termina el servicio, si nos lo pides por escrito a{" "}
         <a href="mailto:privacidad@esmalia.com" className={enlace}>
           privacidad@esmalia.com
         </a>
@@ -227,7 +232,7 @@ function Terminos() {
         Podemos suspender o cerrar una cuenta que incumpla la sección 4 (uso aceptable) o que no
         pague (sección 6), avisando el motivo salvo que la ley nos impida hacerlo. Si cerramos
         Esmalia como servicio, avisamos con al menos 30 días de anticipación para que puedas
-        pedirnos tus datos.
+        exportar tus datos.
       </LegalP>
 
       <LegalH2>11. Límite de responsabilidad</LegalH2>
@@ -274,6 +279,12 @@ function Terminos() {
         entiende que aceptas la nueva versión; si no estás de acuerdo, puedes cancelar.
       </LegalP>
       <LegalUl>
+        <LegalLi>
+          <strong>Versión 3 — 19 de octubre de 2026.</strong> La exportación de datos vuelve a estar
+          en la aplicación, también al terminar la prueba gratis, y sigue disponible el pedido a
+          soporte (secciones 6 y 10); se indica que Patty está pausada (sección 7); y se aclara que
+          las historias clínicas se archivan y no se borran (sección 10).
+        </LegalLi>
         <LegalLi>
           <strong>Versión 2 — 10 de octubre de 2026.</strong> Se agregan las condiciones de planes,
           prueba gratis, cobro, renovación, cancelación, reembolsos, cambios de precio y pagos
