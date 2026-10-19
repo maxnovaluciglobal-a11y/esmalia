@@ -19,6 +19,7 @@ export const TABLES = [
   "clinic_counters",
   "clinic_data_exports",
   "clinic_members",
+  "clinical_access_log",
   "clinical_note_audit",
   "clinical_note_entities",
   "clinical_note_reviews",
