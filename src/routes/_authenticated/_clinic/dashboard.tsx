@@ -13,7 +13,7 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { listClinicMembers } from "@/lib/access/access.functions";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { accesoPorSuscripcion } from "@/lib/billing";
 import {
   formatoFecha,
   formatoFechaLarga,
@@ -249,7 +249,7 @@ function saludo(timezone: string | undefined) {
  * sí hereda es la regla que importa: nunca un error rojo genérico donde en
  * realidad es un trial vencido — el estado tiene que decir la verdad.
  */
-function DesempenoBloqueado() {
+function DesempenoBloqueado({ porPago }: { porPago: boolean }) {
   return (
     <div className="card-clinical flex flex-col items-start gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex items-start gap-3">
@@ -259,8 +259,9 @@ function DesempenoBloqueado() {
         <div>
           <p className="text-sm font-medium">El panel de desempeño se activa al suscribirte</p>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Tu trial de 14 días terminó. La agenda y el resto de la clínica siguen funcionando con
-            total normalidad.
+            {porPago
+              ? "Tu suscripción no está al día. La agenda, los pacientes y la ficha clínica siguen funcionando con total normalidad."
+              : "Tu trial de 14 días terminó. La agenda y el resto de la clínica siguen funcionando con total normalidad."}
           </p>
         </div>
       </div>
@@ -304,7 +305,8 @@ function Dashboard() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const informesBloqueados = trialInformesBloqueados(sub ?? null);
+  const acceso = accesoPorSuscripcion(sub ?? null);
+  const informesBloqueados = acceso.nivel === "restringido";
 
   // Ventana hoy..+2 días: alcanza para la agenda de hoy y la cola de "sin
   // confirmar 48 h" (antes traía 30 días para cuatro tarjetas genéricas).
@@ -816,7 +818,9 @@ function Dashboard() {
               </p>
             </div>
             {informesBloqueados ? (
-              <DesempenoBloqueado />
+              <DesempenoBloqueado
+                porPago={acceso.nivel === "restringido" && acceso.motivo === "pago"}
+              />
             ) : (
               <PanelDesempeno clinicId={clinicId} desde={primerDiaDelMes} hasta={hoy} />
             )}

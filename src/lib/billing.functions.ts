@@ -23,9 +23,11 @@ type SubscriptionRow = {
   trial_end: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  /** Opcional: no existe hasta aplicar `20261019120000_subscriptions_past_due_since.sql`. */
+  past_due_since?: string | null;
 };
 
-function mapSubscription(row: SubscriptionRow): Subscription {
+export function mapSubscription(row: SubscriptionRow): Subscription {
   const status = (SUBSCRIPTION_STATUSES as readonly string[]).includes(row.status)
     ? (row.status as Subscription["status"])
     : "incomplete";
@@ -38,8 +40,18 @@ function mapSubscription(row: SubscriptionRow): Subscription {
     trialEnd: row.trial_end,
     currentPeriodEnd: row.current_period_end,
     cancelAtPeriodEnd: row.cancel_at_period_end,
+    pastDueSince: row.past_due_since ?? null,
   };
 }
+
+/**
+ * `*` y no una lista de columnas: `past_due_since` llega con una migración
+ * que se aplica a mano (con OK de Walter). Pedirla por nombre antes de eso
+ * haría fallar la consulta entera (42703) y con ella el estado de la
+ * suscripción en toda la app. Con `*`, si la columna no está, simplemente no
+ * viene y `mapSubscription` la trata como `null`.
+ */
+export const SUBSCRIPTION_SELECT = "*";
 
 const SIN_PERMISOS_FACTURACION = "No tienes permisos para gestionar la suscripción de la clínica.";
 
@@ -50,9 +62,7 @@ export const getMySubscription = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<Subscription | null> => {
     const { data: row, error } = await context.supabase
       .from("subscriptions")
-      .select(
-        "clinic_id, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end, current_period_end, cancel_at_period_end",
-      )
+      .select(SUBSCRIPTION_SELECT)
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar la suscripción de la clínica."));
@@ -77,9 +87,7 @@ export async function throwIfRequiresLlamadaOSuscripcion(
   const [{ data: subRow }, { data: clinicRow }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select(
-        "clinic_id, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end, current_period_end, cancel_at_period_end",
-      )
+      .select(SUBSCRIPTION_SELECT)
       .eq("clinic_id", clinicId)
       .maybeSingle(),
     supabase.from("clinics").select("onboarding_call_at").eq("id", clinicId).maybeSingle(),

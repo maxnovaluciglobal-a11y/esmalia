@@ -3,7 +3,8 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
-import { SUBSCRIPTION_STATUSES, trialInformesBloqueados, type Subscription } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
+import { mapSubscription, SUBSCRIPTION_SELECT } from "@/lib/billing.functions";
 import type { Database } from "@/integrations/supabase/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AccountsReceivableAgingRow } from "@/lib/finance/finance";
@@ -74,8 +75,9 @@ export async function requireFinanceViewRole(
  * su propio chequeo de rol/RLS tal cual estaba, y solo se les agrega esta
  * capa encima, sin tocar a quién le permiten llamarlas.
  *
- * Mismo mapeo que `mapSubscription` en billing.functions.ts (no está
- * exportada ahí, así que se repite acá en lugar de importarla).
+ * Auditoría 360 (BIL-01): el gate es `informesBloqueados`, que además del
+ * trial vencido cubre la gracia de cobro fallido agotada, cancelada o impaga.
+ * Usa el mismo mapeo y la misma selección que `getMySubscription`.
  */
 export async function throwIfTrialBlocksInformes(
   supabase: SupabaseClient<Database>,
@@ -83,26 +85,11 @@ export async function throwIfTrialBlocksInformes(
 ) {
   const { data: subRow } = await supabase
     .from("subscriptions")
-    .select(
-      "clinic_id, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end, current_period_end, cancel_at_period_end",
-    )
+    .select(SUBSCRIPTION_SELECT)
     .eq("clinic_id", clinicId)
     .maybeSingle();
   if (!subRow) return;
-  const status = (SUBSCRIPTION_STATUSES as readonly string[]).includes(subRow.status)
-    ? (subRow.status as Subscription["status"])
-    : "incomplete";
-  const sub: Subscription = {
-    clinicId: subRow.clinic_id,
-    status,
-    stripeCustomerId: subRow.stripe_customer_id,
-    stripeSubscriptionId: subRow.stripe_subscription_id,
-    stripePriceId: subRow.stripe_price_id,
-    trialEnd: subRow.trial_end,
-    currentPeriodEnd: subRow.current_period_end,
-    cancelAtPeriodEnd: subRow.cancel_at_period_end,
-  };
-  if (trialInformesBloqueados(sub)) throw new Error(SIN_PERMISOS_FINANZAS);
+  if (informesBloqueados(mapSubscription(subRow))) throw new Error(SIN_PERMISOS_FINANZAS);
 }
 
 /** Rol + trial. Lo que usan los tres reportes de esta misma factura

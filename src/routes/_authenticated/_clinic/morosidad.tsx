@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { formatoFecha } from "@/lib/clinic-operations/clinic-data";
 import { AGING_BUCKET_LABELS, formatMoney, type AgingBucket } from "@/lib/finance/finance";
 import { getAccountsReceivableAging } from "@/lib/finance/finance-reports.functions";
@@ -55,7 +55,7 @@ function MorosidadPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchAging = useServerFn(getAccountsReceivableAging);
   const {
@@ -77,7 +77,7 @@ function MorosidadPage() {
   return (
     <AppShell title="Morosidad" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Morosidad" />
+        <TrialDesbloqueo pantalla="Morosidad" sub={sub ?? null} />
       ) : (
         <div className="space-y-6">
           <div>

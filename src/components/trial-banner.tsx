@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertCircle, Clock, Sparkles } from "lucide-react";
 
 import { getMySubscription } from "@/lib/billing.functions";
-import { isSubscriptionActive, trialDaysLeft } from "@/lib/billing";
+import { accesoPorSuscripcion, isSubscriptionActive, trialDaysLeft } from "@/lib/billing";
 
 /**
  * Banner top-of-app con estado de suscripción.
@@ -12,8 +12,14 @@ import { isSubscriptionActive, trialDaysLeft } from "@/lib/billing";
  * - Sin suscripción (clínica nueva) → aviso suave, sin bloquear: hoy el
  *   acceso es libre hasta que el owner active el plan por su cuenta.
  * - Trialing → días restantes + CTA a activar tarjeta.
- * - Vencida (past_due / canceled) → bloqueo suave con CTA fuerte.
+ * - Cobro fallido dentro de la gracia (BIL-01) → aviso con los días que
+ *   quedan; todo sigue funcionando.
+ * - No está al día (gracia agotada, cancelada, impaga) → aviso persistente:
+ *   ficha y agenda siguen abiertas, los informes se pausan.
  * - Active → no renderiza nada.
+ *
+ * Lo ve todo el equipo, no solo el owner: si el owner no entra, alguien de
+ * la clínica se entera igual.
  */
 export function TrialBanner({ clinicId }: { clinicId: string }) {
   const fn = useServerFn(getMySubscription);
@@ -79,22 +85,46 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
     );
   }
 
-  // Vencida / no sub / past_due → banner rojo.
+  const acceso = accesoPorSuscripcion(sub);
+
+  if (acceso.nivel === "gracia") {
+    const { diasRestantes } = acceso;
+    return (
+      <div className="flex items-center justify-between gap-3 border-b border-warning-border bg-warning-soft px-5 py-2 text-sm sm:px-8">
+        <div className="flex items-center gap-2">
+          <AlertCircle className="size-4 shrink-0 text-warning" />
+          <span className="font-medium">
+            {diasRestantes === null
+              ? "No pudimos cobrar tu suscripción. Actualiza el medio de pago; mientras tanto todo sigue funcionando."
+              : `No pudimos cobrar tu suscripción. Tienes ${diasRestantes} día${diasRestantes === 1 ? "" : "s"} para actualizar el medio de pago; mientras tanto todo sigue funcionando.`}
+          </span>
+        </div>
+        <Link
+          to="/suscripcion"
+          className="shrink-0 rounded-md border border-warning-border px-3 py-1 text-xs font-medium text-warning hover:bg-warning-soft"
+        >
+          Actualizar medio de pago
+        </Link>
+      </div>
+    );
+  }
+
+  // No está al día: nunca cierra la app, avisa qué sigue abierto.
   return (
     <div className="flex items-center justify-between gap-3 border-b border-destructive/40 bg-destructive/10 px-5 py-2 text-sm sm:px-8">
       <div className="flex items-center gap-2">
-        <AlertCircle className="size-4 text-destructive" />
+        <AlertCircle className="size-4 shrink-0 text-destructive" />
         <span className="font-medium">
           {sub.status === "past_due"
-            ? "Tu último cobro falló. Actualiza el método de pago para no perder acceso."
-            : "Tu suscripción está inactiva."}
+            ? "Seguimos sin poder cobrar tu suscripción. Pacientes, agenda y ficha clínica siguen disponibles; los informes se pausan hasta regularizar el pago."
+            : "Tu suscripción está inactiva. Pacientes, agenda y ficha clínica siguen disponibles; los informes se pausan hasta reactivarla."}
         </span>
       </div>
       <Link
         to="/suscripcion"
-        className="rounded-md border border-destructive px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
+        className="shrink-0 rounded-md border border-destructive px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
       >
-        Reactivar
+        {sub.status === "past_due" ? "Regularizar el pago" : "Reactivar"}
       </Link>
     </div>
   );

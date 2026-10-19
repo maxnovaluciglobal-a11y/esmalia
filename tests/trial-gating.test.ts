@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  debeExpulsarDeLaApp,
+  accesoPorSuscripcion,
+  GRACIA_PAGO_FALLIDO_DIAS,
+  informesBloqueados,
   isSubscriptionActive,
   requiereLlamadaOSuscripcion,
   trialDaysLeft,
@@ -131,74 +133,106 @@ describe("TRIAL_DAYS", () => {
 });
 
 /**
- * Task 11, fix round 1 — Important #4(b): esta lógica vivía inline en
- * `_clinic/route.tsx::beforeLoad` (`soloTrialVencido = sub != null &&
- * trialInformesBloqueados(sub)`, alimentando `!isSubscriptionActive(sub) &&
- * !soloTrialVencido`) sin ningún test — es la única línea que separa "el
- * trial vence y se activan los informes" de "el trial vence y se cierra la
- * app entera". Extraída a `debeExpulsarDeLaApp` en `billing.ts` para poder
- * testearla acá.
+ * Auditoría 360 (18-oct-2026), BIL-01. Reemplaza a `debeExpulsarDeLaApp`:
+ * ningún estado de la suscripción expulsa de la app ni cierra la ficha
+ * clínica. Lo que cambia es si los informes quedan pausados y qué aviso se ve.
  */
-describe("debeExpulsarDeLaApp", () => {
-  it("trial vigente no expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, trialEnd: enDias(5) })).toBe(false);
+describe("accesoPorSuscripcion", () => {
+  const ahora = new Date("2026-10-19T12:00:00Z");
+  const haceDias = (d: number) => new Date(ahora.getTime() - d * 86_400_000).toISOString();
+  const acceso = (sub: Subscription | null) => accesoPorSuscripcion(sub, ahora);
+
+  it("sub === null: completo (clínicas piloto sin fila no se tocan)", () => {
+    expect(acceso(null)).toEqual({ nivel: "completo" });
   });
 
-  it("trial vencido SIN tarjeta no expulsa — eso lo maneja trialInformesBloqueados puntualmente en los informes, no un redirect de toda la app", () => {
-    expect(debeExpulsarDeLaApp({ ...base, trialEnd: enDias(-1) })).toBe(false);
+  it("trial vigente y suscripción activa: completo", () => {
+    expect(acceso({ ...base, trialEnd: haceDias(-5) })).toEqual({ nivel: "completo" });
+    expect(acceso({ ...base, status: "active", currentPeriodEnd: haceDias(-20) })).toEqual({
+      nivel: "completo",
+    });
   });
 
-  it("trial vencido CON tarjeta sí expulsa", () => {
-    // Estado alcanzable: `createCheckoutSession` (billing.functions.ts) crea
-    // la suscripción de Stripe con `trial_period_days: 14` en el momento del
-    // checkout, así que `stripeSubscriptionId` queda seteado desde YA, con
-    // `status` todavía en "trialing" hasta que Stripe procese el fin del
-    // trial. Si `trial_end` pasa antes de que el webhook de Stripe actualice
-    // el status (demora normal, o el webhook falla/no está configurado), la
-    // fila local queda en este estado exacto: trialing + trial_end vencido +
-    // stripeSubscriptionId seteado. Acá `trialInformesBloqueados` ya no
-    // bloquea (hay tarjeta), pero `isSubscriptionActive` tampoco lo da por
-    // activo (sigue siendo "trialing" con `trial_end` pasado) — no tiene
-    // sentido dejarlo con acceso a toda la app basado solo en que alguna vez
-    // cargó una tarjeta, así que expulsar es lo correcto acá.
-    // Pasada la tolerancia de 72 h (dentro de ella sigue activo).
+  it("past_due recién empezado: gracia con los 7 días por delante", () => {
+    expect(acceso({ ...base, status: "past_due", pastDueSince: haceDias(0) })).toEqual({
+      nivel: "gracia",
+      diasRestantes: GRACIA_PAGO_FALLIDO_DIAS,
+    });
+  });
+
+  it("past_due hace 6 días: sigue en gracia, queda 1 día", () => {
+    expect(acceso({ ...base, status: "past_due", pastDueSince: haceDias(6) })).toEqual({
+      nivel: "gracia",
+      diasRestantes: 1,
+    });
+  });
+
+  it("past_due hace 7 días o más: restringido por pago (informes pausados)", () => {
+    expect(acceso({ ...base, status: "past_due", pastDueSince: haceDias(7) })).toEqual({
+      nivel: "restringido",
+      motivo: "pago",
+    });
+    expect(acceso({ ...base, status: "past_due", pastDueSince: haceDias(30) })).toEqual({
+      nivel: "restringido",
+      motivo: "pago",
+    });
+  });
+
+  it("past_due sin fecha (migración sin aplicar): gracia sin cuenta regresiva", () => {
+    expect(acceso({ ...base, status: "past_due" })).toEqual({
+      nivel: "gracia",
+      diasRestantes: null,
+    });
+  });
+
+  it("cancelada (reembolso, disputa, fin de reintentos) o impaga: restringido, nunca expulsión", () => {
+    for (const status of ["canceled", "unpaid", "paused", "incomplete"] as const) {
+      expect(acceso({ ...base, status })).toEqual({ nivel: "restringido", motivo: "pago" });
+    }
+  });
+
+  it("trial de la base vencido sin tarjeta: restringido por trial", () => {
+    expect(acceso({ ...base, trialEnd: haceDias(1) })).toEqual({
+      nivel: "restringido",
+      motivo: "trial_vencido",
+    });
+  });
+
+  it("renovación atrasada dentro de las 72 h: completo", () => {
+    expect(acceso({ ...base, status: "active", currentPeriodEnd: haceDias(2) })).toEqual({
+      nivel: "completo",
+    });
+  });
+
+  it("período vencido hace más de 72 h: restringido", () => {
+    expect(acceso({ ...base, status: "active", currentPeriodEnd: haceDias(4) }).nivel).toBe(
+      "restringido",
+    );
+  });
+});
+
+describe("informesBloqueados", () => {
+  const ahora = new Date("2026-10-19T12:00:00Z");
+  const haceDias = (d: number) => new Date(ahora.getTime() - d * 86_400_000).toISOString();
+
+  it("durante la gracia los informes siguen abiertos", () => {
     expect(
-      debeExpulsarDeLaApp({ ...base, trialEnd: enDias(-4), stripeSubscriptionId: "sub_123" }),
+      informesBloqueados({ ...base, status: "past_due", pastDueSince: haceDias(3) }, ahora),
+    ).toBe(false);
+  });
+
+  it("agotada la gracia se pausan", () => {
+    expect(
+      informesBloqueados({ ...base, status: "past_due", pastDueSince: haceDias(8) }, ahora),
     ).toBe(true);
   });
 
-  it("past_due expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "past_due" })).toBe(true);
+  it("cubre el caso de siempre: trial vencido sin tarjeta", () => {
+    expect(informesBloqueados({ ...base, trialEnd: haceDias(1) }, ahora)).toBe(true);
   });
 
-  it("canceled expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "canceled" })).toBe(true);
-  });
-
-  it("unpaid expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "unpaid" })).toBe(true);
-  });
-
-  it("active con currentPeriodEnd vencido hace más de 72 h expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(-4) })).toBe(
-      true,
-    );
-  });
-
-  it("active con currentPeriodEnd vencido hace menos de 72 h NO expulsa (webhook atrasado)", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(-1) })).toBe(
-      false,
-    );
-  });
-
-  it("active con currentPeriodEnd vigente no expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(20) })).toBe(
-      false,
-    );
-  });
-
-  it("sub === null no expulsa — las clínicas piloto sin fila de suscripción no se tocan", () => {
-    expect(debeExpulsarDeLaApp(null)).toBe(false);
+  it("nunca bloquea a quien no tiene fila", () => {
+    expect(informesBloqueados(null, ahora)).toBe(false);
   });
 });
 
@@ -223,7 +257,7 @@ describe("requiereLlamadaOSuscripcion", () => {
     expect(requiereLlamadaOSuscripcion({ ...base, status: "active" }, null)).toBe(false);
   });
 
-  it("no bloquea a una suscripción vencida/impaga — eso lo maneja debeExpulsarDeLaApp, no este gate", () => {
+  it("no bloquea a una suscripción vencida/impaga — eso lo maneja accesoPorSuscripcion, no este gate", () => {
     expect(requiereLlamadaOSuscripcion({ ...base, status: "past_due" }, null)).toBe(false);
     expect(requiereLlamadaOSuscripcion({ ...base, status: "canceled" }, null)).toBe(false);
   });

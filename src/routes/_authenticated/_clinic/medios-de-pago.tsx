@@ -21,7 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { formatMoney, netAfterRetention, type PaymentMethodConfig } from "@/lib/finance/finance";
 import {
   createPaymentMethod,
@@ -196,7 +196,7 @@ function MediosDePagoPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchMethods = useServerFn(listPaymentMethods);
   const setActiveFn = useServerFn(setPaymentMethodActive);
@@ -228,7 +228,7 @@ function MediosDePagoPage() {
   return (
     <AppShell title="Medios de pago" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Medios de pago" />
+        <TrialDesbloqueo pantalla="Medios de pago" sub={sub ?? null} />
       ) : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">

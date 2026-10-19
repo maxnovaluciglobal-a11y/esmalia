@@ -24,7 +24,7 @@ import { PatientCombobox } from "@/components/patient-combobox";
 import { MoneyInput } from "@/components/money-input";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { hoyISO, formatoFecha } from "@/lib/clinic-operations/clinic-data";
 import {
   LAB_ORDER_STATUSES,
@@ -461,7 +461,7 @@ function LaboratoriosPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchOrders = useServerFn(listLabOrders);
   const setStatusFn = useServerFn(setLabOrderStatus);
@@ -525,7 +525,7 @@ function LaboratoriosPage() {
   return (
     <AppShell title="Laboratorios" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Laboratorios" />
+        <TrialDesbloqueo pantalla="Laboratorios" sub={sub ?? null} />
       ) : (
         <div className="space-y-5">
           <LabPortalSection clinicId={clinicId!} role={access.role} />

@@ -3558,6 +3558,7 @@ export type Database = {
           clinic_id: string;
           created_at: string;
           current_period_end: string | null;
+          past_due_since: string | null;
           status: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
@@ -3570,6 +3571,7 @@ export type Database = {
           clinic_id: string;
           created_at?: string;
           current_period_end?: string | null;
+          past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
@@ -3582,6 +3584,7 @@ export type Database = {
           clinic_id?: string;
           created_at?: string;
           current_period_end?: string | null;
+          past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;

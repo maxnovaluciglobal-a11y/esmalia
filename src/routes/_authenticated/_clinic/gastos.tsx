@@ -33,7 +33,7 @@ import { DateField, FilterBar, SelectField } from "@/components/filters";
 import { MoneyInput } from "@/components/money-input";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { hoyISO, formatoFecha } from "@/lib/clinic-operations/clinic-data";
 import { CATEGORIAS_GASTO_SUGERIDAS, formatMoney, type Expense } from "@/lib/finance/finance";
 import {
@@ -349,7 +349,7 @@ function GastosPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchExpenses = useServerFn(listExpenses);
   const deleteFn = useServerFn(deleteExpense);
@@ -398,7 +398,7 @@ function GastosPage() {
   return (
     <AppShell title="Gastos" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Gastos" />
+        <TrialDesbloqueo pantalla="Gastos" sub={sub ?? null} />
       ) : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
