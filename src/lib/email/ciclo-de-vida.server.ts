@@ -16,7 +16,6 @@ import {
   computePanelDesempeno,
   computeQuoteConversion,
 } from "@/lib/finance/finance-reports.compute";
-import { esHoraDelResumen } from "@/lib/messaging/digest-diario";
 import { tasaDeAusencia, type EstadoCita } from "@/lib/messaging/efectividad";
 import { SITE_URL } from "@/lib/seo";
 
@@ -32,6 +31,7 @@ import {
   claveFinDePruebaStripe,
   contarPresupuestosSinSeguimiento,
   esLunesLocal,
+  esVentanaDeCorreos,
   fechaLocal,
   semanaAnterior,
   semanaPrevia,
@@ -381,9 +381,9 @@ function contar(resumen: ResumenCorrida, r: ResultadoEnvio) {
 
 /**
  * Corre lo que toca en este momento. Pensado para un disparo por hora
- * (GitHub Actions): cada clínica actúa solo en su ventana local de 8:00 a
- * 11:59, igual que el resumen diario, y la tabla de idempotencia evita
- * repetir dentro de la ventana.
+ * (GitHub Actions, que no es fiable: ver `esVentanaDeCorreos`): cada
+ * clínica actúa solo en su ventana local de 8:00 a 20:59 y la tabla de
+ * idempotencia evita repetir dentro de la ventana.
  */
 export async function correrCorreosProgramados(
   admin: ClienteAdmin,
@@ -411,7 +411,7 @@ export async function correrCorreosProgramados(
       break;
     }
     const tz = c.timezone || TIMEZONE_POR_DEFECTO;
-    if (!esHoraDelResumen(ahora, tz)) continue;
+    if (!esVentanaDeCorreos(ahora, tz)) continue;
     resumen.clinicasRevisadas += 1;
     try {
       for (const r of await avisoDeFinDePrueba(admin, c, ahora)) contar(resumen, r);

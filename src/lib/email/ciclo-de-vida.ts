@@ -8,6 +8,8 @@
  * Lo testea `tests/correos-ciclo-de-vida.test.ts` sin levantar Postgres.
  */
 
+import { horaLocal } from "@/lib/messaging/digest-diario";
+
 export const LIFECYCLE_KINDS = [
   "welcome",
   "trial_t3",
@@ -191,7 +193,27 @@ export function semanaPrevia(s: Semana): Semana {
   return { desde: sumarDias(s.desde, -7), hasta: sumarDias(s.hasta, -7) };
 }
 
-/** ¿Es lunes en la clínica? (La hora la filtra `esHoraDelResumen`, compartida con el resumen diario.) */
+/**
+ * Ventana local en la que los correos de ciclo de vida pueden salir: desde las
+ * 8:00 hasta las 20:59.
+ *
+ * El resumen diario usa 8:00-11:59 (`esHoraDelResumen`), pero el disparo de
+ * GitHub Actions es poco fiable: entre el 11 y el 18-oct corrió 3 a 7 veces por
+ * día y el lunes 12 ninguna cayó dentro de la ventana de ningún país, así que
+ * el reporte semanal y los avisos de fin de prueba no salieron (CS-03). Estos
+ * correos son idempotentes (`lifecycle_emails`, por destinatario y período),
+ * así que abrir la ventana no puede duplicarlos: solo evita perderlos. El
+ * límite de las 20:59 es para no escribirle a una clínica de noche.
+ */
+export const HORA_INICIO_CORREOS = 8;
+export const HORA_FIN_CORREOS = 20;
+
+export function esVentanaDeCorreos(ahora: Date, timezone: string): boolean {
+  const hora = horaLocal(ahora, timezone);
+  return hora >= HORA_INICIO_CORREOS && hora <= HORA_FIN_CORREOS;
+}
+
+/** ¿Es lunes en la clínica? (La hora la filtra `esVentanaDeCorreos`.) */
 export function esLunesLocal(ahora: Date, timezone: string): boolean {
   return diaDeSemana(fechaLocal(ahora, timezone)) === 0;
 }
