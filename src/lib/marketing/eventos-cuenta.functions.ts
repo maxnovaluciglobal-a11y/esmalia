@@ -98,13 +98,22 @@ export const registrarEventoDeCuenta = createServerFn({ method: "POST" })
       .select("is_demo")
       .eq("id", data.clinicId)
       .maybeSingle();
-    await registrarEventoServidor(
-      "suscripcion_activada",
-      conInterno(
-        { estado: sub!.status, fuente: "retorno_checkout" },
-        interno || Boolean(clinica?.is_demo),
-      ),
-      data.sessionHash,
-    );
-    return { registrado: true };
+    // Una sola vez por suscripción entre esta vuelta y el webhook de Stripe
+    // (que también lo emite). Si el webhook ganó, esta vuelta le suma la
+    // atribución (`sessionHash`) al evento que ya existe. La membresía ya la
+    // validó la lectura con RLS de arriba; el reclamo usa el cliente de
+    // servicio porque `subscriptions` es de solo lectura para los miembros.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { registrarSuscripcionActivadaUnaVez } =
+      await import("@/lib/marketing/suscripcion-activada.server");
+    const resultado = await registrarSuscripcionActivadaUnaVez({
+      admin: supabaseAdmin,
+      clinicId: data.clinicId,
+      subscriptionId: sub!.stripe_subscription_id!,
+      estado: sub!.status,
+      fuente: "retorno_checkout",
+      interno: interno || Boolean(clinica?.is_demo),
+      sessionHash: data.sessionHash,
+    });
+    return { registrado: resultado !== "error" };
   });

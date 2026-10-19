@@ -109,7 +109,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Cuando un mensaje no calza con ninguna regla, lo puede leer [Patty, la IA de Esmalia](/funciones/patty-ia). Si tampoco lo entiende con confianza, el mensaje queda en la bandeja para una persona.",
+            "Cuando un mensaje no calza con ninguna regla, queda en la bandeja para una persona. Más adelante lo podrá leer [Patty, la IA de Esmalia](/funciones/patty-ia), hoy en habilitación; si tampoco lo entiende con confianza, seguirá quedando para una persona.",
         },
       ],
     },

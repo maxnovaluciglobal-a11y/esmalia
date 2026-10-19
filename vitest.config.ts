@@ -11,9 +11,12 @@ export default defineConfig({
   },
   test: {
     include: ["tests/**/*.test.ts"],
+    // Aborta la corrida si alguna variable de conexión apunta a producción
+    // (ver docs/TESTS.md). La suite corre solo contra la base local efímera.
+    globalSetup: ["./tests/setup/guard-produccion.ts"],
     environment: "node",
     testTimeout: 30_000,
-    // Las pruebas comparten una base real: se ejecutan en serie con rollback por test.
+    // Las pruebas comparten una base: se ejecutan en serie con rollback por test.
     fileParallelism: false,
     sequence: { concurrent: false },
   },

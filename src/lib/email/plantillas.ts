@@ -1,5 +1,5 @@
 /**
- * Las cinco plantillas de correo de ciclo de vida, como funciones puras.
+ * Las plantillas de correo de ciclo de vida, como funciones puras.
  * Cada una devuelve `{ subject, html, text }` a partir de datos ya resueltos.
  *
  * Tono: español neutro con tuteo (sin voseo), sin signos de exclamación y sin
@@ -200,6 +200,79 @@ export function correoFinDePrueba(d: DatosFinDePrueba): CorreoRenderizado {
       ? `${usoCorto} La agenda y las fichas siguen disponibles; los informes quedan en pausa.`.trim()
       : `${usoCorto} No se cobra nada antes del ${fechaLarga(d.finDePrueba)}.`.trim(),
     titulo: esHoy ? "Hoy termina tu prueba" : "Quedan 3 días de prueba",
+    bloques,
+    pie: {
+      motivo: `Recibes este correo porque eres responsable de la cuenta de ${d.clinicName} en Esmalia.`,
+    },
+  });
+}
+
+// ─── b2. Fin de la prueba gestionada por Stripe (trial_will_end) ─────────
+
+export interface DatosFinDePruebaStripe {
+  appUrl: string;
+  clinicName: string;
+  nombre?: string | null;
+  /** Fecha local (YYYY-MM-DD) en que termina la prueba. */
+  finDePrueba: string;
+  /** ¿La suscripción ya tiene una tarjeta con la que cobrar? */
+  tieneMedioDePago: boolean;
+  plan: string;
+  /** Primer cobro, en la unidad mínima de la moneda (como Stripe). */
+  montoCents: number | null;
+  currency: string | null;
+}
+
+/**
+ * La clínica pasó por el checkout con prueba: Stripe lleva el calendario y
+ * avisa 3 días antes (`customer.subscription.trial_will_end`). Distinto del
+ * aviso del trial de la base: acá ya hay una suscripción, y lo que importa
+ * es si hay tarjeta para el primer cobro.
+ */
+export function correoFinDePruebaStripe(d: DatosFinDePruebaStripe): CorreoRenderizado {
+  const monto =
+    d.montoCents !== null && d.currency ? montoConMoneda(d.montoCents, d.currency) : null;
+  const bloques: Bloque[] = d.tieneMedioDePago
+    ? [
+        p(saludo(d.nombre)),
+        p(
+          `La prueba del plan ${d.plan} de ${d.clinicName} termina el `,
+          { negrita: fechaConDia(d.finDePrueba) },
+          monto
+            ? `. Ese día se hace el primer cobro, de ${monto}, con la tarjeta que registraste.`
+            : ". Ese día se hace el primer cobro con la tarjeta que registraste.",
+        ),
+        p("No tienes que hacer nada para seguir. Todo sigue funcionando igual."),
+        p(
+          "Si quieres cambiar de plan o de tarjeta, o cancelar antes del cobro, entra a Suscripción y usa ",
+          { negrita: "Gestionar facturación" },
+          ".",
+        ),
+        { tipo: "boton", texto: "Revisar mi suscripción", href: unir(d.appUrl, "/suscripcion") },
+        pTenue("Si tienes dudas, responde este correo."),
+      ]
+    : [
+        p(saludo(d.nombre)),
+        p(
+          `La prueba del plan ${d.plan} de ${d.clinicName} termina el `,
+          { negrita: fechaConDia(d.finDePrueba) },
+          " y todavía no hay una tarjeta registrada.",
+        ),
+        p(
+          "Para seguir con todo sin interrupciones, agrega una tarjeta antes de esa fecha. Si no, no podremos cobrar: la agenda, los pacientes y las fichas siguen disponibles, y los informes (",
+          LO_QUE_SE_PAUSA,
+          ") quedan en pausa.",
+        ),
+        { tipo: "boton", texto: "Agregar una tarjeta", href: unir(d.appUrl, "/suscripcion") },
+        pTenue("Si tienes dudas sobre los planes, responde este correo."),
+      ];
+  return renderCorreo({
+    appUrl: d.appUrl,
+    asunto: "Tu prueba de Esmalia termina en 3 días",
+    preencabezado: d.tieneMedioDePago
+      ? `El primer cobro es el ${fechaLarga(d.finDePrueba)}. No tienes que hacer nada.`
+      : `Agrega una tarjeta antes del ${fechaLarga(d.finDePrueba)} para seguir con todo.`,
+    titulo: "Quedan 3 días de prueba",
     bloques,
     pie: {
       motivo: `Recibes este correo porque eres responsable de la cuenta de ${d.clinicName} en Esmalia.`,

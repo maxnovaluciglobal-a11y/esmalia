@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { esPalabraDeBaja } from "@/lib/messaging/baja-whatsapp";
 import { estadoPlantillaDesdeMeta } from "@/lib/messaging/meta-plantillas";
 import { normalizeToWaMe } from "@/lib/messaging/messaging";
 import { isClinicOpenNow } from "@/lib/messaging/whatsapp";
@@ -216,8 +217,6 @@ async function applyStatusUpdate(
   await supabaseAdmin.from("messages").update(patch).eq("external_id", status.id);
 }
 
-const OPT_OUT_WORDS = new Set(["BAJA", "STOP", "CANCELAR", "UNSUBSCRIBE"]);
-
 /**
  * Mensaje entrante: se guarda siempre en el historial (así el staff lo ve en
  * la ficha del paciente, incluso "SÍ"/"RE" — ninguno dispara un cambio de
@@ -225,7 +224,8 @@ const OPT_OUT_WORDS = new Set(["BAJA", "STOP", "CANCELAR", "UNSUBSCRIBE"]);
  * asignado (o admin/owner en su nombre) desde la agenda — ver migración
  * 20260901130000_appointment_dentist_confirmation. Antes "SÍ" confirmaba la
  * próxima cita solo, sin que nadie de la clínica la validara; se sacó a
- * pedido de una clienta potencial. "BAJA/STOP" corta el opt-in.
+ * pedido de una clienta potencial. "BAJA", "STOP" o "NO MÁS" cortan el
+ * opt-in (`esPalabraDeBaja`); "CANCELAR" ya no, ver `baja-whatsapp.ts`.
  */
 async function applyInboundMessage(
   supabaseAdmin: SupabaseAdminClient,
@@ -271,8 +271,7 @@ async function applyInboundMessage(
     external_id: message.id,
   });
 
-  const normalized = bodyText.trim().toUpperCase();
-  const esBaja = OPT_OUT_WORDS.has(normalized);
+  const esBaja = esPalabraDeBaja(bodyText);
   if (esBaja) {
     await supabaseAdmin
       .from("patients")
@@ -289,8 +288,10 @@ async function applyInboundMessage(
 
   // F4: si el mensaje pide, mueve o cancela una hora, se anota como solicitud
   // en vez de quedar como texto suelto que alguien tiene que releer. El orden
-  // importa: baja y confirmación mandan, porque "CANCELAR" pelado es una baja
-  // y "sí" es un aviso de asistencia, no un pedido de hora.
+  // importa: baja y confirmación mandan, porque "STOP" es una baja y "sí" es
+  // un aviso de asistencia, no un pedido de hora. "CANCELAR" ya no es baja
+  // (CON-09): pelado cae al aviso genérico y con contexto ("quiero cancelar
+  // mi hora") se lee como cancelación de cita.
   const solicitud =
     esBaja || citaConfirmada
       ? null

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { motivoParaNoEnviarWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { buildWaMeUrl, normalizeToWaMe } from "@/lib/messaging/messaging";
 import { mensajeTelefonoInvalido } from "@/lib/messaging/telefonos";
 import {
@@ -247,7 +248,7 @@ export const replyToConversation = createServerFn({ method: "POST" })
     const [{ data: paciente, error: errPac }, { data: clinica }] = await Promise.all([
       supabase
         .from("patients")
-        .select("id, phone")
+        .select("id, phone, wa_opt_out_at")
         .eq("clinic_id", data.clinicId)
         .eq("id", data.patientId)
         .maybeSingle(),
@@ -275,6 +276,15 @@ export const replyToConversation = createServerFn({ method: "POST" })
       .maybeSingle();
 
     const ventana = serviceWindow(ultimoEntrante?.created_at ?? null);
+
+    // CON-09: a un paciente dado de baja solo se le contesta lo que él mismo
+    // escribió, con la ventana de 24 h abierta. Fuera de eso, ni API ni wa.me.
+    const bloqueo = motivoParaNoEnviarWhatsApp({
+      waOptOutAt: paciente.wa_opt_out_at,
+      tipo: "respuesta",
+      ventanaAbierta: ventana.open,
+    });
+    if (bloqueo) throw new Error(bloqueo);
 
     let via: ReplyResult["via"] = "wa_me";
     let externalId: string | null = null;

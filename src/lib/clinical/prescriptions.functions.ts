@@ -9,6 +9,7 @@ import {
   RecetaItemsSchema,
   type RecetaEmitida,
 } from "@/lib/clinical/recetas";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
 
 const BUCKET = "clinical-documents";
@@ -64,13 +65,22 @@ export const listPatientPrescriptions = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<RecetasDelPaciente> => {
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(context.supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "documentos",
+    });
     const { data: rows, error } = await context.supabase
       .from("prescriptions")
       .select(COLUMNAS)
       .eq("clinic_id", data.clinicId)
       .eq("patient_id", data.patientId)
       .order("issued_at", { ascending: false });
-    if (error && isUndefinedTableError(error)) return { disponible: false, recetas: [] };
+    if (error && isUndefinedTableError(error)) {
+      await lectura;
+      return { disponible: false, recetas: [] };
+    }
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar las recetas del paciente."));
 
     const recetas: RecetaDeFicha[] = [];
@@ -105,6 +115,7 @@ export const listPatientPrescriptions = createServerFn({ method: "GET" })
         signatureUrl,
       });
     }
+    await lectura;
     return { disponible: true, recetas };
   });
 

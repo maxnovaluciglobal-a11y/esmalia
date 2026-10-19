@@ -7,6 +7,13 @@ on:
   # también tienen que pasar typecheck, lint y tests antes de llegar a main.
   pull_request:
 
+# Una corrida por rama: un push nuevo cancela la corrida anterior de la MISMA
+# rama (PR o branch), nunca la de otra. En main no se cancela: cada commit que
+# llega a producción queda verificado.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
@@ -32,32 +39,13 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    # Una sola corrida de tests a la vez en todo el repo: todas pegan contra
-    # la MISMA base real, y dos en paralelo se pisaban los datos de prueba
-    # (falso rojo en #17, 07-oct-2026). Se encolan; no se cancelan.
-    concurrency:
-      group: tests-contra-base-real
-      cancel-in-progress: false
-    # tests/*.test.ts corren contra el Supabase real (transacción con
-    # ROLLBACK por test, no dejan datos — ver tests/helpers/db.ts). Necesita
-    # los 5 secrets de conexión directa (PGHOST/PGPORT/PGUSER/PGDATABASE/
-    # PGPASSWORD) más 3 secrets del cliente Supabase (SUPABASE_URL/
-    # SUPABASE_PUBLISHABLE_KEY/SUPABASE_SERVICE_ROLE_KEY, usados por
-    # tests/rls-enforcement-smoke.test.ts) cargados en Settings → Secrets
-    # and variables → Actions.
-    #
-    # PG* cargados por Walter el 2026-08-17. SUPABASE_* cargados el
-    # 2026-08-26 — el job vuelve a bloquear el workflow si falla (ya no hay
-    # continue-on-error).
-    env:
-      PGHOST: ${{ secrets.PGHOST }}
-      PGPORT: ${{ secrets.PGPORT }}
-      PGUSER: ${{ secrets.PGUSER }}
-      PGDATABASE: ${{ secrets.PGDATABASE }}
-      PGPASSWORD: ${{ secrets.PGPASSWORD }}
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    timeout-minutes: 20
+    # La suite corre contra un Supabase EFÍMERO levantado en el runner
+    # (Postgres + Auth + PostgREST + Storage) con todas las migraciones de
+    # supabase/migrations/ aplicadas en orden. Ningún test toca producción
+    # (hallazgos COD-07 / FN-02, auditoría 360 del 18-oct-2026): este job no
+    # recibe ningún secret, y tests/setup/guard-produccion.ts aborta la
+    # corrida si alguna variable de conexión apunta al proyecto real.
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -65,4 +53,7 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Escribe PG*/SUPABASE_* de la base local en $GITHUB_ENV.
+      - name: Levantar base efímera y aplicar migraciones
+        run: bash scripts/test-db/start.sh
       - run: npm test

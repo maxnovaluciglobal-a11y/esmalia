@@ -1,5 +1,51 @@
 # security-6 — Cifrado de columna para PII/PHI
 
+## Estado al 19-oct-2026 (auditoría 360, SEG-03 / GOB-02)
+
+La sección "Estado real" de abajo quedó vieja otra vez. Lo que pasó y lo que
+cambia con la migración `20261019160100_cifrado_documento_backfill.sql`
+(versionada, **se aplica con OK de Walter**):
+
+- **Causa raíz de los 0 documentos cifrados:** la clave de Vault existe desde
+  el 11-oct, pero `set_patient_document_id` no puede cifrar desde el 01-sep.
+  La migración `20260901120000` (chequeo de rol) reescribió la función con
+  `search_path = public, vault` y perdió el `extensions` que había agregado
+  `20260822160000` (pgcrypto vive en `extensions` en Supabase). La
+  `20261014000000` copió esa versión. Cada alta fallaba y el error quedaba en
+  un `console.error` "no bloqueante". Además la demo (10 de los 11 pacientes)
+  se recrea con SQL directo y nunca pasó por el RPC.
+- **Ahora cifra la base, no la app:** `cifrar_documento_id()` es la única
+  función que cifra (pgp_sym_encrypt + HMAC como blind index) y el trigger
+  `patients_cifrar_documento` (BEFORE INSERT OR UPDATE OF document_id) la
+  aplica a todo alta o cambio, venga de la app, del importador CSV, de
+  `reset_demo_clinic` o de un script. `set_patient_document_id` delega en ella.
+  `tests/cifrado-documento.test.ts` falla si una redefinición futura vuelve a
+  sacar `extensions` del search_path.
+- **Backfill idempotente + verificación** en la misma migración: si con la
+  clave presente queda un documento sin cifrar, o alguno no descifra igual al
+  texto en claro, la transacción se revierte.
+- **Alerta:** después de un alta, una edición o una importación con
+  documento, la app relee la fila y, si quedó en claro sin `document_id_enc`,
+  manda un error a Sentry (sin el documento: solo cuántos y en qué operación).
+  Ver `src/lib/patients/documento-cifrado.server.ts`.
+
+**Lo que sigue (Fase 1b, cutover), en este orden y en PRs aparte:**
+
+1. Aplicar `20261019160100` y comprobar en producción:
+   `select count(*) filter (where document_id is not null and btrim(document_id) <> '' and document_id_enc is null) from patients;` → 0.
+2. Respaldar la clave `esmalia_document_id_key` fuera de Supabase (SEG-10).
+   Sin ese respaldo, borrar el texto en claro convierte una clave perdida en
+   un dato perdido.
+3. Leer el documento solo con `get_patient_document_id` (ficha, exportaciones,
+   CSV) y deduplicar el importador por `document_id_hash`.
+4. Revisar el trigger `patients_cifrar_documento` (con `document_id` en NULL
+   cambia su lógica de INSERT), poner `document_id` en NULL y, más adelante,
+   quitar la columna. Quitar también el UPDATE directo de
+   `document_id_enc`/`document_id_hash` a `authenticated` (hoy un miembro de la
+   clínica podría escribir basura en esas columnas de sus propios pacientes).
+5. Decidir con el abogado si `phone` y `birth_date` entran (Fases 2 y 3 de
+   abajo).
+
 ## ⚠️ Estado real, corregido 2026-09-01 (auditoría externa) — este doc quedó desactualizado
 
 Este archivo decía "plan, no implementación" pero la migración de Fase 1
@@ -39,7 +85,7 @@ gap de `importPatients` se cerró el 01-sep) ya llaman al RPC. Lo que **NO** se
 resuelve solo con crear la clave: los pacientes que ya existen hoy (creados
 antes de que la clave exista) quedan con `document_id_enc` NULL para siempre a
 menos que alguien corra un backfill — eso es la Fase 1b, deliberadamente no
-construida, ver el resto de este doc y `docs/PLAN_ACCION.md`.
+construida, ver el resto de este doc y `docs/archivo/PLAN_ACCION.md` (histórico; lo vigente está en `docs/ROADMAP.md`).
 
 **Antes de avanzar a Fase 1b (cutover: leer solo del campo cifrado, backfill de
 pacientes existentes) sigue pendiente la confirmación legal** de si el cifrado
