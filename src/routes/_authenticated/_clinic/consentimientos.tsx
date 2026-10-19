@@ -2,7 +2,7 @@ import { useId, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileSignature, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, FileSignature, Loader2, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -23,7 +23,15 @@ import {
   createConsentTemplate,
   listConsentTemplates,
   setConsentTemplateActive,
+  setConsentTemplateReviewed,
+  updateConsentTemplate,
+  type ConsentTemplate,
 } from "@/lib/clinical/clinical-documents.functions";
+import {
+  AVISO_MODELO,
+  ETIQUETA_ESTADO_PLANTILLA,
+  estadoPlantilla,
+} from "@/lib/clinical/consentimientos";
 import { requirePermission } from "@/lib/access/route-guards";
 import { mensajeDeError } from "@/lib/mensaje-error";
 
@@ -46,70 +54,146 @@ export const Route = createFileRoute("/_authenticated/_clinic/consentimientos")(
   component: ConsentimientosPage,
 });
 
-function NuevaPlantillaDialog({ clinicId }: { clinicId: string }) {
+type PlantillaForm = {
+  title: string;
+  procedure: string;
+  body: string;
+  risks: string;
+  alternatives: string;
+};
+
+const FORM_VACIO: PlantillaForm = {
+  title: "",
+  procedure: "",
+  body: "",
+  risks: "",
+  alternatives: "",
+};
+
+function PlantillaDialog({
+  clinicId,
+  plantilla,
+}: {
+  clinicId: string;
+  /** Sin plantilla: crear. Con plantilla: editar (no cambia lo ya firmado). */
+  plantilla?: ConsentTemplate;
+}) {
   const fid = useId();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+  const [form, setForm] = useState<PlantillaForm>(FORM_VACIO);
   const queryClient = useQueryClient();
   const createFn = useServerFn(createConsentTemplate);
+  const updateFn = useServerFn(updateConsentTemplate);
 
-  const crear = useMutation({
-    mutationFn: () => createFn({ data: { clinicId, title, body } }),
+  function abrir(next: boolean) {
+    setOpen(next);
+    if (next) {
+      setForm(
+        plantilla
+          ? {
+              title: plantilla.title,
+              procedure: plantilla.procedure ?? plantilla.title,
+              body: plantilla.body,
+              risks: plantilla.risks ?? "",
+              alternatives: plantilla.alternatives ?? "",
+            }
+          : FORM_VACIO,
+      );
+    }
+  }
+
+  const guardar = useMutation({
+    mutationFn: () =>
+      plantilla
+        ? updateFn({ data: { clinicId, templateId: plantilla.id, ...form } })
+        : createFn({ data: { clinicId, ...form } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["consent-templates-admin", clinicId] });
-      toast.success("Plantilla creada.");
+      queryClient.invalidateQueries({ queryKey: ["consent-templates", clinicId] });
+      toast.success(plantilla ? "Plantilla actualizada." : "Plantilla creada.");
       setOpen(false);
-      setTitle("");
-      setBody("");
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
+  const campo = (k: keyof PlantillaForm) => ({
+    value: form[k],
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+      setForm((f) => ({ ...f, [k]: e.target.value })),
+    className: inputClass(),
+  });
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={abrir}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" /> Nueva plantilla
-        </Button>
+        {plantilla ? (
+          <Button size="sm" variant="outline">
+            <Pencil className="size-3.5" /> Editar
+          </Button>
+        ) : (
+          <Button size="sm">
+            <Plus className="size-4" /> Nueva plantilla
+          </Button>
+        )}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Nueva plantilla de consentimiento</DialogTitle>
+          <DialogTitle>
+            {plantilla ? "Editar plantilla de consentimiento" : "Nueva plantilla de consentimiento"}
+          </DialogTitle>
           <DialogDescription>
             El texto queda disponible al firmar en la ficha del paciente. Editar la plantilla
             después no cambia lo que ya se firmó.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${fid}-titulo`}>Título</Label>
+              <input
+                id={`${fid}-titulo`}
+                {...campo("title")}
+                placeholder="Ej. Consentimiento para exodoncia"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`${fid}-procedimiento`}>Procedimiento</Label>
+              <input
+                id={`${fid}-procedimiento`}
+                {...campo("procedure")}
+                placeholder="Ej. Exodoncia (extracción dental)"
+              />
+            </div>
+          </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${fid}-titulo`}>Título</Label>
-            <input
-              id={`${fid}-titulo`}
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className={inputClass()}
-              placeholder="Ej. Consentimiento para extracción dental"
+            <Label htmlFor={`${fid}-texto`}>Descripción y declaración</Label>
+            <textarea
+              id={`${fid}-texto`}
+              {...campo("body")}
+              rows={8}
+              placeholder="Explica el procedimiento, sus beneficios y los cuidados posteriores…"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor={`${fid}-texto`}>Texto</Label>
-            <textarea
-              id={`${fid}-texto`}
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              rows={8}
-              className={inputClass()}
-              placeholder="Explica el procedimiento, riesgos, alternativas y beneficios…"
-            />
+            <Label htmlFor={`${fid}-riesgos`}>Riesgos</Label>
+            <textarea id={`${fid}-riesgos`} {...campo("risks")} rows={4} />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor={`${fid}-alternativas`}>Alternativas</Label>
+            <textarea id={`${fid}-alternativas`} {...campo("alternatives")} rows={3} />
           </div>
         </div>
         <DialogFooter>
           <Button
-            onClick={() => crear.mutate()}
-            disabled={crear.isPending || title.trim().length < 2 || body.trim().length < 10}
+            onClick={() => guardar.mutate()}
+            disabled={
+              guardar.isPending ||
+              form.title.trim().length < 2 ||
+              form.procedure.trim().length < 2 ||
+              form.body.trim().length < 10
+            }
           >
-            {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
+            {guardar.isPending && <Loader2 className="size-3.5 animate-spin" />}
             Guardar plantilla
           </Button>
         </DialogFooter>
@@ -123,7 +207,9 @@ function ConsentimientosPage() {
   const clinicId = access.clinic?.id;
   const fetchTemplates = useServerFn(listConsentTemplates);
   const toggleActive = useServerFn(setConsentTemplateActive);
+  const toggleReviewed = useServerFn(setConsentTemplateReviewed);
   const queryClient = useQueryClient();
+  const [abiertaId, setAbiertaId] = useState<string | null>(null);
 
   const templatesQuery = useQuery({
     queryKey: ["consent-templates-admin", clinicId],
@@ -131,11 +217,25 @@ function ConsentimientosPage() {
     enabled: Boolean(clinicId),
   });
 
+  const invalidar = () => {
+    queryClient.invalidateQueries({ queryKey: ["consent-templates-admin", clinicId] });
+    queryClient.invalidateQueries({ queryKey: ["consent-templates", clinicId] });
+  };
+
   const toggleMutation = useMutation({
     mutationFn: (params: { templateId: string; active: boolean }) =>
       toggleActive({ data: { clinicId: clinicId!, ...params } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["consent-templates-admin", clinicId] }),
+    onSuccess: invalidar,
+    onError: (e: Error) => toast.error(mensajeDeError(e)),
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: (params: { templateId: string; reviewed: boolean }) =>
+      toggleReviewed({ data: { clinicId: clinicId!, ...params } }),
+    onSuccess: (_d, params) => {
+      invalidar();
+      toast.success(params.reviewed ? "Plantilla marcada como revisada." : "Marca quitada.");
+    },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
@@ -148,6 +248,9 @@ function ConsentimientosPage() {
   }
 
   const templates = templatesQuery.data ?? [];
+  const modelosSinRevisar = templates.filter(
+    (t) => estadoPlantilla(t) === "modelo-sin-revisar",
+  ).length;
 
   return (
     <AppShell title="Plantillas de consentimiento" access={access}>
@@ -162,8 +265,20 @@ function ConsentimientosPage() {
               : `${templates.length} plantilla${templates.length === 1 ? "" : "s"}. Se firman desde la ficha de cada paciente.`}
           </p>
         </div>
-        <NuevaPlantillaDialog clinicId={clinicId} />
+        <PlantillaDialog clinicId={clinicId} />
       </div>
+
+      {modelosSinRevisar > 0 && (
+        <p className="mb-4 flex items-start gap-2 rounded-lg border border-warning-border bg-warning-soft px-4 py-3 text-sm text-warning">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <span>
+            {modelosSinRevisar === 1
+              ? "Hay 1 plantilla modelo sin revisar."
+              : `Hay ${modelosSinRevisar} plantillas modelo sin revisar.`}{" "}
+            {AVISO_MODELO}
+          </span>
+        </p>
+      )}
 
       {templatesQuery.isLoading ? (
         <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -180,27 +295,81 @@ function ConsentimientosPage() {
         </div>
       ) : (
         <div className="space-y-2">
-          {templates.map((t) => (
-            <div key={t.id} className="card-clinical flex items-start justify-between gap-4 p-5">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium">{t.title}</h3>
-                  <Badge variant={t.active ? "default" : "secondary"}>
-                    {t.active ? "Activa" : "Inactiva"}
-                  </Badge>
+          {templates.map((t) => {
+            const estado = estadoPlantilla(t);
+            const abierta = abiertaId === t.id;
+            return (
+              <div key={t.id} className="card-clinical p-5">
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-medium">{t.title}</h3>
+                      <Badge variant={t.active ? "default" : "secondary"}>
+                        {t.active ? "Activa" : "Inactiva"}
+                      </Badge>
+                      {estado !== "propia" && (
+                        <Badge variant={estado === "modelo-sin-revisar" ? "warning" : "success"}>
+                          {ETIQUETA_ESTADO_PLANTILLA[estado]}
+                        </Badge>
+                      )}
+                    </div>
+                    {t.procedure && <p className="mt-0.5 text-xs">{t.procedure}</p>}
+                    {!abierta && (
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.body}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-expanded={abierta}
+                      onClick={() => setAbiertaId(abierta ? null : t.id)}
+                    >
+                      {abierta ? "Ocultar" : "Ver texto"}
+                    </Button>
+                    <PlantillaDialog clinicId={clinicId} plantilla={t} />
+                    {t.source === "esmalia_model" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          reviewMutation.mutate({ templateId: t.id, reviewed: !t.reviewedAt })
+                        }
+                        disabled={reviewMutation.isPending}
+                      >
+                        {t.reviewedAt ? "Quitar revisada" : "Marcar revisada"}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => toggleMutation.mutate({ templateId: t.id, active: !t.active })}
+                      disabled={toggleMutation.isPending}
+                    >
+                      {t.active ? "Desactivar" : "Activar"}
+                    </Button>
+                  </div>
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{t.body}</p>
+                {abierta && (
+                  <div className="mt-3 space-y-2 border-t border-hairline pt-3 text-sm whitespace-pre-line">
+                    <p>{t.body}</p>
+                    {t.risks && (
+                      <p>
+                        <span className="font-medium">Riesgos: </span>
+                        {t.risks}
+                      </p>
+                    )}
+                    {t.alternatives && (
+                      <p>
+                        <span className="font-medium">Alternativas: </span>
+                        {t.alternatives}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => toggleMutation.mutate({ templateId: t.id, active: !t.active })}
-                disabled={toggleMutation.isPending}
-              >
-                {t.active ? "Desactivar" : "Activar"}
-              </Button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </AppShell>
