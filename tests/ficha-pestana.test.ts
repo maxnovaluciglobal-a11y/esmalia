@@ -71,6 +71,8 @@ function marca(
     toothNumber,
     surface: "whole",
     condition,
+    status: "existente",
+    conservation: null,
     material: null,
     notes: null,
     supersededAt: null,
@@ -91,9 +93,32 @@ describe("piezasConHallazgos", () => {
       marca(36, "obturacion", { surface: "mesial" }),
       marca(21, "fractura", { supersededAt: "2026-10-02T00:00:00Z" }),
     ]);
+    const existente = (condition: OdontogramMark["condition"]) => ({
+      condition,
+      status: "existente",
+      conservation: null,
+    });
     expect(res).toEqual([
-      { tooth: 16, condiciones: ["obturacion"] },
-      { tooth: 36, condiciones: ["caries", "obturacion"] },
+      { tooth: 16, condiciones: [existente("obturacion")] },
+      { tooth: 36, condiciones: [existente("caries"), existente("obturacion")] },
+    ]);
+  });
+
+  it("separa lo existente de lo por realizar y avisa el mal estado", () => {
+    const res = piezasConHallazgos([
+      marca(46, "endodoncia"),
+      marca(46, "corona", { conservation: "malo" }),
+      marca(46, "corona", { id: "plan", status: "planificado" }),
+    ]);
+    expect(res).toEqual([
+      {
+        tooth: 46,
+        condiciones: [
+          { condition: "endodoncia", status: "existente", conservation: null },
+          { condition: "corona", status: "existente", conservation: "malo" },
+          { condition: "corona", status: "planificado", conservation: null },
+        ],
+      },
     ]);
   });
 
