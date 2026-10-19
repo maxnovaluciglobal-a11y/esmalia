@@ -49,6 +49,8 @@ import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
 import { ArchivarFichaButton } from "@/components/archivar-ficha";
+import { ExportarFichaPaciente } from "@/components/exportar-ficha-paciente";
+import { puedeExportarPaciente } from "@/lib/exportacion/exportacion-clinica";
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
@@ -486,6 +488,20 @@ function PacienteDetalle() {
                   patientId={paciente.id}
                   patientName={paciente.nombre}
                   archivadaEl={paciente.archivadaEl ?? null}
+                />
+              )}
+              {/* Derecho de acceso del paciente (CON-01): owner/admin/dentist.
+                  El servidor vuelve a verificar el rol y registra la exportación. */}
+              {access.clinic && puedeExportarPaciente(access.role) && (
+                <ExportarFichaPaciente
+                  clinicId={access.clinic.id}
+                  clinicName={access.clinic.name}
+                  timezone={access.clinic.timezone}
+                  isDemo={access.clinic.isDemo}
+                  patientId={paciente.id}
+                  patientName={paciente.nombre}
+                  generadoPor={access.fullName ?? access.email ?? "Usuario de la clínica"}
+                  incluirFinanzas={hasPermission(access.role, "finance:view")}
                 />
               )}
               {puedeFacturar && (

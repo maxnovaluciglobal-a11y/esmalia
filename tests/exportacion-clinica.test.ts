@@ -126,7 +126,12 @@ describe("exportación registrada", () => {
 
   it("acepta un registro propio y reciente", async () => {
     const { cliente, llamadas } = supabaseFalso(() => ({
-      data: { id: EXPORT_ID, actor_id: USUARIO, created_at: "2026-10-19T14:30:00Z" },
+      data: {
+        id: EXPORT_ID,
+        actor_id: USUARIO,
+        created_at: "2026-10-19T14:30:00Z",
+        formato: "zip_csv",
+      },
       error: null,
     }));
     await expect(
@@ -141,12 +146,32 @@ describe("exportación registrada", () => {
 
   it("rechaza un registro de otra persona, uno vencido o uno inexistente", async () => {
     const casos = [
-      { data: { id: EXPORT_ID, actor_id: OTRA, created_at: "2026-10-19T14:30:00Z" }, error: null },
+      {
+        data: {
+          id: EXPORT_ID,
+          actor_id: OTRA,
+          created_at: "2026-10-19T14:30:00Z",
+          formato: "zip_csv",
+        },
+        error: null,
+      },
+      // una exportación de UNA ficha no sirve para leer la clínica entera
+      {
+        data: {
+          id: EXPORT_ID,
+          actor_id: USUARIO,
+          created_at: "2026-10-19T14:30:00Z",
+          formato: "paciente_zip",
+          patient_id: OTRA,
+        },
+        error: null,
+      },
       {
         data: {
           id: EXPORT_ID,
           actor_id: USUARIO,
           created_at: new Date(ahora.getTime() - VIGENCIA_EXPORTACION_MS - 1000).toISOString(),
+          formato: "zip_csv",
         },
         error: null,
       },

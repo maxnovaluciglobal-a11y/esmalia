@@ -8,12 +8,13 @@ Es un **objetivo interno**, no un SLA. Los términos de servicio dicen que no ha
 
 ## 1. Qué se mide
 
-| Qué                        | Cómo                                                                                                                                                                    | Dónde                                        |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **SLI de disponibilidad**  | Monitor de uptime de Sentry que hace `GET https://esmalia.com/api/health` **cada 1 minuto** y avisa por correo                                                          | Sentry → Uptime (configurado el 10-oct-2026) |
-| Qué responde `/api/health` | `200 {"status":"ok"}` si el proceso está vivo **y** la base responde (consulta de 1 fila a `clinics`). `503 {"status":"error"}` si la base no responde. No expone datos | `src/routes/api.health.ts`                   |
-| **Minuto bueno**           | El check devolvió 2xx dentro del timeout del monitor                                                                                                                    | —                                            |
-| **Minuto malo**            | El check devolvió algo distinto de 2xx (incluido el 503 de base caída), dio timeout o no hubo conexión                                                                  | —                                            |
+| Qué                        | Cómo                                                                                                                                                                              | Dónde                                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **SLI de disponibilidad**  | Monitor de uptime de Sentry que hace `GET https://esmalia.com/api/health` **cada 1 minuto** y avisa por correo                                                                    | Sentry → Uptime (configurado el 10-oct-2026) |
+| Qué responde `/api/health` | `200 {"status":"ok"}` si el proceso está vivo **y** la base responde (consulta de 1 fila a `clinics`). `503 {"status":"error"}` si la base no responde. No expone datos           | `src/routes/api.health.ts`                   |
+| Página pública `/estado`   | Status page propia, sin terceros: consulta `/api/health` desde el navegador cada minuto y lista los incidentes de `src/content/incidentes.ts` (versionado). Enlazada en el footer | `src/routes/estado.tsx`                      |
+| **Minuto bueno**           | El check devolvió 2xx dentro del timeout del monitor                                                                                                                              | —                                            |
+| **Minuto malo**            | El check devolvió algo distinto de 2xx (incluido el 503 de base caída), dio timeout o no hubo conexión                                                                            | —                                            |
 
 **Ventana:** mes calendario en UTC. **Disponibilidad del mes** = minutos buenos ÷ minutos medidos.
 
@@ -61,6 +62,8 @@ El presupuesto es de **216 minutos** en un mes de 30 días. Se consume con cada 
 | **≥ 100 %** (presupuesto agotado) | **Se congelan las features hasta que termine el mes.** Solo entran arreglos de confiabilidad, seguridad y bugs que afecten a clínicas. Post-mortem obligatorio. Se avisa a las clínicas piloto afectadas con la plantilla del runbook. En la siguiente revisión se decide qué inversión adelantar: Vercel Pro (D5), staging (#28), protección de `main` (OPS-07) o PITR |
 | **Agotado 2 meses seguidos**      | Decisión explícita en `DECISIONES.md`: o se invierte en infraestructura, o se baja el objetivo con el porqué. No se deja el número escrito si nadie lo cumple                                                                                                                                                                                                           |
 
+**Incidentes en `/estado`:** toda caída que consuma presupuesto, o cualquier falla que una clínica haya notado, se carga en `src/content/incidentes.ts` con un PR (`fin: null` mientras dure, actualización `resuelto` al cerrar). Si la app está caída y no se puede deployar, se avisa por el canal del runbook y se carga después. Sin datos de pacientes ni nombres de clínicas: la página es pública.
+
 **Alertas durante el mes** (además del aviso de Sentry en cada caída):
 
 - **Caída de 5 min seguidos** = SEV1 del runbook: aviso a las clínicas dentro de los 30 min.
@@ -82,4 +85,6 @@ El día 1 de cada mes, junto con la rutina de higiene del workspace:
 
 - [`DISASTER_RECOVERY.md`](DISASTER_RECOVERY.md): pasos técnicos. Está desactualizado (OPS-09) y lo reemplaza la tabla de la sección 3 hasta que se reescriba.
 - [`BACKUPS.md`](BACKUPS.md): backup diario, cifrado y ensayo de restauración.
+- [`RUNBOOK_MIGRACIONES.md`](RUNBOOK_MIGRACIONES.md): aplicar, verificar y revertir una migración en producción.
+- Página pública de estado: `https://esmalia.com/estado` (`src/routes/estado.tsx`, incidentes en `src/content/incidentes.ts`).
 - Runbook de incidentes y brechas: `04 - Esmalia/08 - Operaciones/runbook-incidentes.md` (fuera del repo).

@@ -11,6 +11,7 @@ import {
   iniciarExportacionClinica,
   leerTablaExportacion,
 } from "@/lib/exportacion/exportacion-clinica.functions";
+import { descargarBytes, generadoAhora, guardarZip } from "@/lib/exportacion/descarga-navegador";
 import { generarExportacion, type AvanceExportacion } from "@/lib/exportacion/generar-exportacion";
 
 interface Props {
@@ -19,24 +20,6 @@ interface Props {
   timezone: string;
   isDemo: boolean;
   generadoPor: string;
-}
-
-async function descargarBytes(url: string): Promise<Uint8Array> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return new Uint8Array(await res.arrayBuffer());
-}
-
-function guardarZip(zip: Uint8Array, nombre: string) {
-  const blob = new Blob([zip as BlobPart], { type: "application/zip" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = nombre;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 /**
@@ -59,11 +42,7 @@ export function ExportarDatosClinica({
   async function exportar() {
     setAvance({ etapa: "registrando", detalle: "Registrando la exportación", hecho: 0, total: 1 });
     try {
-      const generadoEn = new Intl.DateTimeFormat("es", {
-        timeZone: timezone,
-        dateStyle: "long",
-        timeStyle: "short",
-      }).format(new Date());
+      const generadoEn = generadoAhora(timezone);
       const { zip } = await generarExportacion(
         {
           iniciar: (id) => iniciar({ data: { clinicId: id } }),
@@ -71,7 +50,14 @@ export function ExportarDatosClinica({
           firmar: (args) => firmar({ data: args }),
           descargar: descargarBytes,
         },
-        { clinicId, clinicaNombre: clinicName, generadoPor, generadoEn, onAvance: setAvance },
+        {
+          clinicId,
+          clinicaNombre: clinicName,
+          generadoPor,
+          generadoEn,
+          zonaHoraria: timezone,
+          onAvance: setAvance,
+        },
       );
       guardarZip(zip, nombreZip(clinicName, hoyISO(timezone)));
       toast.success("Exportación lista", {
@@ -92,10 +78,12 @@ export function ExportarDatosClinica({
         <p className="font-display text-lg font-semibold leading-tight">Exportar todos los datos</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Descarga un archivo ZIP con todo lo que tu clínica guardó en Esmalia: pacientes con su
-          anamnesis, profesionales, citas, notas clínicas con todas sus versiones, odontogramas,
-          periodontogramas, presupuestos, planes de tratamiento, pagos y cajas, consentimientos,
-          documentos y radiografías, laboratorios e inventario. Son planillas CSV que se abren en
-          Excel, con un LEEME.txt que explica cada archivo.
+          anamnesis, tutores y signos vitales, profesionales, citas, notas clínicas con todas sus
+          versiones, odontogramas, periodontogramas, ortodoncia, consentimientos, recetas,
+          presupuestos, planes de tratamiento, pagos, cajas, gastos, convenios, aranceles,
+          comisiones, mensajes, documentos y radiografías, laboratorios, inventario y los registros
+          de auditoría. Son planillas CSV que se abren en Excel, con un LEEME.txt que explica cada
+          archivo, y una ficha en PDF por paciente, lista para imprimir o entregar.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Contiene datos de salud de tus pacientes: guárdalo en un lugar seguro. Cada exportación

@@ -488,6 +488,7 @@ export type Database = {
           detalle: Json;
           formato: string;
           id: string;
+          patient_id: string | null;
         };
         Insert: {
           actor_id?: string | null;
@@ -496,6 +497,7 @@ export type Database = {
           detalle?: Json;
           formato?: string;
           id?: string;
+          patient_id?: string | null;
         };
         Update: {
           actor_id?: string | null;
@@ -504,6 +506,7 @@ export type Database = {
           detalle?: Json;
           formato?: string;
           id?: string;
+          patient_id?: string | null;
         };
         Relationships: [
           {
@@ -4689,6 +4692,10 @@ export type Database = {
       };
       registrar_exportacion_de_clinica: {
         Args: { p_clinic_id: string; p_detalle?: Json };
+        Returns: string;
+      };
+      registrar_exportacion_de_paciente: {
+        Args: { p_clinic_id: string; p_detalle?: Json; p_patient_id: string };
         Returns: string;
       };
       registrar_lectura_ficha: {

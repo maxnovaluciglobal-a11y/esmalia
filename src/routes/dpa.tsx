@@ -37,7 +37,7 @@ function Dpa() {
     <LegalPage
       label="Legal"
       title="Acuerdo de tratamiento de datos"
-      updated="Versión 1 — 10 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 2 — 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
     >
       <LegalNotice>
         Este acuerdo fija las reglas con las que Esmalia trata los datos de los pacientes de tu
@@ -48,6 +48,14 @@ function Dpa() {
         , y no hace falta firmar nada para que valga. Si tu clínica necesita una copia firmada, por
         ejemplo para su propio asesor o para una auditoría, pídela a <Privacidad /> y te la
         mandamos.
+        <br />
+        <br />
+        <strong>Qué cambió en la versión 2 (19 de octubre de 2026).</strong> La función de IA está
+        pausada y no se envían datos a ningún proveedor de IA; se suma Numverify como subencargado;
+        se agregan la verificación en dos pasos, el registro de lecturas de la ficha y el cifrado
+        del número de documento como medidas de seguridad; la clínica exporta sus datos desde la
+        aplicación; y las historias clínicas se archivan, no se borran. El detalle está en la
+        sección 12.
       </LegalNotice>
 
       <LegalH2>1. Partes y objeto</LegalH2>
@@ -149,6 +157,24 @@ function Dpa() {
         <LegalLi>
           <strong>Acceso a producción limitado</strong> a las personas que operan Esmalia.
         </LegalLi>
+        <LegalLi>
+          <strong>Verificación en dos pasos</strong> (código de una app de autenticación) disponible
+          para cada persona de la clínica, y obligatoria para el equipo de Esmalia que entra a la
+          administración.
+        </LegalLi>
+        <LegalLi>
+          <strong>Registro de lecturas de la ficha</strong>: la base de datos anota quién abrió la
+          ficha clínica de cada paciente y cuándo. Lo ven el dueño y los administradores de la
+          clínica, y nadie lo puede modificar ni borrar.
+        </LegalLi>
+        <LegalLi>
+          <strong>Número de documento cifrado</strong> en la base de datos, además del cifrado
+          general en reposo.
+        </LegalLi>
+        <LegalLi>
+          <strong>Sin borrado de historias clínicas desde la aplicación</strong>: los pacientes se
+          archivan y su historia se conserva.
+        </LegalLi>
       </LegalUl>
       <LegalP>
         Esmalia todavía no tiene certificaciones formales como SOC 2 o ISO 27001. Podemos mejorar
@@ -177,13 +203,21 @@ function Dpa() {
           pacientes. Estados Unidos y otros países.
         </LegalLi>
         <LegalLi>
-          <strong>Google</strong> — inicio de sesión con Google y el modelo de IA Gemini, que
-          procesa el texto que se le envía cuando el profesional pide un borrador o resumen, o
-          cuando un mensaje de WhatsApp necesita interpretación. Estados Unidos y otros países.
+          <strong>Google</strong> — inicio de sesión con Google y el modelo de IA Gemini, para
+          borradores o resúmenes que pide el profesional y para interpretar mensajes de WhatsApp.{" "}
+          <strong>La función de IA está pausada: hoy no se le envían datos.</strong> Estados Unidos
+          y otros países.
         </LegalLi>
         <LegalLi>
-          <strong>OpenAI</strong> — IA alternativa, solo si Gemini no está configurado, para las
-          mismas tareas. Estados Unidos.
+          <strong>OpenAI</strong> — IA alternativa, para las mismas tareas.{" "}
+          <strong>Pausada: hoy no se le envían datos.</strong> Cuando la IA vuelva, informamos qué
+          proveedor se usa con el aviso de 30 días de esta sección. Estados Unidos.
+        </LegalLi>
+        <LegalLi>
+          <strong>Numverify (apilayer)</strong> — comprueba que el teléfono de un paciente tiene
+          forma real cuando la clínica lo carga o lo cambia. Recibe solo el número, por HTTPS.
+          Empresa de Austria (apilayer Data Products GmbH, Viena), que declara usar proveedores en
+          Estados Unidos.
         </LegalLi>
         <LegalLi>
           <strong>Sentry</strong> — informes de error, sin cookies, encabezados ni contenido de las
@@ -231,11 +265,10 @@ function Dpa() {
       <LegalP>
         Los pacientes ejercen sus derechos (acceso, rectificación, supresión, oposición,
         portabilidad y bloqueo) ante la clínica. Esmalia ayuda a la clínica a responderlos: la
-        aplicación permite corregir los datos, y lo que no se pueda hacer desde la aplicación (por
-        ejemplo, entregar una copia de los datos) lo hacemos nosotros a pedido de la clínica, sin
-        costo, en un plazo que le permita cumplir el suyo. Si un paciente nos escribe directamente,
-        le pasamos el pedido a la clínica sin demora y no respondemos por ella salvo que nos lo
-        indique.
+        aplicación permite corregir y exportar los datos, y lo que no se pueda hacer desde la
+        aplicación lo hacemos nosotros a pedido de la clínica, sin costo, en un plazo que le permita
+        cumplir el suyo. Si un paciente nos escribe directamente, le pasamos el pedido a la clínica
+        sin demora y no respondemos por ella salvo que nos lo indique.
       </LegalP>
 
       <LegalH2>9. Notificación de incidentes</LegalH2>
@@ -252,21 +285,21 @@ function Dpa() {
 
       <LegalH2>10. Devolución y supresión al terminar</LegalH2>
       <LegalP>
-        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "la clínica puede
-            exportar sus datos desde la aplicación". */}
-        Mientras la cuenta esté activa, la clínica puede pedir una copia de todos sus datos
-        escribiendo a{" "}
+        Mientras la cuenta esté activa, el dueño o un administrador de la clínica puede exportar
+        todos sus datos desde Ajustes, en formato estándar y en cualquier momento. También puede
+        pedirnos la copia escribiendo a{" "}
         <a href="mailto:soporte@esmalia.com" className={enlace}>
           soporte@esmalia.com
         </a>
-        , y se la entregamos en formato estándar dentro de las 72 horas siguientes al pedido. Cuando
-        termina el servicio, la clínica puede pedir por escrito a <Privacidad /> que eliminemos sus
-        datos o que se los devolvamos; lo hacemos dentro de los 30 días siguientes al pedido y le
-        confirmamos por escrito cuando está hecho. Mientras no recibamos esa instrucción, no usamos
-        los datos para nada más que devolvérselos a la clínica. Las copias de respaldo cifradas no
-        se editan una por una: los datos borrados desaparecen de ellas cuando esas copias rotan
-        (hasta 90 días). Solo conservamos algo más allá de eso si una ley nos obliga, y en ese caso
-        lo mantenemos protegido y sin usarlo.
+        . Dentro de la aplicación las historias clínicas no se borran: se archivan y se conservan,
+        para que la clínica pueda cumplir los plazos legales de conservación que le fija su ley.
+        Cuando termina el servicio, la clínica puede pedir por escrito a <Privacidad /> que
+        eliminemos sus datos o que se los devolvamos; lo hacemos dentro de los 30 días siguientes al
+        pedido y le confirmamos por escrito cuando está hecho. Mientras no recibamos esa
+        instrucción, no usamos los datos para nada más que devolvérselos a la clínica. Las copias de
+        respaldo cifradas no se editan una por una: los datos borrados desaparecen de ellas cuando
+        esas copias rotan (hasta 90 días). Solo conservamos algo más allá de eso si una ley nos
+        obliga, y en ese caso lo mantenemos protegido y sin usarlo.
       </LegalP>
 
       <LegalH2>11. Auditoría</LegalH2>
@@ -293,6 +326,19 @@ function Dpa() {
         , incluida su ley aplicable, sin perjuicio de las normas de protección de datos del país de
         la clínica que no se pueden dejar de lado por contrato.
       </LegalP>
+      <LegalUl>
+        <LegalLi>
+          <strong>Versión 2 — 19 de octubre de 2026.</strong> Se indica que la función de IA está
+          pausada y que hoy no se envían datos a Google (Gemini) ni a OpenAI; se agrega Numverify
+          como subencargado (sección 6); se suman la verificación en dos pasos, el registro de
+          lecturas de la ficha, el cifrado del número de documento y el archivo de pacientes en vez
+          del borrado (sección 5); y la clínica exporta sus datos desde la aplicación (secciones 8 y
+          10).
+        </LegalLi>
+        <LegalLi>
+          <strong>Versión 1 — 10 de octubre de 2026.</strong> Primera versión.
+        </LegalLi>
+      </LegalUl>
 
       <LegalH2>13. Aceptación y copia firmada</LegalH2>
       <LegalP>

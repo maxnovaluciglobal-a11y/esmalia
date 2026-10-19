@@ -16,11 +16,12 @@ import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tan
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CalendarCheck, Phone, PhoneCall } from "lucide-react";
+import { CalendarCheck, Phone, PhoneCall, ShieldAlert } from "lucide-react";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { marcarEquipoInterno } from "@/lib/marketing/eventos";
 import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
+import { estadoCobroStaff, estadoComoSubscription } from "@/lib/admin/estado-cobro";
 import {
   activadaEn72h,
   listClinicsForStaff,
@@ -111,28 +112,19 @@ const ESTADO_TONO: Record<SubscriptionStatus, string> = {
   paused: "bg-secondary text-muted-foreground",
 };
 
-/** `listClinicsForStaff` solo trae `status`/`trialEnd` (no la fila completa de
- *  `subscriptions` — no hace falta stripeCustomerId acá). `trialDaysLeft` de
- *  billing.ts pide un `Subscription` completo; se arma uno mínimo para
- *  reusar esa única fuente de verdad en vez de reimplementar el cálculo de
- *  días acá. */
+/** `trialDaysLeft` de billing.ts pide un `Subscription` completo: se arma
+ *  desde la fila de cobro para reusar esa única fuente de verdad en vez de
+ *  reimplementar el cálculo de días acá. */
 function comoSubscription(row: ClinicaStaffRow): Subscription | null {
-  if (!row.subscriptionStatus) return null;
-  const estado = (Object.keys(SUBSCRIPTION_STATUS_LABELS) as SubscriptionStatus[]).includes(
-    row.subscriptionStatus as SubscriptionStatus,
-  )
-    ? (row.subscriptionStatus as SubscriptionStatus)
-    : "incomplete";
-  return {
-    clinicId: row.id,
-    status: estado,
-    stripeCustomerId: null,
-    stripeSubscriptionId: null,
-    stripePriceId: null,
-    trialEnd: row.trialEnd,
-    currentPeriodEnd: null,
-    cancelAtPeriodEnd: false,
-  };
+  return row.cobro ? estadoComoSubscription(row.cobro) : null;
+}
+
+function formatFecha(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 /** Métrica de activación del benchmark de onboarding (25-sep): sin cita
@@ -166,6 +158,10 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
     return <span className="text-xs text-muted-foreground">Sin suscripción</span>;
   }
   const dias = trialDaysLeft(sub);
+  // Misma regla que ve la clínica (`accesoPorSuscripcion`): gracia por pago
+  // fallido con los días que quedan, o informes pausados. Y la marca de
+  // disputa abierta (BIL-02), que no cambia el acceso pero hay que revisar.
+  const { mora, disputa } = estadoCobroStaff(row.cobro);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <span
@@ -176,6 +172,29 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
       {dias !== null && (
         <span className="text-xs text-muted-foreground">
           {dias === 0 ? "vence hoy" : `${dias} ${dias === 1 ? "día" : "días"} de prueba`}
+        </span>
+      )}
+      {mora?.tipo === "gracia" && (
+        <span className="text-xs text-warning">
+          {mora.diasRestantes === null
+            ? "en gracia (sin fecha de inicio)"
+            : `${mora.diasRestantes} ${mora.diasRestantes === 1 ? "día" : "días"} de gracia`}
+        </span>
+      )}
+      {mora?.tipo === "informes_pausados" && (
+        <span className="text-xs text-muted-foreground">
+          {mora.motivo === "trial_vencido"
+            ? "informes pausados (prueba vencida)"
+            : "informes pausados por pago"}
+        </span>
+      )}
+      {disputa && (
+        <span
+          className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-1.5 py-0.5 text-[11px] font-medium text-destructive"
+          title={disputa.id ? `Disputa ${disputa.id} en Stripe` : undefined}
+        >
+          <ShieldAlert className="size-3" />
+          Disputa abierta desde {formatFecha(disputa.desde)}
         </span>
       )}
     </div>
