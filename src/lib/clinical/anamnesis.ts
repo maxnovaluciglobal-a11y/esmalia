@@ -1,0 +1,328 @@
+/**
+ * Anamnesis estructurada (hallazgo CLI-10, auditoría 360 del 18-oct-2026).
+ *
+ * Parte pura: el catálogo del cuestionario de riesgo, los schemas que valida
+ * el servidor, cómo se concilian las alergias con su severidad y qué alertas
+ * salen de todo eso. Sin red ni base: se prueba entero en
+ * `tests/anamnesis-estructurada.test.ts`.
+ *
+ * Decisiones:
+ * - `patient_medical_history.allergies` (text[]) sigue siendo la lista
+ *   canónica de alergias: la leen la agenda, la exportación y la fusión de
+ *   fichas. `allergy_details` solo le agrega severidad y reacción a cada
+ *   nombre. Una alergia sin detalle es "sin especificar", nunca "leve".
+ * - Pregunta sin responder = clave ausente. No se fabrica un "no" que nadie
+ *   confirmó (regla 11 del CLAUDE.md).
+ * - El catálogo es el mínimo que pidió Walter. Bifosfonatos, profilaxis
+ *   antibiótica, coagulopatías, bruxismo o ASA se suman cuando lo valide un
+ *   odontólogo revisor (CLI-22).
+ */
+import { z } from "zod";
+
+// ── Alergias ──────────────────────────────────────────────────────────────
+
+export const SEVERIDADES_ALERGIA = ["severe", "moderate", "mild", "unknown"] as const;
+export type SeveridadAlergia = (typeof SEVERIDADES_ALERGIA)[number];
+
+export const etiquetaSeveridad: Record<SeveridadAlergia, string> = {
+  severe: "Grave",
+  moderate: "Moderada",
+  mild: "Leve",
+  unknown: "Sin especificar",
+};
+
+export type AlergiaDetallada = {
+  name: string;
+  severity: SeveridadAlergia;
+  reaction?: string;
+};
+
+export const alergiaSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  severity: z.enum(SEVERIDADES_ALERGIA),
+  reaction: z.string().trim().max(160).optional(),
+});
+
+export const alergiasSchema = z.array(alergiaSchema).max(30);
+
+function clave(nombre: string): string {
+  return nombre.trim().toLocaleLowerCase("es");
+}
+
+/**
+ * Lista final de alergias con severidad, en el orden de `nombres` (la lista
+ * canónica). Toma la severidad guardada si existe un detalle con el mismo
+ * nombre (sin distinguir mayúsculas) y, si no, "sin especificar". Los
+ * detalles de alergias que ya no están en la lista se descartan, y un nombre
+ * repetido sale una sola vez.
+ */
+export function conciliarAlergias(
+  nombres: readonly string[],
+  detalles: readonly AlergiaDetallada[],
+): AlergiaDetallada[] {
+  const porClave = new Map<string, AlergiaDetallada>();
+  for (const d of detalles) {
+    if (!porClave.has(clave(d.name))) porClave.set(clave(d.name), d);
+  }
+  const vistas = new Set<string>();
+  const resultado: AlergiaDetallada[] = [];
+  for (const bruto of nombres) {
+    const nombre = bruto.trim();
+    if (!nombre || vistas.has(clave(nombre))) continue;
+    vistas.add(clave(nombre));
+    const detalle = porClave.get(clave(nombre));
+    resultado.push(
+      detalle
+        ? {
+            name: nombre,
+            severity: detalle.severity,
+            ...(detalle.reaction ? { reaction: detalle.reaction } : {}),
+          }
+        : { name: nombre, severity: "unknown" },
+    );
+  }
+  return resultado;
+}
+
+/** Nombres únicos, en orden, para la columna canónica `allergies`. */
+export function nombresDeAlergias(detalles: readonly AlergiaDetallada[]): string[] {
+  return conciliarAlergias(
+    detalles.map((d) => d.name),
+    detalles,
+  ).map((d) => d.name);
+}
+
+/** Lee `allergy_details` de la base sin confiar en su forma (es jsonb). */
+export function leerDetallesDeAlergias(valor: unknown): AlergiaDetallada[] {
+  if (!Array.isArray(valor)) return [];
+  const resultado: AlergiaDetallada[] = [];
+  for (const item of valor) {
+    const parsed = alergiaSchema.safeParse(item);
+    if (parsed.success) resultado.push(parsed.data);
+  }
+  return resultado;
+}
+
+// ── Cuestionario de riesgo ────────────────────────────────────────────────
+
+export const PREGUNTAS_RIESGO = [
+  {
+    key: "anticoagulants",
+    label: "Anticoagulantes o antiagregantes",
+    ayuda: "Warfarina, acenocumarol, apixabán, rivaroxabán, aspirina, clopidogrel…",
+    critica: true,
+  },
+  { key: "diabetes", label: "Diabetes", ayuda: "Tipo y si está controlada.", critica: false },
+  { key: "hypertension", label: "Hipertensión arterial", ayuda: undefined, critica: false },
+  {
+    key: "heart_disease",
+    label: "Cardiopatía",
+    ayuda: "Infarto, arritmia, valvulopatía, marcapasos, endocarditis previa…",
+    critica: false,
+  },
+  { key: "pregnancy", label: "Embarazo", ayuda: "Semanas de gestación.", critica: true },
+  { key: "breastfeeding", label: "Lactancia", ayuda: undefined, critica: false },
+  {
+    key: "infectious_disease",
+    label: "Enfermedad infecciosa",
+    ayuda: "VIH, hepatitis B o C, tuberculosis…",
+    critica: false,
+  },
+  { key: "tobacco", label: "Tabaco", ayuda: "Cantidad por día.", critica: false },
+  {
+    key: "surgeries",
+    label: "Cirugías u hospitalizaciones previas",
+    ayuda: "Cuál y cuándo.",
+    critica: false,
+  },
+  { key: "other", label: "Otros antecedentes", ayuda: undefined, critica: false },
+] as const;
+
+export type ClavePregunta = (typeof PREGUNTAS_RIESGO)[number]["key"];
+export const CLAVES_PREGUNTA = PREGUNTAS_RIESGO.map((p) => p.key) as [
+  ClavePregunta,
+  ...ClavePregunta[],
+];
+
+export type RespuestaRiesgo = { answer: "yes" | "no"; detail?: string };
+/** Clave ausente = pregunta sin responder. */
+export type CuestionarioRiesgo = Partial<Record<ClavePregunta, RespuestaRiesgo>>;
+
+const respuestaSchema = z.object({
+  answer: z.enum(["yes", "no"]),
+  detail: z.string().trim().max(300).optional(),
+});
+
+export const cuestionarioSchema = z
+  .record(z.enum(CLAVES_PREGUNTA), respuestaSchema)
+  .transform((c) => limpiarCuestionario(c as CuestionarioRiesgo));
+
+/** Saca detalles vacíos y deja solo claves conocidas. */
+export function limpiarCuestionario(c: CuestionarioRiesgo): CuestionarioRiesgo {
+  const limpio: CuestionarioRiesgo = {};
+  for (const k of CLAVES_PREGUNTA) {
+    const r = c[k];
+    if (!r) continue;
+    const detail = r.detail?.trim();
+    limpio[k] = detail ? { answer: r.answer, detail } : { answer: r.answer };
+  }
+  return limpio;
+}
+
+/** Lee `risk_questionnaire` de la base; descarta claves o formas desconocidas. */
+export function leerCuestionario(valor: unknown): CuestionarioRiesgo {
+  if (!valor || typeof valor !== "object" || Array.isArray(valor)) return {};
+  const resultado: CuestionarioRiesgo = {};
+  for (const k of CLAVES_PREGUNTA) {
+    const parsed = respuestaSchema.safeParse((valor as Record<string, unknown>)[k]);
+    if (parsed.success) resultado[k] = parsed.data;
+  }
+  return limpiarCuestionario(resultado);
+}
+
+export function preguntasRespondidas(c: CuestionarioRiesgo): number {
+  return CLAVES_PREGUNTA.filter((k) => c[k]).length;
+}
+
+// ── Alertas ───────────────────────────────────────────────────────────────
+
+export type NivelAlerta = "critica" | "precaucion";
+export type AlertaClinica = {
+  clave: string;
+  nivel: NivelAlerta;
+  /** Texto corto para la cabecera de la ficha. */
+  texto: string;
+};
+
+function conDetalle(base: string, detalle?: string): string {
+  return detalle ? `${base} (${detalle})` : base;
+}
+
+/**
+ * Alertas de la anamnesis, primero las críticas. Críticas: alergias (todas,
+ * porque una "sin especificar" puede ser grave), anticoagulantes y embarazo.
+ * El resto de los "sí" del cuestionario son precauciones.
+ */
+export function alertasDeAnamnesis(datos: {
+  alergias: readonly AlergiaDetallada[];
+  cuestionario: CuestionarioRiesgo;
+}): AlertaClinica[] {
+  const criticas: AlertaClinica[] = [];
+  const precauciones: AlertaClinica[] = [];
+
+  if (datos.alergias.length > 0) {
+    const ordenadas = [...datos.alergias].sort(
+      (a, b) => SEVERIDADES_ALERGIA.indexOf(a.severity) - SEVERIDADES_ALERGIA.indexOf(b.severity),
+    );
+    criticas.push({
+      clave: "allergies",
+      nivel: "critica",
+      texto: `Alergia: ${ordenadas
+        .map((a) => (a.severity === "severe" ? `${a.name} (grave)` : a.name))
+        .join(", ")}`,
+    });
+  }
+
+  for (const p of PREGUNTAS_RIESGO) {
+    const r = datos.cuestionario[p.key];
+    if (r?.answer !== "yes") continue;
+    const alerta: AlertaClinica = {
+      clave: p.key,
+      nivel: p.critica ? "critica" : "precaucion",
+      texto: conDetalle(p.label, r.detail),
+    };
+    (p.critica ? criticas : precauciones).push(alerta);
+  }
+  return [...criticas, ...precauciones];
+}
+
+// ── Signos vitales ────────────────────────────────────────────────────────
+
+/** Mismos rangos que los CHECK de `patient_vital_signs` (migración 20261019180000). */
+export const RANGOS_SIGNOS = {
+  systolic: { min: 50, max: 300 },
+  diastolic: { min: 20, max: 200 },
+  heartRate: { min: 20, max: 250 },
+  temperature: { min: 30, max: 45 },
+} as const;
+
+export const signosVitalesSchema = z
+  .object({
+    systolicMmhg: z.number().int().min(RANGOS_SIGNOS.systolic.min).max(RANGOS_SIGNOS.systolic.max),
+    diastolicMmhg: z
+      .number()
+      .int()
+      .min(RANGOS_SIGNOS.diastolic.min)
+      .max(RANGOS_SIGNOS.diastolic.max),
+    heartRateBpm: z
+      .number()
+      .int()
+      .min(RANGOS_SIGNOS.heartRate.min)
+      .max(RANGOS_SIGNOS.heartRate.max),
+    temperatureC: z
+      .number()
+      .min(RANGOS_SIGNOS.temperature.min)
+      .max(RANGOS_SIGNOS.temperature.max)
+      .transform((t) => Math.round(t * 10) / 10)
+      .optional(),
+    notes: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => v.systolicMmhg > v.diastolicMmhg, {
+    message: "La presión sistólica tiene que ser mayor que la diastólica.",
+    path: ["diastolicMmhg"],
+  });
+
+export type SignosVitalesInput = z.input<typeof signosVitalesSchema>;
+
+/**
+ * Convierte lo que se tipeó en el formulario (texto) en números. Devuelve
+ * `null` en el campo que no es un número; la validación de rangos la hace el
+ * schema. La temperatura acepta coma decimal ("36,5").
+ */
+export function leerSignosDelFormulario(campos: {
+  sistolica: string;
+  diastolica: string;
+  pulso: string;
+  temperatura: string;
+}): {
+  systolicMmhg: number | null;
+  diastolicMmhg: number | null;
+  heartRateBpm: number | null;
+  temperatureC: number | null | undefined;
+} {
+  const entero = (s: string) => (/^\s*\d{1,3}\s*$/.test(s) ? Number(s.trim()) : null);
+  const t = campos.temperatura.trim().replace(",", ".");
+  return {
+    systolicMmhg: entero(campos.sistolica),
+    diastolicMmhg: entero(campos.diastolica),
+    heartRateBpm: entero(campos.pulso),
+    temperatureC: t === "" ? undefined : /^\d{2}(\.\d)?$/.test(t) ? Number(t) : null,
+  };
+}
+
+export function formatearPresion(sistolica: number, diastolica: number): string {
+  return `${sistolica}/${diastolica} mmHg`;
+}
+
+/** Ventana para asociar una medición a la cita del día (la atención en curso). */
+export const VENTANA_CITA_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * La cita del paciente más cercana a `ahora` dentro de la ventana, sin
+ * contar las canceladas ni las ausentes: es la atención en la que se toman los
+ * signos. `null` si no hay ninguna (una urgencia sin cita, por ejemplo).
+ */
+export function citaDeLaAtencion(
+  citas: readonly { id: string; starts_at: string; status: string }[],
+  ahora: Date,
+  ventanaMs: number = VENTANA_CITA_MS,
+): string | null {
+  let mejor: { id: string; distancia: number } | null = null;
+  for (const c of citas) {
+    if (c.status === "cancelada" || c.status === "ausente") continue;
+    const distancia = Math.abs(new Date(c.starts_at).getTime() - ahora.getTime());
+    if (Number.isNaN(distancia) || distancia > ventanaMs) continue;
+    if (!mejor || distancia < mejor.distancia) mejor = { id: c.id, distancia };
+  }
+  return mejor?.id ?? null;
+}
