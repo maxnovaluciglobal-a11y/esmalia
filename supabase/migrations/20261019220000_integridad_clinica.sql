@@ -190,4 +190,78 @@ CREATE TRIGGER patients_impedir_borrar_con_notas
   BEFORE DELETE ON public.patients
   FOR EACH ROW EXECUTE FUNCTION public.impedir_borrar_paciente_con_notas();
 
+-- ═══ 2 · FUSIÓN DE FICHAS (CLI-06) ════════════════════════════════════════
+-- Cambios respecto de 20260904160000:
+--   - sin el UPDATE a clinical_notes.patient_id (columna inexistente: hacía
+--     fallar la fusión entera). Las notas quedan con su `patient_ref`
+--     original; la ficha destino las lista junto a las suyas.
+--   - no se fusiona hacia una ficha archivada ni una ficha ya fusionada (una
+--     cadena A→B→C escondería la historia).
+-- La anamnesis sigue sin combinarse sola: la ficha destino muestra las
+-- alergias y antecedentes de la absorbida como alerta (lo arma la app).
+CREATE OR REPLACE FUNCTION public.merge_patients(
+  p_clinic_id uuid,
+  p_source_id uuid,
+  p_target_id uuid
+)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_source record;
+  v_target record;
+BEGIN
+  IF p_source_id = p_target_id THEN
+    RAISE EXCEPTION 'No se puede fusionar una ficha consigo misma.';
+  END IF;
+
+  IF NOT public.has_clinic_role(
+    p_clinic_id, ARRAY['owner','admin']::public.app_role[]
+  ) THEN
+    RAISE EXCEPTION 'No tienes permisos para fusionar fichas.';
+  END IF;
+
+  SELECT id, merged_into INTO v_source
+    FROM public.patients WHERE id = p_source_id AND clinic_id = p_clinic_id
+    FOR UPDATE;
+  SELECT id, merged_into, archived_at INTO v_target
+    FROM public.patients WHERE id = p_target_id AND clinic_id = p_clinic_id
+    FOR UPDATE;
+  IF v_source.id IS NULL OR v_target.id IS NULL THEN
+    RAISE EXCEPTION 'Alguna de las dos fichas no pertenece a esta clínica.';
+  END IF;
+  IF v_source.merged_into IS NOT NULL THEN
+    RAISE EXCEPTION 'Esa ficha ya fue fusionada en otra.';
+  END IF;
+  IF v_target.merged_into IS NOT NULL THEN
+    RAISE EXCEPTION 'La ficha destino ya fue fusionada en otra: elige la ficha que quedó.';
+  END IF;
+  IF v_target.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'La ficha destino está archivada: restáurala antes de fusionar.';
+  END IF;
+
+  UPDATE public.appointments        SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.payments            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.quotes              SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.treatment_plans     SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.odontogram_marks    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.periodontal_charts  SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.patient_documents   SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.patient_consents    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.messages            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  UPDATE public.lab_orders          SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+
+  UPDATE public.patients
+     SET merged_into = p_target_id,
+         merged_at = now(),
+         status = 'inactive'
+   WHERE id = p_source_id AND clinic_id = p_clinic_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.merge_patients(uuid, uuid, uuid) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.merge_patients(uuid, uuid, uuid) TO authenticated;
+
 COMMIT;

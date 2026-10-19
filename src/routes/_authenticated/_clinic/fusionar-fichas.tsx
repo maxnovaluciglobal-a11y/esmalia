@@ -90,7 +90,8 @@ function FusionarFichasPage() {
         <p className="max-w-2xl text-sm text-muted-foreground">
           Toda clínica que migra de otro sistema llega con el mismo paciente cargado más de una vez.
           Elige cuál ficha sobrevive y el resto se fusiona en ella: citas, pagos, presupuestos,
-          notas, odontograma y documentos se reasignan.
+          odontograma y documentos se reasignan; las notas clínicas y la anamnesis de la ficha vieja
+          se muestran en la que queda.
         </p>
 
         {isLoading && <p className="text-sm text-muted-foreground">Buscando duplicados…</p>}
@@ -197,13 +198,16 @@ function FusionarFichasPage() {
                 <div className="space-y-2">
                   <p>
                     Todo lo de {confirmar?.fuentes.map((f) => `«${f.nombre}»`).join(", ")} pasa a la
-                    ficha elegida: citas, pagos, presupuestos, planes, notas clínicas, odontograma,
-                    periodontograma, documentos, consentimientos, mensajes y órdenes de laboratorio.
+                    ficha elegida: citas, pagos, presupuestos, planes, odontograma, periodontograma,
+                    documentos, consentimientos, mensajes y órdenes de laboratorio. Las notas
+                    clínicas no se reescriben (una nota firmada no se toca), pero se ven en la ficha
+                    elegida junto a las suyas.
                   </p>
                   <p>
-                    La anamnesis <strong>no</strong> se combina — juntar dos historias médicas
-                    automáticamente inventaría un cuadro clínico que nadie revisó. Queda en la ficha
-                    vieja para que la mires.
+                    La anamnesis <strong>no</strong> se combina sola — juntar dos historias médicas
+                    automáticamente inventaría un cuadro clínico que nadie revisó. Sus alergias y
+                    antecedentes aparecen como alerta en la ficha elegida para que un profesional
+                    los revise y los sume.
                   </p>
                   <p>Esto no se puede deshacer desde la aplicación.</p>
                 </div>
