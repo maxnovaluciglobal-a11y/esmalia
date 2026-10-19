@@ -365,7 +365,15 @@ function ImportarPacientesDialog({ clinicId }: { clinicId: string }) {
           <DialogTitle>Importar pacientes desde CSV</DialogTitle>
           <DialogDescription>
             Columnas reconocidas: nombre, documento, fecha_nacimiento, telefono, email. Solo nombre
-            es obligatorio. No importa citas — eso se sigue cargando desde la agenda.
+            es obligatorio. No importa citas — eso se sigue cargando desde la agenda.{" "}
+            <a
+              href="/plantillas/plantilla-pacientes.csv"
+              download
+              className="font-medium text-brand-700 underline underline-offset-2"
+            >
+              Descargar plantilla
+            </a>{" "}
+            (trae una fila de ejemplo: bórrala antes de subirla).
           </DialogDescription>
         </DialogHeader>
 

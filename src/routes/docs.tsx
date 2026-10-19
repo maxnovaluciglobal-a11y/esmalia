@@ -26,6 +26,7 @@ export const Route = createFileRoute("/docs")({
 const nav = [
   { to: "/docs", label: "Introducción" },
   { to: "/docs/primeros-pasos", label: "Primeros pasos" },
+  { to: "/docs/migrar-desde-otro-sistema", label: "Migrar desde otro sistema" },
   { to: "/docs/whatsapp", label: "Conectar WhatsApp" },
   { to: "/docs/portal-pacientes", label: "Portal de pacientes" },
   { to: "/docs/datos-y-seguridad", label: "Datos y seguridad" },

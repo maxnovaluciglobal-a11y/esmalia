@@ -57,6 +57,12 @@ export const Route = createFileRoute("/sitemap.xml")({
             changefreq: "monthly",
             priority: "0.4",
           },
+          {
+            path: "/docs/migrar-desde-otro-sistema",
+            lastmod: "2026-10-20",
+            changefreq: "monthly",
+            priority: "0.4",
+          },
           { path: "/docs/whatsapp", lastmod: "2026-10-10", changefreq: "monthly", priority: "0.4" },
           {
             path: "/docs/portal-pacientes",

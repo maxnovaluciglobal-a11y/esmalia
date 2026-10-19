@@ -50,6 +50,7 @@ import { Route as CompararSlugRouteImport } from './routes/comparar.$slug'
 import { Route as CorreosBajaRouteImport } from './routes/correos.baja'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as DocsDatosYSeguridadRouteImport } from './routes/docs.datos-y-seguridad'
+import { Route as DocsMigrarDesdeOtroSistemaRouteImport } from './routes/docs.migrar-desde-otro-sistema'
 import { Route as DocsPortalPacientesRouteImport } from './routes/docs.portal-pacientes'
 import { Route as DocsPrimerosPasosRouteImport } from './routes/docs.primeros-pasos'
 import { Route as DocsWhatsappRouteImport } from './routes/docs.whatsapp'
@@ -313,6 +314,12 @@ const DocsDatosYSeguridadRoute = DocsDatosYSeguridadRouteImport.update({
   path: '/datos-y-seguridad',
   getParentRoute: () => DocsRoute,
 } as any)
+const DocsMigrarDesdeOtroSistemaRoute =
+  DocsMigrarDesdeOtroSistemaRouteImport.update({
+    id: '/migrar-desde-otro-sistema',
+    path: '/migrar-desde-otro-sistema',
+    getParentRoute: () => DocsRoute,
+  } as any)
 const DocsPortalPacientesRoute = DocsPortalPacientesRouteImport.update({
   id: '/portal-pacientes',
   path: '/portal-pacientes',
@@ -676,6 +683,7 @@ export interface FileRoutesByFullPath {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
@@ -772,6 +780,7 @@ export interface FileRoutesByTo {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
@@ -873,6 +882,7 @@ export interface FileRoutesById {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
@@ -973,6 +983,7 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
     | '/docs/whatsapp'
@@ -1069,6 +1080,7 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
     | '/docs/whatsapp'
@@ -1169,6 +1181,7 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
     | '/docs/whatsapp'
@@ -1566,6 +1579,13 @@ declare module '@tanstack/react-router' {
       path: '/datos-y-seguridad'
       fullPath: '/docs/datos-y-seguridad'
       preLoaderRoute: typeof DocsDatosYSeguridadRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/migrar-desde-otro-sistema': {
+      id: '/docs/migrar-desde-otro-sistema'
+      path: '/migrar-desde-otro-sistema'
+      fullPath: '/docs/migrar-desde-otro-sistema'
+      preLoaderRoute: typeof DocsMigrarDesdeOtroSistemaRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/portal-pacientes': {
@@ -2085,6 +2105,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface DocsRouteChildren {
   DocsDatosYSeguridadRoute: typeof DocsDatosYSeguridadRoute
+  DocsMigrarDesdeOtroSistemaRoute: typeof DocsMigrarDesdeOtroSistemaRoute
   DocsPortalPacientesRoute: typeof DocsPortalPacientesRoute
   DocsPrimerosPasosRoute: typeof DocsPrimerosPasosRoute
   DocsWhatsappRoute: typeof DocsWhatsappRoute
@@ -2093,6 +2114,7 @@ interface DocsRouteChildren {
 
 const DocsRouteChildren: DocsRouteChildren = {
   DocsDatosYSeguridadRoute: DocsDatosYSeguridadRoute,
+  DocsMigrarDesdeOtroSistemaRoute: DocsMigrarDesdeOtroSistemaRoute,
   DocsPortalPacientesRoute: DocsPortalPacientesRoute,
   DocsPrimerosPasosRoute: DocsPrimerosPasosRoute,
   DocsWhatsappRoute: DocsWhatsappRoute,
