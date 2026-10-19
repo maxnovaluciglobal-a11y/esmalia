@@ -17,6 +17,7 @@ import {
 } from "@/lib/clinical/anamnesis";
 import { isUndefinedColumnError, isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
+import { alergiasConFusionadas, cargarFusiones, fichasAbsorbidas } from "@/lib/patients/fusion";
 
 export type MedicalHistory = {
   allergies: string[];
@@ -32,6 +33,21 @@ export type MedicalHistory = {
    * sigue mostrando la anamnesis de texto y esconde el cuestionario.
    */
   estructuradaDisponible: boolean;
+  /**
+   * CLI-06: anamnesis de las fichas que se fusionaron en esta. No se combina
+   * sola (nadie la revisó), pero se muestra como alerta en la ficha que quedó.
+   */
+  deFichasFusionadas: AnamnesisDeFichaFusionada[];
+};
+
+export type AnamnesisDeFichaFusionada = {
+  patientId: string;
+  nombre: string;
+  fusionadaEl: string | null;
+  allergies: string[];
+  chronicMedications: string[];
+  conditions: string[];
+  notes: string | null;
 };
 
 const EMPTY_HISTORY: MedicalHistory = {
@@ -43,6 +59,7 @@ const EMPTY_HISTORY: MedicalHistory = {
   riskQuestionnaire: {},
   updatedAt: null,
   estructuradaDisponible: true,
+  deFichasFusionadas: [],
 };
 
 const COLUMNAS_BASE = "allergies, chronic_medications, conditions, notes, updated_at";
@@ -81,8 +98,13 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
     }
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar los antecedentes médicos del paciente."));
+    const deFichasFusionadas = await anamnesisDeFichasAbsorbidas(
+      context.supabase,
+      data.clinicId,
+      fichasAbsorbidas(data.patientId, await cargarFusiones(context.supabase, data.clinicId)),
+    );
     await lectura;
-    if (!row) return { ...EMPTY_HISTORY, estructuradaDisponible };
+    if (!row) return { ...EMPTY_HISTORY, estructuradaDisponible, deFichasFusionadas };
     const fila = row as unknown as {
       allergies: string[] | null;
       allergy_details?: unknown;
@@ -102,8 +124,51 @@ export const getMedicalHistory = createServerFn({ method: "GET" })
       riskQuestionnaire: leerCuestionario(fila.risk_questionnaire),
       updatedAt: fila.updated_at,
       estructuradaDisponible,
+      deFichasFusionadas,
     };
   });
+
+async function anamnesisDeFichasAbsorbidas(
+  supabase: Parameters<typeof cargarFusiones>[0],
+  clinicId: string,
+  ids: string[],
+): Promise<AnamnesisDeFichaFusionada[]> {
+  if (!ids.length) return [];
+  const [{ data: historias, error }, { data: fichas }] = await Promise.all([
+    supabase
+      .from("patient_medical_history")
+      .select("patient_id, allergies, chronic_medications, conditions, notes")
+      .eq("clinic_id", clinicId)
+      .in("patient_id", ids),
+    supabase
+      .from("patients")
+      .select("id, full_name, merged_at")
+      .eq("clinic_id", clinicId)
+      .in("id", ids),
+  ]);
+  if (error)
+    throw new Error(
+      mensajeDb(error, "No pudimos cargar los antecedentes de las fichas fusionadas."),
+    );
+  const fichaPorId = new Map((fichas ?? []).map((f) => [f.id, f]));
+  return (historias ?? [])
+    .filter(
+      (h) =>
+        (h.allergies?.length ?? 0) +
+          (h.chronic_medications?.length ?? 0) +
+          (h.conditions?.length ?? 0) >
+          0 || Boolean(h.notes?.trim()),
+    )
+    .map((h) => ({
+      patientId: h.patient_id,
+      nombre: fichaPorId.get(h.patient_id)?.full_name ?? "Ficha fusionada",
+      fusionadaEl: fichaPorId.get(h.patient_id)?.merged_at ?? null,
+      allergies: h.allergies ?? [],
+      chronicMedications: h.chronic_medications ?? [],
+      conditions: h.conditions ?? [],
+      notes: h.notes,
+    }));
+}
 
 /**
  * Alergias por paciente para toda la clínica, en 1 query — pensado para
@@ -122,17 +187,22 @@ export const listAllergyAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<Record<string, string[]>> => {
-    const { data: rows, error } = await context.supabase
-      .from("patient_medical_history")
-      .select("patient_id, allergies")
-      .eq("clinic_id", data.clinicId);
+    const [{ data: rows, error }, fusiones] = await Promise.all([
+      context.supabase
+        .from("patient_medical_history")
+        .select("patient_id, allergies")
+        .eq("clinic_id", data.clinicId),
+      cargarFusiones(context.supabase, data.clinicId),
+    ]);
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar las alertas de alergias de la clínica."));
     const byPatient: Record<string, string[]> = {};
     for (const row of rows ?? []) {
       if (row.allergies && row.allergies.length > 0) byPatient[row.patient_id] = row.allergies;
     }
-    return byPatient;
+    // CLI-06: la ficha que quedó de una fusión avisa también las alergias
+    // que se cargaron en la ficha absorbida.
+    return alergiasConFusionadas(byPatient, fusiones);
   });
 
 const listField = z.array(z.string().trim().min(1).max(80)).max(30);

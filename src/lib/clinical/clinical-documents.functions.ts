@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { esPiezaFdi, type OrigenPlantilla } from "@/lib/clinical/consentimientos";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
+import { idsDeLaFicha } from "@/lib/patients/fusion";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -63,11 +64,14 @@ export const listPatientDocuments = createServerFn({ method: "GET" })
       patientId: data.patientId,
       seccion: "documentos",
     });
+    // CLI-06: un documento o consentimiento firmado no se reescribe al
+    // fusionar fichas: se lee también desde las fichas fusionadas en esta.
+    const fichas = await idsDeLaFicha(context.supabase, data.clinicId, data.patientId);
     const { data: rows, error } = await context.supabase
       .from("patient_documents")
       .select("id, kind, storage_path, filename, notes, created_at, uploaded_by, archived_at")
       .eq("clinic_id", data.clinicId)
-      .eq("patient_id", data.patientId)
+      .in("patient_id", fichas)
       .order("created_at", { ascending: false });
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar los documentos del paciente."));
 
@@ -343,13 +347,16 @@ export const listPatientConsents = createServerFn({ method: "GET" })
       patientId: data.patientId,
       seccion: "documentos",
     });
+    // CLI-06: un documento o consentimiento firmado no se reescribe al
+    // fusionar fichas: se lee también desde las fichas fusionadas en esta.
+    const fichas = await idsDeLaFicha(context.supabase, data.clinicId, data.patientId);
     const nuevas = await context.supabase
       .from("patient_consents")
       .select(
         "id, title_snapshot, procedure_snapshot, body_snapshot, risks_snapshot, alternatives_snapshot, tooth_numbers, informed_by_name_snapshot, informed_by_license_snapshot, signer_role, signer_document_snapshot, signer_relationship_snapshot, signature_storage_path, signed_by_name, signed_at, content_sha256, revoked_at",
       )
       .eq("clinic_id", data.clinicId)
-      .eq("patient_id", data.patientId)
+      .in("patient_id", fichas)
       .order("signed_at", { ascending: false });
 
     let rows: Array<Record<string, unknown>> | null = nuevas.data;
@@ -361,7 +368,7 @@ export const listPatientConsents = createServerFn({ method: "GET" })
           "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at",
         )
         .eq("clinic_id", data.clinicId)
-        .eq("patient_id", data.patientId)
+        .in("patient_id", fichas)
         .order("signed_at", { ascending: false });
       if (viejas.error)
         throw new Error(

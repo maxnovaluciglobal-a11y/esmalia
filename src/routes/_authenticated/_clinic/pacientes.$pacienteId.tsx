@@ -48,10 +48,12 @@ import { MessagesHistory } from "@/components/messages-history";
 import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
+import { ArchivarFichaButton } from "@/components/archivar-ficha";
+import { unirSinRepetir } from "@/lib/patients/fusion";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
 import { requiereLlamadaOSuscripcion } from "@/lib/billing";
-import type { Paciente } from "@/lib/clinic-operations/clinic-data";
+import { formatoFecha, type Paciente } from "@/lib/clinic-operations/clinic-data";
 import { formatMoney } from "@/lib/finance/finance";
 import { getPatient } from "@/lib/patients/patients.functions";
 import { cn } from "@/lib/utils";
@@ -352,9 +354,21 @@ function PacienteDetalle() {
   });
   // Alertas de la anamnesis (CLI-10): las críticas (alergias, anticoagulantes,
   // embarazo) van en la cabecera, que queda fija al bajar por las pestañas.
+  // CLI-06: las alergias de una ficha fusionada en esta también se avisan acá.
+  const alergiasFusionadas = unirSinRepetir(
+    ...(medicalHistoryQuery.data?.deFichasFusionadas ?? []).map((f) => f.allergies),
+  ).filter(
+    (n) =>
+      !(medicalHistoryQuery.data?.allergyDetails ?? []).some(
+        (a) => a.name.toLocaleLowerCase("es") === n.toLocaleLowerCase("es"),
+      ),
+  );
   const alertas = medicalHistoryQuery.data
     ? alertasDeAnamnesis({
-        alergias: medicalHistoryQuery.data.allergyDetails,
+        alergias: [
+          ...medicalHistoryQuery.data.allergyDetails,
+          ...alergiasFusionadas.map((name) => ({ name, severity: "unknown" as const })),
+        ],
         cuestionario: medicalHistoryQuery.data.riskQuestionnaire,
       })
     : [];
@@ -465,6 +479,14 @@ function PacienteDetalle() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {clinicId && hasPermission(access.role, "settings:manage") && (
+                <ArchivarFichaButton
+                  clinicId={clinicId}
+                  patientId={paciente.id}
+                  patientName={paciente.nombre}
+                  archivadaEl={paciente.archivadaEl ?? null}
+                />
+              )}
               {puedeFacturar && (
                 <button
                   type="button"
@@ -497,6 +519,13 @@ function PacienteDetalle() {
               )}
             </div>
           </div>
+
+          {paciente.archivadaEl && (
+            <p className="mt-4 rounded-lg border border-hairline bg-secondary/60 px-4 py-2.5 text-sm text-muted-foreground">
+              Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en
+              los listados ni en la búsqueda; su historia clínica se conserva completa.
+            </p>
+          )}
 
           <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
             <Dato label="Próxima cita">{paciente.proximoControl ?? "Sin agendar"}</Dato>

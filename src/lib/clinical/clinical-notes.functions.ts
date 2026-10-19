@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { filaYaCreada } from "@/lib/idempotency";
 import { mensajeDb } from "@/lib/db-errors";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
+import { cargarFusiones, fichasAbsorbidas } from "@/lib/patients/fusion";
 import { createNotification } from "@/lib/messaging/notifications.functions";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -69,6 +70,12 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           })
         : Promise.resolve();
 
+      // CLI-06: las notas de una ficha fusionada en esta se quedan con su
+      // `patient_ref` original (una nota firmada no se reescribe), así que
+      // se leen junto con las propias.
+      const fusiones = await cargarFusiones(supabase, data.clinicId);
+      const refs = [data.patientRef, ...fichasAbsorbidas(data.patientRef, fusiones)];
+
       // security-review 01-sep: clinical_note_versions no tiene columna
       // patient_ref (solo note_id) — antes se traía TODA la tabla de la
       // clínica (todos los pacientes) y se filtraba acá en JS con noteIds.
@@ -83,26 +90,26 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           .from("clinical_notes")
           .select("*")
           .eq("clinic_id", data.clinicId)
-          .eq("patient_ref", data.patientRef)
+          .in("patient_ref", refs)
           .order("updated_at", { ascending: false }),
         supabase
           .from("clinical_note_audit")
           .select("*")
           .eq("clinic_id", data.clinicId)
-          .eq("patient_ref", data.patientRef)
+          .in("patient_ref", refs)
           .order("created_at", { ascending: false })
           .limit(40),
         supabase
           .from("clinical_note_entities")
           .select("*")
           .eq("clinic_id", data.clinicId)
-          .eq("patient_ref", data.patientRef)
+          .in("patient_ref", refs)
           .order("created_at", { ascending: false }),
         supabase
           .from("clinical_note_reviews")
           .select("*")
           .eq("clinic_id", data.clinicId)
-          .eq("patient_ref", data.patientRef)
+          .in("patient_ref", refs)
           .order("created_at", { ascending: false })
           .limit(60),
       ]);
@@ -170,6 +177,10 @@ export const getPatientNotes = createServerFn({ method: "GET" })
             : null,
           reviewRequestedAt: n.review_requested_at ?? null,
           reviewedAt: n.reviewed_at ?? null,
+          addendumOf: n.addendum_of ?? null,
+          signedAt: n.signed_at ?? null,
+          signerName: n.signer_name ?? null,
+          signerLicense: n.signer_license ?? null,
 
           updatedAt: n.updated_at,
           updatedBy: n.updated_by,
@@ -253,6 +264,8 @@ const saveInput = clinicPatient.extend({
   baseVersion: z.number().int().positive().nullable().optional(),
   /** Salta el chequeo de conflicto: nunca se usa desde la UI de edición normal. */
   force: z.boolean().default(false),
+  /** CLI-07: alta de una adenda a esta nota firmada. Se ignora si la nota ya existe. */
+  addendumOf: z.string().uuid().nullable().optional(),
 });
 
 export type SaveNoteConflict = {
@@ -285,8 +298,7 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
   .validator((input: unknown) => saveInput.parse(input))
   .handler(async ({ data, context }): Promise<SaveNoteResult> => {
     const { supabase, userId } = context;
-    let noteId = data.noteId ?? null;
-    let accion = "update";
+    const noteId = data.noteId ?? null;
     let esCreacion = !noteId;
 
     if (noteId && !esCreacion) {
@@ -348,98 +360,67 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
           };
         }
       }
+    }
 
-      const { error } = await supabase
-        .from("clinical_notes")
-        .update({
-          title: data.title,
-          content: data.content,
-          summary: data.summary ?? null,
-          updated_by: userId,
-        })
-        .eq("id", noteId!)
-        .eq("clinic_id", data.clinicId);
-      if (error)
-        throw new Error(
-          mensajeDb(error, "No tienes permisos para editar notas clínicas en esta clínica."),
-        );
-    } else {
-      accion = "create";
-      const { data: created, error } = await supabase
-        .from("clinical_notes")
-        .insert({
-          id: data.noteId ?? undefined,
-          clinic_id: data.clinicId,
-          patient_ref: data.patientRef,
-          patient_name: data.patientName ?? null,
-          title: data.title,
-          content: data.content,
-          summary: data.summary ?? null,
-          created_by: userId,
-          updated_by: userId,
-        })
-        .select("id")
-        .single();
-      if (error) {
+    // CLI-07: nota + versión en una sola transacción (`guardar_nota_clinica`).
+    // Antes eran dos requests (UPDATE y después INSERT de la versión) y si el
+    // segundo fallaba el contenido quedaba cambiado sin versión. La base
+    // además rechaza cualquier cambio de contenido sin su versión, así que no
+    // hay otro camino.
+    const { data: filas, error } = await supabase.rpc("guardar_nota_clinica", {
+      p_clinic_id: data.clinicId,
+      p_patient_ref: data.patientRef,
+      p_note_id: noteId,
+      p_title: data.title,
+      p_content: data.content,
+      p_summary: data.summary ?? undefined,
+      p_patient_name: data.patientName ?? undefined,
+      p_ai_assisted: data.aiAssisted,
+      p_ai_action: data.aiAction ?? undefined,
+      p_addendum_of: esCreacion ? (data.addendumOf ?? undefined) : undefined,
+    });
+    const guardada = filas?.[0];
+    if (error || !guardada) {
+      // Reintento de un alta offline que ya había quedado completa (la nota
+      // existe pero no era visible al leerla, o llegó en paralelo).
+      if (esCreacion && data.noteId) {
         const yaCreada = await filaYaCreada(
           supabase,
           "clinical_notes",
-          data.noteId ?? undefined,
+          data.noteId,
           data.clinicId,
           error,
         );
-        if (!yaCreada)
-          throw new Error(
-            mensajeDb(error, "No tienes permisos para crear notas clínicas en esta clínica."),
-          );
-        noteId = yaCreada;
-        const versionExistente = await versionActual(supabase, noteId);
-        // Reintento de un alta offline que ya había quedado completa (con su versión).
-        if (versionExistente != null) return { noteId, version: versionExistente };
-        // La nota se creó pero la versión no llegó a guardarse — se completa abajo.
-      } else {
-        noteId = created!.id;
+        const versionExistente = yaCreada ? await versionActual(supabase, yaCreada) : null;
+        if (yaCreada && versionExistente != null)
+          return { noteId: yaCreada, version: versionExistente };
       }
-    }
-
-    const { data: last } = await supabase
-      .from("clinical_note_versions")
-      .select("version")
-      .eq("note_id", noteId!)
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const version = (last?.version ?? 0) + 1;
-
-    const { error: versionError } = await supabase.from("clinical_note_versions").insert({
-      note_id: noteId!,
-      clinic_id: data.clinicId,
-      version,
-      title: data.title,
-      content: data.content,
-      summary: data.summary ?? null,
-      ai_assisted: data.aiAssisted,
-      ai_action: data.aiAction ?? null,
-      author_id: userId,
-    });
-    if (versionError)
       throw new Error(
-        mensajeDb(versionError, "Guardamos la nota, pero no pudimos registrar la versión."),
+        mensajeDb(
+          error,
+          esCreacion
+            ? "No tienes permisos para crear notas clínicas en esta clínica."
+            : "No tienes permisos para editar notas clínicas en esta clínica.",
+        ),
       );
+    }
 
     // La auditoría (create/edit) la escribe el trigger note_versions_auditar
     // a partir de la versión recién insertada. Ver la migración
     // 20260907200000: la app ya no puede escribir en clinical_note_audit.
-    return { noteId: noteId!, version };
+    return { noteId: guardada.nota_id, version: guardada.version_nueva };
   });
 
-/** Revierte la nota al contenido de una versión anterior, dejándola como nuevo borrador. */
+/**
+ * Revierte un BORRADOR al contenido de una versión anterior, como versión
+ * nueva (origin='revert'). Una nota firmada no se revierte ni se reabre
+ * (CLI-07): se corrige con una adenda.
+ */
 export const restoreNoteVersion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ versionId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { supabase } = context;
 
     const { data: version, error } = await supabase
       .from("clinical_note_versions")
@@ -455,113 +436,122 @@ export const restoreNoteVersion = createServerFn({ method: "POST" })
       .eq("id", version.note_id)
       .maybeSingle();
     if (!note) throw new Error("No encontramos esa nota.");
+    if (note.status === "signed")
+      throw new Error("La nota está firmada: para corregirla, agrega una adenda.");
     if (note.review_status === "pending")
       throw new Error("La nota está en revisión: resuélvela antes de revertir a otra versión.");
 
-    // Una nota firmada debe reabrirse antes de reescribir su contenido.
-    if (note.status === "signed") {
-      const { error: reopenError } = await supabase
-        .from("clinical_notes")
-        .update({ status: "draft", updated_by: userId })
-        .eq("id", version.note_id)
-        .eq("clinic_id", version.clinic_id);
-      if (reopenError)
-        throw new Error(mensajeDb(reopenError, "No tienes permisos para reabrir esta nota."));
-
-      // 'reopen' lo escribe el trigger notes_auditar_estado al ver el cambio
-      // de status, no la app.
-    }
-
-    const { error: updateError } = await supabase
-      .from("clinical_notes")
-      .update({
-        title: version.title,
-        content: version.content,
-        summary: version.summary,
-        status: "draft",
-        review_status: "none",
-        updated_by: userId,
-      })
-      .eq("id", version.note_id)
-      .eq("clinic_id", version.clinic_id);
-    if (updateError)
-      throw new Error(mensajeDb(updateError, "No tienes permisos para revertir esta nota."));
-
-    const { data: last } = await supabase
-      .from("clinical_note_versions")
-      .select("version")
-      .eq("note_id", version.note_id)
-      .order("version", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const nueva = (last?.version ?? 0) + 1;
-
-    const { error: versionError } = await supabase.from("clinical_note_versions").insert({
-      note_id: version.note_id,
-      clinic_id: version.clinic_id,
-      version: nueva,
-      title: version.title,
-      content: version.content,
-      summary: version.summary,
-      ai_assisted: version.ai_assisted,
-      ai_action: version.ai_action,
-      author_id: userId,
-      // Que esto sea una reversión deja de ser texto libre en la auditoría y
-      // pasa a ser un dato de la versión. Así el trigger puede distinguirla
-      // de un guardado normal sin creerle nada a la app.
-      origin: "revert",
-      origin_version: version.version,
+    // Nota + versión en una sola transacción. Que esto sea una reversión es
+    // un dato de la versión (origin/origin_version), no texto libre: el
+    // trigger de auditoría la distingue de un guardado normal.
+    const { data: filas, error: guardarError } = await supabase.rpc("guardar_nota_clinica", {
+      p_clinic_id: version.clinic_id,
+      p_patient_ref: note.patient_ref,
+      p_note_id: version.note_id,
+      p_title: version.title,
+      p_content: version.content,
+      p_summary: version.summary ?? undefined,
+      p_ai_assisted: version.ai_assisted,
+      p_ai_action: version.ai_action ?? undefined,
+      p_revert_of_version: version.version,
     });
-    if (versionError)
-      throw new Error(mensajeDb(versionError, "No pudimos registrar la versión revertida."));
+    const guardada = filas?.[0];
+    if (guardarError || !guardada)
+      throw new Error(mensajeDb(guardarError, "No tienes permisos para revertir esta nota."));
 
     return {
       ok: true,
-      version: nueva,
+      version: guardada.version_nueva,
       title: version.title,
       content: version.content,
       summary: version.summary,
     };
   });
 
-/** Firma o reabre una nota. */
-export const setNoteStatus = createServerFn({ method: "POST" })
+export type SignNoteResult =
+  | { ok: true }
+  /** CLI-08: a quien firma le faltan nombre completo o registro profesional. */
+  | { ok: false; faltanDatosDeFirma: true; nombreSugerido: string | null };
+
+/**
+ * Firma una nota (CLI-08). Una nota firmada ya no vuelve a borrador: no hay
+ * "reabrir". La base estampa quién firmó, con qué nombre y registro, cuándo y
+ * el hash del contenido (trigger `clinical_notes_firmar`), y rechaza la firma
+ * si al profesional le falta el registro. Acá se consulta antes para pedirle
+ * los datos en vez de mostrarle un error.
+ */
+export const signClinicalNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z.object({ noteId: z.string().uuid(), status: z.enum(["draft", "signed"]) }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
+  .validator((input: unknown) => z.object({ noteId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<SignNoteResult> => {
     const { supabase, userId } = context;
 
     const { data: note } = await supabase
       .from("clinical_notes")
-      .select("clinic_id, patient_ref")
+      .select("clinic_id, status")
       .eq("id", data.noteId)
       .maybeSingle();
     if (!note) throw new Error("No encontramos esa nota.");
+    if (note.status === "signed") return { ok: true };
+
+    const datos = await misDatosDeFirma(supabase, note.clinic_id);
+    if (!datos.nombre || !datos.registro) {
+      const { data: perfil } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", userId)
+        .maybeSingle();
+      return {
+        ok: false,
+        faltanDatosDeFirma: true,
+        nombreSugerido: datos.nombre ?? perfil?.full_name ?? null,
+      };
+    }
 
     const { error } = await supabase
       .from("clinical_notes")
-      .update({
-        status: data.status,
-        updated_by: userId,
-        // Reabrir una nota anula cualquier solicitud de aprobación en curso.
-        ...(data.status === "draft"
-          ? {
-              review_status: "none",
-              reviewer_id: null,
-              review_requested_by: null,
-              review_requested_at: null,
-              reviewed_at: null,
-            }
-          : {}),
-      })
+      .update({ status: "signed", updated_by: userId })
       .eq("id", data.noteId)
       .eq("clinic_id", note.clinic_id);
-    if (error)
-      throw new Error(mensajeDb(error, "No tienes permisos para cambiar el estado de la nota."));
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para firmar esta nota."));
 
-    // 'sign'/'reopen' los escribe el trigger notes_auditar_estado.
+    // 'sign' lo escribe el trigger notes_auditar_estado.
+    return { ok: true };
+  });
+
+async function misDatosDeFirma(
+  supabase: SupabaseCtx,
+  clinicId: string,
+): Promise<{ nombre: string | null; registro: string | null }> {
+  const { data, error } = await supabase.rpc("mis_datos_de_firma", { p_clinic_id: clinicId });
+  if (error) throw new Error(mensajeDb(error, "No pudimos leer tus datos de firma."));
+  const fila = data?.[0];
+  return { nombre: fila?.nombre ?? null, registro: fila?.registro ?? null };
+}
+
+/**
+ * Guarda el nombre completo y el número de registro con los que la persona
+ * firma en esta clínica (CLI-08: "si no tiene registro, se le pide"). Cada
+ * uno carga SOLO los suyos: la función de la base usa auth.uid().
+ */
+export const saveMySignatureData = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        nombre: z.string().trim().min(3).max(160),
+        registro: z.string().trim().min(2).max(60),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { error } = await context.supabase.rpc("registrar_mis_datos_de_firma", {
+      p_clinic_id: data.clinicId,
+      p_nombre: data.nombre,
+      p_registro: data.registro,
+    });
+    if (error) throw new Error(mensajeDb(error, "No pudimos guardar tus datos de firma."));
     return { ok: true };
   });
 
@@ -1079,7 +1069,8 @@ export const resolveNoteReview = createServerFn({ method: "POST" })
       nuevoEstado = "changes_requested";
       patch.review_status = "changes_requested";
       patch.reviewed_at = ahora;
-      patch.status = "draft"; // se reabre para que el autor aplique los cambios
+      // La nota sigue firmada: los cambios pedidos se aplican con una adenda
+      // (CLI-07), y la adenda se puede volver a mandar a revisión.
     } else if (data.action === "cancelled") {
       nuevoEstado = "none";
       patch.review_status = "none";

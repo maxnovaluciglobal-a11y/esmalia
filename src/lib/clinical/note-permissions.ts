@@ -23,7 +23,7 @@ export const NOTE_ACTIONS = [
   "edit",
   "version",
   "sign",
-  "reopen",
+  "addendum",
   "request_review",
   "resolve_review",
   "cancel_review",
@@ -36,7 +36,7 @@ export const NOTE_ACTION_LABELS: Record<NoteAction, string> = {
   edit: "Editar contenido",
   version: "Guardar versión / revertir",
   sign: "Firmar",
-  reopen: "Reabrir",
+  addendum: "Agregar adenda",
   request_review: "Enviar a revisión",
   resolve_review: "Aprobar o pedir cambios",
   cancel_review: "Cancelar revisión",
@@ -90,7 +90,8 @@ export function evaluarAccionNota(
     case "version": {
       if (enRevision(estado))
         return denegado("La nota está en revisión: primero hay que resolverla.");
-      if (!esBorrador(estado)) return denegado("La nota está firmada: hay que reabrirla antes.");
+      if (!esBorrador(estado))
+        return denegado("La nota está firmada: no se edita, se corrige con una adenda.");
       if (manager || role === "dentist")
         return permitido("Doctor/a y administración editan cualquier borrador.");
       return condicional("El asistente solo puede editar los borradores que creó.");
@@ -102,16 +103,14 @@ export function evaluarAccionNota(
       return permitido("Doctor/a, propietario y administración pueden firmar.");
     }
 
-    case "reopen": {
-      if (esBorrador(estado)) return denegado("La nota ya está en borrador.");
-      if (enRevision(estado)) {
-        if (manager)
-          return permitido("Administración puede reabrir aunque haya revisión pendiente.");
-        return condicional("Solo el revisor asignado puede reabrirla mientras esté pendiente.");
-      }
+    // CLI-07: una nota firmada no se reabre. Se le agrega una adenda (otra
+    // nota vinculada, con su autor, su fecha y su propia firma).
+    case "addendum": {
+      if (esBorrador(estado))
+        return denegado("Un borrador se edita directamente: la adenda es para notas firmadas.");
       if (manager || role === "dentist")
-        return permitido("Doctor/a y administración pueden reabrir.");
-      return condicional("El asistente solo reabre si es el autor de la nota.");
+        return permitido("Doctor/a y administración agregan y firman adendas.");
+      return condicional("El asistente redacta la adenda; la firma un doctor/a o administración.");
     }
 
     case "request_review": {

@@ -3,6 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Check,
+  CornerDownRight,
+  FilePlus2,
   FileText,
   GitCompare,
   History,
@@ -33,7 +35,7 @@ import {
   resolveNoteReview,
   restoreNoteVersion,
   saveClinicalNote,
-  setNoteStatus,
+  signClinicalNote,
   type SaveNoteResult,
 } from "@/lib/clinical/clinical-notes.functions";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
@@ -45,6 +47,9 @@ import {
   REVIEW_ACTION_LABELS,
   REVIEW_STATUS_LABELS,
   formatoFechaHora,
+  lineaDeFirma,
+  ordenarConAdendas,
+  tituloDeAdenda,
   type ClinicalNoteEntity,
   type NoteReviewStatus,
 } from "@/lib/clinical/clinical-notes";
@@ -63,6 +68,7 @@ import { exportarNotaPdf } from "@/lib/clinical/note-pdf";
 import { construirContextoPaciente } from "@/lib/ai/minimizacion";
 import { getEstadoIa } from "@/lib/ai/estado.functions";
 import { MENSAJE_IA_PAUSADA, esErrorIaPausada } from "@/lib/ai/estado";
+import { DatosDeFirmaDialog } from "@/components/datos-de-firma-dialog";
 
 import type { ClinicRole } from "@/lib/access/access";
 import type { Paciente } from "@/lib/clinic-operations/clinic-data";
@@ -101,7 +107,7 @@ export function NotasClinicas({
   const saveFn = useServerFn(saveClinicalNote);
   const aiFn = useServerFn(generateNoteText);
   const restoreFn = useServerFn(restoreNoteVersion);
-  const statusFn = useServerFn(setNoteStatus);
+  const signFn = useServerFn(signClinicalNote);
   const structureFn = useServerFn(extractNoteEntities);
   const confirmFn = useServerFn(confirmNoteEntity);
   const deleteEntityFn = useServerFn(deleteNoteEntity);
@@ -121,6 +127,12 @@ export function NotasClinicas({
   const pattyActiva = estadoIa?.habilitada === true;
 
   const [noteId, setNoteId] = useState<string | null>(null);
+  // CLI-07: adenda en preparación (todavía sin guardar) a esta nota firmada.
+  const [adendaDe, setAdendaDe] = useState<string | null>(null);
+  // CLI-08: a quien firma le faltan nombre o registro → se le piden.
+  const [pedirDatosDeFirma, setPedirDatosDeFirma] = useState<{
+    nombreSugerido: string | null;
+  } | null>(null);
   // Versión vigente vista al empezar a editar. Viaja en cada guardado offline
   // para que el servidor detecte si alguien más cambió la nota mientras tanto.
   const [baseVersion, setBaseVersion] = useState<number | null>(null);
@@ -145,7 +157,7 @@ export function NotasClinicas({
     queryFn: () => fetchNotes({ data: { clinicId: clinicId!, patientRef: paciente.id } }),
   });
 
-  const notas = data?.notes ?? [];
+  const notas = useMemo(() => ordenarConAdendas(data?.notes ?? []), [data]);
   const versiones = useMemo(
     () => (data?.versions ?? []).filter((v) => (noteId ? v.noteId === noteId : true)),
     [data, noteId],
@@ -161,6 +173,8 @@ export function NotasClinicas({
   }, [entidades]);
   const auditoria = data?.audit ?? [];
   const notaActual = notas.find((n) => n.id === noteId) ?? null;
+  // Nota firmada a la que pertenece la adenda abierta o en preparación.
+  const notaCorregida = notas.find((n) => n.id === (notaActual?.addendumOf ?? adendaDe)) ?? null;
   const revisiones = useMemo(
     () => (data?.reviews ?? []).filter((r) => (noteId ? r.noteId === noteId : false)),
     [data, noteId],
@@ -171,9 +185,9 @@ export function NotasClinicas({
   const esSolicitante = Boolean(userId && notaActual?.reviewRequestedBy === userId);
   const revisionPendiente = notaActual?.reviewStatus === "pending";
   const puedeResolver = revisionPendiente && (esRevisorAsignado || esSupervisor);
-  // Firmar y reabrir quedan reservados a doctores/as y administración (regla replicada en la base de datos).
+  // Firmar queda reservado a doctores/as y administración (regla replicada en la base de datos).
+  // Una nota firmada no se reabre: se corrige con una adenda (CLI-07).
   const puedeFirmar = puedeEditar && esProfesional;
-  const puedeReabrir = puedeFirmar && (!revisionPendiente || esRevisorAsignado || esSupervisor);
   const puedeSolicitarRevision = puedeEditar && esProfesional;
 
   // Diagnóstico (solo desarrollo): explica un bloqueo con el estado real de la nota.
@@ -207,6 +221,8 @@ export function NotasClinicas({
         versiones,
         auditoria: auditoria.filter((a) => !a.noteId || a.noteId === notaActual.id),
         entidades,
+        adendas: notas.filter((n) => n.addendumOf === notaActual.id),
+        notaOriginal: notaCorregida,
       });
       toast.success("PDF generado con versiones y auditoría.");
     } catch {
@@ -242,8 +258,22 @@ export function NotasClinicas({
       return;
     }
     setNoteId(null);
+    setAdendaDe(null);
     setBaseVersion(null);
     setTitulo("Nota clínica");
+    setContenido("");
+    setResumen(null);
+    setAiUsada(false);
+    setTemplateId(null);
+  }
+
+  /** CLI-07: empieza una adenda a la nota firmada que está abierta. */
+  function nuevaAdenda() {
+    if (!notaActual || notaActual.status !== "signed") return;
+    setAdendaDe(notaActual.id);
+    setNoteId(null);
+    setBaseVersion(null);
+    setTitulo(tituloDeAdenda(notaActual.title));
     setContenido("");
     setResumen(null);
     setAiUsada(false);
@@ -280,6 +310,7 @@ export function NotasClinicas({
       return;
     }
     setNoteId(nota.id);
+    setAdendaDe(null);
     setBaseVersion(nota.version);
     setTitulo(nota.title);
     setContenido(nota.content);
@@ -313,9 +344,12 @@ export function NotasClinicas({
     if (!noteId) setNoteId(id);
     guardarOffline.mutar({
       clinicId: clinicId!,
-      patientRef: paciente.id,
+      // Una nota (o adenda) de una ficha fusionada en esta conserva su
+      // paciente original (CLI-06): se guarda con el `patient_ref` de la nota.
+      patientRef: notaActual?.patientRef ?? notaCorregida?.patientRef ?? paciente.id,
       patientName: paciente.nombre,
       noteId: id,
+      addendumOf: noteId ? null : adendaDe,
       title: titulo.trim() || "Nota clínica",
       content: contenido,
       summary: resumen,
@@ -361,11 +395,16 @@ export function NotasClinicas({
     onError: diagError("version"),
   });
 
-  const cambiarEstado = useMutation({
-    mutationFn: (status: "draft" | "signed") => statusFn({ data: { noteId: noteId!, status } }),
-    onSuccess: () => {
+  const firmar = useMutation({
+    mutationFn: () => signFn({ data: { noteId: noteId! } }),
+    onSuccess: (res) => {
+      if (!res.ok) {
+        setPedirDatosDeFirma({ nombreSugerido: res.nombreSugerido });
+        return;
+      }
+      setPedirDatosDeFirma(null);
       queryClient.invalidateQueries({ queryKey });
-      toast.success("Estado actualizado");
+      toast.success("Nota firmada");
     },
     onError: diagError("sign"),
   });
@@ -457,7 +496,7 @@ export function NotasClinicas({
       await queryClient.invalidateQueries({ queryKey });
       const mensajes: Record<string, string> = {
         approved: "Nota aprobada por el revisor",
-        changes_requested: "Se solicitaron cambios y la nota volvió a borrador",
+        changes_requested: "Se solicitaron cambios: el autor los agrega con una adenda",
         comment: "Comentario registrado",
         cancelled: "Solicitud de revisión cancelada",
       };
@@ -522,9 +561,16 @@ export function NotasClinicas({
                   : "border-hairline text-muted-foreground hover:bg-secondary/60"
               }`}
             >
-              <FileText className="size-3" />
+              {n.addendumOf ? (
+                <CornerDownRight className="size-3" aria-label="Adenda" />
+              ) : (
+                <FileText className="size-3" />
+              )}
               {n.title}
               <span className="text-[11px] opacity-70">v{n.version}</span>
+              {n.patientRef !== paciente.id && (
+                <span className="text-[11px] opacity-70">· ficha fusionada</span>
+              )}
               {n.status === "signed" && <ShieldCheck className="size-3" />}
               {n.reviewStatus !== "none" && (
                 <span
@@ -588,6 +634,26 @@ export function NotasClinicas({
                   : "Elige un motivo de consulta para partir desde un formato predefinido."}
               </p>
             </div>
+          )}
+
+          {notaCorregida && (
+            <p className="rounded-lg border border-info-border bg-info-soft px-3 py-2 text-xs text-info">
+              {notaActual ? "Adenda" : "Nueva adenda"} a «{notaCorregida.title}»
+              {notaCorregida.signedAt
+                ? `, firmada el ${formatoFechaHora(notaCorregida.signedAt)}`
+                : ""}
+              . La nota original no cambia: esta adenda queda vinculada, con su autor, su fecha y su
+              propia firma.
+            </p>
+          )}
+          {firmada && notaActual && (
+            <p className="flex items-start gap-1.5 rounded-lg border border-hairline px-3 py-2 text-xs text-muted-foreground">
+              <ShieldCheck className="mt-0.5 size-3 shrink-0" />
+              <span>
+                {lineaDeFirma(notaActual)}. Una nota firmada no se edita ni se reabre: para
+                corregirla o completarla, agrega una adenda.
+              </span>
+            </p>
           )}
 
           <input
@@ -710,20 +776,31 @@ export function NotasClinicas({
                 )}
                 Guardar versión
               </button>
-              {noteId && (
+              {noteId && !firmada && (
                 <button
-                  onClick={() => cambiarEstado.mutate(firmada ? "draft" : "signed")}
-                  disabled={cambiarEstado.isPending || (firmada ? !puedeReabrir : !puedeFirmar)}
+                  onClick={() => firmar.mutate()}
+                  disabled={firmar.isPending || !puedeFirmar}
                   title={
                     !esProfesional
-                      ? "Solo un doctor/a o administrador puede firmar o reabrir la nota"
-                      : firmada && revisionPendiente && !puedeReabrir
-                        ? "La nota está en revisión: solo el revisor asignado o un administrador puede reabrirla"
-                        : undefined
+                      ? "Solo un doctor/a o administrador puede firmar la nota"
+                      : "Firmada, la nota ya no se edita: las correcciones van en una adenda"
                   }
                   className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium disabled:opacity-50"
                 >
-                  <ShieldCheck className="size-3" /> {firmada ? "Reabrir" : "Firmar"}
+                  {firmar.isPending ? (
+                    <Loader2 className="size-3 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="size-3" />
+                  )}
+                  Firmar
+                </button>
+              )}
+              {firmada && !notaActual?.addendumOf && (
+                <button
+                  onClick={nuevaAdenda}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60"
+                >
+                  <FilePlus2 className="size-3" /> Agregar adenda
                 </button>
               )}
             </div>
@@ -856,6 +933,13 @@ export function NotasClinicas({
                     </button>
                   )}
                 </div>
+              )}
+
+              {notaActual.reviewStatus === "changes_requested" && firmada && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  El revisor pidió cambios. La nota firmada no se modifica: agrega los cambios como
+                  adenda y envía la adenda a revisión.
+                </p>
               )}
 
               {revisionPendiente && !puedeResolver && (
@@ -1010,27 +1094,29 @@ export function NotasClinicas({
                           <GitCompare className="size-3" /> Comparar con v{v.version - 1}
                         </button>
                       )}
-                      {puedeEditar && v.version !== notaActual?.version && (
-                        <button
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `¿Revertir el contenido a la v${v.version}? Se creará un nuevo borrador y quedará registrado en auditoría.`,
+                      {puedeEditar &&
+                        notas.find((n) => n.id === v.noteId)?.status !== "signed" &&
+                        v.version !== notaActual?.version && (
+                          <button
+                            onClick={() => {
+                              if (
+                                window.confirm(
+                                  `¿Revertir el contenido a la v${v.version}? Se creará un nuevo borrador y quedará registrado en auditoría.`,
+                                )
                               )
-                            )
-                              restaurar.mutate(v.id);
-                          }}
-                          disabled={restaurar.isPending || revisionPendiente}
-                          title={
-                            revisionPendiente
-                              ? "Resuelve la revisión pendiente antes de revertir"
-                              : `Revertir a v${v.version} como nuevo borrador`
-                          }
-                          className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline disabled:opacity-50"
-                        >
-                          <RotateCcw className="size-3" /> Revertir a v{v.version}
-                        </button>
-                      )}
+                                restaurar.mutate(v.id);
+                            }}
+                            disabled={restaurar.isPending || revisionPendiente}
+                            title={
+                              revisionPendiente
+                                ? "Resuelve la revisión pendiente antes de revertir"
+                                : `Revertir a v${v.version} como nuevo borrador`
+                            }
+                            className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline disabled:opacity-50"
+                          >
+                            <RotateCcw className="size-3" /> Revertir a v{v.version}
+                          </button>
+                        )}
                     </div>
                   </div>
                 ))
@@ -1147,6 +1233,17 @@ export function NotasClinicas({
       </div>
 
       <DevDiagnosticsPanel />
+
+      <DatosDeFirmaDialog
+        abierto={pedirDatosDeFirma !== null}
+        clinicId={clinicId}
+        nombreSugerido={pedirDatosDeFirma?.nombreSugerido ?? null}
+        onCerrar={() => setPedirDatosDeFirma(null)}
+        onGuardado={() => {
+          setPedirDatosDeFirma(null);
+          firmar.mutate();
+        }}
+      />
 
       {comparar && versiones.length > 0 && (
         <VersionDiffDialog
