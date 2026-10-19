@@ -15,9 +15,11 @@
 // pantalla es específica de roles de clínica — `ROLE_LABELS`/`ClinicAccess`
 // no aplican acá).
 
+import { useEffect } from "react";
 import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
+import { marcarEquipoInterno } from "@/lib/marketing/eventos";
 import { listMarketingLeads } from "@/lib/marketing/leads.functions";
 import type { MetaLead } from "@/lib/marketing/leads";
 import type { Json } from "@/integrations/supabase/types";
@@ -200,6 +202,11 @@ function formatFechaHora(iso: string): string {
 
 function AdminLeadsPage() {
   const leads = Route.useLoaderData();
+  // El loader ya pasó el gate de staff: las visitas de este equipo a las
+  // páginas públicas se marcan `interno` (docs/MEDICION.md).
+  useEffect(() => {
+    marcarEquipoInterno();
+  }, []);
 
   return (
     <div className="min-h-dvh bg-surface px-4 py-10 sm:py-12">

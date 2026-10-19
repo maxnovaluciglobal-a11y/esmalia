@@ -375,6 +375,14 @@ export const importAppointments = createServerFn({ method: "POST" })
       }
     }
 
+    // Activación (docs/MEDICION.md): ¿la clínica ya tenía citas antes de
+    // importar? Se mide antes de insertar.
+    const eventos = await import("@/lib/marketing/eventos-servidor.server");
+    const habiaCitasAntes =
+      paraCrear.length > 0
+        ? await eventos.clinicaTieneCitas(context.supabase, data.clinicId)
+        : true;
+
     let created = 0;
     for (let i = 0; i < paraCrear.length; i += IMPORT_APPT_CHUNK_SIZE) {
       const chunk = paraCrear.slice(i, i + IMPORT_APPT_CHUNK_SIZE);
@@ -397,6 +405,16 @@ export const importAppointments = createServerFn({ method: "POST" })
       } else {
         created += chunk.length;
       }
+    }
+
+    if (created > 0 && habiaCitasAntes === false) {
+      await eventos.registrarPrimeraCitaSiCorresponde({
+        supabase: context.supabase,
+        clinicId: data.clinicId,
+        userId: context.userId,
+        origen: "importacion",
+        habiaCitasAntes: false,
+      });
     }
 
     return {

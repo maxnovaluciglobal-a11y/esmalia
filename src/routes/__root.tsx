@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -25,6 +26,7 @@ import { attachOfflineCache, resetOfflineCache } from "@/lib/offline/offline-cac
 import { registerServiceWorker } from "@/lib/offline/register-sw";
 import { Toaster } from "@/components/ui/sonner";
 import { debeDesviarANuevaClave, RUTA_NUEVA_CLAVE } from "@/lib/recuperar-clave";
+import { registrarVistaDePagina } from "@/lib/marketing/eventos";
 
 // Se ejecuta una sola vez al importar el módulo raíz. No-op (y sin descargar
 // @sentry/react) si no hay DSN — ver src/lib/sentry.ts.
@@ -219,6 +221,14 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  // Embudo propio sin cookies (IA-14 / MKT-02): una vista por cambio de ruta,
+  // sólo en las páginas públicas de la lista blanca de `medicion.ts`. Ni la
+  // app ni el portal (lleva el token en la ruta) se miden.
+  useEffect(() => {
+    registrarVistaDePagina(pathname);
+  }, [pathname]);
 
   // Si la Redirect URL de Supabase no incluye /auth/nueva-clave, el enlace de
   // "Olvidé mi contraseña" cae en la Site URL con el token en el hash. Se
@@ -262,6 +272,18 @@ function RootComponent() {
       const { data } = supabase.auth.onAuthStateChange((event, session) => {
         if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
         void bindCacheTo(session?.user.id);
+        // `registro_completado`: el servidor decide si la cuenta es nueva
+        // (alta o confirmación reciente). Cubre email, Google y el enlace de
+        // confirmación, que vuelven todos por acá.
+        if (event === "SIGNED_IN" && session?.user) {
+          const { created_at, email_confirmed_at } = session.user;
+          void import("@/lib/marketing/eventos-cuenta").then((m) =>
+            m.registrarRegistroCompletado({
+              createdAt: created_at,
+              confirmadoAt: email_confirmed_at,
+            }),
+          );
+        }
         // Mejores prácticas 01-sep: acá había además un queryClient.invalidateQueries()
         // sin queryKey — la única de 57 invalidaciones del repo sin scope,
         // refetch-storm de TODO lo montado en cada evento de auth. router.invalidate()

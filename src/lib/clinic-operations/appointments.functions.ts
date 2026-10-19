@@ -438,6 +438,16 @@ export const createAppointment = createServerFn({ method: "POST" })
       if (yaEstaba) return { id: yaEstaba };
       throw new Error("No pudimos crear la cita. " + error.message);
     }
+    // Activación (docs/MEDICION.md): si es la primera cita de la clínica.
+    // Nunca lanza.
+    const { registrarPrimeraCitaSiCorresponde } =
+      await import("@/lib/marketing/eventos-servidor.server");
+    await registrarPrimeraCitaSiCorresponde({
+      supabase: context.supabase,
+      clinicId: data.clinicId,
+      userId: context.userId,
+      origen: "manual",
+    });
     return { id: inserted.id, solapamiento };
   });
 
