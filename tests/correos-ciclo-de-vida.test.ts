@@ -6,6 +6,7 @@ import {
   elegirAccionSugerida,
   esDestinatarioReservado,
   esLunesLocal,
+  esVentanaDeCorreos,
   normalizarDestinatario,
   semanaAnterior,
   semanaTuvoActividad,
@@ -577,5 +578,33 @@ describe("sendClinicEmail: idempotencia y modo de prueba", () => {
         "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
       },
     });
+  });
+});
+
+describe("esVentanaDeCorreos (CS-03)", () => {
+  it("abre a las 8:00 locales y cierra a las 20:59", () => {
+    // 16-oct-2026 en Santiago es UTC-3.
+    expect(esVentanaDeCorreos(new Date("2026-10-16T10:59:00Z"), "America/Santiago")).toBe(false); // 07:59
+    expect(esVentanaDeCorreos(new Date("2026-10-16T11:00:00Z"), "America/Santiago")).toBe(true); // 08:00
+    expect(esVentanaDeCorreos(new Date("2026-10-16T23:59:00Z"), "America/Santiago")).toBe(true); // 20:59
+    expect(esVentanaDeCorreos(new Date("2026-10-17T00:00:00Z"), "America/Santiago")).toBe(false); // 21:00
+  });
+
+  it("el lunes 12-oct-2026 (corridas a 01:18Z, 09:08Z y 18:59Z) alcanza a México y a Santiago", () => {
+    // Antes de este cambio ninguna de las tres caía en 8:00-11:59 de ningún país.
+    const corridas = ["2026-10-12T01:18:00Z", "2026-10-12T09:08:00Z", "2026-10-12T18:59:00Z"];
+    const dentro = (tz: string) => corridas.some((c) => esVentanaDeCorreos(new Date(c), tz));
+    expect(dentro("America/Santiago")).toBe(true); // 18:59Z = 15:59
+    expect(dentro("America/Mexico_City")).toBe(true); // 18:59Z = 12:59
+    expect(dentro("America/Bogota")).toBe(true); // 18:59Z = 13:59
+    expect(dentro("America/Lima")).toBe(true);
+    expect(dentro("America/Argentina/Buenos_Aires")).toBe(true);
+  });
+
+  it("no escribe de madrugada ni de noche en ningún país", () => {
+    for (const tz of ["America/Santiago", "America/Mexico_City", "America/Bogota"]) {
+      expect(esVentanaDeCorreos(new Date("2026-10-12T07:00:00Z"), "UTC")).toBe(false);
+      expect(esVentanaDeCorreos(new Date("2026-10-12T03:00:00Z"), tz)).toBe(false);
+    }
   });
 });
