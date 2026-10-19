@@ -55,17 +55,6 @@ export function leerPiezas(texto: string): { piezas: number[]; invalidas: string
   return { piezas, invalidas };
 }
 
-export type Firmante = "patient" | "guardian";
-
-/**
- * Quién firma por defecto: el paciente, salvo que sea menor de 18 a la fecha.
- * El registro del tutor llega con otro PR (CLI-11); por ahora se anota el
- * nombre y el parentesco de quien firma.
- */
-export function firmantePorDefecto(edad: number | null): Firmante {
-  return edad !== null && edad < 18 ? "guardian" : "patient";
-}
-
 /**
  * Valida lo mínimo antes de mandar la firma. Devuelve el primer problema, o
  * null si se puede firmar. La base vuelve a exigir procedimiento e informante.
@@ -76,8 +65,8 @@ export function problemaParaFirmar(c: {
   body: string;
   informedByProfessionalId: string;
   signedByName: string;
-  signerKind: Firmante;
-  signerRelationship: string;
+  /** Paciente menor sin tutor elegido (la base lo vuelve a exigir, CLI-11). */
+  faltaTutor: boolean;
   tieneFirma: boolean;
   piezasInvalidas: string[];
 }): string | null {
@@ -88,8 +77,7 @@ export function problemaParaFirmar(c: {
   if (c.piezasInvalidas.length > 0)
     return `Revisa las piezas (notación FDI): ${c.piezasInvalidas.join(", ")}.`;
   if (c.signedByName.trim().length < 2) return "Escribe el nombre de quien firma.";
-  if (c.signerKind === "guardian" && c.signerRelationship.trim().length < 2)
-    return "Indica el parentesco o la representación de quien firma.";
+  if (c.faltaTutor) return "El paciente es menor de edad: firma su tutor o representante legal.";
   if (!c.tieneFirma) return "Falta la firma.";
   return null;
 }

@@ -13,9 +13,12 @@
 --      (clinic_id, seed_key) hace que correrla dos veces no duplique nada.
 --   3. patient_consents registra procedimiento, riesgos y alternativas como
 --      snapshot, el profesional informante (nombre y registro copiados por la
---      base, no por el cliente), quién firma (paciente o representante: el
---      vínculo `guardian_id` queda preparado para el PR de tutores) y un
---      sha256 del contenido firmado que calcula la base.
+--      base, no por el cliente) y un sha256 del contenido firmado que calcula
+--      la base. Quién firma (paciente o tutor) ya lo resuelve la migración
+--      20261019180000 (CLI-11): `guardian_id` con su FK a patient_guardians y
+--      los triggers `patient_consents_stamp_signer` /
+--      `patient_consents_enforce_signer_update`. Acá no se redefine nada de
+--      eso: solo se suma el firmante al hash.
 --
 -- CLI-13 · Recetas: tabla nueva `prescriptions`. La emite un profesional con
 -- su propia cuenta (professionals.user_id = auth.uid()) y con su número de
@@ -231,23 +234,8 @@ ALTER TABLE public.patient_consents
   ADD COLUMN IF NOT EXISTS informed_by_professional_id uuid REFERENCES public.professionals(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS informed_by_name_snapshot text,
   ADD COLUMN IF NOT EXISTS informed_by_license_snapshot text,
-  ADD COLUMN IF NOT EXISTS signer_kind text NOT NULL DEFAULT 'patient',
-  -- Preparado para el PR de tutores (CLI-11): la FK a patient_guardians la
-  -- agrega esa migración. Acá solo queda el campo.
-  ADD COLUMN IF NOT EXISTS guardian_id uuid,
-  ADD COLUMN IF NOT EXISTS signer_relationship text,
   ADD COLUMN IF NOT EXISTS signature_sha256 text,
   ADD COLUMN IF NOT EXISTS content_sha256 text;
-
-ALTER TABLE public.patient_consents
-  DROP CONSTRAINT IF EXISTS patient_consents_signer_kind_check;
-ALTER TABLE public.patient_consents
-  ADD CONSTRAINT patient_consents_signer_kind_check CHECK (signer_kind IN ('patient', 'guardian'));
-ALTER TABLE public.patient_consents
-  DROP CONSTRAINT IF EXISTS patient_consents_guardian_relationship_check;
-ALTER TABLE public.patient_consents
-  ADD CONSTRAINT patient_consents_guardian_relationship_check
-  CHECK (signer_kind = 'patient' OR nullif(btrim(signer_relationship), '') IS NOT NULL);
 
 CREATE INDEX IF NOT EXISTS patient_consents_informed_by_idx
   ON public.patient_consents (informed_by_professional_id)
@@ -257,7 +245,7 @@ CREATE INDEX IF NOT EXISTS patient_consents_treatment_item_idx
   WHERE treatment_item_id IS NOT NULL;
 
 -- Completa lo que la base sabe mejor que el cliente: la fecha, quién lo
--- registró, los datos del profesional informante y el hash. El cliente no
+-- registró y los datos del profesional informante (el hash va en zz_huella). El cliente no
 -- puede fechar hacia atrás ni atribuirle la explicación a otra persona.
 CREATE OR REPLACE FUNCTION public.patient_consents_completar()
 RETURNS trigger
@@ -298,11 +286,24 @@ BEGIN
     RAISE EXCEPTION 'El ítem del plan no corresponde a este paciente.';
   END IF;
 
-  IF NEW.signer_kind = 'patient' THEN
-    NEW.signer_relationship := NULL;
-    NEW.guardian_id := NULL;
-  END IF;
+  RETURN NEW;
+END;
+$$;
 
+DROP TRIGGER IF EXISTS patient_consents_completar ON public.patient_consents;
+CREATE TRIGGER patient_consents_completar
+  BEFORE INSERT ON public.patient_consents
+  FOR EACH ROW EXECUTE FUNCTION public.patient_consents_completar();
+
+-- La huella va en un trigger aparte que corre ÚLTIMO: los BEFORE triggers de
+-- una tabla se disparan en orden alfabético, y `patient_consents_stamp_signer`
+-- (20261019180000) reescribe signed_by_name y el snapshot del tutor. El
+-- prefijo `zz_` garantiza que el hash cubra lo que efectivamente queda.
+CREATE OR REPLACE FUNCTION public.patient_consents_huella()
+RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+BEGIN
   NEW.content_sha256 := encode(sha256(convert_to(concat_ws(
     E'\x1f',
     NEW.clinic_id::text,
@@ -315,24 +316,25 @@ BEGIN
     coalesce(array_to_string(NEW.tooth_numbers, ','), ''),
     coalesce(NEW.informed_by_name_snapshot, ''),
     coalesce(NEW.informed_by_license_snapshot, ''),
-    NEW.signer_kind,
-    coalesce(NEW.signer_relationship, ''),
+    coalesce(NEW.signer_role, ''),
+    coalesce(NEW.signer_relationship_snapshot, ''),
+    coalesce(NEW.signer_document_snapshot, ''),
     coalesce(NEW.signed_by_name, ''),
     coalesce(NEW.signature_sha256, ''),
     to_char(NEW.signed_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
   ), 'UTF8')), 'hex');
-
   RETURN NEW;
 END;
 $$;
 
-DROP TRIGGER IF EXISTS patient_consents_completar ON public.patient_consents;
-CREATE TRIGGER patient_consents_completar
+DROP TRIGGER IF EXISTS patient_consents_zz_huella ON public.patient_consents;
+CREATE TRIGGER patient_consents_zz_huella
   BEFORE INSERT ON public.patient_consents
-  FOR EACH ROW EXECUTE FUNCTION public.patient_consents_completar();
+  FOR EACH ROW EXECUTE FUNCTION public.patient_consents_huella();
 
 -- La inmutabilidad ahora cubre también las columnas nuevas: lo único
--- editable sigue siendo la revocación.
+-- editable sigue siendo la revocación. Las columnas del firmante las protege
+-- `patient_consents_enforce_signer_update` (20261019180000).
 CREATE OR REPLACE FUNCTION public.enforce_patient_consent_update()
 RETURNS TRIGGER
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -353,9 +355,6 @@ BEGIN
     OR NEW.tooth_numbers IS DISTINCT FROM OLD.tooth_numbers
     OR NEW.informed_by_name_snapshot IS DISTINCT FROM OLD.informed_by_name_snapshot
     OR NEW.informed_by_license_snapshot IS DISTINCT FROM OLD.informed_by_license_snapshot
-    OR NEW.signer_kind IS DISTINCT FROM OLD.signer_kind
-    OR NEW.guardian_id IS DISTINCT FROM OLD.guardian_id
-    OR NEW.signer_relationship IS DISTINCT FROM OLD.signer_relationship
     OR NEW.signature_sha256 IS DISTINCT FROM OLD.signature_sha256
     OR NEW.content_sha256 IS DISTINCT FROM OLD.content_sha256
     -- Las FK con ON DELETE SET NULL sí pueden pasar a NULL (se borró el
@@ -597,6 +596,7 @@ CREATE TRIGGER block_demo_writes
 REVOKE EXECUTE ON FUNCTION public.consent_templates_estampar() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.seed_clinic_consent_templates_al_crear() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.patient_consents_completar() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.patient_consents_huella() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.enforce_patient_consent_update() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.prescriptions_emitir() FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION public.prescriptions_solo_anular() FROM PUBLIC, anon, authenticated;

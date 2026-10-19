@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   esPiezaFdi,
   estadoPlantilla,
-  firmantePorDefecto,
   leerPiezas,
   problemaParaFirmar,
 } from "@/lib/clinical/consentimientos";
@@ -45,34 +44,23 @@ describe("piezas en notación FDI", () => {
   });
 });
 
-describe("quién firma", () => {
-  it("propone al representante si el paciente es menor", () => {
-    expect(firmantePorDefecto(9)).toBe("guardian");
-    expect(firmantePorDefecto(17)).toBe("guardian");
-    expect(firmantePorDefecto(18)).toBe("patient");
-    expect(firmantePorDefecto(null)).toBe("patient");
-  });
-
+describe("antes de firmar", () => {
   const base = {
     title: "Consentimiento para exodoncia",
     procedure: "Exodoncia de la 38",
     body: "Texto suficiente para firmar.",
     informedByProfessionalId: "p1",
     signedByName: "Juan Soto",
-    signerKind: "patient" as const,
-    signerRelationship: "",
+    faltaTutor: false,
     tieneFirma: true,
     piezasInvalidas: [],
   };
 
-  it("pide procedimiento, informante, parentesco del representante y firma", () => {
+  it("pide procedimiento, informante, tutor de un menor y firma", () => {
     expect(problemaParaFirmar(base)).toBeNull();
     expect(problemaParaFirmar({ ...base, procedure: " " })).toMatch(/procedimiento/);
     expect(problemaParaFirmar({ ...base, informedByProfessionalId: "" })).toMatch(/profesional/);
-    expect(problemaParaFirmar({ ...base, signerKind: "guardian" })).toMatch(/parentesco/);
-    expect(
-      problemaParaFirmar({ ...base, signerKind: "guardian", signerRelationship: "Madre" }),
-    ).toBeNull();
+    expect(problemaParaFirmar({ ...base, faltaTutor: true })).toMatch(/tutor/);
     expect(problemaParaFirmar({ ...base, tieneFirma: false })).toMatch(/firma/);
     expect(problemaParaFirmar({ ...base, piezasInvalidas: ["19"] })).toMatch(/19/);
   });
@@ -132,6 +120,16 @@ describe("migración 20261019190000", () => {
         `REVOKE EXECUTE ON FUNCTION ${f} FROM PUBLIC, anon, authenticated`,
       );
     }
+  });
+
+  it("no redefine el firmante de 20261019180000 y la huella corre después de él", () => {
+    expect(MIGRACION).not.toMatch(/ADD COLUMN IF NOT EXISTS guardian_id/);
+    expect(MIGRACION).not.toMatch(/signer_kind/);
+    expect(MIGRACION).not.toMatch(/stamp_patient_consent_signer\(\)\s*\n?RETURNS/);
+    // Los BEFORE triggers corren en orden alfabético: la huella después de stamp_signer.
+    expect("patient_consents_zz_huella" > "patient_consents_stamp_signer").toBe(true);
+    expect(MIGRACION).toMatch(/CREATE TRIGGER patient_consents_zz_huella/);
+    expect(MIGRACION).toMatch(/coalesce\(NEW\.signer_role, ''\)/);
   });
 
   it("las recetas tienen RLS, no se borran y la base completa los datos del profesional", () => {

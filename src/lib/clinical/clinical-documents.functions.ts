@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { esPiezaFdi, type Firmante, type OrigenPlantilla } from "@/lib/clinical/consentimientos";
+import { esPiezaFdi, type OrigenPlantilla } from "@/lib/clinical/consentimientos";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 
@@ -320,7 +320,9 @@ export type PatientConsent = {
   toothNumbers: number[];
   informedByName: string | null;
   informedByLicense: string | null;
-  signerKind: Firmante;
+  /** "tutor" si firmó el tutor o representante legal; null en firmas anteriores al dato. */
+  signerRole: "paciente" | "tutor" | null;
+  signerDocument: string | null;
   signerRelationship: string | null;
   signedByName: string;
   signedAt: string;
@@ -344,7 +346,7 @@ export const listPatientConsents = createServerFn({ method: "GET" })
     const nuevas = await context.supabase
       .from("patient_consents")
       .select(
-        "id, title_snapshot, procedure_snapshot, body_snapshot, risks_snapshot, alternatives_snapshot, tooth_numbers, informed_by_name_snapshot, informed_by_license_snapshot, signer_kind, signer_relationship, signature_storage_path, signed_by_name, signed_at, content_sha256, revoked_at",
+        "id, title_snapshot, procedure_snapshot, body_snapshot, risks_snapshot, alternatives_snapshot, tooth_numbers, informed_by_name_snapshot, informed_by_license_snapshot, signer_role, signer_document_snapshot, signer_relationship_snapshot, signature_storage_path, signed_by_name, signed_at, content_sha256, revoked_at",
       )
       .eq("clinic_id", data.clinicId)
       .eq("patient_id", data.patientId)
@@ -388,8 +390,10 @@ export const listPatientConsents = createServerFn({ method: "GET" })
         toothNumbers: Array.isArray(row.tooth_numbers) ? (row.tooth_numbers as number[]) : [],
         informedByName: texto(row.informed_by_name_snapshot),
         informedByLicense: texto(row.informed_by_license_snapshot),
-        signerKind: row.signer_kind === "guardian" ? "guardian" : "patient",
-        signerRelationship: texto(row.signer_relationship),
+        signerRole:
+          row.signer_role === "paciente" || row.signer_role === "tutor" ? row.signer_role : null,
+        signerDocument: texto(row.signer_document_snapshot),
+        signerRelationship: texto(row.signer_relationship_snapshot),
         signedByName: String(row.signed_by_name),
         signedAt: String(row.signed_at),
         contentSha256: texto(row.content_sha256),
@@ -421,10 +425,11 @@ export const signPatientConsent = createServerFn({ method: "POST" })
           .max(32)
           .optional(),
         treatmentItemId: z.string().uuid().optional(),
-        // Paciente o su representante. El vínculo con la ficha del tutor
-        // (guardian_id) llega con el PR de tutores (CLI-11).
-        signerKind: z.enum(["patient", "guardian"]).default("patient"),
-        signerRelationship: z.string().trim().max(80).optional().or(z.literal("")),
+        // Tutor o representante legal que firma (CLI-11). Obligatorio si el
+        // paciente es menor: lo exige el trigger `stamp_patient_consent_signer`,
+        // que además copia el nombre, documento y parentesco del tutor al
+        // registro (lo que mande el cliente en `signedByName` se pisa).
+        guardianId: z.string().uuid().optional(),
         signedByName: z.string().trim().min(2).max(120),
         // PNG del canvas de firma, data URL. Opcional a propósito: el canvas
         // es un widget de puntero puro (no hay forma significativa de
@@ -437,13 +442,6 @@ export const signPatientConsent = createServerFn({ method: "POST" })
         // `setQuoteStatus` al aceptar un presupuesto sin firma.
         signatureDataUrl: z.string().max(2_000_000).optional(),
       })
-      .refine(
-        (c) => c.signerKind === "patient" || (c.signerRelationship ?? "").trim().length >= 2,
-        {
-          message: "Indica el parentesco o la representación de quien firma.",
-          path: ["signerRelationship"],
-        },
-      )
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -477,9 +475,7 @@ export const signPatientConsent = createServerFn({ method: "POST" })
       informed_by_professional_id: data.informedByProfessionalId,
       tooth_numbers: data.toothNumbers?.length ? data.toothNumbers : null,
       treatment_item_id: data.treatmentItemId ?? null,
-      signer_kind: data.signerKind,
-      signer_relationship:
-        data.signerKind === "guardian" ? data.signerRelationship?.trim() || null : null,
+      ...(data.guardianId ? { guardian_id: data.guardianId } : {}),
       signature_storage_path: path,
       signature_sha256: await sha256Hex(bytes),
       signed_by_name: data.signedByName,
@@ -487,6 +483,8 @@ export const signPatientConsent = createServerFn({ method: "POST" })
     });
     if (insertError) {
       await context.supabase.storage.from(BUCKET).remove([path]);
+      // Los triggers responden en español ("El paciente es menor de edad…",
+      // "Indica el procedimiento…") y mensajeDb los deja pasar.
       throw new Error(
         mensajeDb(insertError, "No tienes permisos para registrar consentimientos firmados."),
       );

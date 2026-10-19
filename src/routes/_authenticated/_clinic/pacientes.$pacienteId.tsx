@@ -30,7 +30,13 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { PacienteTimeline } from "@/components/paciente-timeline";
 import { NotasClinicas } from "@/components/notas-clinicas";
 import { MedicalHistoryCard } from "@/components/medical-history-card";
+import { VitalSignsCard } from "@/components/vital-signs-card";
+import { PatientGuardiansCard } from "@/components/patient-guardians-card";
+import { useGuardians } from "@/hooks/use-guardians";
+import { alertasDeAnamnesis } from "@/lib/clinical/anamnesis";
 import { getMedicalHistory } from "@/lib/clinical/medical-history.functions";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { esMenorDeEdad, parentescoLegible, tutorPrincipal } from "@/lib/patients/tutor";
 import { listAgreements, setPatientAgreement } from "@/lib/finance/clinic-finance.functions";
 import { PatientDocumentsCard } from "@/components/patient-documents-card";
 import { PatientConsentsCard } from "@/components/patient-consents-card";
@@ -344,7 +350,22 @@ function PacienteDetalle() {
     queryFn: () => fetchMedicalHistory({ data: { clinicId: clinicId!, patientId: paciente.id } }),
     enabled: Boolean(clinicId) && puedeVerClinico,
   });
-  const alergias = medicalHistoryQuery.data?.allergies ?? [];
+  // Alertas de la anamnesis (CLI-10): las críticas (alergias, anticoagulantes,
+  // embarazo) van en la cabecera, que queda fija al bajar por las pestañas.
+  const alertas = medicalHistoryQuery.data
+    ? alertasDeAnamnesis({
+        alergias: medicalHistoryQuery.data.allergyDetails,
+        cuestionario: medicalHistoryQuery.data.riskQuestionnaire,
+      })
+    : [];
+  const alertasCriticas = alertas.filter((a) => a.nivel === "critica");
+  const precauciones = alertas.filter((a) => a.nivel === "precaucion");
+
+  // Menor de edad (CLI-11): la cabecera dice quién responde por él.
+  const timezone = access.clinic?.timezone ?? undefined;
+  const esMenor = esMenorDeEdad(paciente.fechaNacimiento, hoyISO(timezone));
+  const guardiansQuery = useGuardians(clinicId ?? "", paciente.id);
+  const tutor = tutorPrincipal(guardiansQuery.data?.items ?? []);
 
   // Gate del portal del paciente (día 1 del trial, no día 15 como los
   // informes) — ver requiereLlamadaOSuscripcion en billing.ts.
@@ -371,9 +392,9 @@ function PacienteDetalle() {
     ? "Sin acceso"
     : medicalHistoryQuery.isLoading
       ? "…"
-      : alergias.length > 0
-        ? `Alergia: ${alergias.join(", ")}`
-        : "Sin alergias registradas";
+      : alertasCriticas.length > 0
+        ? alertasCriticas.map((a) => a.texto).join(" · ")
+        : "Sin alertas críticas registradas";
 
   return (
     <AppShell title="Ficha del paciente" access={access}>
@@ -427,6 +448,20 @@ function PacienteDetalle() {
                     </span>
                   )}
                 </p>
+                {esMenor === true && guardiansQuery.data?.disponible && (
+                  <p
+                    className={cn(
+                      "mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+                      tutor ? "bg-secondary text-foreground" : "bg-destructive/10 text-destructive",
+                    )}
+                  >
+                    {!tutor && <AlertTriangle className="size-3.5 shrink-0" aria-hidden />}
+                    Menor de edad ·{" "}
+                    {tutor
+                      ? `Tutor: ${tutor.fullName} (${parentescoLegible(tutor)})`
+                      : "sin tutor registrado"}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -490,14 +525,21 @@ function PacienteDetalle() {
               <dd
                 className={cn(
                   "mt-1 flex items-start gap-1.5 font-display text-xl font-semibold leading-tight",
-                  alergias.length > 0 && "text-destructive",
+                  alertasCriticas.length > 0 && "text-destructive",
                 )}
               >
-                {alergias.length > 0 && (
+                {alertasCriticas.length > 0 && (
                   <AlertTriangle className="mt-1 size-4 shrink-0" aria-hidden />
                 )}
-                <span className="line-clamp-2">{alertaMedica}</span>
+                <span className="line-clamp-2" title={alertaMedica}>
+                  {alertaMedica}
+                </span>
               </dd>
+              {precauciones.length > 0 && (
+                <dd className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                  También: {precauciones.map((a) => a.texto).join(" · ")}
+                </dd>
+              )}
             </div>
           </dl>
         </header>
@@ -528,6 +570,12 @@ function PacienteDetalle() {
                       puedeEditar={puedeEscribirClinico}
                       userId={access.userId}
                     />
+                    <VitalSignsCard
+                      clinicId={clinicId}
+                      patientId={paciente.id}
+                      puedeEditar={puedeEscribirClinico}
+                      timezone={timezone}
+                    />
                   </>
                 ) : (
                   <p className="flex items-center gap-3 rounded-lg border border-border p-6 text-sm text-muted-foreground">
@@ -537,6 +585,14 @@ function PacienteDetalle() {
                 )}
               </div>
               <aside className="min-w-0 space-y-6">
+                {clinicId && (
+                  <PatientGuardiansCard
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    esMenor={esMenor}
+                    puedeEditar={hasPermission(access.role, "patients:manage")}
+                  />
+                )}
                 <section aria-labelledby="timeline" className="rounded-lg border border-border p-5">
                   <h3 id="timeline" className="mb-4 font-display text-xl font-semibold">
                     Línea de tiempo
@@ -641,8 +697,8 @@ function PacienteDetalle() {
                 clinicId={clinicId}
                 patientId={paciente.id}
                 patientName={paciente.nombre}
-                // edad 0 = sin fecha de nacimiento cargada (ver getPatient).
-                patientAge={paciente.edad > 0 ? paciente.edad : null}
+                fechaNacimiento={paciente.fechaNacimiento}
+                timezone={timezone}
                 myProfessionalId={access.myProfessionalId ?? null}
                 puedeEditar={puedeEscribirClinico}
                 puedeGestionar={hasPermission(access.role, "patients:manage")}
@@ -651,7 +707,7 @@ function PacienteDetalle() {
                 clinicId={clinicId}
                 patientId={paciente.id}
                 patientDocument={paciente.documento || null}
-                allergies={alergias}
+                allergies={medicalHistoryQuery.data?.allergies ?? []}
                 timezone={access.clinic?.timezone ?? "America/Santiago"}
                 myProfessionalId={access.myProfessionalId ?? null}
                 puedeEmitir={
