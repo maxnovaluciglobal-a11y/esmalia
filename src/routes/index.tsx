@@ -28,6 +28,7 @@ import { ArrowRight, DatabaseBackup, Lock, MessageCircle, ShieldCheck, Users } f
 
 import { PreciosPlanes } from "@/components/marketing/precios";
 import { PattyMark } from "@/components/patty";
+import { ESTADO_PATTY_CORTO } from "@/lib/ai/estado";
 import { SiteFooter, SiteHeader } from "@/components/site-chrome";
 import { buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,7 +330,7 @@ const resultados = [
     cifra: "Una ficha",
     titulo: "La historia, en un lugar",
     texto:
-      "Odontograma FDI versionado, notas clínicas con revisión y resumen de Patty (IA), consentimientos firmados.",
+      "Odontograma FDI versionado, notas clínicas con revisión y versiones, consentimientos firmados.",
     cta: "Ver una ficha",
   },
 ] as const;
@@ -394,15 +395,17 @@ function FranjaSeguridad() {
 }
 
 // ── Patty, la IA de Esmalia ─────────────────────────────────────────
-// Solo lo que la IA hace hoy en el producto (notas: redactar, pulir,
-// resumir, estructurar; WhatsApp: leer el pedido de hora que las reglas no
-// entienden). Patty propone y el profesional decide: nunca firma, nunca le
-// escribe sola a un paciente, nunca toca la agenda.
+// Patty está EN HABILITACIÓN (pausada desde el 19-oct-2026, docs/IA.md): la
+// sección se queda, pero en futuro y con el estado dicho en voz alta. Cuando
+// vuelva: notas (redactar, pulir, resumir, estructurar) y WhatsApp (leer el
+// pedido de hora que las reglas no entienden). Patty propone y el
+// profesional decide: nunca firma, nunca le escribe sola a un paciente,
+// nunca toca la agenda.
 
 const capacidadesPatty = [
-  "Redacta y ordena la nota mientras atiendes: de tus apuntes a una nota SOAP.",
-  "Resume la nota clínica para que la próxima consulta empiece con contexto.",
-  "Pronto: con tu número de WhatsApp conectado, leerá los pedidos de hora que no son obvios.",
+  "Redactará y ordenará la nota mientras atiendes: de tus apuntes a una nota SOAP.",
+  "Resumirá la nota clínica para que la próxima consulta empiece con contexto.",
+  "Con tu número de WhatsApp conectado, leerá los pedidos de hora que no son obvios.",
 ] as const;
 
 function ConocePatty() {
@@ -422,8 +425,13 @@ function ConocePatty() {
             Conoce a <em className="text-ai">Patty</em>.
           </h2>
           <p className="mt-5 max-w-md leading-relaxed text-muted-foreground">
-            Patty es la IA que trabaja dentro de Esmalia. Propone, no decide: no firma notas, no le
-            escribe a tus pacientes por su cuenta y no mueve tu agenda.
+            Patty es la IA de Esmalia. Propone, no decide: no firma notas, no le escribe a tus
+            pacientes por su cuenta y no mueve tu agenda.
+          </p>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted-foreground">
+            <strong className="font-medium text-foreground">{ESTADO_PATTY_CORTO}.</strong> La
+            activaremos sobre un proveedor de IA con contrato para datos de salud. Mientras tanto,
+            las notas clínicas funcionan igual, sin IA.
           </p>
         </div>
         <div className="min-w-0">
@@ -578,14 +586,14 @@ function Landing() {
             </blockquote>
           ) : (
             <figure>
-              <p className="kicker">Nota clínica · resumida por Patty</p>
+              <p className="kicker">Nota clínica · resumen para la próxima consulta</p>
               <blockquote className="mt-4 font-display text-[30px] italic leading-snug">
                 “Control de ortodoncia. Ajuste de arco superior, sin molestias referidas. Próximo
                 control en 4 semanas.”
               </blockquote>
               <figcaption className="mt-5 max-w-md text-sm leading-relaxed text-muted-foreground">
-                Cada nota se resume con un clic: hallazgos, procedimiento y próximo paso, listos
-                para la siguiente consulta. El profesional la revisa antes de firmar.
+                Cada nota deja hallazgos, procedimiento y próximo paso listos para la siguiente
+                consulta, con versiones y firma del profesional.
               </figcaption>
             </figure>
           )}

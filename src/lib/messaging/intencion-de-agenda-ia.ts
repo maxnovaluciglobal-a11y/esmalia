@@ -14,10 +14,12 @@ import type {
  * propio encabezado que NO usa un modelo de lenguaje, y agregarle una
  * dependencia de red ahí contradiría lo que dice de sí mismo.
  *
- * Se activa solo si `GEMINI_API_KEY`/`OPENAI_API_KEY` están cargadas
- * (`resolverProveedorIa`). Sin key, `interpretarConIA` devuelve `null` de
- * inmediato — mismo comportamiento de hoy, cero riesgo si Walter no carga
- * nada. Cualquier error de red, de parseo o de forma inesperada también
+ * Se activa solo si el interruptor `AI_ENABLED` vale "true" Y hay una
+ * clave cargada (`resolverProveedorIa` devuelve null si falta cualquiera de
+ * las dos). Hoy Patty está pausada (docs/IA.md): `interpretarConIA` devuelve
+ * `null` de inmediato, sin llamar a ningún modelo, y el webhook sigue con
+ * las reglas y el aviso genérico. El texto del paciente pasa por
+ * `redactarPii` en el gateway (teléfonos, emails, documentos). Cualquier error de red, de parseo o de forma inesperada también
  * devuelve `null`: un falso negativo acá lo resuelve un humano leyendo la
  * bandeja (como ya pasaba), y eso es preferible a que un error de la IA
  * tumbe el webhook de WhatsApp.

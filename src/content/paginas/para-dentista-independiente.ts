@@ -105,7 +105,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Para escribir menos al final del día está [Patty](/funciones/patty-ia), la IA de Esmalia: pasa tus apuntes a una nota SOAP y resume la nota para la próxima consulta. Propone, no decide: no firma notas, no le escribe a tus pacientes y no mueve tu agenda.",
+            "Para escribir menos al final del día llegará [Patty](/funciones/patty-ia), la IA de Esmalia, hoy en habilitación: pasará tus apuntes a una nota SOAP y resumirá la nota para la próxima consulta. Propone, no decide: no firma notas, no le escribe a tus pacientes y no mueve tu agenda.",
         },
         {
           tipo: "p",
