@@ -26,6 +26,21 @@ export function puedeExportarClinica(rol: ClinicRole | null | undefined): boolea
   return !!rol && (ROLES_EXPORTACION as readonly string[]).includes(rol);
 }
 
+/**
+ * Exportación de UNA ficha (derecho de acceso del paciente, CON-01): además
+ * de owner/admin, el dentista, que es quien suele entregarle la copia al
+ * paciente. Asistente, recepción y contabilidad no.
+ */
+export const ROLES_EXPORTACION_PACIENTE = [
+  "owner",
+  "admin",
+  "dentist",
+] as const satisfies readonly ClinicRole[];
+
+export function puedeExportarPaciente(rol: ClinicRole | null | undefined): boolean {
+  return !!rol && (ROLES_EXPORTACION_PACIENTE as readonly string[]).includes(rol);
+}
+
 /** Filas por llamada al servidor. Con 1000 un paciente con 10 años de citas entra en una. */
 export const FILAS_POR_PAGINA = 1000;
 
@@ -50,7 +65,29 @@ export interface TablaExportacion {
   columnas: readonly string[];
   /** Orden estable para paginar sin saltar ni repetir filas. */
   orden: readonly string[];
+  /**
+   * Cómo se filtra por paciente en la exportación de una ficha. Sin este
+   * campo la tabla es de la clínica (sucursales, gastos, inventario…) y no
+   * sale en la exportación de un paciente.
+   */
+  paciente?: FiltroPaciente;
+  /**
+   * Datos de dinero del paciente (presupuestos, pagos). En la exportación de
+   * una ficha solo salen si quien exporta tiene `finance:view` (regla 15:
+   * el dentista no ve finanzas en la app, tampoco por esta vía).
+   */
+  finanzas?: true;
 }
+
+/**
+ * - `patient_id` / `patient_ref`: la columna apunta al paciente (las notas
+ *   usan `patient_ref`, el id como texto).
+ * - `id`: la propia tabla de pacientes.
+ * - `padre`: la tabla cuelga de otra (versiones de una nota, ítems de un
+ *   presupuesto): se filtra por los ids de las filas del padre.
+ */
+export type FiltroPaciente =
+  { por: "patient_id" | "patient_ref" | "id" } | { por: "padre"; padre: string; columna: string };
 
 export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
   {
@@ -100,7 +137,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     tabla: "patients",
     archivo: "pacientes.csv",
     descripcion:
-      "Pacientes: datos de identificación y contacto, estado, convenio, consentimiento de WhatsApp y fusiones de fichas (merged_into).",
+      "Pacientes: datos de identificación y contacto, estado, convenio, consentimiento de WhatsApp, fusiones de fichas (merged_into) y fichas archivadas (archived_at).",
     columnas: [
       "id",
       "full_name",
@@ -121,10 +158,13 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "wa_opt_out_at",
       "merged_into",
       "merged_at",
+      "archived_at",
+      "archived_by",
       "created_at",
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "id" },
   },
   {
     clave: "anamnesis",
@@ -145,6 +185,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "risk_questionnaire",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "signos_vitales",
@@ -166,6 +207,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "tutores",
@@ -189,6 +231,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "citas",
@@ -220,13 +263,14 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "notas",
     tabla: "clinical_notes",
     archivo: "notas-clinicas.csv",
     descripcion:
-      "Notas clínicas en su versión vigente: título, contenido, resumen, estado y revisión. patient_ref identifica al paciente.",
+      "Notas clínicas en su versión vigente: título, contenido, resumen, estado, revisión y firma (nombre y registro del profesional tal como quedaron al firmar). addendum_of = la nota que corrige esta adenda. patient_ref identifica al paciente.",
     columnas: [
       "id",
       "patient_ref",
@@ -235,6 +279,11 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "content",
       "summary",
       "status",
+      "addendum_of",
+      "signed_at",
+      "signed_by",
+      "signer_name",
+      "signer_license",
       "review_status",
       "review_requested_at",
       "reviewed_at",
@@ -244,6 +293,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_ref" },
   },
   {
     clave: "notas_versiones",
@@ -266,6 +316,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_at",
     ],
     orden: ["note_id", "version"],
+    paciente: { por: "padre", padre: "notas", columna: "note_id" },
   },
   {
     clave: "odontograma",
@@ -289,6 +340,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "superseded_by",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "periodontograma",
@@ -297,6 +349,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     descripcion: "Periodontogramas registrados por paciente (uno por evaluación).",
     columnas: ["id", "patient_id", "notes", "recorded_at", "recorded_by"],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "periodontograma_mediciones",
@@ -317,6 +370,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_at",
     ],
     orden: ["id"],
+    paciente: { por: "padre", padre: "periodontograma", columna: "chart_id" },
   },
   {
     clave: "presupuestos",
@@ -349,6 +403,8 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
+    finanzas: true,
   },
   {
     clave: "presupuestos_items",
@@ -377,6 +433,8 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_at",
     ],
     orden: ["id"],
+    paciente: { por: "padre", padre: "presupuestos", columna: "quote_id" },
+    finanzas: true,
   },
   {
     clave: "planes",
@@ -399,6 +457,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "planes_items",
@@ -430,6 +489,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "padre", padre: "planes", columna: "plan_id" },
   },
   {
     clave: "pagos",
@@ -460,6 +520,8 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
+    finanzas: true,
   },
   {
     clave: "cajas",
@@ -521,6 +583,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "revoked_by",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "consentimientos_plantillas",
@@ -579,6 +642,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "void_reason",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "documentos",
@@ -601,6 +665,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "archived_by",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "laboratorios",
@@ -646,6 +711,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "updated_at",
     ],
     orden: ["id"],
+    paciente: { por: "patient_id" },
   },
   {
     clave: "bodegas",
@@ -708,6 +774,297 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     ],
     orden: ["id"],
   },
+  {
+    clave: "ortodoncia",
+    tabla: "ortho_cases",
+    archivo: "ortodoncia-casos.csv",
+    descripcion:
+      "Casos de ortodoncia por paciente: tipo (brackets o alineadores), estado, inicio, término estimado, cuota mensual y plan asociado.",
+    columnas: [
+      "id",
+      "patient_id",
+      "professional_id",
+      "treatment_plan_id",
+      "kind",
+      "status",
+      "started_on",
+      "expected_end_on",
+      "currency",
+      "monthly_fee_cents",
+      "notes",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "ortodoncia_controles",
+    tabla: "ortho_controls",
+    archivo: "ortodoncia-controles.csv",
+    descripcion:
+      "Controles de cada caso de ortodoncia: fecha, si asistió y el pago asociado. Se cruza con ortodoncia-casos.csv por ortho_case_id.",
+    columnas: [
+      "id",
+      "ortho_case_id",
+      "control_date",
+      "attended",
+      "payment_id",
+      "notes",
+      "created_by",
+      "created_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "padre", padre: "ortodoncia", columna: "ortho_case_id" },
+  },
+  {
+    clave: "mensajes",
+    tabla: "messages",
+    archivo: "mensajes.csv",
+    descripcion:
+      "Mensajes con pacientes (WhatsApp, correo y otros canales): dirección (enviado o recibido), texto, destinatario, estado de entrega y la cita o presupuesto relacionados.",
+    columnas: [
+      "id",
+      "patient_id",
+      "channel",
+      "direction",
+      "template_kind",
+      "template_id",
+      "recipient",
+      "body",
+      "status",
+      "error",
+      "appointment_id",
+      "quote_id",
+      "external_id",
+      "sent_by",
+      "sent_at",
+      "delivered_at",
+      "read_at",
+      "created_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "aranceles",
+    tabla: "procedures",
+    archivo: "aranceles.csv",
+    descripcion:
+      "Arancel de prestaciones de la clínica: código, nombre, categoría, precio de lista, precio de referencia, costo de laboratorio y duración.",
+    columnas: [
+      "id",
+      "code",
+      "name",
+      "category",
+      "currency",
+      "default_price_cents",
+      "reference_price_cents",
+      "lab_cost_cents",
+      "duration_min",
+      "allows_discount",
+      "position",
+      "is_active",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "convenios",
+    tabla: "agreements",
+    archivo: "convenios.csv",
+    descripcion: "Convenios (aseguradoras, empresas, previsiones) con su contacto.",
+    columnas: [
+      "id",
+      "name",
+      "kind",
+      "contact_name",
+      "contact_email",
+      "contact_phone",
+      "notes",
+      "is_active",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "convenios_coberturas",
+    tabla: "agreement_coverage",
+    archivo: "convenios-coberturas.csv",
+    descripcion:
+      "Cobertura de cada convenio por prestación: porcentaje o monto fijo. Se cruza con convenios.csv por agreement_id y con aranceles.csv por procedure_id.",
+    columnas: [
+      "id",
+      "agreement_id",
+      "procedure_id",
+      "coverage_pct",
+      "coverage_fixed_cents",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "medios_de_pago",
+    tabla: "payment_methods",
+    archivo: "medios-de-pago.csv",
+    descripcion:
+      "Medios de pago configurados, con su porcentaje de retención. Se cruza con pagos.csv y gastos.csv por payment_method_id.",
+    columnas: [
+      "id",
+      "name",
+      "legacy_key",
+      "retention_pct",
+      "allows_refund",
+      "position",
+      "is_active",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "gastos",
+    tabla: "expenses",
+    archivo: "gastos.csv",
+    descripcion:
+      "Gastos de la clínica: fecha, categoría, proveedor, monto, medio de pago y sucursal.",
+    columnas: [
+      "id",
+      "incurred_on",
+      "category",
+      "description",
+      "supplier",
+      "currency",
+      "amount_cents",
+      "payment_method_id",
+      "method_name_snapshot",
+      "branch_id",
+      "notes",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "comisiones_reglas",
+    tabla: "commission_rules",
+    archivo: "comisiones-reglas.csv",
+    descripcion:
+      "Regla de comisión vigente de cada profesional: tipo, porcentaje (percent_bps, en centésimas de punto: 3000 = 30 %) o monto fijo.",
+    columnas: ["professional_id", "kind", "percent_bps", "fixed_cents", "updated_by", "updated_at"],
+    orden: ["professional_id"],
+  },
+  {
+    clave: "comisiones_liquidaciones",
+    tabla: "commission_settlements",
+    archivo: "comisiones-liquidaciones.csv",
+    descripcion:
+      "Liquidaciones de comisiones cerradas: período, producción, prestaciones, regla aplicada, comisión y pago.",
+    columnas: [
+      "id",
+      "professional_id",
+      "period_from",
+      "period_to",
+      "procedure_count",
+      "production_cents",
+      "rule_kind",
+      "rule_percent_bps",
+      "rule_fixed_cents",
+      "commission_cents",
+      "closed_at",
+      "closed_by",
+      "paid_at",
+      "paid_by",
+      "email_notified_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "anamnesis_historial",
+    tabla: "patient_medical_history_audit",
+    archivo: "auditoria-anamnesis.csv",
+    descripcion:
+      "Historial de la anamnesis: cada cambio guarda cómo quedó (alergias, enfermedades, medicación, cuestionario y notas), quién lo hizo y cuándo.",
+    columnas: [
+      "id",
+      "patient_id",
+      "change_kind",
+      "allergies",
+      "allergy_details",
+      "conditions",
+      "chronic_medications",
+      "risk_questionnaire",
+      "notes",
+      "changed_by",
+      "recorded_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "tutores_historial",
+    tabla: "patient_guardians_audit",
+    archivo: "auditoria-tutores.csv",
+    descripcion:
+      "Historial de tutores o representantes: alta, cambios y archivo, con los datos de cada momento (snapshot, en JSON), quién y cuándo.",
+    columnas: [
+      "id",
+      "patient_id",
+      "guardian_id",
+      "change_kind",
+      "snapshot",
+      "changed_by",
+      "recorded_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "notas_auditoria",
+    tabla: "clinical_note_audit",
+    archivo: "auditoria-notas-clinicas.csv",
+    descripcion:
+      "Registro de auditoría de las notas clínicas: creación, ediciones, firma, reapertura, adendas, revisiones y uso de IA, con quién y cuándo. actor_id vacío = lo hizo el sistema.",
+    columnas: ["id", "note_id", "patient_ref", "action", "detail", "actor_id", "created_at"],
+    orden: ["id"],
+    paciente: { por: "patient_ref" },
+  },
+  {
+    clave: "notas_revisiones",
+    tabla: "clinical_note_reviews",
+    archivo: "notas-clinicas-revisiones.csv",
+    descripcion:
+      "Revisiones de notas clínicas: pedido, aprobación o cambios solicitados, con la versión revisada y el comentario.",
+    columnas: [
+      "id",
+      "note_id",
+      "note_version",
+      "patient_ref",
+      "action",
+      "comment",
+      "actor_id",
+      "reviewer_id",
+      "created_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_ref" },
+  },
+  {
+    clave: "lecturas_ficha",
+    tabla: "clinical_access_log",
+    archivo: "auditoria-lecturas-de-ficha.csv",
+    descripcion:
+      "Quién del equipo abrió la ficha de cada paciente, qué sección (datos, notas, odontograma, periodontograma, anamnesis, documentos) y cuándo. Una fila por persona, paciente y sección cada 15 minutos.",
+    columnas: ["id", "patient_id", "actor_id", "section", "accessed_at"],
+    orden: ["id"],
+  },
 ];
 
 export const CLAVES_EXPORTACION = TABLAS_EXPORTACION.map((t) => t.clave) as [string, ...string[]];
@@ -715,6 +1072,16 @@ export const CLAVES_EXPORTACION = TABLAS_EXPORTACION.map((t) => t.clave) as [str
 export function tablaPorClave(clave: string): TablaExportacion | undefined {
   return TABLAS_EXPORTACION.find((t) => t.clave === clave);
 }
+
+/** Tablas que salen en la exportación de una ficha. */
+export function tablasExportacionPaciente(incluirFinanzas: boolean): TablaExportacion[] {
+  return TABLAS_EXPORTACION.filter((t) => t.paciente && (incluirFinanzas || !t.finanzas));
+}
+
+export const CLAVES_EXPORTACION_PACIENTE = tablasExportacionPaciente(true).map((t) => t.clave) as [
+  string,
+  ...string[],
+];
 
 /** Valor tal como lo devuelve PostgREST (JSON): serializable de punta a punta. */
 export type ValorExportacion =
@@ -785,6 +1152,7 @@ export function archivosDeStorage(
     documentos?: readonly FilaExportacion[];
     consentimientos?: readonly FilaExportacion[];
     presupuestos?: readonly FilaExportacion[];
+    recetas?: readonly FilaExportacion[];
   },
 ): ArchivoStorage[] {
   const prefijo = `${clinicId}/`;
@@ -820,6 +1188,13 @@ export function archivosDeStorage(
       20 * 1024,
     );
   }
+  for (const r of datos.recetas ?? []) {
+    agregar(
+      r.signature_storage_path,
+      `archivos/firmas-recetas/${String(r.patient_id)}/${String(r.id)}.png`,
+      20 * 1024,
+    );
+  }
   return salida;
 }
 
@@ -836,21 +1211,69 @@ export interface ResumenExportacion {
   archivosOmitidos: number;
   /** Motivo de la omisión, si la hubo. */
   motivoOmision?: string;
+  /** Tablas incluidas (por defecto, todas las de la clínica). */
+  tablas?: readonly TablaExportacion[];
+  /** Fichas en PDF generadas en `pacientes/`. */
+  fichasPdf?: number;
+  /** Fichas en PDF que no se pudieron generar. */
+  fichasPdfOmitidas?: number;
+  /** Exportación de una sola ficha: nombre del paciente. */
+  paciente?: string;
+  /** Exportación de una ficha sin presupuestos ni pagos (quien exportó no ve finanzas). */
+  sinFinanzas?: boolean;
 }
 
 /** Texto del LEEME.txt que acompaña al ZIP. */
 export function construirLeeme(r: ResumenExportacion): string {
-  const lineas: string[] = [
-    `EXPORTACIÓN COMPLETA DE DATOS - ${r.clinicaNombre}`,
-    "",
-    `Generada: ${r.generadoEn}`,
-    `Por: ${r.generadoPor}`,
-    "Origen: Esmalia (https://esmalia.com)",
-    "",
-    "Este archivo contiene todos los datos de tu clínica guardados en Esmalia,",
-    "en planillas CSV que se abren con Excel, Google Sheets o LibreOffice.",
-    "Contiene datos de salud de tus pacientes: guárdalo en un lugar seguro y",
-    "no lo envíes por correo sin cifrar.",
+  const tablas = r.tablas ?? TABLAS_EXPORTACION;
+  const lineas: string[] = r.paciente
+    ? [
+        `EXPORTACIÓN DE LA FICHA DE ${r.paciente} - ${r.clinicaNombre}`,
+        "",
+        `Generada: ${r.generadoEn}`,
+        `Por: ${r.generadoPor}`,
+        "Origen: Esmalia (https://esmalia.com)",
+        "",
+        "Este archivo contiene la ficha completa del paciente guardada en Esmalia:",
+        "un PDF legible en la carpeta pacientes/ y los mismos datos en planillas",
+        "CSV que se abren con Excel, Google Sheets o LibreOffice. Son datos de",
+        "salud: entrégalo solo al paciente o a su representante legal y no lo",
+        "envíes por correo sin cifrar.",
+        "",
+      ]
+    : [
+        `EXPORTACIÓN COMPLETA DE DATOS - ${r.clinicaNombre}`,
+        "",
+        `Generada: ${r.generadoEn}`,
+        `Por: ${r.generadoPor}`,
+        "Origen: Esmalia (https://esmalia.com)",
+        "",
+        "Este archivo contiene todos los datos de tu clínica guardados en Esmalia,",
+        "en planillas CSV que se abren con Excel, Google Sheets o LibreOffice,",
+        "y una ficha en PDF por paciente en la carpeta pacientes/.",
+        "Contiene datos de salud de tus pacientes: guárdalo en un lugar seguro y",
+        "no lo envíes por correo sin cifrar.",
+        "",
+      ];
+  lineas.push(
+    "FICHAS EN PDF (carpeta pacientes/)",
+    "- Un PDF por paciente, <id>-<nombre>.pdf: datos, anamnesis y alertas,",
+    "  tutores, odontograma (marcas vigentes con su estado), periodontograma",
+    "  resumido, notas clínicas con sus adendas y firma, consentimientos,",
+    "  recetas, presupuestos y pagos.",
+    `- Generadas: ${r.fichasPdf ?? 0}.${
+      r.fichasPdfOmitidas
+        ? ` No se pudieron generar: ${r.fichasPdfOmitidas} (sus datos están en los CSV).`
+        : ""
+    }`,
+    "- Una ficha fusionada en otra no tiene PDF propio: sus notas, documentos y",
+    "  consentimientos aparecen en el PDF de la ficha que quedó.",
+    ...(r.sinFinanzas
+      ? [
+          "- Sin presupuestos ni pagos: los exporta el propietario o un",
+          "  administrador de la clínica.",
+        ]
+      : []),
     "",
     "CÓMO LEER LOS ARCHIVOS",
     "- Codificación UTF-8 con BOM y separador punto y coma (;), el formato que",
@@ -869,9 +1292,9 @@ export function construirLeeme(r: ResumenExportacion): string {
     "  lleva para que Excel no la ejecute como fórmula.",
     "",
     "ARCHIVOS",
-  ];
+  );
 
-  for (const t of TABLAS_EXPORTACION) {
+  for (const t of tablas) {
     const n = r.conteos[t.clave] ?? 0;
     lineas.push(`- ${t.archivo} (${n} ${n === 1 ? "fila" : "filas"})`);
     lineas.push(`  ${t.descripcion}`);
@@ -883,6 +1306,7 @@ export function construirLeeme(r: ResumenExportacion): string {
     "- documentos/<patient_id>/: radiografías, fotos y otros documentos del paciente.",
     "- firmas-consentimientos/<patient_id>/: imagen de la firma de cada consentimiento.",
     "- firmas-presupuestos/<patient_id>/: firma de aceptación de cada presupuesto.",
+    "- firmas-recetas/<patient_id>/: firma del profesional en cada receta.",
     `Incluidos en este ZIP: ${r.archivosIncluidos}.`,
   );
   if (r.archivosOmitidos > 0) {
@@ -902,15 +1326,28 @@ export function construirLeeme(r: ResumenExportacion): string {
   return lineas.join("\r\n");
 }
 
-/** `esmalia-<clinica>-AAAA-MM-DD.zip` */
-export function nombreZip(clinicaNombre: string, hoy: string): string {
-  const slug = clinicaNombre
+function slug(texto: string): string {
+  return texto
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
-  return `esmalia-${slug || "clinica"}-${hoy}.zip`;
+}
+
+/** `esmalia-<clinica>-AAAA-MM-DD.zip` */
+export function nombreZip(clinicaNombre: string, hoy: string): string {
+  return `esmalia-${slug(clinicaNombre) || "clinica"}-${hoy}.zip`;
+}
+
+/** `esmalia-ficha-<paciente>-AAAA-MM-DD.zip` */
+export function nombreZipPaciente(pacienteNombre: string, hoy: string): string {
+  return `esmalia-ficha-${slug(pacienteNombre).slice(0, 60) || "paciente"}-${hoy}.zip`;
+}
+
+/** `pacientes/<id>-<nombre>.pdf` dentro del ZIP. */
+export function rutaPdfPaciente(pacienteId: string, nombre: string): string {
+  return `pacientes/${pacienteId}-${slug(nombre).slice(0, 60) || "paciente"}.pdf`;
 }
 
 /**

@@ -9,6 +9,7 @@ import {
   type ClinicalNoteEntity,
   type ClinicalNoteVersion,
 } from "@/lib/clinical/clinical-notes";
+import { ALTO, ANCHO, MARGEN, crearLienzo } from "@/lib/clinical/pdf-lienzo";
 
 interface ExportArgs {
   clinicaNombre: string;
@@ -46,11 +47,6 @@ export function lineaEntidadPdf(e: ClinicalNoteEntity): string {
   return `• ${e.term}${detalles ? ` (${detalles})` : ""}`;
 }
 
-const MARGEN = 48;
-const ANCHO = 595.28; // A4 pt
-const ALTO = 841.89;
-const UTIL = ANCHO - MARGEN * 2;
-
 /**
  * Genera y descarga un PDF con la nota, sus versiones y la auditoría.
  * jsPDF (+ html2canvas/canvg, que trae adentro) se carga recién acá —
@@ -61,43 +57,11 @@ const UTIL = ANCHO - MARGEN * 2;
 export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  let y = MARGEN;
-
-  const saltoSiHaceFalta = (alto: number) => {
-    if (y + alto <= ALTO - MARGEN) return;
-    doc.addPage();
-    y = MARGEN;
-  };
-
-  const texto = (
-    contenido: string,
-    opts: { size?: number; bold?: boolean; gris?: boolean; espacio?: number } = {},
-  ) => {
-    doc.setFont("helvetica", opts.bold ? "bold" : "normal");
-    doc.setFontSize(opts.size ?? 10);
-    doc.setTextColor(opts.gris ? 110 : 25);
-    const lineas = doc.splitTextToSize(contenido, UTIL) as string[];
-    const altoLinea = (opts.size ?? 10) * 1.35;
-    for (const linea of lineas) {
-      saltoSiHaceFalta(altoLinea);
-      doc.text(linea, MARGEN, y);
-      y += altoLinea;
-    }
-    y += opts.espacio ?? 4;
-  };
-
-  const titulo = (t: string) => {
-    saltoSiHaceFalta(34);
-    y += 8;
-    doc.setDrawColor(215);
-    doc.line(MARGEN, y - 6, ANCHO - MARGEN, y - 6);
-    texto(t.toUpperCase(), { size: 9, bold: true, gris: true, espacio: 6 });
-  };
+  const lienzo = crearLienzo(doc);
+  const { texto, titulo } = lienzo;
 
   // Encabezado
-  doc.setFillColor(13, 148, 136);
-  doc.rect(0, 0, ANCHO, 6, "F");
-  y = MARGEN + 6;
+  lienzo.franjaSuperior();
   texto(args.clinicaNombre, { size: 16, bold: true, espacio: 2 });
   texto("Nota clínica · documento oficial con trazabilidad", { size: 9, gris: true, espacio: 10 });
 
@@ -167,7 +131,7 @@ export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
       if (!items.length) continue;
       texto(ENTITY_KIND_LABELS[kind] ?? kind, { size: 10, bold: true, espacio: 2 });
       for (const e of items) texto(lineaEntidadPdf(e), { size: 9, espacio: 1 });
-      y += 4;
+      lienzo.y += 4;
     }
   }
 
@@ -203,9 +167,7 @@ export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
   }
 
   // Pie de página en todas las hojas
-  const total = doc.getNumberOfPages();
-  for (let i = 1; i <= total; i += 1) {
-    doc.setPage(i);
+  lienzo.enCadaPagina((i, total) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(140);
@@ -215,7 +177,7 @@ export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
       ALTO - 26,
     );
     doc.text(`Página ${i} de ${total}`, ANCHO - MARGEN, ALTO - 26, { align: "right" });
-  }
+  });
 
   const slug = args.pacienteNombre
     .normalize("NFD")
