@@ -644,6 +644,8 @@ function PacienteDetalle() {
                 puedeEditar={puedeEscribirClinico}
                 userId={access.userId}
                 onPresupuestarPieza={presupuestarPieza}
+                // `edad` es 0 cuando no hay fecha de nacimiento: se trata como desconocida.
+                edad={paciente.edad > 0 ? paciente.edad : null}
               />
               <PeriodontalChart
                 clinicId={clinicId}

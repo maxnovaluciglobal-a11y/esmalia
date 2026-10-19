@@ -2082,16 +2082,42 @@ export type Database = {
           },
         ];
       };
+      odontogram_condition_catalog: {
+        Row: {
+          alcance: string;
+          categoria: string;
+          condition: string;
+          grupo: string;
+          superficies: string[] | null;
+        };
+        Insert: {
+          alcance: string;
+          categoria: string;
+          condition: string;
+          grupo: string;
+          superficies?: string[] | null;
+        };
+        Update: {
+          alcance?: string;
+          categoria?: string;
+          condition?: string;
+          grupo?: string;
+          superficies?: string[] | null;
+        };
+        Relationships: [];
+      };
       odontogram_marks: {
         Row: {
           clinic_id: string;
           condition: Database["public"]["Enums"]["tooth_condition"];
+          conservation: string | null;
           id: string;
           material: string | null;
           notes: string | null;
           patient_id: string;
           recorded_at: string;
           recorded_by: string;
+          status: string;
           superseded_at: string | null;
           superseded_by: string | null;
           surface: Database["public"]["Enums"]["tooth_surface"];
@@ -2100,12 +2126,14 @@ export type Database = {
         Insert: {
           clinic_id: string;
           condition: Database["public"]["Enums"]["tooth_condition"];
+          conservation?: string | null;
           id?: string;
           material?: string | null;
           notes?: string | null;
           patient_id: string;
           recorded_at?: string;
           recorded_by?: string;
+          status?: string;
           superseded_at?: string | null;
           superseded_by?: string | null;
           surface: Database["public"]["Enums"]["tooth_surface"];
@@ -2114,12 +2142,14 @@ export type Database = {
         Update: {
           clinic_id?: string;
           condition?: Database["public"]["Enums"]["tooth_condition"];
+          conservation?: string | null;
           id?: string;
           material?: string | null;
           notes?: string | null;
           patient_id?: string;
           recorded_at?: string;
           recorded_by?: string;
+          status?: string;
           superseded_at?: string | null;
           superseded_by?: string | null;
           surface?: Database["public"]["Enums"]["tooth_surface"];
@@ -4485,7 +4515,26 @@ export type Database = {
         | "ausente"
         | "sellante"
         | "fractura"
-        | "protesis";
+        | "protesis"
+        | "restos_radiculares"
+        | "extraccion_indicada"
+        | "en_erupcion"
+        | "retenida"
+        | "supernumeraria"
+        | "diastema"
+        | "giroversion"
+        | "migracion"
+        | "transposicion"
+        | "perno_munon"
+        | "carilla"
+        | "incrustacion"
+        | "puente"
+        | "aparato_ortodoncia"
+        | "desgaste"
+        | "fluorosis"
+        | "hipoplasia"
+        | "mancha_blanca"
+        | "fosas_fisuras_profundas";
       tooth_surface: "mesial" | "distal" | "oclusal" | "vestibular" | "lingual" | "whole";
       treatment_item_status: "pending" | "in_progress" | "completed" | "skipped";
       treatment_plan_status: "active" | "on_hold" | "completed" | "cancelled";
@@ -4664,6 +4713,25 @@ export const Constants = {
         "sellante",
         "fractura",
         "protesis",
+        "restos_radiculares",
+        "extraccion_indicada",
+        "en_erupcion",
+        "retenida",
+        "supernumeraria",
+        "diastema",
+        "giroversion",
+        "migracion",
+        "transposicion",
+        "perno_munon",
+        "carilla",
+        "incrustacion",
+        "puente",
+        "aparato_ortodoncia",
+        "desgaste",
+        "fluorosis",
+        "hipoplasia",
+        "mancha_blanca",
+        "fosas_fisuras_profundas",
       ],
       tooth_surface: ["mesial", "distal", "oclusal", "vestibular", "lingual", "whole"],
       treatment_item_status: ["pending", "in_progress", "completed", "skipped"],

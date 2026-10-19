@@ -44,6 +44,7 @@ export const TABLES = [
   "messages",
   "notification_preferences",
   "notifications",
+  "odontogram_condition_catalog",
   "odontogram_marks",
   "operatories",
   "ortho_cases",
