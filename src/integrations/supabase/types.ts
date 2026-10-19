@@ -520,21 +520,27 @@ export type Database = {
           clinic_id: string;
           created_at: string;
           id: string;
+          license_number: string | null;
           role: Database["public"]["Enums"]["app_role"];
+          signature_name: string | null;
           user_id: string;
         };
         Insert: {
           clinic_id: string;
           created_at?: string;
           id?: string;
+          license_number?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
+          signature_name?: string | null;
           user_id: string;
         };
         Update: {
           clinic_id?: string;
           created_at?: string;
           id?: string;
+          license_number?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
+          signature_name?: string | null;
           user_id?: string;
         };
         Relationships: [
@@ -798,6 +804,7 @@ export type Database = {
       };
       clinical_notes: {
         Row: {
+          addendum_of: string | null;
           clinic_id: string;
           content: string;
           created_at: string;
@@ -810,6 +817,11 @@ export type Database = {
           review_status: string;
           reviewed_at: string | null;
           reviewer_id: string | null;
+          signed_at: string | null;
+          signed_by: string | null;
+          signed_content_hash: string | null;
+          signer_license: string | null;
+          signer_name: string | null;
           status: string;
           summary: string | null;
           title: string;
@@ -817,6 +829,7 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          addendum_of?: string | null;
           clinic_id: string;
           content?: string;
           created_at?: string;
@@ -829,6 +842,11 @@ export type Database = {
           review_status?: string;
           reviewed_at?: string | null;
           reviewer_id?: string | null;
+          signed_at?: string | null;
+          signed_by?: string | null;
+          signed_content_hash?: string | null;
+          signer_license?: string | null;
+          signer_name?: string | null;
           status?: string;
           summary?: string | null;
           title?: string;
@@ -836,6 +854,7 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          addendum_of?: string | null;
           clinic_id?: string;
           content?: string;
           created_at?: string;
@@ -848,6 +867,11 @@ export type Database = {
           review_status?: string;
           reviewed_at?: string | null;
           reviewer_id?: string | null;
+          signed_at?: string | null;
+          signed_by?: string | null;
+          signed_content_hash?: string | null;
+          signer_license?: string | null;
+          signer_name?: string | null;
           status?: string;
           summary?: string | null;
           title?: string;
@@ -855,6 +879,13 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "clinical_notes_addendum_of_fkey";
+            columns: ["addendum_of"];
+            isOneToOne: false;
+            referencedRelation: "clinical_notes";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "clinical_notes_clinic_id_fkey";
             columns: ["clinic_id"];
@@ -2538,6 +2569,8 @@ export type Database = {
           agreement_member_id: string | null;
           ai_summary: string | null;
           ai_summary_updated_at: string | null;
+          archived_at: string | null;
+          archived_by: string | null;
           avatar_url: string | null;
           balance_cents: number | null;
           birth_date: string | null;
@@ -2572,6 +2605,8 @@ export type Database = {
           agreement_member_id?: string | null;
           ai_summary?: string | null;
           ai_summary_updated_at?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
           avatar_url?: string | null;
           balance_cents?: number | null;
           birth_date?: string | null;
@@ -2606,6 +2641,8 @@ export type Database = {
           agreement_member_id?: string | null;
           ai_summary?: string | null;
           ai_summary_updated_at?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
           avatar_url?: string | null;
           balance_cents?: number | null;
           birth_date?: string | null;
@@ -4101,6 +4138,22 @@ export type Database = {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
       };
+      guardar_nota_clinica: {
+        Args: {
+          p_addendum_of?: string;
+          p_ai_action?: string;
+          p_ai_assisted?: boolean;
+          p_clinic_id: string;
+          p_content: string;
+          p_note_id: string | null;
+          p_patient_name?: string;
+          p_patient_ref: string;
+          p_revert_of_version?: number;
+          p_summary?: string;
+          p_title: string;
+        };
+        Returns: { nota_id: string; version_nueva: number }[];
+      };
       get_patient_document_id: {
         Args: { p_patient_id: string };
         Returns: string;
@@ -4135,6 +4188,10 @@ export type Database = {
         Args: { p_clinic_id: string; p_source_id: string; p_target_id: string };
         Returns: undefined;
       };
+      mis_datos_de_firma: {
+        Args: { p_clinic_id: string };
+        Returns: { nombre: string; origen: string; registro: string }[];
+      };
       misma_clinica_agreement: {
         Args: { _agreement_id: string; _clinic_id: string };
         Returns: boolean;
@@ -4160,6 +4217,10 @@ export type Database = {
       registrar_exportacion_de_clinica: {
         Args: { p_clinic_id: string; p_detalle?: Json };
         Returns: string;
+      };
+      registrar_mis_datos_de_firma: {
+        Args: { p_clinic_id: string; p_nombre: string; p_registro: string };
+        Returns: undefined;
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       set_patient_document_id: {

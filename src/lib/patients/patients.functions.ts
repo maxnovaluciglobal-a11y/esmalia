@@ -12,6 +12,7 @@ import {
 import { mensajeDb } from "@/lib/db-errors";
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
+import { FILTROS_DE_ARCHIVO } from "@/lib/patients/archivo";
 import type { Database } from "@/integrations/supabase/types";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
@@ -69,6 +70,7 @@ function calcularEdad(birthDate: string): number {
 type PatientRow = {
   agreement_id?: string | null;
   agreement_member_id?: string | null;
+  archived_at?: string | null;
   id: string;
   full_name: string;
   document_id: string | null;
@@ -134,11 +136,12 @@ function mapPatientRow(
     timeline: [],
     waOptIn: row.wa_opt_in,
     referralCode: row.referral_code,
+    archivadaEl: row.archived_at ?? null,
   };
 }
 
 const PATIENT_COLUMNS =
-  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, agreement_id, agreement_member_id";
+  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, agreement_id, agreement_member_id, archived_at";
 
 /**
  * Tope de fila del listado — red de seguridad, no la estrategia de paginado
@@ -160,17 +163,24 @@ const PATIENTS_ROW_LIMIT = 5_000;
  */
 export const listPatients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        /** LEG-08: las fichas archivadas no aparecen salvo que se pidan. */
+        archivo: z.enum(FILTROS_DE_ARCHIVO).default("activas"),
+      })
+      .parse(input),
+  )
   .handler(async ({ data, context }): Promise<{ items: Paciente[]; truncated: boolean }> => {
     const { supabase } = context;
 
+    let consulta = supabase.from("patients").select(PATIENT_COLUMNS).eq("clinic_id", data.clinicId);
+    if (data.archivo === "activas") consulta = consulta.is("archived_at", null);
+    else if (data.archivo === "archivadas") consulta = consulta.not("archived_at", "is", null);
+
     const [{ data: rows, error }, { data: apptRows, error: apptError }] = await Promise.all([
-      supabase
-        .from("patients")
-        .select(PATIENT_COLUMNS)
-        .eq("clinic_id", data.clinicId)
-        .order("full_name", { ascending: true })
-        .limit(PATIENTS_ROW_LIMIT),
+      consulta.order("full_name", { ascending: true }).limit(PATIENTS_ROW_LIMIT),
       supabase.rpc("list_patients_with_last_and_next_appointment", {
         p_clinic_id: data.clinicId,
       }),
@@ -782,5 +792,43 @@ export const updatePatient = createServerFn({ method: "POST" })
       }
     }
 
+    return { ok: true };
+  });
+
+/**
+ * Archiva o restaura una ficha (LEG-08 / CLI-05). Reemplaza al borrado: la
+ * historia clínica se conserva por ley y la ficha solo sale de los listados.
+ * Quién puede (owner/admin), la fecha y el actor los resuelve la base en el
+ * trigger `patients_controlar_archivo`; acá solo se pide el cambio.
+ */
+export const setPatientArchived = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        patientId: z.string().uuid(),
+        archivar: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { data: fila, error } = await context.supabase
+      .from("patients")
+      .update({ archived_at: data.archivar ? new Date().toISOString() : null })
+      .eq("id", data.patientId)
+      .eq("clinic_id", data.clinicId)
+      .select("id")
+      .maybeSingle();
+    if (error)
+      throw new Error(
+        mensajeDb(
+          error,
+          data.archivar
+            ? "No tienes permisos para archivar esta ficha."
+            : "No tienes permisos para restaurar esta ficha.",
+        ),
+      );
+    if (!fila) throw new Error("No tienes permisos para cambiar el archivo de esta ficha.");
     return { ok: true };
   });

@@ -43,6 +43,11 @@ import {
   type CsvFieldSpec,
 } from "@/lib/csv/column-mapping";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import {
+  ETIQUETA_FILTRO_DE_ARCHIVO,
+  parseFiltroDeArchivo,
+  type FiltroDeArchivo,
+} from "@/lib/patients/archivo";
 
 interface PacientesSearch {
   q: string;
@@ -52,6 +57,8 @@ interface PacientesSearch {
   desde: string;
   hasta: string;
   page: number;
+  /** LEG-08: sin valor = solo fichas activas (las archivadas no se listan). */
+  archivo?: FiltroDeArchivo;
 }
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
@@ -63,6 +70,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
     desde: str(search.desde),
     hasta: str(search.hasta),
     page: num(search.page, 1),
+    ...(search.archivo ? { archivo: parseFiltroDeArchivo(search.archivo) } : {}),
   }),
   beforeLoad: requirePermission("patients:view"),
   head: () => ({
@@ -83,6 +91,11 @@ export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
   }),
   component: PacientesPage,
 });
+
+// "" (sin filtro) = solo activas; las otras dos opciones se eligen a propósito.
+const filtrosDeArchivo: { value: FiltroDeArchivo; label: string }[] = (
+  ["archivadas", "todas"] as FiltroDeArchivo[]
+).map((f) => ({ value: f, label: ETIQUETA_FILTRO_DE_ARCHIVO[f] }));
 
 const estados: { value: EstadoPaciente; label: string }[] = (
   ["activo", "nuevo", "inactivo"] as EstadoPaciente[]
@@ -499,6 +512,7 @@ function PacientesPage() {
 
   const fetchPatients = useServerFn(listPatients);
   const fetchBranches = useServerFn(listBranches);
+  const archivo: FiltroDeArchivo = search.archivo ?? "activas";
   const fetchProfessionals = useServerFn(listProfessionals);
 
   const {
@@ -507,9 +521,9 @@ function PacientesPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["patients", clinicId],
+    queryKey: ["patients", clinicId, archivo],
     enabled: Boolean(clinicId),
-    queryFn: () => fetchPatients({ data: { clinicId: clinicId! } }),
+    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo } }),
   });
   const pacientes = useMemo(() => patientsRes?.items ?? [], [patientsRes]);
   const { data: sucursales = [] } = useQuery({
@@ -549,6 +563,7 @@ function PacientesPage() {
     search.estado,
     search.desde,
     search.hasta,
+    search.archivo && search.archivo !== "activas" ? search.archivo : "",
   ].filter(Boolean).length;
 
   return (
@@ -582,6 +597,7 @@ function PacientesPage() {
                 desde: "",
                 hasta: "",
                 page: 1,
+                archivo: undefined,
               },
             })
           }
@@ -612,6 +628,13 @@ function PacientesPage() {
             onChange={(estado) => set({ estado })}
             allLabel="Todos los estados"
             options={estados}
+          />
+          <SelectField
+            label="Archivo"
+            value={archivo === "activas" ? "" : archivo}
+            onChange={(valor) => set({ archivo: valor ? parseFiltroDeArchivo(valor) : undefined })}
+            allLabel={ETIQUETA_FILTRO_DE_ARCHIVO.activas}
+            options={filtrosDeArchivo}
           />
           <DateField
             label="Última visita desde"
@@ -684,14 +707,16 @@ function PacientesPage() {
                     <span
                       className={cn(
                         "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
-                        p.estado === "activo"
-                          ? "bg-success-soft text-success"
-                          : p.estado === "nuevo"
-                            ? "bg-info-soft text-info"
-                            : "bg-secondary text-muted-foreground",
+                        p.archivadaEl
+                          ? "bg-secondary text-muted-foreground"
+                          : p.estado === "activo"
+                            ? "bg-success-soft text-success"
+                            : p.estado === "nuevo"
+                              ? "bg-info-soft text-info"
+                              : "bg-secondary text-muted-foreground",
                       )}
                     >
-                      {etiquetaEstadoPaciente[p.estado]}
+                      {p.archivadaEl ? "Archivada" : etiquetaEstadoPaciente[p.estado]}
                     </span>
                     <span
                       className={cn(
@@ -734,7 +759,9 @@ function PacientesPage() {
             {!isLoading && !isError && pagina.items.length === 0 && (
               <p className="px-5 py-10 text-center text-sm text-muted-foreground">
                 {pacientes.length === 0
-                  ? "Todavía no hay pacientes registrados en esta clínica."
+                  ? archivo === "archivadas"
+                    ? "No hay fichas archivadas."
+                    : "Todavía no hay pacientes registrados en esta clínica."
                   : "No hay pacientes que coincidan con los filtros aplicados."}
               </p>
             )}
