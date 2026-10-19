@@ -5,6 +5,7 @@ import { AlertCircle, Clock, Sparkles } from "lucide-react";
 
 import { getMySubscription } from "@/lib/billing.functions";
 import { accesoPorSuscripcion, isSubscriptionActive, trialDaysLeft } from "@/lib/billing";
+import { soloLectura } from "@/lib/solo-lectura";
 
 /**
  * Banner top-of-app con estado de suscripción.
@@ -106,6 +107,29 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
           className="shrink-0 rounded-md border border-warning-border px-3 py-1 text-xs font-medium text-warning hover:bg-warning-soft"
         >
           Actualizar medio de pago
+        </Link>
+      </div>
+    );
+  }
+
+  // Prueba vencida sin pago fuera del modo solo lectura (interruptor
+  // SOLO_LECTURA_EN_PRUEBA_VENCIDA apagado): como antes, solo se pausan los
+  // informes.
+  if (!soloLectura(sub)) {
+    return (
+      <div className="flex items-center justify-between gap-3 border-b border-brand/40 bg-brand-100 px-5 py-2 text-sm sm:px-8">
+        <div className="flex items-center gap-2">
+          <Clock className="size-4 shrink-0 text-brand-700" />
+          <span>
+            Tu prueba gratis terminó. Pacientes, agenda y ficha clínica siguen disponibles; los
+            informes se pausan hasta que actives la suscripción.
+          </span>
+        </div>
+        <Link
+          to="/suscripcion"
+          className="shrink-0 rounded-md border border-brand bg-transparent px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand/12"
+        >
+          Activar suscripción
         </Link>
       </div>
     );

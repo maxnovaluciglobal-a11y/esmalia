@@ -3,10 +3,11 @@
  * del PR #69). Lógica pura, compartida por el servidor (el chequeo real, en
  * `solo-lectura.middleware.ts`) y la interfaz (banner y botones).
  *
- * Cuándo: el mismo nivel `restringido` de `accesoPorSuscripcion` — gracia de
- * cobro fallido agotada, suscripción cancelada, impaga o pausada, período
- * vencido sin renovar, o prueba gratis vencida sin activar el plan. Durante
- * la gracia todo sigue abierto.
+ * Cuándo: el nivel `restringido` de `accesoPorSuscripcion` por pago — gracia
+ * de cobro fallido agotada, suscripción cancelada, impaga o pausada, período
+ * vencido sin renovar. La prueba gratis vencida sin pago queda fuera (solo se
+ * pausan los informes) salvo que se active `SOLO_LECTURA_EN_PRUEBA_VENCIDA`.
+ * Durante la gracia todo sigue abierto.
  *
  * Qué se puede: VER todo, exportar (botón de #67), ver y descargar fichas y
  * documentos, ir a Suscripción y pagar. Qué no: crear ni editar nada (citas,
@@ -32,9 +33,20 @@ export const MENSAJE_SOLO_LECTURA =
 export const EXPLICACION_BOTON_SOLO_LECTURA =
   "No disponible en modo solo lectura: regulariza el pago en Suscripción para volver a crear y editar.";
 
+/**
+ * Interruptor: ¿la prueba gratis vencida sin pago también entra en solo
+ * lectura? Hoy NO (decisión comercial pendiente de Walter): solo se le pausan
+ * los informes, como antes. Para activarlo, cambiar a `true` (una línea; el
+ * banner, los botones y el servidor lo siguen solos).
+ */
+export const SOLO_LECTURA_EN_PRUEBA_VENCIDA = false;
+
 export function soloLectura(sub: Subscription | null | undefined, ahora: Date = new Date()) {
   if (sub === undefined) return false;
-  return accesoPorSuscripcion(sub, ahora).nivel === "restringido";
+  const acceso = accesoPorSuscripcion(sub, ahora);
+  if (acceso.nivel !== "restringido") return false;
+  if (acceso.motivo === "trial_vencido") return SOLO_LECTURA_EN_PRUEBA_VENCIDA;
+  return true;
 }
 
 export function esErrorSoloLectura(error: unknown): boolean {

@@ -137,14 +137,23 @@ describe("modo solo lectura contra la base (BIL-01)", () => {
     await expect(clinicaDeLaFila(owner as never, "appointments", citaId)).resolves.toBe(clinicId);
   });
 
-  it("con la prueba vencida sin pago: solo lectura, salvo la nota de una cita en curso", async () => {
-    const { data: fila, error } = await admin
+  it("con la prueba vencida sin pago NO entra en solo lectura (interruptor apagado)", async () => {
+    const { error } = await admin
       .from("subscriptions")
       .update({ trial_end: new Date(Date.now() - 24 * H).toISOString() })
+      .eq("clinic_id", clinicId);
+    if (error) throw new Error(`No se pudo vencer la prueba: ${error.message}`);
+    await expect(exigirEscritura(owner as never, clinicId)).resolves.toBeUndefined();
+  });
+
+  it("con la suscripción cancelada: solo lectura, salvo la nota de una cita en curso", async () => {
+    const { data: fila, error } = await admin
+      .from("subscriptions")
+      .update({ status: "canceled", stripe_subscription_id: "sub_test_cancelada" })
       .eq("clinic_id", clinicId)
       .select("clinic_id")
       .maybeSingle();
-    if (error) throw new Error(`No se pudo vencer la prueba: ${error.message}`);
+    if (error) throw new Error(`No se pudo cancelar la suscripción: ${error.message}`);
     if (!fila) throw new Error("La clínica de prueba no tiene fila en subscriptions.");
 
     await expect(exigirEscritura(owner as never, clinicId)).rejects.toThrow(MENSAJE_SOLO_LECTURA);

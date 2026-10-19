@@ -2,12 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/sentry.server", () => ({ capturarErrorDelServidor: vi.fn(async () => {}) }));
 
-import type { Subscription } from "@/lib/billing";
+import { informesBloqueados, type Subscription } from "@/lib/billing";
 import {
   esCitaEnCurso,
   esErrorSoloLectura,
   MENSAJE_SOLO_LECTURA,
   soloLectura,
+  SOLO_LECTURA_EN_PRUEBA_VENCIDA,
 } from "@/lib/solo-lectura";
 import {
   clinicaDeLaFila,
@@ -113,22 +114,27 @@ describe("soloLectura (qué estados bloquean la escritura)", () => {
     expect(soloLectura(sub({ status: "past_due", pastDueSince: null }), AHORA)).toBe(false);
   });
 
-  it("gracia agotada, cancelada, impaga o prueba vencida sin pago: solo lectura", () => {
+  it("gracia agotada, cancelada, impaga o vencida tras haber pagado: solo lectura", () => {
     const pastDueSince = new Date(AHORA.getTime() - 8 * 24 * H).toISOString();
     expect(soloLectura(sub({ status: "past_due", pastDueSince }), AHORA)).toBe(true);
     expect(soloLectura(sub({ status: "canceled" }), AHORA)).toBe(true);
     expect(soloLectura(sub({ status: "unpaid" }), AHORA)).toBe(true);
-    expect(
-      soloLectura(
-        sub({
-          status: "trialing",
-          stripeSubscriptionId: null,
-          currentPeriodEnd: null,
-          trialEnd: new Date(AHORA.getTime() - H).toISOString(),
-        }),
-        AHORA,
-      ),
-    ).toBe(true);
+    expect(soloLectura(sub({ status: "paused" }), AHORA)).toBe(true);
+    // Período pagado vencido sin renovar (pasada la tolerancia de 72 h).
+    const vencido = new Date(AHORA.getTime() - 4 * 24 * H).toISOString();
+    expect(soloLectura(sub({ currentPeriodEnd: vencido }), AHORA)).toBe(true);
+  });
+
+  it("la prueba gratis vencida sin pago NO entra (interruptor apagado): solo se pausan los informes", () => {
+    expect(SOLO_LECTURA_EN_PRUEBA_VENCIDA).toBe(false);
+    const pruebaVencida = sub({
+      status: "trialing",
+      stripeSubscriptionId: null,
+      currentPeriodEnd: null,
+      trialEnd: new Date(AHORA.getTime() - H).toISOString(),
+    });
+    expect(soloLectura(pruebaVencida, AHORA)).toBe(false);
+    expect(informesBloqueados(pruebaVencida, AHORA)).toBe(true);
   });
 });
 
