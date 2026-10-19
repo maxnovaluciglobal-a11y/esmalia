@@ -31,6 +31,13 @@ import {
   revokePatientConsent,
   signPatientConsent,
 } from "@/lib/clinical/clinical-documents.functions";
+import {
+  AVISO_MODELO,
+  estadoPlantilla,
+  leerPiezas,
+  problemaParaFirmar,
+} from "@/lib/clinical/consentimientos";
+import { listProfesionalesClinicos } from "@/lib/clinical/prescriptions.functions";
 import { SignaturePad } from "@/components/signature-pad";
 import { useGuardians } from "@/hooks/use-guardians";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
@@ -56,6 +63,7 @@ export function PatientConsentsCard({
   patientName,
   fechaNacimiento,
   timezone,
+  myProfessionalId,
   puedeEditar,
   puedeGestionar,
 }: {
@@ -65,6 +73,8 @@ export function PatientConsentsCard({
   /** YYYY-MM-DD. Un menor firma por medio de su tutor (CLI-11). */
   fechaNacimiento?: string | null;
   timezone?: string;
+  /** Ficha de profesional del usuario: se propone como informante. */
+  myProfessionalId: string | null;
   puedeEditar: boolean;
   puedeGestionar: boolean;
 }) {
@@ -72,13 +82,19 @@ export function PatientConsentsCard({
   const queryClient = useQueryClient();
   const fetchTemplates = useServerFn(listConsentTemplates);
   const fetchConsents = useServerFn(listPatientConsents);
+  const fetchProfesionales = useServerFn(listProfesionalesClinicos);
   const doSign = useServerFn(signPatientConsent);
   const doRevoke = useServerFn(revokePatientConsent);
 
   const [open, setOpen] = useState(false);
   const [templateId, setTemplateId] = useState<string>("");
   const [title, setTitle] = useState("");
+  const [procedure, setProcedure] = useState("");
+  const [piezasTexto, setPiezasTexto] = useState("");
   const [body, setBody] = useState("");
+  const [risks, setRisks] = useState("");
+  const [alternatives, setAlternatives] = useState("");
+  const [informanteId, setInformanteId] = useState(myProfessionalId ?? "");
   const [signedByName, setSignedByName] = useState(patientName);
   // "" = firma el paciente; si no, el id del tutor que firma por él.
   const [firmanteId, setFirmanteId] = useState<string>("");
@@ -93,6 +109,7 @@ export function PatientConsentsCard({
   // tipeado es la evidencia.
   const [firmaElectronica, setFirmaElectronica] = useState(false);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+  const [abiertoId, setAbiertoId] = useState<string | null>(null);
 
   const guardiansQuery = useGuardians(clinicId, patientId);
   const tutores = tutoresVigentes(guardiansQuery.data?.items ?? []);
@@ -124,11 +141,45 @@ export function PatientConsentsCard({
     enabled: open,
   });
 
+  const profesionalesQuery = useQuery({
+    queryKey: ["profesionales-clinicos", clinicId],
+    queryFn: () => fetchProfesionales({ data: { clinicId } }),
+    enabled: open,
+  });
+
   const consentsQueryKey = ["patient-consents", clinicId, patientId];
   const consentsQuery = useQuery({
     queryKey: consentsQueryKey,
     queryFn: () => fetchConsents({ data: { clinicId, patientId } }),
   });
+
+  const piezas = leerPiezas(piezasTexto);
+  const plantilla = templatesQuery.data?.find((t) => t.id === templateId) ?? null;
+  const informante = profesionalesQuery.data?.find((p) => p.id === informanteId) ?? null;
+  const problema = problemaParaFirmar({
+    title,
+    procedure,
+    body,
+    informedByProfessionalId: informanteId,
+    signedByName,
+    faltaTutor,
+    tieneFirma: firmaElectronica || Boolean(signatureDataUrl),
+    piezasInvalidas: piezas.invalidas,
+  });
+
+  function limpiar() {
+    setTemplateId("");
+    setTitle("");
+    setProcedure("");
+    setPiezasTexto("");
+    setBody("");
+    setRisks("");
+    setAlternatives("");
+    setFirmanteId("");
+    setSignedByName(patientName);
+    setSignatureDataUrl(null);
+    setFirmaElectronica(false);
+  }
 
   const signMutation = useMutation({
     mutationFn: () =>
@@ -138,7 +189,12 @@ export function PatientConsentsCard({
           patientId,
           templateId: templateId || undefined,
           titleSnapshot: title,
+          procedureSnapshot: procedure,
           bodySnapshot: body,
+          risksSnapshot: risks,
+          alternativesSnapshot: alternatives,
+          informedByProfessionalId: informanteId,
+          toothNumbers: piezas.piezas,
           signedByName,
           guardianId: tutorFirmante?.id,
           signatureDataUrl: firmaElectronica ? undefined : (signatureDataUrl ?? undefined),
@@ -148,11 +204,7 @@ export function PatientConsentsCard({
       toast.success("Consentimiento firmado y guardado.");
       queryClient.invalidateQueries({ queryKey: consentsQueryKey });
       setOpen(false);
-      setTemplateId("");
-      setTitle("");
-      setBody("");
-      setSignatureDataUrl(null);
-      setFirmaElectronica(false);
+      limpiar();
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "No se pudo guardar la firma."),
@@ -173,7 +225,10 @@ export function PatientConsentsCard({
     const template = templatesQuery.data?.find((t) => t.id === id);
     if (template) {
       setTitle(template.title);
+      setProcedure(template.procedure ?? template.title);
       setBody(template.body);
+      setRisks(template.risks ?? "");
+      setAlternatives(template.alternatives ?? "");
     }
   }
 
@@ -195,18 +250,18 @@ export function PatientConsentsCard({
                 <FileSignature className="size-3.5" /> Nuevo consentimiento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Firmar consentimiento</DialogTitle>
                 <DialogDescription>
-                  El paciente firma en esta pantalla. El texto queda guardado tal como se muestra
-                  aquí, aunque la plantilla cambie después.
+                  El texto queda guardado tal como se muestra aquí, aunque la plantilla cambie
+                  después. Explica el procedimiento antes de pedir la firma.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-3">
                 {templatesQuery.data && templatesQuery.data.length > 0 && (
                   <div className="space-y-1.5">
-                    <Label htmlFor={`${fid}-plantilla`}>Plantilla (opcional)</Label>
+                    <Label htmlFor={`${fid}-plantilla`}>Plantilla</Label>
                     <select
                       id={`${fid}-plantilla`}
                       value={templateId}
@@ -224,26 +279,102 @@ export function PatientConsentsCard({
                     </select>
                   </div>
                 )}
+                {plantilla && estadoPlantilla(plantilla) === "modelo-sin-revisar" && (
+                  <p className="flex items-start gap-2 rounded-lg border border-warning-border bg-warning-soft px-3 py-2 text-xs text-warning">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
+                    <span>
+                      Esta plantilla es un modelo que tu clínica todavía no revisó. {AVISO_MODELO}
+                    </span>
+                  </p>
+                )}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-titulo`}>Título</Label>
+                    <input
+                      id={`${fid}-titulo`}
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      className={inputClass()}
+                      placeholder="Ej. Consentimiento para exodoncia"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-procedimiento`}>Procedimiento</Label>
+                    <input
+                      id={`${fid}-procedimiento`}
+                      value={procedure}
+                      onChange={(e) => setProcedure(e.target.value)}
+                      className={inputClass()}
+                      placeholder="Ej. Exodoncia de la pieza 38"
+                    />
+                  </div>
+                </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-titulo`}>Título</Label>
+                  <Label htmlFor={`${fid}-piezas`}>Piezas (opcional, notación FDI)</Label>
                   <input
-                    id={`${fid}-titulo`}
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
+                    id={`${fid}-piezas`}
+                    value={piezasTexto}
+                    onChange={(e) => setPiezasTexto(e.target.value)}
                     className={inputClass()}
-                    placeholder="Ej. Consentimiento para extracción"
+                    placeholder="Ej. 38, 48"
+                    aria-invalid={piezas.invalidas.length > 0}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-texto`}>Texto del consentimiento</Label>
+                  <Label htmlFor={`${fid}-texto`}>Descripción y declaración</Label>
                   <textarea
                     id={`${fid}-texto`}
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
-                    rows={5}
+                    rows={6}
                     className={inputClass()}
-                    placeholder="Explica el procedimiento, riesgos y alternativas…"
+                    placeholder="Explica el procedimiento, sus beneficios y los cuidados posteriores…"
                   />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-riesgos`}>Riesgos</Label>
+                    <textarea
+                      id={`${fid}-riesgos`}
+                      value={risks}
+                      onChange={(e) => setRisks(e.target.value)}
+                      rows={4}
+                      className={inputClass()}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-alternativas`}>Alternativas</Label>
+                    <textarea
+                      id={`${fid}-alternativas`}
+                      value={alternatives}
+                      onChange={(e) => setAlternatives(e.target.value)}
+                      rows={4}
+                      className={inputClass()}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${fid}-informante`}>Profesional que informó</Label>
+                  <select
+                    id={`${fid}-informante`}
+                    value={informanteId}
+                    onChange={(e) => setInformanteId(e.target.value)}
+                    className={inputClass()}
+                  >
+                    <option value="">Elige un profesional</option>
+                    {(profesionalesQuery.data ?? []).map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.fullName}
+                        {p.licenseNumber ? ` · Reg. ${p.licenseNumber}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {informante && !informante.licenseNumber && (
+                    <p className="text-xs text-warning">
+                      Este profesional no tiene su número de registro cargado en Equipo: el
+                      consentimiento quedará sin registro.
+                    </p>
+                  )}
                 </div>
                 {tutoresDisponibles && (esMenor || tutores.length > 0) && (
                   <div className="space-y-1.5">
@@ -283,9 +414,9 @@ export function PatientConsentsCard({
                   </p>
                 )}
                 <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-firmante`}>Firma a nombre de</Label>
+                  <Label htmlFor={`${fid}-firmante-nombre`}>Nombre de quien firma</Label>
                   <input
-                    id={`${fid}-firmante`}
+                    id={`${fid}-firmante-nombre`}
                     value={signedByName}
                     onChange={(e) => setSignedByName(e.target.value)}
                     readOnly={Boolean(tutorFirmante)}
@@ -308,17 +439,11 @@ export function PatientConsentsCard({
                   pantalla, etc).
                 </label>
               </div>
-              <DialogFooter>
+              <DialogFooter className="items-center gap-3">
+                {problema && <p className="text-xs text-muted-foreground">{problema}</p>}
                 <Button
                   onClick={() => signMutation.mutate()}
-                  disabled={
-                    signMutation.isPending ||
-                    faltaTutor ||
-                    !title.trim() ||
-                    body.trim().length < 10 ||
-                    !signedByName.trim() ||
-                    (!firmaElectronica && !signatureDataUrl)
-                  }
+                  disabled={signMutation.isPending || problema !== null}
                 >
                   {signMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
                   Guardar firma
@@ -336,47 +461,90 @@ export function PatientConsentsCard({
       ) : (
         <div className="space-y-2">
           {consents.map((c) => (
-            <div
-              key={c.id}
-              className="flex items-start justify-between gap-3 rounded-xl border border-hairline p-3"
-            >
-              <div className="flex items-start gap-3">
-                {c.signatureUrl && (
-                  <img
-                    src={c.signatureUrl}
-                    alt="Firma"
-                    className="h-10 w-20 rounded border border-hairline bg-white object-contain"
-                  />
-                )}
-                <div>
-                  <p className="flex items-center gap-1.5 text-sm font-medium">
-                    {c.revokedAt ? (
-                      <ShieldX className="size-3.5 text-destructive" />
-                    ) : (
-                      <ShieldCheck className="size-3.5 text-success" />
+            <div key={c.id} className="rounded-xl border border-hairline p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-start gap-3">
+                  {c.signatureUrl && (
+                    <img
+                      src={c.signatureUrl}
+                      alt="Firma"
+                      className="h-10 w-20 rounded border border-hairline bg-white object-contain"
+                    />
+                  )}
+                  <div>
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      {c.revokedAt ? (
+                        <ShieldX className="size-3.5 text-destructive" />
+                      ) : (
+                        <ShieldCheck className="size-3.5 text-success" />
+                      )}
+                      {c.titleSnapshot}
+                    </p>
+                    {c.procedureSnapshot && (
+                      <p className="text-xs">
+                        {c.procedureSnapshot}
+                        {c.toothNumbers.length > 0 && ` · Piezas ${c.toothNumbers.join(", ")}`}
+                      </p>
                     )}
-                    {c.titleSnapshot}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Firmado por {c.signedByName}
-                    {c.signerRole === "tutor" &&
-                      ` (${[c.signerRelationship, c.signerDocument && `Doc. ${c.signerDocument}`]
-                        .filter(Boolean)
-                        .join(", ")}) en representación del paciente`}{" "}
-                    · {formatFechaHora(c.signedAt)}
-                    {c.revokedAt && ` · Revocado ${formatFechaHora(c.revokedAt)}`}
-                  </p>
+                    <p className="text-xs text-muted-foreground">
+                      Firmado por {c.signedByName}
+                      {c.signerRole === "tutor" &&
+                        ` (${[c.signerRelationship, c.signerDocument && `Doc. ${c.signerDocument}`]
+                          .filter(Boolean)
+                          .join(", ")}) en representación del paciente`}{" "}
+                      · {formatFechaHora(c.signedAt)}
+                      {c.revokedAt && ` · Revocado ${formatFechaHora(c.revokedAt)}`}
+                    </p>
+                    {c.informedByName && (
+                      <p className="text-xs text-muted-foreground">
+                        Informó {c.informedByName}
+                        {c.informedByLicense ? ` · Reg. ${c.informedByLicense}` : " · sin registro"}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <button
+                    type="button"
+                    aria-expanded={abiertoId === c.id}
+                    onClick={() => setAbiertoId(abiertoId === c.id ? null : c.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                  >
+                    {abiertoId === c.id ? "Ocultar texto" : "Ver texto"}
+                  </button>
+                  {puedeGestionar && !c.revokedAt && (
+                    <button
+                      type="button"
+                      aria-label={`Revocar consentimiento ${c.titleSnapshot}`}
+                      onClick={() => setConfirmRevokeId(c.id)}
+                      className="text-xs text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                    >
+                      Revocar
+                    </button>
+                  )}
                 </div>
               </div>
-              {puedeGestionar && !c.revokedAt && (
-                <button
-                  type="button"
-                  aria-label={`Revocar consentimiento ${c.titleSnapshot}`}
-                  onClick={() => setConfirmRevokeId(c.id)}
-                  className="shrink-0 text-xs text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                >
-                  Revocar
-                </button>
+              {abiertoId === c.id && (
+                <div className="mt-3 space-y-2 border-t border-hairline pt-3 text-xs whitespace-pre-line">
+                  <p>{c.bodySnapshot}</p>
+                  {c.risksSnapshot && (
+                    <p>
+                      <span className="font-medium">Riesgos: </span>
+                      {c.risksSnapshot}
+                    </p>
+                  )}
+                  {c.alternativesSnapshot && (
+                    <p>
+                      <span className="font-medium">Alternativas: </span>
+                      {c.alternativesSnapshot}
+                    </p>
+                  )}
+                  {c.contentSha256 && (
+                    <p className="font-mono text-[11px] text-muted-foreground">
+                      Huella del documento: {c.contentSha256.slice(0, 16)}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           ))}
