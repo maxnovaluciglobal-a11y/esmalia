@@ -17,6 +17,7 @@ import { leerCola, pendientes } from "@/lib/offline/offline-queue";
 import { hasPermission, ROLE_LABELS, type ClinicAccess } from "@/lib/access/access";
 import { listPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
+import { AyudaMenu } from "@/components/ayuda-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   type Destino,
@@ -26,10 +27,6 @@ import {
   pestanaActiva,
 } from "@/lib/access/navegacion";
 import { cn } from "@/lib/utils";
-
-// Mismo destino de contacto que usan las páginas públicas (nosotros/privacidad/
-// términos/faq): no hay número de WhatsApp de soporte, solo este mailto.
-const SUPPORT_EMAIL = "soporte@esmalia.com";
 
 /**
  * Barra inferior del celular (<768px, rediseño fase 5): los cinco destinos
@@ -46,6 +43,7 @@ function BarraInferior({
   badgePorDestino,
   onSignOut,
   signingOut,
+  clinicName,
 }: {
   destinos: Destino[];
   destinoActualId: string | null;
@@ -53,6 +51,7 @@ function BarraInferior({
   badgePorDestino: Record<string, number>;
   onSignOut: () => void;
   signingOut: boolean;
+  clinicName?: string | null;
 }) {
   const [masAbierto, setMasAbierto] = useState(false);
   const enBarra = destinos.filter((d) => (DESTINOS_BARRA as readonly string[]).includes(d.id));
@@ -122,9 +121,12 @@ function BarraInferior({
               </li>
             ))}
             <li>
-              <a href={`mailto:${SUPPORT_EMAIL}`} className="flex min-h-12 items-center text-base">
+              <AyudaMenu
+                clinicName={clinicName}
+                className="flex min-h-12 w-full items-center text-left text-base"
+              >
                 Ayuda
-              </a>
+              </AyudaMenu>
             </li>
             <li className="flex min-h-12 items-center justify-between">
               <span className="text-base">Tema</span>
@@ -368,13 +370,13 @@ export function AppShell({
             />
             Ajustes
           </Link>
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
-            className="flex items-center gap-3 rounded-md border border-transparent px-3 py-2 text-[15px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+          <AyudaMenu
+            clinicName={access.clinic?.name}
+            className="flex w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-[15px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground"
           >
             <LifeBuoy className="size-4 text-muted-foreground" />
             Ayuda
-          </a>
+          </AyudaMenu>
         </div>
       </aside>
 
@@ -469,12 +471,12 @@ export function AppShell({
             </Link>
           ))}
           {/* Entre md y lg no hay sidebar ni barra inferior: Ayuda va acá. */}
-          <a
-            href={`mailto:${SUPPORT_EMAIL}`}
+          <AyudaMenu
+            clinicName={access.clinic?.name}
             className="flex min-h-9 items-center whitespace-nowrap rounded-md border border-transparent px-3 text-sm text-muted-foreground"
           >
             Ayuda
-          </a>
+          </AyudaMenu>
         </nav>
 
         {destinoActual && destinoActual.pestanas.length > 1 && (
@@ -520,6 +522,7 @@ export function AppShell({
         </div>
 
         <BarraInferior
+          clinicName={access.clinic?.name}
           destinos={destinos}
           destinoActualId={destinoActual?.id ?? null}
           enAjustes={enAjustes}
