@@ -43,9 +43,11 @@ CREATE POLICY clinic_data_exports_select_managers ON public.clinic_data_exports
   USING (public.can_manage_clinic(clinic_id));
 
 -- Sin políticas de INSERT/UPDATE/DELETE a propósito (ver arriba).
-REVOKE ALL ON public.clinic_data_exports FROM anon;
-REVOKE INSERT, UPDATE, DELETE ON public.clinic_data_exports FROM authenticated;
+-- Se parte de cero y se concede solo lo necesario: SELECT para la app (RLS
+-- arriba) y todo para service_role (backup diario, soporte).
+REVOKE ALL ON public.clinic_data_exports FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON public.clinic_data_exports TO authenticated;
+GRANT ALL ON public.clinic_data_exports TO service_role;
 
 COMMENT ON TABLE public.clinic_data_exports IS
   'Registro de exportaciones completas de datos de la clínica (CS-04/CON-01). Sin política de INSERT: se escribe solo vía registrar_exportacion_de_clinica(), que exige owner/admin y estampa el actor.';
