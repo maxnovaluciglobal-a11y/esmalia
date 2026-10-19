@@ -18,6 +18,8 @@
 import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react-router";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
+import { VerificacionDosPasosCard } from "@/components/verificacion-dos-pasos";
+import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import { listMarketingLeads } from "@/lib/marketing/leads.functions";
 import type { MetaLead } from "@/lib/marketing/leads";
 import type { Json } from "@/integrations/supabase/types";
@@ -48,7 +50,7 @@ export const Route = createFileRoute("/_authenticated/admin/leads")({
  * "algo falló" sin que el server function lo exponga, y no vale la pena
  * ensanchar esa superficie para una pantalla interna de lectura.
  */
-function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
+function AccesoRestringido({ error: errorDesconocido, reset }: ErrorComponentProps) {
   const error =
     errorDesconocido instanceof Error ? errorDesconocido : new Error(String(errorDesconocido));
   return (
@@ -65,6 +67,14 @@ function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
         >
           Volver al dashboard
         </Link>
+        {/* SEG-01: el staff sin verificación en dos pasos la activa acá
+            mismo (puede no tener clínica y por eso no llegar a /preferencias).
+            Al activarla la sesión pasa a aal2 y se reintenta la carga. */}
+        {error.message === MENSAJE_STAFF_REQUIERE_MFA && (
+          <div className="mt-6 text-left">
+            <VerificacionDosPasosCard obligatoria onActivada={reset} />
+          </div>
+        )}
       </div>
     </div>
   );

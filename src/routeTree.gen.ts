@@ -43,6 +43,7 @@ import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLifecycleEmailsRouteImport } from './routes/api.lifecycle-emails'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api.whatsapp-webhook'
 import { Route as AuthNuevaClaveRouteImport } from './routes/auth_.nueva-clave'
+import { Route as AuthVerificarRouteImport } from './routes/auth_.verificar'
 import { Route as CompararIndexRouteImport } from './routes/comparar.index'
 import { Route as CompararSlugRouteImport } from './routes/comparar.$slug'
 import { Route as CorreosBajaRouteImport } from './routes/correos.baja'
@@ -274,6 +275,11 @@ const ApiWhatsappWebhookRoute = ApiWhatsappWebhookRouteImport.update({
 const AuthNuevaClaveRoute = AuthNuevaClaveRouteImport.update({
   id: '/auth_/nueva-clave',
   path: '/auth/nueva-clave',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthVerificarRoute = AuthVerificarRouteImport.update({
+  id: '/auth_/verificar',
+  path: '/auth/verificar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompararIndexRoute = CompararIndexRouteImport.update({
@@ -659,6 +665,7 @@ export interface FileRoutesByFullPath {
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth/nueva-clave': typeof AuthNuevaClaveRoute
+  '/auth/verificar': typeof AuthVerificarRoute
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
@@ -753,6 +760,7 @@ export interface FileRoutesByTo {
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth/nueva-clave': typeof AuthNuevaClaveRoute
+  '/auth/verificar': typeof AuthVerificarRoute
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
@@ -852,6 +860,7 @@ export interface FileRoutesById {
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth_/nueva-clave': typeof AuthNuevaClaveRoute
+  '/auth_/verificar': typeof AuthVerificarRoute
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
@@ -950,6 +959,7 @@ export interface FileRouteTypes {
     | '/api/lifecycle-emails'
     | '/api/whatsapp-webhook'
     | '/auth/nueva-clave'
+    | '/auth/verificar'
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
@@ -1044,6 +1054,7 @@ export interface FileRouteTypes {
     | '/api/lifecycle-emails'
     | '/api/whatsapp-webhook'
     | '/auth/nueva-clave'
+    | '/auth/verificar'
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
@@ -1142,6 +1153,7 @@ export interface FileRouteTypes {
     | '/api/lifecycle-emails'
     | '/api/whatsapp-webhook'
     | '/auth_/nueva-clave'
+    | '/auth_/verificar'
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
@@ -1238,6 +1250,7 @@ export interface RootRouteChildren {
   ApiLifecycleEmailsRoute: typeof ApiLifecycleEmailsRoute
   ApiWhatsappWebhookRoute: typeof ApiWhatsappWebhookRoute
   AuthNuevaClaveRoute: typeof AuthNuevaClaveRoute
+  AuthVerificarRoute: typeof AuthVerificarRoute
   CompararSlugRoute: typeof CompararSlugRoute
   CorreosBajaRoute: typeof CorreosBajaRoute
   FuncionesSlugRoute: typeof FuncionesSlugRoute
@@ -1491,6 +1504,13 @@ declare module '@tanstack/react-router' {
       path: '/auth/nueva-clave'
       fullPath: '/auth/nueva-clave'
       preLoaderRoute: typeof AuthNuevaClaveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth_/verificar': {
+      id: '/auth_/verificar'
+      path: '/auth/verificar'
+      fullPath: '/auth/verificar'
+      preLoaderRoute: typeof AuthVerificarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/comparar/': {
@@ -2121,6 +2141,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLifecycleEmailsRoute: ApiLifecycleEmailsRoute,
   ApiWhatsappWebhookRoute: ApiWhatsappWebhookRoute,
   AuthNuevaClaveRoute: AuthNuevaClaveRoute,
+  AuthVerificarRoute: AuthVerificarRoute,
   CompararSlugRoute: CompararSlugRoute,
   CorreosBajaRoute: CorreosBajaRoute,
   FuncionesSlugRoute: FuncionesSlugRoute,
