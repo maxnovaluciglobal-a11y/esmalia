@@ -17,6 +17,7 @@ import { Route as CalculadoraRentabilidadDentalRouteImport } from './routes/calc
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DocsRouteImport } from './routes/docs'
 import { Route as DpaRouteImport } from './routes/dpa'
+import { Route as EstadoRouteImport } from './routes/estado'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as NosotrosRouteImport } from './routes/nosotros'
@@ -145,6 +146,11 @@ const DocsRoute = DocsRouteImport.update({
 const DpaRoute = DpaRouteImport.update({
   id: '/dpa',
   path: '/dpa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EstadoRoute = EstadoRouteImport.update({
+  id: '/estado',
+  path: '/estado',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -640,6 +646,7 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRoute
   '/docs': typeof DocsRouteWithChildren
   '/dpa': typeof DpaRoute
+  '/estado': typeof EstadoRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/nosotros': typeof NosotrosRoute
@@ -736,6 +743,7 @@ export interface FileRoutesByTo {
   '/calculadora-rentabilidad-dental': typeof CalculadoraRentabilidadDentalRoute
   '/demo': typeof DemoRoute
   '/dpa': typeof DpaRoute
+  '/estado': typeof EstadoRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/nosotros': typeof NosotrosRoute
@@ -834,6 +842,7 @@ export interface FileRoutesById {
   '/demo': typeof DemoRoute
   '/docs': typeof DocsRouteWithChildren
   '/dpa': typeof DpaRoute
+  '/estado': typeof EstadoRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
   '/nosotros': typeof NosotrosRoute
@@ -934,6 +943,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/docs'
     | '/dpa'
+    | '/estado'
     | '/faq'
     | '/llms.txt'
     | '/nosotros'
@@ -1030,6 +1040,7 @@ export interface FileRouteTypes {
     | '/calculadora-rentabilidad-dental'
     | '/demo'
     | '/dpa'
+    | '/estado'
     | '/faq'
     | '/llms.txt'
     | '/nosotros'
@@ -1127,6 +1138,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/docs'
     | '/dpa'
+    | '/estado'
     | '/faq'
     | '/llms.txt'
     | '/nosotros'
@@ -1227,6 +1239,7 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRoute
   DocsRoute: typeof DocsRouteWithChildren
   DpaRoute: typeof DpaRoute
+  EstadoRoute: typeof EstadoRoute
   FaqRoute: typeof FaqRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
   NosotrosRoute: typeof NosotrosRoute
@@ -1322,6 +1335,13 @@ declare module '@tanstack/react-router' {
       path: '/dpa'
       fullPath: '/dpa'
       preLoaderRoute: typeof DpaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/estado': {
+      id: '/estado'
+      path: '/estado'
+      fullPath: '/estado'
+      preLoaderRoute: typeof EstadoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -2118,6 +2138,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRoute,
   DocsRoute: DocsRouteWithChildren,
   DpaRoute: DpaRoute,
+  EstadoRoute: EstadoRoute,
   FaqRoute: FaqRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
   NosotrosRoute: NosotrosRoute,

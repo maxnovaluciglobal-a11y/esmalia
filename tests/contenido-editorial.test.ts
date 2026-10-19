@@ -15,6 +15,7 @@ const RUTAS_FIJAS = new Set([
   "/demo",
   "/auth",
   "/nosotros",
+  "/estado",
   "/docs",
   "/docs/primeros-pasos",
   "/docs/whatsapp",
