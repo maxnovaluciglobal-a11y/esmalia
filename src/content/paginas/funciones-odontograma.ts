@@ -5,13 +5,13 @@ export const pagina: PaginaContenido = {
   path: "/funciones/odontograma",
   titulo: "Odontograma digital FDI con historial | Esmalia",
   descripcion:
-    "Odontograma digital con numeración FDI, dentición temporal, historial por pieza y paso directo al presupuesto. Se puede marcar sin internet.",
+    "Odontograma digital con numeración FDI, dentición temporal y mixta, varias condiciones por pieza, simbología rojo y azul, historial y paso directo al presupuesto.",
   kicker: "Funciones",
   h1: "Odontograma digital FDI, versionado y conectado al presupuesto",
   resumen:
-    "El odontograma de Esmalia usa numeración FDI, con dentición permanente y temporal. Tocas una superficie (mesial, distal, oclusal, vestibular o lingual) o la pieza completa y eliges entre diez condiciones. Cada cambio crea una marca nueva y archiva la anterior, así que la historia de cada diente queda completa y con autor.",
+    "El odontograma de Esmalia usa numeración FDI, con dentición permanente, temporal y mixta. Tocas una superficie (mesial, distal, oclusal, vestibular o lingual) o la pieza completa y eliges entre 29 condiciones; una pieza puede tener varias a la vez, como endodoncia y corona. Cada marca dice si es existente o por realizar, en azul o en rojo, y la historia de cada diente queda completa y con autor.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "El odontograma está en la ficha del paciente, en su propia pestaña. Usa numeración FDI: arriba 18 a 11 y 21 a 28, abajo 48 a 41 y 31 a 38. Un botón cambia a la dentición temporal (55 a 51, 61 a 65, 85 a 81 y 71 a 75) para odontopediatría.",
+            "El odontograma está en la ficha del paciente, en su propia pestaña. Usa numeración FDI: arriba 18 a 11 y 21 a 28, abajo 48 a 41 y 31 a 38. Un botón cambia a la dentición temporal (55 a 51, 61 a 65, 85 a 81 y 71 a 75) o a la mixta, que muestra las 52 piezas juntas. Abre en la que corresponde a la edad del paciente: temporal hasta los 5 años, mixta de 6 a 12 y permanente desde los 13.",
         },
         {
           tipo: "lista",
@@ -28,7 +28,7 @@ export const pagina: PaginaContenido = {
           items: [
             "Tocas una zona del diente: mesial, distal, oclusal o incisal, vestibular, lingual o palatino. La raíz o el borde superior del dibujo marcan la pieza completa.",
             "Se abre un menú con el número, el nombre común de la pieza (por ejemplo, la 16 es el primer molar superior derecho) y la superficie elegida.",
-            "Eliges la condición. El color se pinta sobre el diente y la marca queda guardada con tu nombre y la hora.",
+            "Eliges si es existente o por realizar y, si es un tratamiento existente, si está en buen o mal estado. Después eliges la condición y, si quieres, escribes una especificación (material, detalle). La marca queda guardada con tu nombre y la hora.",
           ],
         },
         {
@@ -36,17 +36,30 @@ export const pagina: PaginaContenido = {
           columnas: ["Condición", "Dónde se marca"],
           filas: [
             [
-              "Sano, caries, obturación, endodoncia, sellante, fractura",
-              "En una superficie o en la pieza completa",
+              "Caries, mancha blanca, obturación, incrustación, sellante, desgaste",
+              "En una superficie",
             ],
-            ["Corona, implante, prótesis, ausente", "Solo en la pieza completa"],
+            [
+              "Diastema (mesial o distal), carilla (vestibular), fosas y fisuras profundas (oclusal)",
+              "En esa superficie",
+            ],
+            ["Sano, fractura", "En una superficie o en la pieza completa"],
+            [
+              "Endodoncia, perno muñón, corona, implante, prótesis fija o removible, aparato de ortodoncia, ausente, extracción indicada, restos radiculares, en erupción, retenida, supernumeraria, giroversión, migración, transposición, fluorosis, hipoplasia",
+              "Solo en la pieza completa",
+            ],
           ],
-          nota: "Son diez condiciones fijas, cada una con su color. La regla de pieza completa también la valida el servidor, no solo la pantalla.",
+          nota: "Una marca nueva reemplaza solo a la de la misma condición o categoría en el mismo lugar: la corona no borra la endodoncia, y la obturación de una cara reemplaza a la caries de esa cara. El servidor valida dónde va cada condición, no solo la pantalla.",
         },
         {
           tipo: "p",
           texto:
             "Si prefieres leer en vez de mirar el dibujo, la vista Tabla lista solo las piezas con alguna condición distinta de sano, con su nombre común y cada superficie marcada. Es también la alternativa accesible al diagrama para quien usa lector de pantalla.",
+        },
+        {
+          tipo: "p",
+          texto:
+            "Los colores siguen la convención de la norma técnica peruana del odontograma (NTS 188) y de uso común en la región: azul para lo que existe en buen estado, rojo para lo patológico o en mal estado, y rojo claro para lo que hay que hacer. Debajo del número de cada pieza van las siglas de lo registrado en la pieza completa (TC, CO, IMP…), y una leyenda lo explica en pantalla. Cuando haces lo que estaba por realizar y lo marcas como existente, lo planificado se cierra solo.",
         },
       ],
     },
@@ -81,7 +94,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "La marca se guarda en el equipo y se sincroniza sola cuando vuelve la conexión. Si marcas la misma superficie dos veces sin conexión, vale la última. Si al sincronizar resulta que otra persona cambió esa misma superficie, Esmalia no pisa nada: la deja en una bandeja de conflictos con las dos versiones para que elijas. Más en [Esmalia sin internet](/funciones/sin-internet).",
+            "La marca se guarda en el equipo y se sincroniza sola cuando vuelve la conexión. Si sin conexión marcas dos veces lo mismo en el mismo lugar (por ejemplo, dos estados de una misma cara), vale la última; dos condiciones que conviven, como endodoncia y corona, se guardan las dos. Si al sincronizar resulta que otra persona cambió esa misma superficie, Esmalia no pisa nada: la deja en una bandeja de conflictos con las dos versiones para que elijas. Más en [Esmalia sin internet](/funciones/sin-internet).",
         },
       ],
     },
@@ -106,7 +119,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "**Usa solo numeración FDI.** No trae notación universal ni Palmer. Las superficies son cinco más la pieza completa, sin condiciones por raíz, y las condiciones son las diez de la lista: no se agregan propias. Marcar una caries no crea un presupuesto ni un cobro por sí solo. Y para proteger los datos, el odontograma no se guarda en el disco del equipo: si recargas la página sin internet, no lo vas a ver hasta que vuelva la conexión.",
+            "**Usa solo numeración FDI.** No trae notación universal ni Palmer. Las superficies son cinco más la pieza completa, sin superficie cervical ni condiciones por raíz, y las condiciones son las de la lista: no se agregan propias. Un puente o un aparato de ortodoncia se marcan pieza por pieza, no como un tramo. Marcar una caries no crea un presupuesto ni un cobro por sí solo. Y para proteger los datos, el odontograma no se guarda en el disco del equipo: si recargas la página sin internet, no lo vas a ver hasta que vuelva la conexión.",
         },
       ],
     },
@@ -118,7 +131,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Sirve para odontopediatría?",
-      a: "Sí. El botón Temporal muestra las 20 piezas de la dentición temporal con las mismas condiciones y el mismo historial.",
+      a: "Sí. El botón Temporal muestra las 20 piezas de la dentición temporal y el botón Mixta muestra las 52 piezas a la vez, con las mismas condiciones y el mismo historial. Si la ficha tiene la fecha de nacimiento, abre sola en la dentición que corresponde a la edad.",
     },
     {
       q: "¿Se puede borrar una marca equivocada del odontograma?",

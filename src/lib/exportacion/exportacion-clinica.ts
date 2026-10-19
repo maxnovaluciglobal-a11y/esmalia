@@ -272,13 +272,15 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     tabla: "odontogram_marks",
     archivo: "odontograma.csv",
     descripcion:
-      "Odontograma con su historial: cada marca por diente y superficie. superseded_at vacío = marca vigente; con fecha = marca reemplazada (historial).",
+      "Odontograma con su historial: cada marca por diente y superficie (una pieza puede tener varias). status: existente o planificado (por realizar); conservation: bueno o malo en tratamientos existentes, vacío = sin especificar. superseded_at vacío = marca vigente; con fecha = marca reemplazada (historial).",
     columnas: [
       "id",
       "patient_id",
       "tooth_number",
       "surface",
       "condition",
+      "status",
+      "conservation",
       "material",
       "notes",
       "recorded_at",

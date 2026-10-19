@@ -1,12 +1,17 @@
 import { useId } from "react";
 
 import {
-  CONDITION_COLORS,
-  WHOLE_TOOTH_CONDITIONS,
+  CONDITION_CATALOG,
   type OdontogramMark,
   type ToothCondition,
   type ToothSurface,
 } from "@/lib/clinical/odontogram";
+import {
+  COLORES_SIMBOLOGIA,
+  OPACIDAD_PLANIFICADO,
+  hexDeMarca,
+  marcaParaPintar,
+} from "@/lib/clinical/odontograma-reglas";
 import { cn } from "@/lib/utils";
 
 /**
@@ -145,20 +150,26 @@ function zonasDeCorona(tooth: number): Zona[] {
   ];
 }
 
-function colorDe(mark: OdontogramMark | undefined): string | null {
-  if (!mark || mark.condition === "sano") return null;
-  return CONDITION_COLORS[mark.condition];
+/** Marca que pinta una zona: la existente manda, lo planificado va más claro. */
+function pintura(marcas: readonly OdontogramMark[]): { color: string; opacidad: number } | null {
+  const m = marcaParaPintar(marcas);
+  if (!m) return null;
+  return { color: hexDeMarca(m), opacidad: m.status === "planificado" ? OPACIDAD_PLANIFICADO : 1 };
 }
+
+/** Condiciones de pieza que cubren la corona entera en el dibujo. */
+const CUBREN_CORONA: readonly ToothCondition[] = ["corona", "puente", "protesis"];
 
 export function DienteAnatomico({
   tooth,
-  surfaces,
+  marcas,
   inferior = false,
   seleccionado = false,
   onClick,
 }: {
   tooth: number;
-  surfaces: Partial<Record<ToothSurface, OdontogramMark>>;
+  /** Todas las marcas vigentes de la pieza (pueden ser varias, CLI-01). */
+  marcas: readonly OdontogramMark[];
   /** Arcada inferior: se espeja en vertical (raíz abajo, corona arriba). */
   inferior?: boolean;
   seleccionado?: boolean;
@@ -171,23 +182,33 @@ export function DienteAnatomico({
   const corona = CORONAS[tipo];
   const listaRaices = raices(tooth, tipo);
 
-  const entera = surfaces.whole?.condition as ToothCondition | undefined;
-  const enteraEsOverride = entera ? WHOLE_TOOTH_CONDITIONS.includes(entera) : false;
-  const ausente = entera === "ausente";
-  const implante = entera === "implante";
-  const coronaColor =
-    entera === "corona" || entera === "protesis"
-      ? CONDITION_COLORS[entera]
-      : // Una condición de superficie marcada en la pieza completa (ej. caries
-        // "whole") tiñe toda la corona.
-        entera && !enteraEsOverride && entera !== "sano" && entera !== "endodoncia"
-        ? CONDITION_COLORS[entera]
-        : null;
-  const endodoncia =
-    entera === "endodoncia" || Object.values(surfaces).some((m) => m?.condition === "endodoncia");
-  const lingual =
-    surfaces.lingual && surfaces.lingual.condition !== "sano" ? surfaces.lingual : undefined;
-
+  const deLaPieza = marcas.filter((m) => m.surface === "whole");
+  const existente = (c: ToothCondition) =>
+    deLaPieza.find((m) => m.condition === c && m.status === "existente");
+  const ausente = Boolean(existente("ausente"));
+  const extraccion = deLaPieza.find((m) => m.condition === "extraccion_indicada");
+  const implanteMarca = existente("implante") ?? deLaPieza.find((m) => m.condition === "implante");
+  const implante = Boolean(implanteMarca);
+  const implanteColor = implanteMarca ? hexDeMarca(implanteMarca) : COLORES_SIMBOLOGIA.azul;
+  const implanteOpacidad = implanteMarca?.status === "planificado" ? OPACIDAD_PLANIFICADO : 1;
+  // Corona, puente o prótesis tiñen la corona entera; si no hay, una
+  // condición de superficie que quedó en la pieza completa (marcas viejas,
+  // ej. caries "whole") o una patología de pieza (restos radiculares).
+  const cubre =
+    pintura(deLaPieza.filter((m) => CUBREN_CORONA.includes(m.condition))) ??
+    pintura(
+      deLaPieza.filter((m) => {
+        const def = CONDITION_CATALOG[m.condition];
+        return def.alcance !== "pieza" || m.condition === "restos_radiculares";
+      }),
+    );
+  const coronaColor = cubre?.color ?? null;
+  const coronaOpacidad = cubre?.opacidad ?? 1;
+  const endodonciaMarca =
+    marcas.find((m) => m.condition === "endodoncia" && m.status === "existente") ??
+    marcas.find((m) => m.condition === "endodoncia");
+  const endodoncia = Boolean(endodonciaMarca);
+  const lingual = pintura(marcas.filter((m) => m.surface === "lingual"));
   const trazo = seleccionado ? "var(--color-brand-700)" : TRAZO;
   const grosor = seleccionado ? 1.6 : 0.9;
   // Contorno del diente sano en volumen: tenue salvo cuando está seleccionado.
@@ -228,7 +249,7 @@ export function DienteAnatomico({
         {/* Raíz: un clic en la raíz marca la pieza completa. */}
         <g onClick={() => onClick("whole")}>
           {implante ? (
-            <g>
+            <g opacity={implanteOpacidad}>
               <rect
                 x={15}
                 y={6}
@@ -236,16 +257,11 @@ export function DienteAnatomico({
                 height={41}
                 rx={3}
                 fill="#b9cdd1"
-                stroke={CONDITION_COLORS.implante}
+                stroke={implanteColor}
                 strokeWidth={1}
               />
               {[13, 19, 25, 31, 37, 43].map((y) => (
-                <path
-                  key={y}
-                  d={`M15 ${y} L25 ${y - 2}`}
-                  stroke={CONDITION_COLORS.implante}
-                  strokeWidth={1}
-                />
+                <path key={y} d={`M15 ${y} L25 ${y - 2}`} stroke={implanteColor} strokeWidth={1} />
               ))}
             </g>
           ) : (
@@ -269,7 +285,8 @@ export function DienteAnatomico({
               <path
                 key={c.x}
                 d={`M${c.x} ${c.punta} L${c.x} ${CUELLO + 6}`}
-                stroke={CONDITION_COLORS.endodoncia}
+                stroke={hexDeMarca(endodonciaMarca!)}
+                strokeOpacity={endodonciaMarca!.status === "planificado" ? OPACIDAD_PLANIFICADO : 1}
                 strokeWidth={2.4}
                 strokeLinecap="round"
               />
@@ -280,6 +297,7 @@ export function DienteAnatomico({
         <path
           d={corona}
           fill={ausente ? "none" : (coronaColor ?? `url(#${coronaGradId})`)}
+          fillOpacity={coronaColor ? coronaOpacidad : 1}
           stroke={ausente ? "#8a8a8a" : coronaColor ? trazo : trazoVolumen}
           strokeOpacity={ausente || coronaColor ? 1 : opacidadVolumen}
           strokeWidth={ausente || coronaColor || seleccionado ? grosor + 0.3 : 0.8}
@@ -291,7 +309,7 @@ export function DienteAnatomico({
         {!ausente && (
           <g clipPath={`url(#${clipId})`}>
             {zonasDeCorona(tooth).map((z) => {
-              const color = coronaColor ? null : colorDe(surfaces[z.surface]);
+              const p = coronaColor ? null : pintura(marcas.filter((m) => m.surface === z.surface));
               return (
                 <rect
                   key={z.surface}
@@ -299,9 +317,9 @@ export function DienteAnatomico({
                   y={z.y}
                   width={z.w}
                   height={z.h}
-                  fill={color ?? "transparent"}
-                  fillOpacity={color ? 0.88 : 1}
-                  className={cn(!color && "hover:fill-brand/15")}
+                  fill={p?.color ?? "transparent"}
+                  fillOpacity={p ? 0.88 * p.opacidad : 1}
+                  className={cn(!p && "hover:fill-brand/15")}
                   onClick={() => onClick(z.surface)}
                 />
               );
@@ -313,7 +331,8 @@ export function DienteAnatomico({
                 cx={20}
                 cy={(CUELLO + BORDE_OCLUSAL) / 2}
                 r={3.6}
-                fill={CONDITION_COLORS[lingual.condition]}
+                fill={lingual.color}
+                fillOpacity={lingual.opacidad}
                 stroke={ESMALTE}
                 strokeWidth={1.2}
                 pointerEvents="none"
@@ -322,10 +341,11 @@ export function DienteAnatomico({
           </g>
         )}
 
-        {ausente && (
+        {/* Aspa: azul si la pieza está ausente, roja si hay que extraerla. */}
+        {(ausente || extraccion) && (
           <path
             d="M10 52 L30 80 M30 52 L10 80"
-            stroke={CONDITION_COLORS.ausente}
+            stroke={ausente ? COLORES_SIMBOLOGIA.azul : COLORES_SIMBOLOGIA.rojo}
             strokeWidth={2.4}
             strokeLinecap="round"
             onClick={() => onClick("whole")}

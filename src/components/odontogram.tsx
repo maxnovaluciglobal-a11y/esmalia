@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  CONDITION_COLORS,
+  CONDITION_CATALOG,
   CONDITION_LABELS,
   FDI_LOWER_LEFT,
   FDI_LOWER_LEFT_PRIMARY,
@@ -27,16 +27,31 @@ import {
   FDI_UPPER_LEFT_PRIMARY,
   FDI_UPPER_RIGHT,
   FDI_UPPER_RIGHT_PRIMARY,
+  MARK_CONSERVATION_LABELS,
+  MARK_STATUS_LABELS,
   SURFACE_LABELS,
-  TOOTH_CONDITIONS,
   TOOTH_SURFACES,
-  WHOLE_TOOTH_CONDITIONS,
   marksByTooth,
   toothCommonName,
+  type MarkConservation,
+  type MarkStatus,
   type OdontogramMark,
   type ToothCondition,
+  type ToothState,
   type ToothSurface,
 } from "@/lib/clinical/odontogram";
+import {
+  COLORES_SIMBOLOGIA,
+  LEYENDA_SIMBOLOGIA,
+  OPACIDAD_PLANIFICADO,
+  aplicaConservacion,
+  condicionesDisponibles,
+  denticionPorEdad,
+  hexDeMarca,
+  marcaParaPintar,
+  marcasQueReemplaza,
+  type Denticion,
+} from "@/lib/clinical/odontograma-reglas";
 // Foco de teclado consistente con el patrón usado en app-shell.tsx
 // (focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring).
 const FOCUS_RING_CLASS =
@@ -59,20 +74,61 @@ const OCLUSAL_HIT_MIN = 24;
 
 type ToothClick = { tooth: number; surface: ToothSurface };
 
+/** Una marca en texto: "Obturación · por realizar", "Corona · mal estado". */
+function describirMarca(m: Pick<OdontogramMark, "condition" | "status" | "conservation">): string {
+  const partes = [CONDITION_LABELS[m.condition]];
+  if (m.status === "planificado") partes.push(MARK_STATUS_LABELS.planificado.toLowerCase());
+  else if (m.conservation) partes.push(MARK_CONSERVATION_LABELS[m.conservation].toLowerCase());
+  return partes.join(" · ");
+}
+
+/** Muestra de color de una marca (cuadradito de la leyenda, la tabla y la historia). */
+function Muestra({
+  marca,
+  className,
+}: {
+  marca: Pick<OdontogramMark, "condition" | "status" | "conservation">;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn("size-3 shrink-0 rounded-sm border border-hairline", className)}
+      style={{
+        backgroundColor: hexDeMarca(marca),
+        opacity: marca.status === "planificado" ? OPACIDAD_PLANIFICADO : 1,
+      }}
+    />
+  );
+}
+
+/** Condiciones de pieza que tapan el esquema de cinco superficies. */
+const CUBREN_ESQUEMA: readonly ToothCondition[] = [
+  "ausente",
+  "implante",
+  "corona",
+  "protesis",
+  "puente",
+  "extraccion_indicada",
+  "restos_radiculares",
+];
+
 /**
  * Pieza dental estilizada: cuadrado dividido en cuatro triángulos periféricos
  * (M/D/V/L) + un cuadrado central (O). El "whole" no tiene zona visible; la
- * elige el popover cuando la condición aplica a la pieza entera.
+ * elige el popover cuando la condición aplica a la pieza entera. Debajo del
+ * número, las siglas de lo registrado en la pieza completa (TC, CO, IMP…):
+ * una pieza puede tener varias a la vez (CLI-01).
  */
 function ToothCell({
   tooth,
-  surfaces,
+  marcas,
   inferior,
   seleccionado,
   onClick,
 }: {
   tooth: number;
-  surfaces: Partial<Record<ToothSurface, OdontogramMark>>;
+  marcas: ToothState;
   /** Arcada inferior: el dibujo va debajo del esquema, espejado. */
   inferior: boolean;
   seleccionado: boolean;
@@ -81,9 +137,11 @@ function ToothCell({
   const s = TOOTH_SIZE;
   const c = s / 2;
   const inner = s * 0.28;
-  const wholeCondition = surfaces.whole?.condition;
-  const isWholeOverride = wholeCondition && WHOLE_TOOTH_CONDITIONS.includes(wholeCondition);
-  const wholeColor = isWholeOverride ? CONDITION_COLORS[wholeCondition] : null;
+  const deLaPieza = marcas.filter((m) => m.surface === "whole" && m.condition !== "sano");
+  const cubre = marcaParaPintar(
+    deLaPieza.filter((m) => m.status === "existente" && CUBREN_ESQUEMA.includes(m.condition)),
+  );
+  const wholeColor = cubre ? hexDeMarca(cubre) : null;
 
   // Activa la misma acción que el click: usada tanto por onClick (mouse/touch)
   // como por onKeyDown (Enter/Space) de cada superficie enfocable.
@@ -102,67 +160,92 @@ function ToothCell({
   const nombreComun = toothCommonName(tooth);
   const piezaLabel = nombreComun ? `Diente ${tooth} (${nombreComun})` : `Diente ${tooth}`;
 
-  function surfaceLabel(surface: Exclude<ToothSurface, "whole">) {
-    const condition = surfaces[surface]?.condition ?? "sano";
-    return `${piezaLabel}, superficie ${SURFACE_LABELS[surface]}, ${CONDITION_LABELS[condition]}`;
+  function enSuperficie(surface: ToothSurface) {
+    return marcas.filter((m) => m.surface === surface);
   }
 
-  const wholeLabel = wholeColor
-    ? `${piezaLabel}, pieza completa, ${CONDITION_LABELS[wholeCondition as ToothCondition]}`
+  function surfaceLabel(surface: Exclude<ToothSurface, "whole">) {
+    const lista = enSuperficie(surface).filter((m) => m.condition !== "sano");
+    const texto = lista.length ? lista.map(describirMarca).join(", ") : CONDITION_LABELS.sano;
+    return `${piezaLabel}, superficie ${SURFACE_LABELS[surface]}, ${texto}`;
+  }
+
+  const wholeLabel = deLaPieza.length
+    ? `${piezaLabel}, pieza completa: ${deLaPieza.map(describirMarca).join(", ")}`
     : `${piezaLabel}, marcar condición de la pieza completa`;
+
+  function pinturaDe(surface: ToothSurface): { fill: string; opacity: number } {
+    const m = marcaParaPintar(enSuperficie(surface));
+    if (!m) return { fill: COLORES_SIMBOLOGIA.neutro, opacity: 1 };
+    return { fill: hexDeMarca(m), opacity: m.status === "planificado" ? OPACIDAD_PLANIFICADO : 1 };
+  }
 
   const zones: {
     surface: ToothSurface;
     points: string;
-    color: string;
   }[] = [
     {
       surface: "vestibular",
       points: `0,0 ${s},0 ${c + inner / 2},${c - inner / 2} ${c - inner / 2},${c - inner / 2}`,
-      color: surfaces.vestibular
-        ? CONDITION_COLORS[surfaces.vestibular.condition]
-        : CONDITION_COLORS.sano,
     },
     {
       surface: "distal",
       points: `${s},0 ${s},${s} ${c + inner / 2},${c + inner / 2} ${c + inner / 2},${c - inner / 2}`,
-      color: surfaces.distal ? CONDITION_COLORS[surfaces.distal.condition] : CONDITION_COLORS.sano,
     },
     {
       surface: "lingual",
       points: `0,${s} ${s},${s} ${c + inner / 2},${c + inner / 2} ${c - inner / 2},${c + inner / 2}`,
-      color: surfaces.lingual
-        ? CONDITION_COLORS[surfaces.lingual.condition]
-        : CONDITION_COLORS.sano,
     },
     {
       surface: "mesial",
       points: `0,0 0,${s} ${c - inner / 2},${c + inner / 2} ${c - inner / 2},${c - inner / 2}`,
-      color: surfaces.mesial ? CONDITION_COLORS[surfaces.mesial.condition] : CONDITION_COLORS.sano,
     },
   ];
 
-  const oclusalColor = surfaces.oclusal
-    ? CONDITION_COLORS[surfaces.oclusal.condition]
-    : CONDITION_COLORS.sano;
+  const oclusal = pinturaDe("oclusal");
   // Clampeado a `s` (40px) para no salirse del viewBox del diente.
   const oclusalHitSize = Math.min(OCLUSAL_HIT_MIN, s);
 
+  const siglas = deLaPieza
+    .filter((m) => CONDITION_CATALOG[m.condition].sigla)
+    .map((m) => ({ id: m.id, sigla: CONDITION_CATALOG[m.condition].sigla, marca: m }));
+
   const numero = (
-    <span
-      className={cn(
-        "tabular-nums text-[11px] text-muted-foreground",
-        seleccionado && "font-semibold text-brand-700",
-      )}
-      title={nombreComun ? `${tooth} · ${nombreComun}` : undefined}
-    >
-      {tooth}
+    <span className="flex flex-col items-center">
+      <span
+        className={cn(
+          "tabular-nums text-[11px] text-muted-foreground",
+          seleccionado && "font-semibold text-brand-700",
+        )}
+        title={nombreComun ? `${tooth} · ${nombreComun}` : undefined}
+      >
+        {tooth}
+      </span>
+      {/* Alto fijo: con o sin siglas, las filas de piezas quedan alineadas. */}
+      <span
+        aria-hidden
+        className="flex h-3 max-w-10 items-center gap-0.5 overflow-hidden text-[8px] font-semibold leading-none"
+        title={deLaPieza.map(describirMarca).join(", ") || undefined}
+      >
+        {siglas.map(({ id, sigla, marca }) => (
+          <span
+            key={id}
+            style={{
+              color: hexDeMarca(marca),
+              opacity: marca.status === "planificado" ? 0.7 : 1,
+            }}
+            className={cn(marca.status === "planificado" && "underline decoration-dotted")}
+          >
+            {sigla}
+          </span>
+        ))}
+      </span>
     </span>
   );
   const dibujo = (
     <DienteAnatomico
       tooth={tooth}
-      surfaces={surfaces}
+      marcas={marcas}
       inferior={inferior}
       seleccionado={seleccionado}
       onClick={(surface) => activate({ tooth, surface })}
@@ -198,31 +281,36 @@ function ToothCell({
           />
         )}
         {!wholeColor &&
-          zones.map((z) => (
-            <polygon
-              key={z.surface}
-              points={z.points}
-              fill={z.color}
-              stroke="rgba(0,0,0,0.08)"
-              strokeWidth={0.5}
-              tabIndex={0}
-              role="button"
-              aria-label={surfaceLabel(z.surface as Exclude<ToothSurface, "whole">)}
-              className={FOCUS_RING_CLASS}
-              onClick={(e) => {
-                e.stopPropagation();
-                activate({ tooth, surface: z.surface });
-              }}
-              onKeyDown={(e) => handleKeyDown(e, { tooth, surface: z.surface })}
-            />
-          ))}
+          zones.map((z) => {
+            const p = pinturaDe(z.surface);
+            return (
+              <polygon
+                key={z.surface}
+                points={z.points}
+                fill={p.fill}
+                fillOpacity={p.opacity}
+                stroke="rgba(0,0,0,0.08)"
+                strokeWidth={0.5}
+                tabIndex={0}
+                role="button"
+                aria-label={surfaceLabel(z.surface as Exclude<ToothSurface, "whole">)}
+                className={FOCUS_RING_CLASS}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  activate({ tooth, surface: z.surface });
+                }}
+                onKeyDown={(e) => handleKeyDown(e, { tooth, surface: z.surface })}
+              />
+            );
+          })}
         {!wholeColor && (
           <rect
             x={c - inner / 2}
             y={c - inner / 2}
             width={inner}
             height={inner}
-            fill={oclusalColor}
+            fill={oclusal.fill}
+            fillOpacity={oclusal.opacity}
             stroke="rgba(0,0,0,0.12)"
             strokeWidth={0.5}
             pointerEvents="none"
@@ -282,22 +370,26 @@ function ToothCell({
  * marca distinta de "sano"; las piezas sanas no suman filas — sería puro
  * ruido para escanear.
  */
+function ordenSuperficie(surface: ToothSurface): number {
+  return surface === "whole" ? -1 : TOOTH_SURFACES.indexOf(surface);
+}
+
 function TablaOdontograma({
   teeth,
   byTooth,
 }: {
   teeth: readonly number[];
-  byTooth: Map<number, Partial<Record<ToothSurface, OdontogramMark>>>;
+  byTooth: Map<number, ToothState>;
 }) {
   const filas = teeth
     .map((tooth) => {
-      const marcas = byTooth.get(tooth) ?? {};
-      const condiciones = TOOTH_SURFACES.filter(
-        (s) => marcas[s] && marcas[s]!.condition !== "sano",
-      );
-      return { tooth, marcas, condiciones };
+      const marcas = (byTooth.get(tooth) ?? [])
+        .filter((m) => m.condition !== "sano")
+        // La pieza completa primero, después las superficies en orden M-D-O-V-L.
+        .sort((x, y) => ordenSuperficie(x.surface) - ordenSuperficie(y.surface));
+      return { tooth, marcas };
     })
-    .filter((f) => f.condiciones.length > 0);
+    .filter((f) => f.marcas.length > 0);
 
   if (filas.length === 0) {
     return (
@@ -311,7 +403,8 @@ function TablaOdontograma({
     <div className="overflow-x-auto">
       <table className="w-full text-left text-xs">
         <caption className="sr-only">
-          Piezas con al menos una condición distinta de sano, con su superficie y diagnóstico
+          Piezas con al menos una condición distinta de sano, con su superficie, diagnóstico y
+          estado
         </caption>
         <thead>
           <tr className="border-b border-hairline text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -327,7 +420,7 @@ function TablaOdontograma({
           </tr>
         </thead>
         <tbody className="divide-y divide-hairline">
-          {filas.map(({ tooth, marcas, condiciones }) => (
+          {filas.map(({ tooth, marcas }) => (
             <tr key={tooth}>
               <th scope="row" className="py-2 pr-3 tabular-nums font-medium">
                 {tooth}
@@ -335,15 +428,14 @@ function TablaOdontograma({
               <td className="py-2 pr-3 text-muted-foreground">{toothCommonName(tooth) ?? "—"}</td>
               <td className="py-2">
                 <ul className="flex flex-wrap gap-x-3 gap-y-1">
-                  {condiciones.map((s) => (
-                    <li key={s} className="inline-flex items-center gap-1">
-                      <span
-                        aria-hidden
-                        className="size-2.5 rounded-sm border border-hairline"
-                        style={{ backgroundColor: CONDITION_COLORS[marcas[s]!.condition] }}
-                      />
-                      <span className="text-muted-foreground">{SURFACE_LABELS[s]}:</span>{" "}
-                      <span className="font-medium">{CONDITION_LABELS[marcas[s]!.condition]}</span>
+                  {marcas.map((m) => (
+                    <li key={m.id} className="inline-flex items-center gap-1">
+                      <Muestra marca={m} className="size-2.5" />
+                      <span className="text-muted-foreground">
+                        {SURFACE_LABELS[m.surface]}:
+                      </span>{" "}
+                      <span className="font-medium">{describirMarca(m)}</span>
+                      {m.notes && <span className="text-muted-foreground">({m.notes})</span>}
                     </li>
                   ))}
                 </ul>
@@ -364,7 +456,7 @@ function ToothRow({
   onClick,
 }: {
   teeth: readonly number[];
-  byTooth: Map<number, Partial<Record<ToothSurface, OdontogramMark>>>;
+  byTooth: Map<number, ToothState>;
   inferior?: boolean;
   seleccionada: number | null;
   onClick: (click: ToothClick) => void;
@@ -375,7 +467,7 @@ function ToothRow({
         <Fragment key={t}>
           <ToothCell
             tooth={t}
-            surfaces={byTooth.get(t) ?? {}}
+            marcas={byTooth.get(t) ?? []}
             inferior={inferior}
             seleccionado={seleccionada === t}
             onClick={onClick}
@@ -386,6 +478,39 @@ function ToothRow({
     </div>
   );
 }
+
+const PERMANENTE_SUPERIOR = [...FDI_UPPER_RIGHT, ...FDI_UPPER_LEFT];
+const PERMANENTE_INFERIOR = [...FDI_LOWER_RIGHT, ...FDI_LOWER_LEFT];
+const TEMPORAL_SUPERIOR = [...FDI_UPPER_RIGHT_PRIMARY, ...FDI_UPPER_LEFT_PRIMARY];
+const TEMPORAL_INFERIOR = [...FDI_LOWER_RIGHT_PRIMARY, ...FDI_LOWER_LEFT_PRIMARY];
+
+/**
+ * Filas del diagrama por dentición, de arriba hacia abajo. La mixta (6-12
+ * años, CLI-04) muestra las 52 piezas: permanentes afuera y temporales
+ * adentro, como el odontograma impreso de la región.
+ */
+const FILAS_POR_DENTICION: Record<Denticion, { teeth: readonly number[]; inferior: boolean }[]> = {
+  permanente: [
+    { teeth: PERMANENTE_SUPERIOR, inferior: false },
+    { teeth: PERMANENTE_INFERIOR, inferior: true },
+  ],
+  temporal: [
+    { teeth: TEMPORAL_SUPERIOR, inferior: false },
+    { teeth: TEMPORAL_INFERIOR, inferior: true },
+  ],
+  mixta: [
+    { teeth: PERMANENTE_SUPERIOR, inferior: false },
+    { teeth: TEMPORAL_SUPERIOR, inferior: false },
+    { teeth: TEMPORAL_INFERIOR, inferior: true },
+    { teeth: PERMANENTE_INFERIOR, inferior: true },
+  ],
+};
+
+const AYUDA_POR_DENTICION: Record<Denticion, string> = {
+  permanente: "Arriba: piezas 18→11 · 21→28. Abajo: 48→41 · 31→38.",
+  temporal: "Arriba: piezas 55→51 · 61→65. Abajo: 85→81 · 71→75 (cuadrantes 5-8, notación FDI).",
+  mixta: "Permanentes afuera (18→28, 48→38) y temporales adentro (55→65, 85→75).",
+};
 
 interface Props {
   clinicId: string;
@@ -400,6 +525,8 @@ interface Props {
    * y superficie.
    */
   onPresupuestarPieza?: (pieza: { tooth: number; surface: ToothSurface }) => void;
+  /** Edad del paciente: elige la dentición con la que abre (CLI-04). `null` = desconocida. */
+  edad?: number | null;
 }
 
 export function Odontogram({
@@ -408,6 +535,7 @@ export function Odontogram({
   puedeEditar,
   userId,
   onPresupuestarPieza,
+  edad = null,
 }: Props) {
   const queryClient = useQueryClient();
   const fetchMarks = useServerFn(listOdontogramMarks);
@@ -416,8 +544,13 @@ export function Odontogram({
 
   const [selection, setSelection] = useState<ToothClick | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [denticion, setDenticion] = useState<"permanente" | "temporal">("permanente");
+  const [denticion, setDenticion] = useState<Denticion>(() => denticionPorEdad(edad));
   const [vista, setVista] = useState<"grafico" | "tabla">("grafico");
+  // Opciones del popover: se conservan entre piezas para registrar varias
+  // seguidas con el mismo criterio (ej. un plan entero "por realizar").
+  const [estado, setEstado] = useState<MarkStatus>("existente");
+  const [conservacion, setConservacion] = useState<MarkConservation>("bueno");
+  const [nota, setNota] = useState("");
 
   const marksKey = ["odontogram-marks", clinicId, patientId];
   const historyKey = ["odontogram-history", clinicId, patientId];
@@ -445,39 +578,68 @@ export function Odontogram({
         toothNumber: number;
         surface: ToothSurface;
         condition: ToothCondition;
+        status?: MarkStatus;
+        conservation?: MarkConservation | null;
       };
-      return `Pieza ${p.toothNumber} · ${SURFACE_LABELS[p.surface]} · ${CONDITION_LABELS[p.condition]}`;
+      return `Pieza ${p.toothNumber} · ${SURFACE_LABELS[p.surface]} · ${describirMarca({
+        condition: p.condition,
+        status: p.status ?? "existente",
+        conservation: p.conservation ?? null,
+      })}`;
     },
+    // Dos capturas offline se funden en una sola solo si la segunda habría
+    // reemplazado a la primera: misma zona, mismo grupo y mismo estado. Una
+    // endodoncia y una corona de la misma pieza viajan las dos (CLI-01).
     identidad: (payload) => {
-      const p = payload as { toothNumber: number; surface: ToothSurface };
-      return `${patientId}:${p.toothNumber}:${p.surface}`;
+      const p = payload as {
+        toothNumber: number;
+        surface: ToothSurface;
+        condition: ToothCondition;
+        status?: MarkStatus;
+      };
+      const grupo = CONDITION_CATALOG[p.condition]?.grupo ?? p.condition;
+      return `${patientId}:${p.toothNumber}:${p.surface}:${grupo}:${p.status ?? "existente"}`;
     },
     esConflicto: (r) =>
       Boolean(r && typeof r === "object" && (r as { conflict?: boolean }).conflict),
     onExito: () => {
       setSelection(null);
+      setNota("");
       toast.success("Marca guardada");
     },
   });
 
   function marcar(condition: ToothCondition) {
     if (!selection) return;
-    const vigente = byTooth.get(selection.tooth)?.[selection.surface];
-    save.mutar({
+    const nueva = {
       id: crypto.randomUUID(),
-      clinicId,
-      patientId,
       toothNumber: selection.tooth,
       surface: selection.surface,
       condition,
-      baseMarkId: vigente?.id ?? null,
+      status: estado,
+      conservation: aplicaConservacion(condition, estado) ? conservacion : null,
+    };
+    save.mutar({
+      ...nueva,
+      clinicId,
+      patientId,
+      notes: nota.trim() || undefined,
+      // Lo que esta marca va a cerrar según lo que se ve en pantalla; el
+      // servidor lo recalcula y, si no coincide, lo manda a Conflictos.
+      baseMarkIds: marcasQueReemplaza(byTooth.get(selection.tooth) ?? [], nueva),
     });
   }
 
-  const availableConditions =
-    selection?.surface === "whole"
-      ? TOOTH_CONDITIONS
-      : TOOTH_CONDITIONS.filter((c) => !WHOLE_TOOTH_CONDITIONS.includes(c));
+  const availableConditions = selection ? condicionesDisponibles(selection.surface, estado) : [];
+  const marcasDeLaZona = selection
+    ? (byTooth.get(selection.tooth) ?? []).filter(
+        (m) =>
+          m.condition !== "sano" &&
+          (selection.surface === "whole" ||
+            m.surface === selection.surface ||
+            m.surface === "whole"),
+      )
+    : [];
 
   return (
     <div className="card-clinical p-6">
@@ -491,28 +653,21 @@ export function Odontogram({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border border-hairline p-0.5 text-xs">
-            <button
-              onClick={() => setDenticion("permanente")}
-              className={cn(
-                "rounded-md px-2.5 py-1 font-medium",
-                denticion === "permanente"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Permanente
-            </button>
-            <button
-              onClick={() => setDenticion("temporal")}
-              className={cn(
-                "rounded-md px-2.5 py-1 font-medium",
-                denticion === "temporal"
-                  ? "bg-secondary text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              Temporal
-            </button>
+            {(["permanente", "mixta", "temporal"] as const).map((d) => (
+              <button
+                key={d}
+                onClick={() => setDenticion(d)}
+                aria-pressed={denticion === d}
+                className={cn(
+                  "rounded-md px-2.5 py-1 font-medium",
+                  denticion === d
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {d === "permanente" ? "Permanente" : d === "mixta" ? "Mixta" : "Temporal"}
+              </button>
+            ))}
           </div>
           <div className="flex rounded-lg border border-hairline p-0.5 text-xs">
             <button
@@ -555,16 +710,7 @@ export function Odontogram({
 
       {!isLoading && vista === "tabla" && (
         <TablaOdontograma
-          teeth={
-            denticion === "permanente"
-              ? [...FDI_UPPER_RIGHT, ...FDI_UPPER_LEFT, ...FDI_LOWER_RIGHT, ...FDI_LOWER_LEFT]
-              : [
-                  ...FDI_UPPER_RIGHT_PRIMARY,
-                  ...FDI_UPPER_LEFT_PRIMARY,
-                  ...FDI_LOWER_RIGHT_PRIMARY,
-                  ...FDI_LOWER_LEFT_PRIMARY,
-                ]
-          }
+          teeth={FILAS_POR_DENTICION[denticion].flatMap((f) => f.teeth)}
           byTooth={byTooth}
         />
       )}
@@ -575,60 +721,44 @@ export function Odontogram({
               centrar con flex deja lo que desborda por la izquierda fuera de
               alcance (en el celular no se podía llegar a las piezas 18 o 55). */}
           <div className="mx-auto flex w-max flex-col items-center gap-3">
-            {denticion === "permanente" ? (
-              <>
-                <ToothRow
-                  teeth={[...FDI_UPPER_RIGHT, ...FDI_UPPER_LEFT]}
-                  byTooth={byTooth}
-                  seleccionada={selection?.tooth ?? null}
-                  onClick={setSelection}
-                />
-                <ToothRow
-                  teeth={[...FDI_LOWER_RIGHT, ...FDI_LOWER_LEFT]}
-                  byTooth={byTooth}
-                  inferior
-                  seleccionada={selection?.tooth ?? null}
-                  onClick={setSelection}
-                />
-              </>
-            ) : (
-              <>
-                <ToothRow
-                  teeth={[...FDI_UPPER_RIGHT_PRIMARY, ...FDI_UPPER_LEFT_PRIMARY]}
-                  byTooth={byTooth}
-                  seleccionada={selection?.tooth ?? null}
-                  onClick={setSelection}
-                />
-                <ToothRow
-                  teeth={[...FDI_LOWER_RIGHT_PRIMARY, ...FDI_LOWER_LEFT_PRIMARY]}
-                  byTooth={byTooth}
-                  inferior
-                  seleccionada={selection?.tooth ?? null}
-                  onClick={setSelection}
-                />
-              </>
-            )}
+            {FILAS_POR_DENTICION[denticion].map((fila) => (
+              <ToothRow
+                key={fila.teeth[0]}
+                teeth={fila.teeth}
+                byTooth={byTooth}
+                inferior={fila.inferior}
+                seleccionada={selection?.tooth ?? null}
+                onClick={setSelection}
+              />
+            ))}
           </div>
 
           <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
             <Info className="size-3" />
-            {denticion === "permanente"
-              ? "Arriba: piezas 18→11 · 21→28. Abajo: 48→41 · 31→38."
-              : "Arriba: piezas 55→51 · 61→65. Abajo: 85→81 · 71→75 (cuadrantes 5-8, notación FDI)."}{" "}
-            Pasa el mouse sobre el número, o abre una pieza, para ver su nombre común.
+            {AYUDA_POR_DENTICION[denticion]} Pasa el mouse sobre el número, o abre una pieza, para
+            ver su nombre común.
           </p>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-1 text-[11px] text-muted-foreground">
-            {TOOTH_CONDITIONS.map((c) => (
-              <span key={c} className="inline-flex items-center gap-1">
+          {/* Leyenda de la simbología (CLI-02): azul / rojo / rojo claro, más
+              las siglas de la pieza completa. */}
+          <div
+            className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-muted-foreground"
+            aria-label="Leyenda del odontograma"
+          >
+            {LEYENDA_SIMBOLOGIA.map((l) => (
+              <span key={l.clave} className="inline-flex items-center gap-1">
                 <span
                   aria-hidden
                   className="size-3 rounded-sm border border-hairline"
-                  style={{ backgroundColor: CONDITION_COLORS[c] }}
+                  style={{
+                    backgroundColor: COLORES_SIMBOLOGIA[l.color],
+                    opacity: l.planificado ? OPACIDAD_PLANIFICADO : 1,
+                  }}
                 />
-                {CONDITION_LABELS[c]}
+                {l.texto}
               </span>
             ))}
+            <span>Siglas bajo el número: lo registrado en la pieza completa (TC, CO, IMP…).</span>
           </div>
         </div>
       )}
@@ -638,7 +768,7 @@ export function Odontogram({
           <PopoverTrigger asChild>
             <span className="sr-only">Selección abierta</span>
           </PopoverTrigger>
-          <PopoverContent className="w-64" side="top">
+          <PopoverContent className="w-72" side="top">
             <div className="mb-2 flex items-start justify-between gap-2">
               <div>
                 <p className="text-sm font-medium">Pieza {selection.tooth}</p>
@@ -666,31 +796,123 @@ export function Odontogram({
                 <Receipt className="size-3.5" /> Presupuestar esta pieza
               </button>
             )}
+            {marcasDeLaZona.length > 0 && (
+              <ul className="mb-2 space-y-1 border-b border-hairline pb-2" aria-label="Vigente">
+                {marcasDeLaZona.map((m) => (
+                  <li key={m.id} className="flex items-center gap-1.5 text-xs">
+                    <Muestra marca={m} className="size-2.5" />
+                    {m.surface !== selection.surface && (
+                      <span className="text-muted-foreground">{SURFACE_LABELS[m.surface]}:</span>
+                    )}
+                    <span className="font-medium">{describirMarca(m)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             {!puedeEditar ? (
               <p className="text-xs text-muted-foreground">
                 Tu rol no puede modificar el odontograma.
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-1.5">
-                {availableConditions.map((cond) => (
-                  <button
-                    key={cond}
-                    onClick={() => marcar(cond)}
-                    disabled={save.enCurso}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1.5 text-xs font-medium transition-colors hover:bg-secondary/60 disabled:opacity-50",
-                    )}
+              <div className="space-y-2">
+                <div
+                  className="flex rounded-lg border border-hairline p-0.5 text-xs"
+                  role="group"
+                  aria-label="Estado de la marca"
+                >
+                  {(["existente", "planificado"] as const).map((e) => (
+                    <button
+                      key={e}
+                      onClick={() => setEstado(e)}
+                      aria-pressed={estado === e}
+                      className={cn(
+                        "flex-1 rounded-md px-2 py-1 font-medium",
+                        estado === e
+                          ? "bg-secondary text-foreground"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      {MARK_STATUS_LABELS[e]}
+                    </button>
+                  ))}
+                </div>
+                {estado === "existente" && (
+                  <div
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground"
+                    role="group"
+                    aria-label="Estado de conservación del tratamiento"
                   >
-                    <span
-                      aria-hidden
-                      className="size-3 rounded-sm border border-hairline"
-                      style={{ backgroundColor: CONDITION_COLORS[cond] }}
-                    />
-                    {CONDITION_LABELS[cond]}
-                  </button>
-                ))}
+                    <span>Tratamiento en</span>
+                    {(["bueno", "malo"] as const).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => setConservacion(c)}
+                        aria-pressed={conservacion === c}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium",
+                          conservacion === c
+                            ? "border-foreground/30 bg-secondary text-foreground"
+                            : "border-hairline hover:text-foreground",
+                        )}
+                      >
+                        <span
+                          aria-hidden
+                          className="size-2 rounded-full"
+                          style={{
+                            backgroundColor:
+                              c === "bueno" ? COLORES_SIMBOLOGIA.azul : COLORES_SIMBOLOGIA.rojo,
+                          }}
+                        />
+                        {c === "bueno" ? "buen estado" : "mal estado"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  type="text"
+                  value={nota}
+                  onChange={(e) => setNota(e.target.value)}
+                  maxLength={500}
+                  placeholder="Especificación (opcional): material, detalle…"
+                  aria-label="Especificación de la marca"
+                  className="w-full rounded-md border border-hairline bg-transparent px-2 py-1 text-xs placeholder:text-muted-foreground"
+                />
+                <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto">
+                  {availableConditions.map((cond) => {
+                    const muestra = {
+                      condition: cond,
+                      status: estado,
+                      conservation: aplicaConservacion(cond, estado) ? conservacion : null,
+                    };
+                    return (
+                      <button
+                        key={cond}
+                        onClick={() => marcar(cond)}
+                        disabled={save.enCurso}
+                        className="flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1.5 text-left text-xs font-medium transition-colors hover:bg-secondary/60 disabled:opacity-50"
+                      >
+                        {cond === "sano" ? (
+                          <span
+                            aria-hidden
+                            className="size-3 shrink-0 rounded-sm border border-hairline"
+                            style={{ backgroundColor: COLORES_SIMBOLOGIA.neutro }}
+                          />
+                        ) : (
+                          <Muestra marca={muestra} />
+                        )}
+                        {CONDITION_LABELS[cond]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {estado === "planificado" && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Solo los tratamientos se pueden dejar por realizar. Cuando se hagan, márcalos
+                    como existentes y lo planificado se cierra solo.
+                  </p>
+                )}
                 {save.enCurso && (
-                  <span className="col-span-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                     <Loader2 className="size-3 animate-spin" /> Guardando…
                   </span>
                 )}
@@ -707,7 +929,7 @@ export function Odontogram({
           </p>
           {history.length === 0 && (
             <p className="text-xs text-muted-foreground">
-              Sin cambios registrados aún. Al modificar una superficie, la marca anterior queda
+              Sin cambios registrados aún. Cuando una marca reemplaza a otra, la anterior queda
               archivada acá.
             </p>
           )}
@@ -720,17 +942,13 @@ export function Odontogram({
               )}
             >
               <div className="flex items-center gap-2">
-                <span
-                  aria-hidden
-                  className="size-3 rounded-sm border border-hairline"
-                  style={{ backgroundColor: CONDITION_COLORS[h.condition] }}
-                />
+                <Muestra marca={h} />
                 <span className="tabular-nums">{h.toothNumber}</span>
                 {toothCommonName(h.toothNumber) && (
                   <span className="text-muted-foreground">{toothCommonName(h.toothNumber)}</span>
                 )}
                 <span className="text-muted-foreground">{SURFACE_LABELS[h.surface]}</span>
-                <span className="font-medium">{CONDITION_LABELS[h.condition]}</span>
+                <span className="font-medium">{describirMarca(h)}</span>
                 {h.supersededAt && (
                   <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                     · archivada
@@ -807,13 +1025,12 @@ export function OdontogramResumen({
             >
               <span className="font-semibold tabular-nums">{p.tooth}</span>
               {p.condiciones.map((c) => (
-                <span key={c} className="inline-flex items-center gap-1 text-muted-foreground">
-                  <span
-                    aria-hidden="true"
-                    className="size-2 shrink-0 rounded-full"
-                    style={{ backgroundColor: CONDITION_COLORS[c] }}
-                  />
-                  {CONDITION_LABELS[c]}
+                <span
+                  key={`${c.condition}-${c.status}`}
+                  className="inline-flex items-center gap-1 text-muted-foreground"
+                >
+                  <Muestra marca={c} className="size-2 rounded-full border-0" />
+                  {describirMarca(c)}
                 </span>
               ))}
             </li>
