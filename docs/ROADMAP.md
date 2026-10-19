@@ -30,7 +30,7 @@
 
 | #     | Qué                                                                                                                     | Dueño                       | Estado                                                      |
 | ----- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------- | ----------------------------------------------------------- |
-| 1     | Apagar Patty en producción (interruptor `AI_ENABLED`). Los términos de Gemini prohíben el uso clínico incluso pagando   | Walter decide (D3) / Claude | 🔄 rama `fix/patty-pausada`                                 |
+| 1     | Apagar Patty en producción (interruptor `AI_ENABLED`). Los términos de Gemini prohíben el uso clínico incluso pagando   | Walter decide (D3) / Claude | ✅ 19-oct (#70)                                             |
 | 2     | Repo de GitHub a privado, después de verificar el deploy y los minutos de Actions                                       | Walter / Claude             | ⏳ decisión D4                                              |
 | 3     | Rotar la contraseña de la cuenta dueña de la clínica piloto y borrar la tabla de contraseñas de la memoria              | Walter / Claude             | ⏳                                                          |
 | 4     | Numverify por HTTPS y sin la clave en la URL                                                                            | Claude                      | ✅ #66. Falta declararlo en privacidad y DPA o reemplazarlo |

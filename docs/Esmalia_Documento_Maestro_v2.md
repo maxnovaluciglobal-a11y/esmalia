@@ -55,11 +55,11 @@ Fuente de la verificación: auditoría 360 total del 18-oct-2026 (14 dimensiones
 - **Suscripción con Stripe** en USD (#69): webhook que rechaza eventos del modo equivocado y reintenta si falla una escritura, 7 días de gracia ante un pago fallido y checkout sin suscripciones duplicadas. **Ningún estado de pago bloquea la agenda, los pacientes, la ficha clínica ni la exportación.** Al vencer el trial o la gracia se bloquean solo los informes.
 - **Medición del embudo sin cookies ni terceros** (#68), con North Star "citas gestionadas por clínica activa por semana" ([`MEDICION.md`](MEDICION.md)).
 
-### Patty, la IA (con una advertencia)
+### Patty, la IA (pausada)
 
 Pasa los apuntes del profesional a una nota SOAP, pule la redacción, resume la nota y extrae diagnósticos y tratamientos para que el profesional los confirme. Propone y no decide: no firma notas, no le escribe a pacientes y no mueve la agenda.
 
-⚠️ **Al 19-oct corre sobre la clave de Gemini en el nivel gratuito.** Eso contradice la política de privacidad, y los términos de Gemini prohíben el uso en práctica clínica incluso pagando (hallazgos LEG-01, SEG-04 e IA-01). Pausarla está en curso (decisión D3 de Walter). Volverá solo con un proveedor que tenga DPA y permita el uso clínico.
+**Pausada desde el 19-oct (PR #70):** el interruptor `AI_ENABLED` está apagado en producción y no sale ningún dato hacia un modelo. Se pausó porque corría sobre Gemini gratuito, en contra de la política de privacidad, y los términos de Gemini prohíben el uso en práctica clínica incluso pagando (LEG-01, SEG-04, IA-01). Volverá solo con un proveedor con DPA que permita el uso clínico (`docs/IA.md`).
 
 ## 4. Qué NO hace (y no hay que prometer)
 
@@ -123,7 +123,7 @@ Costo directo estimado: **~US$16-26 por mes** (US$36-46 con Vercel Pro). El cost
 
 **Lo que falta, por prioridad:**
 
-1. Patty sobre Gemini gratuito (en pausa, D3).
+1. Patty pausada hasta tener proveedor con DPA apto para uso clínico.
 2. El MFA de las clínicas protege la interfaz, no la API: falta la policy RLS que exija `aal2` (tanda 2).
 3. Cifrado del documento de identidad sin poblar (plazo 1-dic-2026).
 4. Sin registro de lecturas de ficha.
@@ -135,7 +135,7 @@ Costo directo estimado: **~US$16-26 por mes** (US$36-46 con Vercel Pro). El cost
 
 > No es asesoría legal. Lo valida un abogado (pendiente, ítem 32 del plan).
 
-- **Textos publicados el 10-oct:** privacidad v3, términos v2 y DPA v1. Son honestos y casi siempre coinciden con el código, pero **ningún abogado los revisó**. Dos afirmaciones de privacidad no se cumplen hasta pausar Patty y declarar o reemplazar Numverify.
+- **Textos publicados el 10-oct:** privacidad v3, términos v2 y DPA v1. Son honestos y casi siempre coinciden con el código, pero **ningún abogado los revisó**. Queda una afirmación de privacidad por alinear: declarar o reemplazar Numverify (Patty ya está pausada).
 - **Chile, Ley 21.719:** vigencia plena el 1-dic-2026. Faltan el cifrado del documento, el registro de lecturas, las cláusulas tipo para transferencias internacionales y la evaluación de impacto (EIPD) de datos de salud.
 - **Historia clínica:** ningún estado de pago bloquea la ficha ni la exportación, porque la clínica es la custodia legal (CL Ley 20.584, MX NOM-004, CO Res. 1995). Falta impedir el borrado de pacientes (tanda 2).
 - **Pendiente formal:** DPAs firmados con los subencargados, marca "Esmalia" sin registrar en ningún país, la LLC sin inscribir para el IVA a servicios digitales, sin seguro de ciberriesgo y repo sin licencia.
