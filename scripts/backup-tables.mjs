@@ -57,6 +57,7 @@ export const TABLES = [
   "periodontal_charts",
   "periodontal_measurements",
   "portal_access_log",
+  "prescriptions",
   "procedure_supplies",
   "procedures",
   "professional_schedules",
