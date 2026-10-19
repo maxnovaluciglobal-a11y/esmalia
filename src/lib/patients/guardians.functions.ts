@@ -7,6 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
 import { toE164 } from "@/lib/messaging/telefonos";
 import { tutorSchema, type Parentesco, type Tutor } from "@/lib/patients/tutor";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Tutor o representante legal del paciente (CLI-11). Es un dato de contacto,
@@ -82,7 +83,7 @@ async function paisDeLaClinica(
 
 /** Crea o edita un tutor. Marcarlo principal le quita la marca al anterior. */
 export const saveGuardian = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -147,7 +148,7 @@ export const saveGuardian = createServerFn({ method: "POST" })
 
 /** Archiva un tutor (deja de ser vigente; su historia y sus firmas quedan). */
 export const archiveGuardian = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), guardianId: z.string().uuid() }).parse(input),
   )

@@ -15,6 +15,7 @@ import {
   type OdontogramMark,
 } from "@/lib/clinical/odontogram";
 import { marcasQueReemplaza, validarMarca } from "@/lib/clinical/odontograma-reglas";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const TOOTH_SURFACE_ENUM = z.enum(TOOTH_SURFACES);
 const TOOTH_CONDITION_ENUM = z.enum(TOOTH_CONDITIONS);
@@ -189,7 +190,7 @@ export type OdontogramSaveResult = { id: string; conflict?: false } | Odontogram
  * error de la base.
  */
 export const setOdontogramMark = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

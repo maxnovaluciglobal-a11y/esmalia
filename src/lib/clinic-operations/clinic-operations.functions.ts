@@ -6,6 +6,7 @@ import { mensajeDb } from "@/lib/db-errors";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import { LAB_ORDER_STATUSES, type Lab, type LabOrder, type Warehouse } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Operación de clínica mediana (Tanda C): laboratorios, bodegas, estados de
@@ -48,7 +49,7 @@ const LabFields = {
 };
 
 export const createLab = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), ...LabFields }).parse(input),
   )
@@ -79,7 +80,7 @@ export const createLab = createServerFn({ method: "POST" })
   });
 
 export const setLabActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({ clinicId: z.string().uuid(), labId: z.string().uuid(), isActive: z.boolean() })
@@ -185,7 +186,7 @@ export const listLabOrders = createServerFn({ method: "GET" })
   });
 
 export const createLabOrder = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -253,7 +254,7 @@ export const createLabOrder = createServerFn({ method: "POST" })
   });
 
 export const setLabOrderStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -313,7 +314,7 @@ export const listWarehouses = createServerFn({ method: "GET" })
   });
 
 export const createWarehouse = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -415,7 +416,7 @@ export const listAppointmentStatuses = createServerFn({ method: "GET" })
   });
 
 export const upsertAppointmentStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -464,7 +465,7 @@ export const upsertAppointmentStatus = createServerFn({ method: "POST" })
   });
 
 export const setAppointmentStatusActive = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -578,7 +579,7 @@ export const listDuplicateCandidates = createServerFn({ method: "GET" })
  * las notas no, que es peor que no haber fusionado.
  */
 export const mergePatients = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

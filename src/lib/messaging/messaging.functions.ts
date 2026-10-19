@@ -25,6 +25,7 @@ import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-s
 import type { EmailSandboxConfig } from "@/lib/messaging/email-sandbox";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /** Lee la config de sandbox de email de la clínica desde la DB (fuente de
  * verdad única, compartida con /sandbox-email). Sin fila = default seguro.
@@ -155,7 +156,7 @@ export const listMessages = createServerFn({ method: "GET" })
  * poner el envío detrás de una cola con retries.
  */
 export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -343,7 +344,7 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
  * qué no salió, y se le devuelve el motivo al staff.
  */
 export const sendEmailFromTemplate = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -998,7 +999,7 @@ export const listPendingOutreach = createServerFn({ method: "GET" })
 
 /** Prende/apaga el opt-in de WhatsApp del paciente. Lo apaga siempre puede cualquier operador; prenderlo requiere haberlo hablado con el paciente. */
 export const setPatientWhatsAppOptIn = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({ clinicId: z.string().uuid(), patientId: z.string().uuid(), optIn: z.boolean() })

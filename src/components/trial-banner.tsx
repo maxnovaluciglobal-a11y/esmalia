@@ -14,8 +14,9 @@ import { accesoPorSuscripcion, isSubscriptionActive, trialDaysLeft } from "@/lib
  * - Trialing → días restantes + CTA a activar tarjeta.
  * - Cobro fallido dentro de la gracia (BIL-01) → aviso con los días que
  *   quedan; todo sigue funcionando.
- * - No está al día (gracia agotada, cancelada, impaga) → aviso persistente:
- *   ficha y agenda siguen abiertas, los informes se pausan.
+ * - No está al día (gracia agotada, cancelada, impaga, prueba vencida sin
+ *   pago) → modo solo lectura: se ve y se exporta todo, no se crea ni se
+ *   edita (salvo la nota clínica de una cita en curso). Ver `solo-lectura.ts`.
  * - Active → no renderiza nada.
  *
  * Lo ve todo el equipo, no solo el owner: si el owner no entra, alguien de
@@ -56,8 +57,11 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
   // Sub activa full → sin banner.
   if (active && sub.status === "active") return null;
 
-  // Trialing → recordatorio suave.
-  if (sub.status === "trialing" && daysLeft !== null) {
+  const acceso = accesoPorSuscripcion(sub);
+
+  // Trialing vigente → recordatorio suave. Una prueba vencida sin pago cae
+  // abajo, al modo solo lectura (antes decía "vence hoy" para siempre).
+  if (acceso.nivel === "completo" && sub.status === "trialing" && daysLeft !== null) {
     const urgente = daysLeft <= 3;
     return (
       <div
@@ -85,8 +89,6 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
     );
   }
 
-  const acceso = accesoPorSuscripcion(sub);
-
   if (acceso.nivel === "gracia") {
     const { diasRestantes } = acceso;
     return (
@@ -109,22 +111,36 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
     );
   }
 
-  // No está al día: nunca cierra la app, avisa qué sigue abierto.
+  // No está al día: modo solo lectura. Nunca cierra la app; dice qué sigue
+  // abierto, qué no y cómo salir.
+  const motivo =
+    acceso.nivel === "restringido" && acceso.motivo === "trial_vencido"
+      ? "Tu prueba gratis terminó."
+      : sub.status === "past_due"
+        ? "Seguimos sin poder cobrar tu suscripción."
+        : "Tu suscripción está inactiva.";
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-destructive/40 bg-destructive/10 px-5 py-2 text-sm sm:px-8">
-      <div className="flex items-center gap-2">
-        <AlertCircle className="size-4 shrink-0 text-destructive" />
-        <span className="font-medium">
-          {sub.status === "past_due"
-            ? "Seguimos sin poder cobrar tu suscripción. Pacientes, agenda y ficha clínica siguen disponibles; los informes se pausan hasta regularizar el pago."
-            : "Tu suscripción está inactiva. Pacientes, agenda y ficha clínica siguen disponibles; los informes se pausan hasta reactivarla."}
+    <div
+      role="status"
+      className="flex flex-col items-start gap-2 border-b border-destructive/40 bg-destructive/10 px-5 py-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:px-8"
+    >
+      <div className="flex items-start gap-2">
+        <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
+        <span>
+          <span className="font-medium">{motivo} Tu clínica está en modo solo lectura.</span> Puedes
+          ver y exportar todo y descargar las fichas, pero no crear ni editar. Si atiendes una
+          urgencia, puedes registrar la nota clínica de una cita en curso.
         </span>
       </div>
       <Link
         to="/suscripcion"
         className="shrink-0 rounded-md border border-destructive px-3 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
       >
-        {sub.status === "past_due" ? "Regularizar el pago" : "Reactivar"}
+        {acceso.nivel === "restringido" && acceso.motivo === "trial_vencido"
+          ? "Activar suscripción"
+          : sub.status === "past_due"
+            ? "Regularizar el pago"
+            : "Reactivar"}
       </Link>
     </div>
   );

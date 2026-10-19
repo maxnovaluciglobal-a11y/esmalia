@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Profesional, Sucursal } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /** Sucursales de la clínica. RLS: solo las de clínicas donde el usuario es miembro. */
 export const listBranches = createServerFn({ method: "GET" })
@@ -57,7 +58,7 @@ export const listBranchesForReviewLinks = createServerFn({ method: "GET" })
  * (`branches_write`) ya exige `can_manage_clinic`; `clinicId` en el `.eq()`
  * es cinturón de defensa en profundidad, no la fuente de la autorización. */
 export const updateBranchGoogleReviewUrl = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

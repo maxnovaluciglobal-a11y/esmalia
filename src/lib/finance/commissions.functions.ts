@@ -11,6 +11,7 @@ import { loadEmailSandboxConfig } from "@/lib/messaging/messaging.functions";
 import { sendEmail } from "@/lib/messaging/email.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type { CommissionKind };
 
@@ -43,7 +44,7 @@ export const listCommissionRules = createServerFn({ method: "GET" })
   });
 
 export const setCommissionRule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -73,7 +74,7 @@ export const setCommissionRule = createServerFn({ method: "POST" })
   });
 
 export const removeCommissionRule = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), professionalId: z.string().uuid() }).parse(input),
   )
@@ -295,7 +296,7 @@ export const getCommissionReport = createServerFn({ method: "GET" })
  * constraint) — devuelve error claro en vez del error crudo de Postgres.
  */
 export const closeCommissionPeriod = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -491,7 +492,7 @@ async function notifyCommissionSettled(params: {
 
 /** Marca un cierre existente como pagado. Solo owner/admin (RLS). */
 export const markCommissionSettlementPaid = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), settlementId: z.string().uuid() }).parse(input),
   )

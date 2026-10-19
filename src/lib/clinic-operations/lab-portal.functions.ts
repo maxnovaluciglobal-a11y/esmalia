@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { leerCookieConAnterior } from "@/lib/compat/nombres-anteriores";
 import { assertNotDemoClinic, requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { appOrigin } from "@/lib/app-origin.server";
@@ -21,6 +20,7 @@ import {
   type LabTokenClaims,
   type VerifiedLabToken,
 } from "@/lib/clinic-operations/lab-portal-token.server";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 /**
  * Portal externo de laboratorio (gap de la auditoría comparativa vs.
@@ -37,7 +37,7 @@ import {
 // ─── Cara clínica: generar el link ──────────────────────────────────────
 
 export const generateLabPortalLink = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -78,7 +78,7 @@ export const generateLabPortalLink = createServerFn({ method: "POST" })
  * a funcionar: su `iat` es posterior a `portal_revoked_at`.
  */
 export const revokeLabPortalAccess = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), labId: z.string().uuid() }).parse(input),
   )

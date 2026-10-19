@@ -98,6 +98,7 @@ import { coincide, num, paginar, str } from "@/lib/search";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 
 type VistaAgenda = "dia" | "semana" | "mes";
 
@@ -396,11 +397,13 @@ function NuevaCitaDialog({
         if (o) completarUnicos();
       }}
     >
-      <DialogTrigger asChild>
-        <Button ref={triggerRef} size="sm">
-          <Plus className="size-4" /> Nueva cita
-        </Button>
-      </DialogTrigger>
+      <BloqueoEscritura>
+        <DialogTrigger asChild>
+          <Button ref={triggerRef} size="sm">
+            <Plus className="size-4" /> Nueva cita
+          </Button>
+        </DialogTrigger>
+      </BloqueoEscritura>
       <DialogContent
         onCloseAutoFocus={(e) => {
           const origen = origenFoco.current;

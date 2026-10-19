@@ -12,6 +12,7 @@ import {
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
 import { idsDeLaFicha } from "@/lib/patients/fusion";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -129,7 +130,7 @@ export const listPatientPrescriptions = createServerFn({ method: "GET" })
  * `prescriptions_emitir`): acá solo viaja lo que decide el profesional.
  */
 export const issuePrescription = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -184,7 +185,7 @@ export const issuePrescription = createServerFn({ method: "POST" })
   });
 
 export const voidPrescription = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

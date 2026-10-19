@@ -16,6 +16,7 @@ import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
 import { FILTROS_DE_ARCHIVO } from "@/lib/patients/archivo";
 import type { Database } from "@/integrations/supabase/types";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
   active: "activo",
@@ -376,7 +377,7 @@ export const getPatient = createServerFn({ method: "GET" })
   });
 
 export const createPatient = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -493,7 +494,7 @@ export interface ImportPreviewRow {
  * que ahorrar la duplicación.
  */
 export const previewImportPatients = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -561,7 +562,7 @@ export const previewImportPatients = createServerFn({ method: "POST" })
  * mucho más riesgo de dejar datos mal cargados.
  */
 export const importPatients = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -702,7 +703,7 @@ export async function writePatientFields(
 }
 
 export const updatePatient = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -769,7 +770,7 @@ export const updatePatient = createServerFn({ method: "POST" })
  * trigger `patients_controlar_archivo`; acá solo se pide el cambio.
  */
 export const setPatientArchived = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

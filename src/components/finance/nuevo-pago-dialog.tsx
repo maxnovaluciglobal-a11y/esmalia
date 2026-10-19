@@ -25,6 +25,7 @@ import { registerPayment } from "@/lib/finance/finance.functions";
 import { MoneyInput } from "@/components/money-input";
 import { listPaymentMethods } from "@/lib/finance/clinic-finance.functions";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 
 export function NuevoPagoDialog({
   clinicId,
@@ -125,11 +126,13 @@ export function NuevoPagoDialog({
         if (o) setAmount(suggestedAmountCents);
       }}
     >
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <CircleDollarSign className="size-4" /> Registrar pago
-        </Button>
-      </DialogTrigger>
+      <BloqueoEscritura>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
+            <CircleDollarSign className="size-4" /> Registrar pago
+          </Button>
+        </DialogTrigger>
+      </BloqueoEscritura>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Registrar pago</DialogTitle>

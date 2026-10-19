@@ -24,6 +24,7 @@ import {
   PLANTILLAS_META,
   type KindConPlantillaMeta,
 } from "@/lib/messaging/meta-plantillas";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 type WhatsAppAccountRow = {
   id: string;
@@ -212,7 +213,7 @@ export const getWhatsAppAccountStatus = createServerFn({ method: "GET" })
  * El token de negocio de la clínica queda cifrado en whatsapp_credentials.
  */
 export const completeWhatsAppEmbeddedSignup = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -317,7 +318,7 @@ export const completeWhatsAppEmbeddedSignup = createServerFn({ method: "POST" })
 
 /** Vuelve a crear o consultar las plantillas en Meta (botón en /whatsapp). */
 export const resincronizarPlantillasWhatsApp = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await assertNotDemoClinic(context.supabase, data.clinicId);
@@ -342,7 +343,7 @@ export const resincronizarPlantillasWhatsApp = createServerFn({ method: "POST" }
 
 /** Desconecta el número (soft: status='disabled', no borra la fila — mantiene auditoría). */
 export const disconnectWhatsAppAccount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<void> => {
     const { error } = await context.supabase
@@ -600,7 +601,7 @@ export const listWhatsAppLeads = createServerFn({ method: "GET" })
 
 /** Marca un lead como contactado/convertido/descartado — nunca se borra, queda como historial. */
 export const updateWhatsAppLeadStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

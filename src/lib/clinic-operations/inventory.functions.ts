@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import type { ConsumptionType } from "@/lib/clinic-operations/procedure-supply-consumption";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export type InventoryMovementKind = "entrada" | "salida" | "ajuste";
 
@@ -169,7 +170,7 @@ export const listInventoryItems = createServerFn({ method: "GET" })
  * exige owner/admin; nunca recibe current_stock (arranca en 0 por default
  * de la columna, se carga con un movimiento de 'entrada' posterior). */
 export const createInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -222,7 +223,7 @@ export const createInventoryItem = createServerFn({ method: "POST" })
  * (`inventory_items_update_managers`) ya exige owner/admin; `clinicId` en
  * el `.eq()` es cinturón de defensa en profundidad. */
 export const updateInventoryItem = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -279,7 +280,7 @@ export const updateInventoryItem = createServerFn({ method: "POST" })
  * se eligió ninguna— hace que el trigger revierta todo el INSERT y este
  * handler propaga su mensaje. */
 export const registerInventoryMovement = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

@@ -9,6 +9,7 @@ import {
   normalizeEmail,
   type EmailSandboxConfig,
 } from "@/lib/messaging/email-sandbox";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 type EmailSandboxRow = {
   mode: string;
@@ -53,7 +54,7 @@ export const getEmailSandboxConfig = createServerFn({ method: "GET" })
   });
 
 export const setEmailSandboxConfig = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

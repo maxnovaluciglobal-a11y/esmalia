@@ -13,6 +13,7 @@ import {
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { leerCookieConAnterior } from "@/lib/compat/nombres-anteriores";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 
 const ACTIVE_CLINIC_COOKIE_NAME = "esmalia_active_clinic";
 const ACTIVE_CLINIC_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
@@ -180,7 +181,7 @@ export const listClinicMembers = createServerFn({ method: "GET" })
  * (`members_update_managers`), esto añade la validación de negocio.
  */
 export const updateMemberRole = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinic_members", "memberId")])
   .validator((input: unknown) =>
     z
       .object({
@@ -233,7 +234,7 @@ export const updateMemberRole = createServerFn({ method: "POST" })
  *    camino de escritura contra esta tabla que no pase por acá.
  */
 export const inviteMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({
@@ -335,7 +336,7 @@ export const inviteMember = createServerFn({ method: "POST" })
   });
 
 export const removeMember = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscrituraPorFila("clinic_members", "memberId")])
   .validator((input: unknown) => z.object({ memberId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;

@@ -73,6 +73,7 @@ import { DatosDeFirmaDialog } from "@/components/datos-de-firma-dialog";
 import type { ClinicRole } from "@/lib/access/access";
 import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
 
 const REVIEW_BADGE: Record<NoteReviewStatus, string> = {
   none: "border-hairline text-muted-foreground",
@@ -102,6 +103,7 @@ export function NotasClinicas({
   userId = null,
   rol = null,
 }: Props) {
+  const soloLectura = useSoloLectura();
   const queryClient = useQueryClient();
   const fetchNotes = useServerFn(getPatientNotes);
   const saveFn = useServerFn(saveClinicalNote);
@@ -529,6 +531,12 @@ export function NotasClinicas({
               ? "Patty (IA) redacta y resume; tú revisas y firmas. Con versiones y auditoría."
               : "Tú escribes y firmas. Con versiones y auditoría."}
           </p>
+          {soloLectura && (
+            <p className="mt-1 text-xs text-destructive">
+              Modo solo lectura: solo puedes registrar y firmar la nota de una cita en curso (desde
+              30 minutos antes hasta 2 horas después).
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button

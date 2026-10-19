@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { reconcileCount } from "@/lib/clinic-operations/inventory-reconciliation";
 import { isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 export interface InventoryCount {
   id: string;
@@ -29,7 +30,7 @@ const MIGRATION_PENDING_MESSAGE =
  * el saldo puntual de la bodega contada.
  */
 export const recordInventoryCount = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
       .object({

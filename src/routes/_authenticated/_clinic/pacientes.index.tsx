@@ -48,6 +48,7 @@ import {
   parseFiltroDeArchivo,
   type FiltroDeArchivo,
 } from "@/lib/patients/archivo";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 
 interface PacientesSearch {
   q: string;
@@ -132,11 +133,13 @@ function NuevoPacienteDialog({ clinicId }: { clinicId: string }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" /> Nuevo paciente
-        </Button>
-      </DialogTrigger>
+      <BloqueoEscritura>
+        <DialogTrigger asChild>
+          <Button size="sm">
+            <Plus className="size-4" /> Nuevo paciente
+          </Button>
+        </DialogTrigger>
+      </BloqueoEscritura>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nuevo paciente</DialogTitle>
