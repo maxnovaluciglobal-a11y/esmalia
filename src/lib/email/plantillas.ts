@@ -11,7 +11,7 @@
  */
 import { formatMoney } from "@/lib/finance/finance";
 import { GRACIA_PAGO_FALLIDO_DIAS } from "@/lib/billing";
-import { CALENDLY_PUESTA_EN_MARCHA, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/calendly";
+import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
 
 import {
   elegirAccionSugerida,
@@ -67,8 +67,8 @@ export function correoBienvenida(d: DatosBienvenida): CorreoRenderizado {
       partes: [
         `El WhatsApp de la clínica, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de ${MINUTOS_PUESTA_EN_MARCHA} minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.`,
       ],
-      // Mismo Calendly que `LlamadaDesbloqueo` (llamada-desbloqueo.tsx).
-      enlace: { texto: "Agendar la llamada", href: CALENDLY_PUESTA_EN_MARCHA },
+      // Mismo enlace que `LlamadaDesbloqueo` (llamada-desbloqueo.tsx).
+      enlace: { texto: "Agendar la llamada", href: enlacePuestaEnMarcha().href },
     },
     { tipo: "boton", texto: "Entrar a Esmalia", href: unir(d.appUrl, "/dashboard") },
     { tipo: "subtitulo", texto: "Primeros pasos" },
