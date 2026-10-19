@@ -35,6 +35,7 @@ export interface WhatsAppAccount {
 export const META_TEMPLATE_PARAM_ORDER: Record<
   | "appointment_reminder"
   | "appointment_checkin"
+  | "appointment_rescheduled"
   | "waitlist_opening"
   | "portal_invite"
   | OutreachTemplateKind,
@@ -42,6 +43,7 @@ export const META_TEMPLATE_PARAM_ORDER: Record<
 > = {
   appointment_reminder: ["paciente", "tratamiento", "fecha_larga", "hora", "clinica"],
   appointment_checkin: ["paciente", "tratamiento", "hora", "clinica"],
+  appointment_rescheduled: ["paciente", "clinica", "fecha_larga", "hora", "profesional"],
   hygiene_recall: ["paciente", "meses", "clinica"],
   // Sin link_resena / link_pago: no existe infraestructura para ninguno de
   // los dos todavía (no hay campo de Google Reviews por clínica; el billing

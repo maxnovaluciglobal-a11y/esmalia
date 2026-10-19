@@ -40,6 +40,9 @@ export const MESSAGE_TEMPLATE_KINDS = [
   // F2 comunicaciones (auditoría 360 v2, 26-ago-2026) — migración
   // 20260827060000. Destinatario = professionals, no patients.
   "commission_settled",
+  // Rediseño A+ (PR 9) — migración 20261020000100. Aviso al paciente cuando
+  // se mueve su cita; lo usa el arrastre de la agenda (PR 10).
+  "appointment_rescheduled",
 ] as const;
 export type MessageTemplateKind = (typeof MESSAGE_TEMPLATE_KINDS)[number];
 
@@ -61,6 +64,7 @@ export const MESSAGE_TEMPLATE_KIND_LABELS: Record<MessageTemplateKind, string> =
   treatment_followup: "Seguimiento post-tratamiento",
   referral_invite: "Invitación a referir",
   commission_settled: "Comisión liquidada",
+  appointment_rescheduled: "Aviso de reprogramación",
 };
 
 /**
