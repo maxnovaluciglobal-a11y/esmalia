@@ -50,7 +50,7 @@ export const pagina: PaginaContenido = {
             [
               "IA",
               "Notas por voz, resumen clínico, simulador de sonrisas, rayos X, reportes, contact center",
-              "Patty: notas SOAP y resumen de la nota; lectura de pedidos de hora por WhatsApp en habilitación",
+              "Patty (en habilitación): notas SOAP, resumen de la nota y lectura de pedidos de hora por WhatsApp",
             ],
             [
               "Sin internet",
@@ -100,7 +100,7 @@ export const pagina: PaginaContenido = {
           items: [
             "**Quieres saber cuánto pagas antes de hablar con nadie.** El precio está en [precios](/precios): US$29 al mes para un profesional, US$69 para hasta tres. El cobro es en dólares por Stripe y quienes entran ahora conservan el precio mientras sean clientes.",
             "**Tu internet falla.** Con Esmalia sigues viendo la agenda y las fichas, cobrando y marcando el odontograma sin conexión. Todo se sincroniza solo cuando vuelve. Ver [sin internet](/funciones/sin-internet).",
-            "**Prefieres que la IA proponga y tú decidas.** Patty pasa tus apuntes a una nota SOAP y resume la nota anterior, pero no firma, no le escribe a pacientes y no mueve la agenda. Ver [Patty IA](/funciones/patty-ia).",
+            "**Prefieres que la IA proponga y tú decidas.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior, pero no firma, no le escribe a pacientes y no mueve la agenda. Ver [Patty IA](/funciones/patty-ia).",
             "**Quieres WhatsApp sin depender de WhatsApp Web abierto.** Esmalia trabaja en modo manual desde el primer día y, si conectas tu número a Meta, envía desde tu propio número. En los dos modos, alguien de tu clínica dispara el mensaje. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Quieres seguir viendo tus datos aunque no pagues.** Si no te suscribes después de la prueba, la agenda, los pacientes y la ficha siguen abiertos. Finanzas, comisiones, inventario e informes se activan al suscribirte.",
           ],

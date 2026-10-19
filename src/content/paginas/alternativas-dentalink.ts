@@ -81,7 +81,7 @@ export const pagina: PaginaContenido = {
               "US$29/mes (1 profesional), US$69/mes (hasta 3)",
               "No",
               "14 días sin tarjeta",
-              "Precio claro, funciona sin internet, WhatsApp que revisa tu equipo, IA para notas SOAP",
+              "Precio claro, funciona sin internet, WhatsApp que revisa tu equipo, IA para notas SOAP en habilitación",
             ],
             [
               "Doctocliq",
