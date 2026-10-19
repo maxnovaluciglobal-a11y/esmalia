@@ -18,7 +18,7 @@ import {
 } from "@/lib/messaging/messaging";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
-import { quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
+import { motivoParaNoEnviarWhatsApp, quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { sendEmail } from "@/lib/messaging/email.server";
 import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-sandbox";
 import type { EmailSandboxConfig } from "@/lib/messaging/email-sandbox";
@@ -197,7 +197,7 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
       const [{ data: patient, error: patientErr }, { data: clinic }] = await Promise.all([
         supabase
           .from("patients")
-          .select("full_name, phone")
+          .select("full_name, phone, wa_opt_out_at")
           .eq("clinic_id", data.clinicId)
           .eq("id", data.patientId)
           .maybeSingle(),
@@ -206,6 +206,15 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
       if (patientErr)
         throw new Error(mensajeDb(patientErr, "No pudimos obtener los datos del paciente."));
       if (!patient) throw new Error("Paciente no encontrado.");
+
+      // CON-09: la baja se respeta acá, no solo en la UI. Ni API ni wa.me,
+      // tampoco con `recipientOverride` (la baja es del paciente, no del
+      // número). Antes de registrar nada en `messages`.
+      const bloqueo = motivoParaNoEnviarWhatsApp({
+        waOptOutAt: patient.wa_opt_out_at,
+        tipo: "proactivo",
+      });
+      if (bloqueo) throw new Error(bloqueo);
 
       const recipient = (data.recipientOverride ?? patient.phone ?? "").trim();
       if (!recipient) {
@@ -271,6 +280,7 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
             metaTemplate,
             recipientRaw: recipient,
             country,
+            waOptOutAt: patient.wa_opt_out_at,
             variables: { ...data.variables, paciente: patient.full_name },
           })
         : { viaApi: false, externalId: null };
