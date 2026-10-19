@@ -483,6 +483,9 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
+DECLARE
+  v_source record;
+  v_target record;
 BEGIN
   -- SEG-01: quien activó MFA necesita una sesión aal2 (ver docs/MFA.md).
   IF NOT public.sesion_cumple_mfa() THEN
@@ -498,32 +501,45 @@ BEGIN
     RAISE EXCEPTION 'No tienes permisos para fusionar fichas.';
   END IF;
 
-  -- Las dos fichas tienen que ser de la clínica que pide la fusión.
-  IF NOT EXISTS (
-    SELECT 1 FROM public.patients
-     WHERE id = p_source_id AND clinic_id = p_clinic_id
-  ) OR NOT EXISTS (
-    SELECT 1 FROM public.patients
-     WHERE id = p_target_id AND clinic_id = p_clinic_id
-  ) THEN
+  SELECT id, merged_into INTO v_source
+    FROM public.patients WHERE id = p_source_id AND clinic_id = p_clinic_id
+    FOR UPDATE;
+  SELECT id, merged_into, archived_at INTO v_target
+    FROM public.patients WHERE id = p_target_id AND clinic_id = p_clinic_id
+    FOR UPDATE;
+  IF v_source.id IS NULL OR v_target.id IS NULL THEN
     RAISE EXCEPTION 'Alguna de las dos fichas no pertenece a esta clínica.';
+  END IF;
+  IF v_source.merged_into IS NOT NULL THEN
+    RAISE EXCEPTION 'Esa ficha ya fue fusionada en otra.';
+  END IF;
+  IF v_target.merged_into IS NOT NULL THEN
+    RAISE EXCEPTION 'La ficha destino ya fue fusionada en otra: elige la ficha que quedó.';
+  END IF;
+  IF v_target.archived_at IS NOT NULL THEN
+    RAISE EXCEPTION 'La ficha destino está archivada: restáurala antes de fusionar.';
   END IF;
 
   UPDATE public.appointments        SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.payments            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.quotes              SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.treatment_plans     SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-  UPDATE public.clinical_notes      SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.odontogram_marks    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.periodontal_charts  SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-  UPDATE public.patient_documents   SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-  UPDATE public.patient_consents    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  -- patient_documents y patient_consents NO se mueven: sus triggers de
+  -- inmutabilidad (con razón) rechazan cambiar el patient_id y hacían fallar
+  -- la fusión. Igual que las notas, la ficha destino los lee desde las
+  -- fichas fusionadas en ella.
   UPDATE public.messages            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.lab_orders          SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-
-  -- La historia médica NO se mueve: es una fila por paciente y fusionar dos
-  -- anamnesis automáticamente inventaría un cuadro clínico que nadie revisó.
-  -- Queda en la ficha origen, accesible, para que un profesional la mire.
+  -- Signos vitales (20261019180000): mediciones sin trigger de inmutabilidad,
+  -- se mueven con la atención. Recetas (20261019190000) y tutores no se
+  -- mueven: sus triggers lo impiden a propósito; las recetas se leen desde la
+  -- ficha destino y los tutores quedan en la ficha absorbida.
+  IF to_regclass('public.patient_vital_signs') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.patient_vital_signs SET patient_id = $1 WHERE patient_id = $2 AND clinic_id = $3'
+      USING p_target_id, p_source_id, p_clinic_id;
+  END IF;
 
   UPDATE public.patients
      SET merged_into = p_target_id,
