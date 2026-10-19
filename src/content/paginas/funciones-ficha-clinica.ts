@@ -101,8 +101,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            // TODO(export): cuando exista "Exportar todo" en Ajustes, volver a prometer la exportación desde la app.
-            "En todos, desde Solo (US$29 al mes). La ficha clínica sigue abierta aunque la prueba de 14 días termine sin suscripción. Puedes traer tus pacientes desde una planilla CSV y, si te vas, te entregamos todos los datos de tu clínica en formato estándar dentro de 72 horas, a pedido. Mírala por dentro en la [demo](/demo) o revisa los [precios](/precios).",
+            "En todos, desde Solo (US$29 al mes). La ficha clínica sigue abierta aunque la prueba de 14 días termine sin suscripción. Puedes traer tus pacientes desde una planilla CSV y, si te vas, exportar todos los datos de tu clínica desde Ajustes. Mírala por dentro en la [demo](/demo) o revisa los [precios](/precios).",
         },
       ],
     },

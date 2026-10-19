@@ -11,7 +11,9 @@
 
 - Agenda por sucursal en hora local, con lista diaria de citas por confirmar.
 - Recordatorios por WhatsApp 48 h y 3 h antes de cada cita. Ningún mensaje a pacientes sale solo: Esmalia arma la lista y alguien de la clínica los envía desde su WhatsApp con un toque. Conectar el número propio de la clínica a WhatsApp Business (Meta) está en habilitación.
-- Ficha clínica, odontograma FDI versionado, notas clínicas con revisión y consentimientos.
+- Ficha clínica, odontograma FDI versionado (varias condiciones por pieza, con estado existente o por realizar) y periodontograma, notas clínicas con revisión, consentimientos con 8 plantillas modelo para revisar y firma en pantalla, y recetas con PDF imprimible.
+- Exportación completa de los datos de la clínica desde Ajustes: un ZIP con planillas CSV y los archivos del paciente, sin pedirlo a nadie.
+- Verificación en dos pasos (código de una app autenticadora) para cualquier usuario.
 - Presupuestos que se convierten en plan de tratamiento; cada pago descuenta el saldo del paciente.
 - Importación de pacientes desde una planilla (CSV) en todos los planes.
 - Sigue funcionando sin internet y sincroniza cuando vuelve la conexión.

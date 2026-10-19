@@ -37,7 +37,7 @@ function Privacidad() {
     <LegalPage
       label="Legal"
       title="Política de privacidad"
-      updated="Versión 3 · 10 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 4 · 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
     >
       <LegalNotice>
         Tu clínica es la responsable de los datos de sus pacientes; Esmalia los procesa como
@@ -58,6 +58,14 @@ function Privacidad() {
           Acuerdo de tratamiento de datos
         </a>
         .
+        <br />
+        <br />
+        <strong>Qué cambió en la versión 4 (19 de octubre de 2026).</strong> La función de IA está
+        pausada y no se envían datos a ningún proveedor de IA; se suma Numverify a la lista de
+        proveedores; se agregan la verificación en dos pasos, el registro de lecturas de la ficha y
+        el cifrado del número de documento como medidas de seguridad; la clínica exporta todos sus
+        datos desde la aplicación cuando quiere; y las historias clínicas se archivan, no se borran.
+        El detalle está en la sección 13.
       </LegalNotice>
 
       <LegalH2>1. Quién es responsable y qué papel cumple cada uno</LegalH2>
@@ -159,14 +167,22 @@ function Privacidad() {
         <LegalLi>
           <strong>Generar resúmenes o borradores con IA</strong> — por ejemplo de notas clínicas —
           solo cuando el profesional lo pide de forma explícita. El borrador lo revisa y lo firma el
-          profesional; la IA no firma nada.
+          profesional; la IA no firma nada. <strong>Hoy esta función está pausada</strong>: no se
+          envía ningún dato a un proveedor de IA.
         </LegalLi>
         <LegalLi>
           <strong>Entender si un mensaje de WhatsApp pide una hora.</strong> Cuando alguien le
           escribe a la clínica por WhatsApp, Esmalia intenta leer con reglas fijas si pide, mueve o
           cancela una cita. Si las reglas no alcanzan y la IA está activada, se envía a la IA solo
           el texto de ese mensaje (hasta 500 caracteres). El resultado es una sugerencia para el
-          equipo: nunca confirma, mueve ni cancela una cita por su cuenta.
+          equipo: nunca confirma, mueve ni cancela una cita por su cuenta. Mientras la IA esté
+          pausada, solo se usan las reglas fijas y ningún mensaje sale hacia un proveedor de IA.
+        </LegalLi>
+        <LegalLi>
+          <strong>Comprobar que un teléfono tiene forma real</strong> (país y operador) cuando la
+          clínica carga o cambia el teléfono de un paciente, o cuando alguien deja su WhatsApp en un
+          formulario del sitio. Solo se consulta el número, y el resultado es informativo: nunca
+          impide guardar una ficha.
         </LegalLi>
         <LegalLi>
           <strong>Cobrar la suscripción</strong> de la clínica y avisarle sobre pagos.
@@ -325,9 +341,9 @@ function Privacidad() {
         Hay varias, y conviene decirlas sin rodeos. Los datos están alojados en Brasil (São Paulo),
         no en el país de tu clínica. Quien opera Esmalia es una empresa constituida en Estados
         Unidos, así que el equipo que administra la base accede desde fuera de Chile. Y algunos
-        proveedores de la sección 6 procesan datos en Estados Unidos u otros países (por ejemplo, la
-        IA, el monitoreo de errores y las copias de respaldo). Esto vale tanto para los datos de la
-        clínica y sus pacientes como para los de captación de la sección 3.
+        proveedores de la sección 6 procesan datos en Estados Unidos u otros países (por ejemplo, el
+        monitoreo de errores, la validación de teléfonos y las copias de respaldo). Esto vale tanto
+        para los datos de la clínica y sus pacientes como para los de captación de la sección 3.
       </LegalP>
       <LegalP>
         <strong>
@@ -375,14 +391,21 @@ function Privacidad() {
         <LegalLi>
           <strong>Google</strong> — dos usos distintos. (a) <em>Iniciar sesión con Google</em>, si
           eliges esa opción: Google nos confirma tu nombre y tu email. (b) <em>Gemini</em>, el
-          modelo detrás de Patty, el asistente de IA de Esmalia: procesa el texto que se le envía en
-          los dos casos de la sección 2 (un borrador o resumen que pide el profesional, o un mensaje
-          de WhatsApp que las reglas no supieron leer). Ubicación: Estados Unidos y otros países
-          donde opera Google.
+          modelo detrás de Patty, el asistente de IA de Esmalia, para los dos casos de la sección 2.{" "}
+          <strong>Hoy la IA está pausada y no le enviamos ningún dato.</strong> Ubicación: Estados
+          Unidos y otros países donde opera Google.
         </LegalLi>
         <LegalLi>
-          <strong>OpenAI</strong> — proveedor de IA alternativo: solo se usa si Gemini no está
-          configurado, para las mismas dos tareas y con el mismo texto. Ubicación: Estados Unidos.
+          <strong>OpenAI</strong> — proveedor de IA alternativo a Gemini, para las mismas tareas.{" "}
+          <strong>Pausado como el anterior: no le enviamos ningún dato.</strong> Cuando la IA
+          vuelva, vamos a informar en esta lista qué proveedor se usa, con el aviso de 30 días del
+          párrafo siguiente. Ubicación: Estados Unidos.
+        </LegalLi>
+        <LegalLi>
+          <strong>Numverify (apilayer)</strong> — comprueba que un teléfono tiene forma real
+          (sección 2). Recibe solo el número, por conexión cifrada (HTTPS), sin nombre ni otros
+          datos de la persona. Empresa de Austria (apilayer Data Products GmbH, Viena), que declara
+          usar proveedores en Estados Unidos.
         </LegalLi>
         <LegalLi>
           <strong>Sentry</strong> — recibe los informes de error de la aplicación, cuando el
@@ -482,6 +505,24 @@ function Privacidad() {
           <strong>Copias de respaldo diarias y cifradas.</strong> La clave para descifrarlas no está
           en los servidores de Esmalia ni en los de quien guarda las copias.
         </LegalLi>
+        <LegalLi>
+          <strong>Verificación en dos pasos.</strong> Cada persona de la clínica puede activar un
+          código de una app de autenticación, además de su contraseña, desde Preferencias. Para el
+          equipo de Esmalia que entra a la administración es obligatoria.
+        </LegalLi>
+        <LegalLi>
+          <strong>Registro de lecturas de la ficha.</strong> La base de datos anota quién abrió la
+          ficha clínica de cada paciente y cuándo. Solo lo ven el dueño y los administradores de la
+          clínica, y nadie lo puede modificar ni borrar.
+        </LegalLi>
+        <LegalLi>
+          <strong>Número de documento cifrado en la base de datos</strong>, además del cifrado
+          general en reposo.
+        </LegalLi>
+        <LegalLi>
+          <strong>La historia clínica no se borra desde la aplicación.</strong> Un paciente se
+          archiva: deja de aparecer en las listas, pero su historia se conserva (sección 9).
+        </LegalLi>
       </LegalUl>
       <LegalP>
         Esmalia es una empresa chica y todavía no tiene certificaciones formales de seguridad de la
@@ -505,17 +546,19 @@ function Privacidad() {
       <LegalH2>9. Cuánto tiempo guardamos los datos</LegalH2>
       <LegalP>
         <strong>Datos de la clínica y de sus pacientes.</strong> Mientras la cuenta de la clínica
-        esté activa.{" "}
-        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "La
-        clínica puede exportar sus datos desde la aplicación en cualquier momento". */}
-        En cualquier momento, también antes de cerrar la cuenta, la clínica puede pedirnos todos sus
-        datos escribiendo a <Correo a="soporte@esmalia.com" />, y se los entregamos en formato
-        estándar dentro de las 72 horas siguientes al pedido. Después de que termina el servicio, si
-        la clínica nos lo pide por escrito a <Correo a="privacidad@esmalia.com" />, eliminamos sus
-        datos o se los devolvemos dentro de los 30 días siguientes al pedido. Mientras no recibamos
-        esa instrucción, no los usamos para nada más que devolvérselos a la clínica. La historia
-        clínica además tiene plazos legales de conservación propios en cada país: esos los define la
-        clínica como responsable, no nosotros.
+        esté activa. En cualquier momento, también antes de cerrar la cuenta, el dueño o un
+        administrador de la clínica puede exportar todos sus datos desde Ajustes, en un archivo en
+        formato estándar. Si lo prefiere, puede pedírnoslos a <Correo a="soporte@esmalia.com" /> y
+        se los enviamos. Después de que termina el servicio, si la clínica nos lo pide por escrito a{" "}
+        <Correo a="privacidad@esmalia.com" />, eliminamos sus datos o se los devolvemos dentro de
+        los 30 días siguientes al pedido. Mientras no recibamos esa instrucción, no los usamos para
+        nada más que devolvérselos a la clínica.
+      </LegalP>
+      <LegalP>
+        <strong>Historias clínicas.</strong> Tienen plazos legales de conservación propios en cada
+        país, y esos los define la clínica como responsable, no nosotros. Para que se puedan
+        cumplir, en la aplicación las historias clínicas no se borran: cuando la clínica ya no
+        atiende a un paciente, lo archiva, y su historia se conserva completa.
       </LegalP>
       <LegalP>
         <strong>Copias de respaldo.</strong> Los datos borrados no desaparecen en el mismo instante
@@ -628,6 +671,15 @@ function Privacidad() {
         versión y la fecha actualizadas y, si corresponde, avisamos por email a las clínicas.
       </LegalP>
       <LegalUl>
+        <LegalLi>
+          <strong>Versión 4 — 19 de octubre de 2026.</strong> Se indica que la función de IA está
+          pausada y que hoy no se envían datos a Google (Gemini) ni a OpenAI (secciones 2 y 6); se
+          agrega Numverify a la lista de proveedores, con su finalidad y ubicación (sección 6); se
+          suman como medidas de seguridad la verificación en dos pasos, el registro de lecturas de
+          la ficha, el cifrado del número de documento y el archivo de pacientes en vez del borrado
+          (sección 7); la clínica exporta sus datos desde Ajustes, y sigue pudiendo pedirlos a
+          soporte; y se aclara que las historias clínicas se archivan y se conservan (sección 9).
+        </LegalLi>
         <LegalLi>
           <strong>Versión 3 — 10 de octubre de 2026.</strong> Se publica con el nombre Esmalia y el
           dominio esmalia.com. Se aclaran los papeles de la clínica y de Esmalia (sección 1); se

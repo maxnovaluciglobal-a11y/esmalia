@@ -10,6 +10,7 @@
  * no hay copias a mano que puedan quedar desincronizadas.
  */
 import { formatMoney } from "@/lib/finance/finance";
+import { GRACIA_PAGO_FALLIDO_DIAS } from "@/lib/billing";
 
 import {
   elegirAccionSugerida,
@@ -359,25 +360,27 @@ export function correoPagoFallido(d: DatosPagoFallido): CorreoRenderizado {
           ` de la suscripción de ${d.clinicName} y el pago no se pudo procesar.`,
         )
       : p(`Intentamos cobrar la suscripción de ${d.clinicName} y el pago no se pudo procesar.`),
+    // BIL-01 (#69): nadie queda afuera de la app. Durante la gracia todo
+    // sigue igual; después se pausan solo los informes. Ver
+    // `accesoPorSuscripcion` en billing.ts.
     p(
       { negrita: "Qué pasa mientras tanto: " },
-      "tu equipo sigue usando la agenda, los pacientes y las fichas con normalidad. Al entrar con la cuenta de propietario, en cambio, Esmalia te lleva a la página de Suscripción hasta que actualices la forma de pago.",
+      `durante los próximos ${GRACIA_PAGO_FALLIDO_DIAS} días todo sigue funcionando igual para todo el equipo. Si para entonces el pago no se resolvió, se pausan los informes (finanzas, comisiones, inventario y panel).`,
+    ),
+    p(
+      "La agenda, los pacientes y las fichas clínicas nunca se bloquean, y puedes exportar tus datos cuando quieras.",
     ),
     ...(d.proximoIntento
       ? [p(`Stripe volverá a intentar el cobro el ${fechaLarga(d.proximoIntento)}.`)]
       : []),
-    p(
-      "Para resolverlo, entra a Suscripción y usa ",
-      { negrita: "Gestionar facturación" },
-      " para cambiar la tarjeta.",
-    ),
+    p("Para resolverlo, entra a Suscripción y actualiza la tarjeta."),
     { tipo: "boton", texto: "Actualizar la tarjeta", href: unir(d.appUrl, "/suscripcion") },
     pTenue("Si crees que es un error, responde este correo y lo revisamos."),
   ];
   return renderCorreo({
     appUrl: d.appUrl,
     asunto: "No pudimos cobrar tu suscripción a Esmalia",
-    preencabezado: "Tu equipo sigue trabajando. Actualiza la tarjeta desde Suscripción.",
+    preencabezado: `Tienes ${GRACIA_PAGO_FALLIDO_DIAS} días para actualizar la tarjeta. La ficha clínica nunca se bloquea.`,
     titulo: "No pudimos procesar el pago",
     bloques,
     pie: {

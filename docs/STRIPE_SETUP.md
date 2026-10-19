@@ -112,9 +112,29 @@ En el dashboard de Stripe → Developers → Webhooks (en el mismo modo, Test o 
    - `customer.subscription.updated`
    - `customer.subscription.deleted`
    - `invoice.payment_failed`
+   - `charge.refunded`
+   - `charge.dispute.created`
+   - `charge.dispute.closed`
+   - `customer.subscription.trial_will_end`
 3. Copiar el **Signing secret** (`whsec_...`) a `STRIPE_WEBHOOK_SECRET`.
 
 Para dev local: usar `stripe listen --forward-to localhost:8080/api/stripe/webhook` (Stripe CLI) — esto genera su propio `whsec_...` de test, distinto al del endpoint de producción.
+
+### Reembolsos y disputas (19-oct-2026)
+
+Qué hace el webhook (`src/lib/stripe-webhook.server.ts`):
+
+| Evento                                                      | Qué pasa                                                                                                                                                                                                                |
+| ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `charge.refunded` con el cobro **reembolsado por completo** | Cancela la suscripción **en Stripe** (de inmediato, sin prorrateo, clave de idempotencia `cancelar-reembolso-total-<cobro>`), guarda el estado que devuelve Stripe y avisa al staff. Un reembolso parcial no toca nada. |
+| `charge.dispute.created`                                    | Marca la suscripción (`disputed_at`, `dispute_id`) y avisa al staff con la fecha límite de evidencia. **No** cambia el acceso ni el cobro.                                                                              |
+| `charge.dispute.closed`                                     | Quita la marca. Si la disputa se **perdió** (`lost`), además cancela la suscripción en Stripe como en el reembolso total (clave `cancelar-disputa-perdida-<disputa>`).                                                  |
+
+La suscripción que se cancela es la **del cobro** (cobro → factura vía InvoicePayments → suscripción). Si no se puede leer, se usa la de la fila de la clínica y el aviso al staff pide confirmarla. Si el cobro era de otra suscripción (una duplicada), la fila de la clínica no se toca. Cancelar no bloquea nada: con `canceled` se pausan los informes; agenda, pacientes y ficha siguen abiertos.
+
+**Decisión pendiente de Walter: pausar el cobro durante una disputa abierta.** BIL-02 recomienda `pause_collection` mientras la disputa está abierta. **No está implementado a propósito**: es una decisión comercial (¿se le sigue cobrando a quien disputa?) y una suscripción con el cobro pausado no se reanuda sola, alguien tiene que acordarse de reanudarla al cerrar la disputa. Hoy, durante la disputa la clínica sigue cobrándose normalmente; si la disputa se pierde, la suscripción se cancela. Si se decide pausar, es una llamada a `subscriptions.update(id, { pause_collection: { behavior: "void" } })` en `charge.dispute.created` y otra que la quite en `charge.dispute.closed` (cuando se gana).
+
+Permisos de la clave restringida (`rk_live_...`): además de los de arriba, este flujo lee **Charges** y **Invoices** (InvoicePayments) y escribe **Subscriptions** (cancelar). Si falta la lectura de InvoicePayments, el webhook cae a la suscripción de la fila y lo reporta a Sentry.
 
 ## 5. Verificar
 

@@ -23,7 +23,11 @@ import {
  * Manejados en el código desde el 19-oct-2026 pero HAY QUE HABILITARLOS en
  * el endpoint de Stripe (si no, no llegan):
  *   - customer.subscription.trial_will_end (correo a la clínica 3 días antes)
- *   - charge.dispute.closed (quita la marca de revisión de la disputa)
+ *   - charge.dispute.closed (quita la marca de revisión de la disputa y, si
+ *     se perdió, cancela la suscripción en Stripe)
+ *
+ * `charge.refunded` total cancela la suscripción en Stripe (no solo en la
+ * base) desde el 19-oct-2026.
  *
  * La lógica vive en `src/lib/stripe-webhook.server.ts` (testeable con
  * dependencias falsas): rechazo de eventos de otro modo (live/test),

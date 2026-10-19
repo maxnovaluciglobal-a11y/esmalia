@@ -11,7 +11,7 @@ export const pagina: PaginaContenido = {
   resumen:
     "Doctocliq parte más barato y tiene plan gratis: US$19, US$29 o US$49 al mes, con recordatorios automáticos y, según su web, factura electrónica como complemento en Perú, México, Ecuador y Colombia. Esmalia cuesta US$29 para un profesional y US$69 para hasta tres, funciona sin internet y deja que tu equipo revise cada WhatsApp. No factura.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales; si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
+            "Esmalia es nuestro producto. Relevamos los datos de Doctocliq el 11-oct-2026 en sus webs oficiales; los de Esmalia están al 19-oct-2026. Si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
         },
         {
           tipo: "p",
@@ -85,7 +85,11 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["", "Doctocliq", "Esmalia"],
           filas: [
-            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado, con periodontograma"],
+            [
+              "Odontograma",
+              "Sí, con periodontograma",
+              "Sí, FDI versionado, con estado (existente o por realizar) y periodontograma",
+            ],
             [
               "WhatsApp",
               "Recordatorios automáticos con cupo mensual (gratis en planes semestrales y anuales); su inicio menciona también correo y SMS",
@@ -147,6 +151,7 @@ export const pagina: PaginaContenido = {
             "**Se te corta internet.** Esmalia sigue funcionando: agenda, fichas, cobros y odontograma se guardan en el equipo y se sincronizan solos. Doctocliq dice en su FAQ que requiere conexión a internet. Ver [sin internet](/funciones/sin-internet).",
             "**Prefieres revisar antes de que un mensaje salga.** En Esmalia ningún WhatsApp a pacientes sale solo, y no hay cupo de recordatorios por plan. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Quieres IA para la parte clínica.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior para la próxima consulta. No firma notas ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
+            "**Quieres poder llevarte todo cuando quieras.** Desde Ajustes descargas un ZIP con pacientes, citas, notas con todas sus versiones, odontograma con historial, presupuestos, pagos y consentimientos, más los archivos del paciente.",
             "**Quieres probar más tiempo.** Son 14 días sin tarjeta, y si después no te suscribes, la agenda, los pacientes y la ficha siguen abiertos.",
           ],
         },

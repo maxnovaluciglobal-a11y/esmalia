@@ -80,6 +80,7 @@ type FooterLink =
         | "/terminos"
         | "/privacidad"
         | "/dpa"
+        | "/estado"
         | "/calculadora-rentabilidad-dental"
         | "/recursos/fugas-clinica-dental"
         | "/software-dental-latam"
@@ -137,6 +138,7 @@ const footerColumns: { t: string; links: FooterLink[] }[] = [
     t: "Empresa",
     links: [
       { label: "Quiénes somos", kind: "route", to: "/nosotros" },
+      { label: "Estado del servicio", kind: "route", to: "/estado" },
       { label: "Contacto", kind: "external", href: `mailto:${EMAIL_CONTACTO}` },
       // Solo aparece con `VITE_SALES_WHATSAPP` cargado: sin número, "Contacto"
       // ya cubre el email y un link "WhatsApp" que abre el correo engaña.
