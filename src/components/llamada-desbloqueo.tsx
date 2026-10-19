@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Calendar, Lock, Sparkles } from "lucide-react";
 
-import { MINUTOS_PUESTA_EN_MARCHA, urlPuestaEnMarcha } from "@/lib/marketing/calendly";
+import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
 
 /**
  * Gate de features avanzadas desde el día 1 del trial.
@@ -30,13 +30,13 @@ export function LlamadaDesbloqueo({
   feature: string;
   /** Una frase explicando qué hace la feature y por qué vale la pena la llamada. */
   descripcion: string;
-  /** Nombre de la clínica (para prefill de Calendly). */
+  /** Nombre de la clínica (para prefill del enlace). */
   clinicName?: string | null;
-  /** Email del usuario (para prefill de Calendly). */
+  /** Email del usuario (para prefill del enlace). */
   clinicEmail?: string | null;
   variante?: "pagina" | "inline";
 }) {
-  const calendlyUrl = urlPuestaEnMarcha({ clinicName, clinicEmail });
+  const calendlyUrl = enlacePuestaEnMarcha({ clinicName, clinicEmail }).href;
 
   if (variante === "inline") {
     return (
