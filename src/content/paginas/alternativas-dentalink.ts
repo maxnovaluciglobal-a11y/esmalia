@@ -11,7 +11,7 @@ export const pagina: PaginaContenido = {
   resumen:
     "Las alternativas a Dentalink más directas en Chile son Dentidesk, si necesitas boletas integradas con el SII; Doctocliq, si quieres precio publicado y plan gratis; AgendaPro, si atiendes varios rubros; y Esmalia, si buscas precio publicado, 14 días sin tarjeta, trabajo sin internet y WhatsApp revisado por tu equipo.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales; si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
+            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales y revisamos de nuevo Clinera, Dentidesk y Esmalia el 19-oct-2026. Si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
         },
         {
           tipo: "p",
@@ -102,17 +102,17 @@ export const pagina: PaginaContenido = {
               "No publica",
               "Sí, integrada con el SII",
               "15 días",
-              "Software dental con boletas y facturas propias",
+              "Software dental con boletas y facturas propias. Ver [Esmalia vs Dentidesk](/comparar/esmalia-vs-dentidesk)",
             ],
             [
               "Clinera",
-              "Desde US$223/mes en plan anual + US$450 de instalación",
-              "DTE con Open Factura anunciado como novedad en su web",
-              "No indica",
-              "Agentes de IA que agendan por WhatsApp y redes",
+              "US$279/mes (Vortex) o US$379/mes con marketing (Ecosistema), más USD 450 de implementación",
+              "Sí: DTE con Open Factura (SII)",
+              "No indica; se contrata por videollamada",
+              "Agente de IA que responde y agenda por WhatsApp y redes; odontograma FDI",
             ],
           ],
-          nota: "Datos de las webs oficiales al 11-oct-2026. La tabla completa con 8 productos está en [mejores software dentales en Chile](/comparar/mejores-software-dental-chile).",
+          nota: "Datos de las webs oficiales al 11-oct-2026; Clinera, Dentidesk y Esmalia, al 19-oct-2026. La tabla completa con 8 productos está en [mejores software dentales en Chile](/comparar/mejores-software-dental-chile).",
         },
       ],
     },
@@ -164,6 +164,7 @@ export const pagina: PaginaContenido = {
             "Crea tu clínica en Esmalia y usa el importador por CSV.",
             "Corre los dos sistemas en paralelo una o dos semanas, hasta que la agenda nueva esté al día.",
             "Si tienes varias sedes, el plan Red incluye migración acompañada. Escribe a ventas@esmalia.com.",
+            "Y si un día te vas de Esmalia, descargas todo desde Ajustes en un ZIP con planillas CSV y los archivos del paciente.",
           ],
         },
         {
@@ -185,7 +186,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Hay una alternativa a Dentalink que emita boleta electrónica?",
-      a: "Sí. Según sus webs, Dentidesk emite boletas y facturas integradas con el SII y AgendaPro factura en su plan Pro o como complemento. Esmalia no emite boleta ni factura.",
+      a: "Sí. Según sus webs, Dentidesk emite boletas y facturas integradas con el SII, Clinera emite DTE con Open Factura y AgendaPro factura en su plan Pro o como complemento. Esmalia no emite boleta ni factura.",
     },
     {
       q: "¿Puedo pasar mis pacientes de Dentalink a Esmalia?",
@@ -221,6 +222,10 @@ export const pagina: PaginaContenido = {
     { titulo: "Dentidesk: inicio", url: "https://www.dentidesk.com" },
     { titulo: "Clinera: planes", url: "https://clinera.io/planes" },
     { titulo: "Clinera: inicio", url: "https://clinera.io" },
+    {
+      titulo: "Clinera: emite DTE con Open Factura",
+      url: "https://clinera.io/blog/clinera-emite-dte-open-factura",
+    },
   ],
   relacionados: [
     "/comparar/esmalia-vs-dentalink",
