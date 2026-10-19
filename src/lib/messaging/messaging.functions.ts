@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
+import { resolverDestinatario } from "@/lib/patients/destinatario.server";
 import {
   MESSAGE_CHANNELS,
   MESSAGE_TEMPLATE_KINDS,
@@ -197,17 +198,28 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
       const [{ data: patient, error: patientErr }, { data: clinic }] = await Promise.all([
         supabase
           .from("patients")
-          .select("full_name, phone")
+          .select("full_name, phone, birth_date")
           .eq("clinic_id", data.clinicId)
           .eq("id", data.patientId)
           .maybeSingle(),
-        supabase.from("clinics").select("country").eq("id", data.clinicId).maybeSingle(),
+        supabase.from("clinics").select("country, timezone").eq("id", data.clinicId).maybeSingle(),
       ]);
       if (patientErr)
         throw new Error(mensajeDb(patientErr, "No pudimos obtener los datos del paciente."));
       if (!patient) throw new Error("Paciente no encontrado.");
 
-      const recipient = (data.recipientOverride ?? patient.phone ?? "").trim();
+      // Paciente menor con tutor vigente: el mensaje va al tutor (CLI-11).
+      const destinatario = data.recipientOverride
+        ? null
+        : await resolverDestinatario(supabase, {
+            clinicId: data.clinicId,
+            patientId: data.patientId,
+            fechaNacimiento: patient.birth_date,
+            telefono: patient.phone,
+            email: null,
+            timezone: clinic?.timezone ?? null,
+          });
+      const recipient = (data.recipientOverride ?? destinatario?.telefono ?? "").trim();
       if (!recipient) {
         throw new Error("El paciente no tiene teléfono cargado y no se pasó otro destino.");
       }
@@ -342,11 +354,11 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
         await Promise.all([
           supabase
             .from("patients")
-            .select("full_name, email")
+            .select("full_name, email, birth_date")
             .eq("clinic_id", data.clinicId)
             .eq("id", data.patientId)
             .maybeSingle(),
-          supabase.from("clinics").select("name").eq("id", data.clinicId).maybeSingle(),
+          supabase.from("clinics").select("name, timezone").eq("id", data.clinicId).maybeSingle(),
         ]);
       if (patientErr)
         throw new Error(mensajeDb(patientErr, "No pudimos obtener los datos del paciente."));
@@ -354,7 +366,16 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
         throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
       if (!patient) throw new Error("Paciente no encontrado.");
 
-      const recipient = (patient.email ?? "").trim();
+      // Paciente menor con tutor vigente: el correo va al tutor (CLI-11).
+      const destinatario = await resolverDestinatario(supabase, {
+        clinicId: data.clinicId,
+        patientId: data.patientId,
+        fechaNacimiento: patient.birth_date,
+        telefono: null,
+        email: patient.email,
+        timezone: clinic?.timezone ?? null,
+      });
+      const recipient = (destinatario.email ?? "").trim();
       if (!recipient) {
         throw new Error("El paciente no tiene email cargado.");
       }

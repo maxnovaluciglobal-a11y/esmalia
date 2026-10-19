@@ -53,6 +53,8 @@ export interface Paciente {
   nombre: string;
   documento: string;
   edad: number;
+  /** YYYY-MM-DD, o null si no se cargó. `edad` es 0 en ese caso: para saber si es menor, usar esta. */
+  fechaNacimiento?: string | null;
   telefono: string;
   /** true/false si Numverify confirmó (o no) la forma del número; null/undefined = nunca se validó (datos de demo no lo traen). */
   telefonoValido?: boolean | null;

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { mensajeDb } from "@/lib/db-errors";
+import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -216,9 +216,26 @@ export type PatientConsent = {
   titleSnapshot: string;
   bodySnapshot: string;
   signedByName: string;
+  /** "tutor" si firmó el tutor o representante legal; null en firmas anteriores al dato. */
+  signerRole: "paciente" | "tutor" | null;
+  signerDocument: string | null;
+  signerRelationship: string | null;
   signedAt: string;
   revokedAt: string | null;
   signatureUrl: string | null;
+};
+
+type FilaConsentimiento = {
+  id: string;
+  title_snapshot: string;
+  body_snapshot: string;
+  signature_storage_path: string;
+  signed_by_name: string;
+  signed_at: string;
+  revoked_at: string | null;
+  signer_role?: string | null;
+  signer_document_snapshot?: string | null;
+  signer_relationship_snapshot?: string | null;
 };
 
 export const listPatientConsents = createServerFn({ method: "GET" })
@@ -227,19 +244,26 @@ export const listPatientConsents = createServerFn({ method: "GET" })
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<PatientConsent[]> => {
-    const { data: rows, error } = await context.supabase
-      .from("patient_consents")
-      .select(
-        "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at",
-      )
-      .eq("clinic_id", data.clinicId)
-      .eq("patient_id", data.patientId)
-      .order("signed_at", { ascending: false });
+    const columnas =
+      "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at";
+    const consulta = (cols: string) =>
+      context.supabase
+        .from("patient_consents")
+        .select(cols)
+        .eq("clinic_id", data.clinicId)
+        .eq("patient_id", data.patientId)
+        .order("signed_at", { ascending: false });
+    // Columnas del firmante (migración 20261019180000); sin ella, se listan
+    // igual sin ese dato.
+    let { data: rows, error } = await consulta(
+      `${columnas}, signer_role, signer_document_snapshot, signer_relationship_snapshot`,
+    );
+    if (error && isUndefinedColumnError(error)) ({ data: rows, error } = await consulta(columnas));
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar los consentimientos del paciente."));
 
     const consents: PatientConsent[] = [];
-    for (const row of rows ?? []) {
+    for (const row of (rows ?? []) as unknown as FilaConsentimiento[]) {
       const { data: signed } = await context.supabase.storage
         .from(BUCKET)
         .createSignedUrl(row.signature_storage_path, SIGNED_URL_TTL_SECONDS);
@@ -248,6 +272,10 @@ export const listPatientConsents = createServerFn({ method: "GET" })
         titleSnapshot: row.title_snapshot,
         bodySnapshot: row.body_snapshot,
         signedByName: row.signed_by_name,
+        signerRole:
+          row.signer_role === "paciente" || row.signer_role === "tutor" ? row.signer_role : null,
+        signerDocument: row.signer_document_snapshot ?? null,
+        signerRelationship: row.signer_relationship_snapshot ?? null,
         signedAt: row.signed_at,
         revokedAt: row.revoked_at,
         signatureUrl: signed?.signedUrl ?? null,
@@ -267,6 +295,11 @@ export const signPatientConsent = createServerFn({ method: "POST" })
         titleSnapshot: z.string().trim().min(2).max(120),
         bodySnapshot: z.string().trim().min(10).max(8000),
         signedByName: z.string().trim().min(2).max(120),
+        // Tutor o representante legal que firma (CLI-11). Obligatorio si el
+        // paciente es menor: lo exige el trigger `stamp_patient_consent_signer`,
+        // que además copia el nombre, documento y parentesco del tutor al
+        // registro (lo que mande el cliente en `signedByName` se pisa).
+        guardianId: z.string().uuid().optional(),
         // PNG del canvas de firma, data URL. Opcional a propósito: el canvas
         // es un widget de puntero puro (no hay forma significativa de
         // "dibujar" por teclado), así que un paciente/staff que usa teclado o
@@ -307,11 +340,18 @@ export const signPatientConsent = createServerFn({ method: "POST" })
       body_snapshot: data.bodySnapshot,
       signature_storage_path: path,
       signed_by_name: data.signedByName,
+      ...(data.guardianId ? { guardian_id: data.guardianId } : {}),
       recorded_by: context.userId,
     });
     if (insertError) {
       await context.supabase.storage.from(BUCKET).remove([path]);
-      throw new Error("No tienes permisos para registrar consentimientos firmados.");
+      // El trigger del firmante responde en español ("El paciente es menor
+      // de edad…", "El tutor elegido no corresponde…"): ese sí se muestra.
+      throw new Error(
+        insertError.code === "23514" && /menor de edad|tutor/i.test(insertError.message)
+          ? insertError.message
+          : "No tienes permisos para registrar consentimientos firmados.",
+      );
     }
     return { ok: true };
   });

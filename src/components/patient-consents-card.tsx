@@ -1,7 +1,7 @@
 import { useId, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { FileSignature, Loader2, ShieldCheck, ShieldX } from "lucide-react";
+import { AlertTriangle, FileSignature, Loader2, ShieldCheck, ShieldX } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ import {
   signPatientConsent,
 } from "@/lib/clinical/clinical-documents.functions";
 import { SignaturePad } from "@/components/signature-pad";
+import { useGuardians } from "@/hooks/use-guardians";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { esMenorDeEdad, parentescoLegible, tutoresVigentes } from "@/lib/patients/tutor";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -51,12 +54,17 @@ export function PatientConsentsCard({
   clinicId,
   patientId,
   patientName,
+  fechaNacimiento,
+  timezone,
   puedeEditar,
   puedeGestionar,
 }: {
   clinicId: string;
   patientId: string;
   patientName: string;
+  /** YYYY-MM-DD. Un menor firma por medio de su tutor (CLI-11). */
+  fechaNacimiento?: string | null;
+  timezone?: string;
   puedeEditar: boolean;
   puedeGestionar: boolean;
 }) {
@@ -72,6 +80,8 @@ export function PatientConsentsCard({
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [signedByName, setSignedByName] = useState(patientName);
+  // "" = firma el paciente; si no, el id del tutor que firma por él.
+  const [firmanteId, setFirmanteId] = useState<string>("");
   const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
   // El canvas de firma es un widget de puntero puro — no hay forma
   // significativa de "dibujar" por teclado. Sin esta alternativa, un
@@ -83,6 +93,30 @@ export function PatientConsentsCard({
   // tipeado es la evidencia.
   const [firmaElectronica, setFirmaElectronica] = useState(false);
   const [confirmRevokeId, setConfirmRevokeId] = useState<string | null>(null);
+
+  const guardiansQuery = useGuardians(clinicId, patientId);
+  const tutores = tutoresVigentes(guardiansQuery.data?.items ?? []);
+  const tutoresDisponibles = guardiansQuery.data?.disponible ?? false;
+  // La base exige el tutor para un menor (trigger stamp_patient_consent_signer);
+  // esto solo lo avisa antes de que el paciente firme.
+  const esMenor = esMenorDeEdad(fechaNacimiento, hoyISO(timezone)) === true;
+  const tutorFirmante = tutores.find((t) => t.id === firmanteId) ?? null;
+  const faltaTutor = esMenor && !tutorFirmante;
+
+  function abrirDialogo(next: boolean) {
+    setOpen(next);
+    if (!next) return;
+    // Un menor firma por su tutor principal; un adulto, por sí mismo.
+    const sugerido = esMenor ? (tutores[0] ?? null) : null;
+    setFirmanteId(sugerido?.id ?? "");
+    setSignedByName(sugerido?.fullName ?? patientName);
+  }
+
+  function elegirFirmante(id: string) {
+    setFirmanteId(id);
+    const tutor = tutores.find((t) => t.id === id);
+    setSignedByName(tutor?.fullName ?? patientName);
+  }
 
   const templatesQuery = useQuery({
     queryKey: ["consent-templates", clinicId],
@@ -106,6 +140,7 @@ export function PatientConsentsCard({
           titleSnapshot: title,
           bodySnapshot: body,
           signedByName,
+          guardianId: tutorFirmante?.id,
           signatureDataUrl: firmaElectronica ? undefined : (signatureDataUrl ?? undefined),
         },
       }),
@@ -154,7 +189,7 @@ export function PatientConsentsCard({
           </p>
         </div>
         {puedeEditar && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={abrirDialogo}>
             <DialogTrigger asChild>
               <Button size="sm" variant="outline">
                 <FileSignature className="size-3.5" /> Nuevo consentimiento
@@ -210,12 +245,50 @@ export function PatientConsentsCard({
                     placeholder="Explica el procedimiento, riesgos y alternativas…"
                   />
                 </div>
+                {tutoresDisponibles && (esMenor || tutores.length > 0) && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-quien`}>Quién firma</Label>
+                    <select
+                      id={`${fid}-quien`}
+                      value={firmanteId}
+                      onChange={(e) => elegirFirmante(e.target.value)}
+                      className={inputClass()}
+                    >
+                      {esMenor ? (
+                        <option value="" disabled>
+                          Elige al tutor o representante
+                        </option>
+                      ) : (
+                        <option value="">El paciente ({patientName})</option>
+                      )}
+                      {tutores.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.fullName} · {parentescoLegible(t)}
+                        </option>
+                      ))}
+                    </select>
+                    {tutorFirmante && (
+                      <p className="text-xs text-muted-foreground">
+                        Firma en representación de {patientName}. Doc. {tutorFirmante.documentId}.
+                      </p>
+                    )}
+                  </div>
+                )}
+                {faltaTutor && (
+                  <p className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">
+                    <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+                    {tutores.length === 0
+                      ? "El paciente es menor de edad. Registra a su tutor en la ficha (pestaña Resumen) antes de firmar."
+                      : "El paciente es menor de edad: firma su tutor o representante legal."}
+                  </p>
+                )}
                 <div className="space-y-1.5">
                   <Label htmlFor={`${fid}-firmante`}>Firma a nombre de</Label>
                   <input
                     id={`${fid}-firmante`}
                     value={signedByName}
                     onChange={(e) => setSignedByName(e.target.value)}
+                    readOnly={Boolean(tutorFirmante)}
                     className={inputClass()}
                   />
                 </div>
@@ -240,6 +313,7 @@ export function PatientConsentsCard({
                   onClick={() => signMutation.mutate()}
                   disabled={
                     signMutation.isPending ||
+                    faltaTutor ||
                     !title.trim() ||
                     body.trim().length < 10 ||
                     !signedByName.trim() ||
@@ -284,7 +358,12 @@ export function PatientConsentsCard({
                     {c.titleSnapshot}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Firmado por {c.signedByName} · {formatFechaHora(c.signedAt)}
+                    Firmado por {c.signedByName}
+                    {c.signerRole === "tutor" &&
+                      ` (${[c.signerRelationship, c.signerDocument && `Doc. ${c.signerDocument}`]
+                        .filter(Boolean)
+                        .join(", ")}) en representación del paciente`}{" "}
+                    · {formatFechaHora(c.signedAt)}
                     {c.revokedAt && ` · Revocado ${formatFechaHora(c.revokedAt)}`}
                   </p>
                 </div>
