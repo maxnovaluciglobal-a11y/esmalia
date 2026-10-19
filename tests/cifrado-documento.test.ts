@@ -133,7 +133,9 @@ describe("migración de cifrado", () => {
     // 20260901120000 y 20261014000000 lo volvieron a sacar y la función dejó
     // de poder cifrar. Ninguna redefinición futura puede repetirlo.
     const { archivo, cuerpo } = ultimaDefinicion("set_patient_document_id");
-    expect(archivo).toBe("20261019160100_cifrado_documento_backfill.sql");
+    // 20261019230000 (RLS aal2) la redefine para agregarle el guard de MFA,
+    // copiando esta misma definición: vale cualquier redefinición posterior.
+    expect(archivo >= "20261019160100_cifrado_documento_backfill.sql").toBe(true);
     expect(cuerpo).toMatch(/SET search_path = [^\n]*\bextensions\b/);
   });
 
