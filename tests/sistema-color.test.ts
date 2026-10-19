@@ -25,6 +25,45 @@ function archivos(dir: string): string[] {
   });
 }
 
+// Cobalto A+ (plan del 19-oct-2026): es un color de DATOS (ocupación, línea
+// de "ahora", gráficos de caja). No es un color de estado y nunca entra al
+// odontograma, donde el azul clínico (#1f5fbf) significa "existente" y un
+// cobalto al lado se confundiría con él.
+const USO_COBALTO =
+  /\b(?:bg|text|border|ring|fill|stroke|from|to|via|outline|decoration|shadow|accent|caret|divide)-cobalt(?:-[a-z-]+)?\b|--(?:color-)?cobalt\b|#(?:2e4bff|2238d6|e4e8ff|8e9dff|a9b4ff|1e2450)\b/i;
+
+// Dónde se puede usar el cobalto (rutas relativas a src/).
+const COBALTO_PERMITIDO: RegExp[] = [
+  /^styles\.css$/, // donde se definen los tokens
+  /(?:^|\/)agenda-[^/]+\.tsx?$/,
+  /(?:^|\/)kpis-en-filete\.tsx$/,
+  /(?:^|\/)cajas\.tsx$/,
+  /(?:^|\/)finance-reports[^/]*\.tsx?$/,
+  /^components\/marketing\//,
+];
+
+// Todo lo que pinta dientes. Ninguno puede mencionar el cobalto.
+const ODONTOGRAMA = [
+  "components/odontogram.tsx",
+  "components/diente-anatomico.tsx",
+  "components/odontograma-hallazgos.ts",
+  "components/periodontal-chart.tsx",
+  "lib/clinical/odontograma-reglas.ts",
+];
+
+function usosDeCobaltoFueraDeLugar(raiz: string, rutas: string[]): string[] {
+  return rutas.flatMap((ruta) => {
+    const relativa = path.relative(raiz, ruta).split(path.sep).join("/");
+    if (COBALTO_PERMITIDO.some((re) => re.test(relativa))) return [];
+    return readFileSync(ruta, "utf8")
+      .split("\n")
+      .flatMap((linea, i) => {
+        const m = linea.match(USO_COBALTO);
+        return m ? [`${relativa}:${i + 1} ${m[0]}`] : [];
+      });
+  });
+}
+
 describe("sistema de color", () => {
   it("no usa clases de la paleta de Tailwind fuera de los tokens", () => {
     const raiz = path.resolve(__dirname, "../src");
@@ -37,6 +76,41 @@ describe("sistema de color", () => {
         }),
     );
     expect(hallazgos).toEqual([]);
+  });
+
+  it("el cobalto se usa solo para datos (lista blanca de archivos)", () => {
+    const raiz = path.resolve(__dirname, "../src");
+    expect(usosDeCobaltoFueraDeLugar(raiz, archivos(raiz))).toEqual([]);
+  });
+
+  it("la guardia del cobalto atrapa un uso fuera de la lista blanca", () => {
+    // Prueba de la propia regex: si alguien la afloja, esto falla.
+    for (const linea of [
+      'className="text-cobalt"',
+      'className="bg-cobalt-soft"',
+      "stroke: var(--cobalt);",
+      'fill="#2E4BFF"',
+      "color: var(--color-cobalt-ink);",
+    ]) {
+      expect(linea).toMatch(USO_COBALTO);
+    }
+    expect('className="text-info"').not.toMatch(USO_COBALTO);
+  });
+
+  it("el odontograma nunca usa cobalto", () => {
+    const raiz = path.resolve(__dirname, "../src");
+    for (const relativa of ODONTOGRAMA) {
+      const fuente = readFileSync(path.join(raiz, relativa), "utf8");
+      expect(fuente, relativa).not.toMatch(/cobalt/i);
+      expect(fuente, relativa).not.toMatch(USO_COBALTO);
+    }
+    // Ninguna lista blanca puede cubrir un archivo del odontograma.
+    for (const relativa of ODONTOGRAMA) {
+      expect(
+        COBALTO_PERMITIDO.some((re) => re.test(relativa)),
+        relativa,
+      ).toBe(false);
+    }
   });
 
   it("cada estado de cita tiene un tono distinto", () => {

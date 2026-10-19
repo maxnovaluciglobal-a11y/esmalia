@@ -157,6 +157,35 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* A+ (19-oct-2026). Aditivos: nada los usa todavía. */
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-night-3: var(--night-3);
+  --color-night-line: var(--night-line);
+  --color-on-night: var(--on-night);
+  --color-on-night-2: var(--on-night-2);
+  --color-brand-on-night: var(--brand-on-night);
+  /* Cobalto: SOLO datos (ocupación, línea de "ahora", gráficos de caja).
+     Nunca en el odontograma ni como color de estado: lo vigila
+     tests/sistema-color.test.ts. */
+  --color-cobalt: var(--cobalt);
+  --color-cobalt-ink: var(--cobalt-ink);
+  --color-cobalt-soft: var(--cobalt-soft);
+  --color-cobalt-on-night: var(--cobalt-on-night);
+  --color-petrol: var(--petrol);
+  --color-petrol-foreground: var(--petrol-foreground);
+
+  /* Paneles grandes de marketing. La app sigue en 4/7 px. */
+  --radius-panel: 14px;
+}
+
+/* Curvas de movimiento A+. Van en @theme (no inline) para que `ease-out`
+   y `ease-io` existan como utilidades con la curva de la marca. Hoy
+   ningún componente usa `ease-out`, así que no cambia nada visible. */
+@theme {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 :root {
@@ -266,6 +295,38 @@
   --sidebar-accent-foreground: #5a3b0a;
   --sidebar-border: color-mix(in srgb, #201f1d 12%, transparent);
   --sidebar-ring: #b68235;
+
+  /* ---- A+ (19-oct-2026): tokens aditivos ---- */
+  /* Tinta para secciones oscuras de la landing y el sidebar en tinta. */
+  --night: #15120f;
+  --night-2: #1f1b17;
+  --night-3: #2a2520;
+  --night-line: rgb(241 236 228 / 0.13);
+  /* Texto sobre night: 15,9:1 y 7,7:1 (6,2:1 sobre night-3). */
+  --on-night: #f1ece4;
+  --on-night-2: #ada59a;
+  /* Ocre sobre tinta (9,2:1). Mismo valor que brand-400, como alias semántico. */
+  --brand-on-night: #e1ad66;
+  /* Cobalto, solo datos. Relleno 5,3:1 sobre papel; cobalt-ink 7,2:1 para
+     etiquetas chicas; cobalt-on-night 7,5:1 sobre night. */
+  --cobalt: #2e4bff;
+  --cobalt-ink: #2238d6;
+  --cobalt-soft: #e4e8ff;
+  --cobalt-on-night: #8e9dff;
+  /* Petróleo: fondo de una cifra de la landing y color de un profesional.
+     6,7:1 sobre papel; on-night sobre petróleo 6,4:1. */
+  --petrol: #0f5e63;
+  --petrol-foreground: #f1ece4;
+
+  /* Densidad tranquila: filas de tabla, ítems del sidebar, bloques de agenda. */
+  --row-h: 44px;
+  --row-h-compact: 36px;
+  --gap-section: var(--space-7);
+
+  /* Duraciones de movimiento (las curvas viven en @theme: --ease-out, --ease-io). */
+  --dur-1: 160ms;
+  --dur-2: 280ms;
+  --dur-3: 600ms;
 }
 
 /* Modo oscuro: la misma rampa leída sobre tinta. El acento sube a los
@@ -349,6 +410,24 @@
   --sidebar-accent-foreground: #ffe3bf;
   --sidebar-border: color-mix(in srgb, #ece9e4 12%, transparent);
   --sidebar-ring: #e1ad66;
+
+  /* ---- A+ (19-oct-2026) ---- */
+  /* La tinta se hunde un paso para seguir separándose del fondo oscuro. */
+  --night: #0e0c0a;
+  --night-2: #171411;
+  --night-3: #221e1a;
+  --night-line: rgb(241 236 228 / 0.13);
+  --on-night: #f1ece4;
+  --on-night-2: #ada59a;
+  --brand-on-night: #e1ad66;
+  /* Invertido: cobalto claro sobre tarjeta oscura (6,4:1 sobre #232120). */
+  --cobalt: #8e9dff;
+  --cobalt-ink: #a9b4ff;
+  --cobalt-soft: #1e2450;
+  --cobalt-on-night: #8e9dff;
+  /* 6,6:1 sobre la tarjeta; tinta sobre petróleo 7,0:1. */
+  --petrol: #5fb3b8;
+  --petrol-foreground: #1d1c1b;
 }
 
 @layer base {
@@ -460,7 +539,7 @@
 }
 
 @utility animate-landing-rise {
-  animation: landing-rise 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: landing-rise 0.7s var(--ease-out) both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
