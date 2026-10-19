@@ -4798,7 +4798,8 @@ export type Database = {
         | "birthday_greeting"
         | "treatment_followup"
         | "referral_invite"
-        | "commission_settled";
+        | "commission_settled"
+        | "appointment_rescheduled";
       patient_document_kind: "image" | "radiograph" | "other";
       patient_status: "active" | "new" | "inactive";
       payment_method: "cash" | "debit_card" | "credit_card" | "transfer" | "other";
@@ -4995,6 +4996,7 @@ export const Constants = {
         "treatment_followup",
         "referral_invite",
         "commission_settled",
+        "appointment_rescheduled",
       ],
       patient_document_kind: ["image", "radiograph", "other"],
       patient_status: ["active", "new", "inactive"],

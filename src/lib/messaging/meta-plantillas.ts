@@ -44,6 +44,13 @@ export const PLANTILLAS_META: Record<KindConPlantillaMeta, PlantillaMeta> = {
       "Hola {{1}}, hoy es tu cita de {{2}} a las {{3}} en {{4}}. Te esperamos. Si no puedes venir, avísanos respondiendo este mensaje.",
     ejemplos: ["Valentina", "control de ortodoncia", "16:00", "Clínica Sonrisa"],
   },
+  appointment_rescheduled: {
+    nombre: "esmalia_cita_reprogramada_v1",
+    categoria: "UTILITY",
+    cuerpo:
+      "Hola {{1}}, tu cita en {{2}} cambió al {{3}} a las {{4}} con {{5}}. Si no te sirve, responde a este mensaje",
+    ejemplos: ["Valentina", "Clínica Sonrisa", "jueves 16 de octubre", "11:00", "Dra. Rojas"],
+  },
   hygiene_recall: {
     nombre: "esmalia_control_periodico_v1",
     categoria: "MARKETING",
