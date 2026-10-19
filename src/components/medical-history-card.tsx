@@ -5,12 +5,23 @@ import { AlertTriangle, Loader2, Plus, Save, X } from "lucide-react";
 import { toast } from "sonner";
 
 import {
+  PREGUNTAS_RIESGO,
+  SEVERIDADES_ALERGIA,
+  etiquetaSeveridad,
+  preguntasRespondidas,
+  type AlergiaDetallada,
+  type ClavePregunta,
+  type CuestionarioRiesgo,
+  type SeveridadAlergia,
+} from "@/lib/clinical/anamnesis";
+import {
   getMedicalHistory,
   setMedicalHistory,
   type AnamnesisDeFichaFusionada,
 } from "@/lib/clinical/medical-history.functions";
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { cn } from "@/lib/utils";
 
 function ChipListEditor({
   label,
@@ -103,6 +114,235 @@ function ChipListEditor({
   );
 }
 
+const tonoSeveridad: Record<SeveridadAlergia, string> = {
+  severe: "bg-destructive text-destructive-foreground",
+  moderate: "bg-destructive/15 text-destructive",
+  mild: "bg-destructive/10 text-destructive",
+  unknown: "bg-destructive/10 text-destructive",
+};
+
+/** Alergias con severidad y reacción (CLI-10). */
+function AllergyEditor({
+  items,
+  onChange,
+  disabled,
+}: {
+  items: AlergiaDetallada[];
+  onChange: (next: AlergiaDetallada[]) => void;
+  disabled: boolean;
+}) {
+  const [nombre, setNombre] = useState("");
+  const [severidad, setSeveridad] = useState<SeveridadAlergia>("unknown");
+  const [reaccion, setReaccion] = useState("");
+  const inputId = useId();
+
+  function agregar() {
+    const name = nombre.trim();
+    if (!name) return;
+    const igual = (a: AlergiaDetallada) =>
+      a.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es");
+    const nueva: AlergiaDetallada = {
+      name,
+      severity: severidad,
+      ...(reaccion.trim() ? { reaction: reaccion.trim() } : {}),
+    };
+    // Repetir un nombre actualiza su severidad en vez de duplicarlo.
+    onChange(items.some(igual) ? items.map((a) => (igual(a) ? nueva : a)) : [...items, nueva]);
+    setNombre("");
+    setReaccion("");
+    setSeveridad("unknown");
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {disabled ? (
+        <p className="text-xs font-medium text-muted-foreground">Alergias</p>
+      ) : (
+        <label htmlFor={inputId} className="block text-xs font-medium text-muted-foreground">
+          Alergias
+        </label>
+      )}
+      <div className="flex flex-wrap gap-1.5">
+        {items.length === 0 && (
+          <span className="text-xs text-muted-foreground">Sin registrar.</span>
+        )}
+        {items.map((a) => (
+          <span
+            key={a.name}
+            className={cn(
+              "flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium",
+              tonoSeveridad[a.severity],
+            )}
+            title={a.reaction ? `Reacción: ${a.reaction}` : undefined}
+          >
+            {a.name}
+            <span className="opacity-80">· {etiquetaSeveridad[a.severity].toLowerCase()}</span>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={() => onChange(items.filter((i) => i.name !== a.name))}
+                aria-label={`Quitar ${a.name}`}
+                className="opacity-70 hover:opacity-100"
+              >
+                <X aria-hidden className="size-3" />
+              </button>
+            )}
+          </span>
+        ))}
+      </div>
+      {!disabled && (
+        <div className="flex flex-wrap gap-2">
+          <input
+            id={inputId}
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                agregar();
+              }
+            }}
+            placeholder="Ej. Penicilina"
+            className="w-full max-w-[12rem] rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+          />
+          <select
+            aria-label="Severidad de la alergia"
+            value={severidad}
+            onChange={(e) => setSeveridad(e.target.value as SeveridadAlergia)}
+            className="rounded-lg border border-input bg-transparent px-2 py-1.5 text-xs pointer-coarse:text-base"
+          >
+            {SEVERIDADES_ALERGIA.map((s) => (
+              <option key={s} value={s}>
+                {etiquetaSeveridad[s]}
+              </option>
+            ))}
+          </select>
+          <input
+            aria-label="Reacción (opcional)"
+            value={reaccion}
+            onChange={(e) => setReaccion(e.target.value)}
+            placeholder="Reacción (opcional)"
+            className="w-full max-w-[12rem] rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+          />
+          <button
+            type="button"
+            onClick={agregar}
+            disabled={!nombre.trim()}
+            aria-label="Agregar alergia"
+            className="rounded-lg border border-hairline px-2.5 text-xs text-muted-foreground hover:bg-secondary disabled:opacity-40"
+          >
+            <Plus aria-hidden className="size-3.5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Cuestionario de riesgo: Sí / No / sin responder, con detalle cuando es Sí. */
+function RiskQuestionnaire({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: CuestionarioRiesgo;
+  onChange: (next: CuestionarioRiesgo) => void;
+  disabled: boolean;
+}) {
+  function responder(key: ClavePregunta, answer: "yes" | "no" | null) {
+    const next = { ...value };
+    if (answer === null) delete next[key];
+    else next[key] = { answer, detail: answer === "yes" ? value[key]?.detail : undefined };
+    onChange(next);
+  }
+
+  function detallar(key: ClavePregunta, detail: string) {
+    const actual = value[key];
+    if (!actual) return;
+    onChange({ ...value, [key]: { ...actual, detail } });
+  }
+
+  return (
+    <fieldset className="space-y-2">
+      <legend className="text-xs font-medium text-muted-foreground">
+        Cuestionario de riesgo · {preguntasRespondidas(value)} de {PREGUNTAS_RIESGO.length}{" "}
+        respondidas
+      </legend>
+      <ul className="divide-y divide-hairline rounded-lg border border-hairline">
+        {PREGUNTAS_RIESGO.map((p) => {
+          const r = value[p.key];
+          return (
+            <li key={p.key} className="space-y-1.5 px-3 py-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    "text-xs",
+                    r?.answer === "yes" && p.critica && "font-semibold text-destructive",
+                    r?.answer === "yes" && !p.critica && "font-semibold",
+                  )}
+                >
+                  {p.label}
+                  {p.critica && <span className="sr-only"> (riesgo crítico)</span>}
+                </span>
+                {disabled ? (
+                  <span className="text-xs text-muted-foreground">
+                    {r ? (r.answer === "yes" ? "Sí" : "No") : "Sin responder"}
+                  </span>
+                ) : (
+                  <div role="radiogroup" aria-label={p.label} className="flex gap-1">
+                    {(
+                      [
+                        ["yes", "Sí"],
+                        ["no", "No"],
+                      ] as const
+                    ).map(([answer, texto]) => (
+                      <button
+                        key={answer}
+                        type="button"
+                        role="radio"
+                        aria-checked={r?.answer === answer}
+                        onClick={() => responder(p.key, r?.answer === answer ? null : answer)}
+                        className={cn(
+                          "min-h-8 min-w-10 rounded-md border px-2 text-xs",
+                          r?.answer === answer
+                            ? answer === "yes"
+                              ? "border-destructive bg-destructive/10 font-medium text-destructive"
+                              : "border-brand bg-brand/12 font-medium text-brand-700"
+                            : "border-hairline text-muted-foreground hover:bg-secondary",
+                        )}
+                      >
+                        {texto}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              {r?.answer === "yes" &&
+                (disabled ? (
+                  r.detail && <p className="text-xs text-muted-foreground">{r.detail}</p>
+                ) : (
+                  <input
+                    aria-label={`Detalle: ${p.label}`}
+                    value={r.detail ?? ""}
+                    onChange={(e) => detallar(p.key, e.target.value)}
+                    placeholder={p.ayuda ?? "Detalle (opcional)"}
+                    maxLength={300}
+                    className="w-full rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+                  />
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+      {!disabled && (
+        <p className="text-[11px] text-muted-foreground">
+          Toca de nuevo una respuesta para dejarla sin responder.
+        </p>
+      )}
+    </fieldset>
+  );
+}
+
 export function MedicalHistoryCard({
   clinicId,
   patientId,
@@ -121,18 +361,21 @@ export function MedicalHistoryCard({
     queryFn: () => fetchFn({ data: { clinicId, patientId } }),
   });
 
-  const [allergies, setAllergies] = useState<string[]>([]);
+  const [allergies, setAllergies] = useState<AlergiaDetallada[]>([]);
   const [medications, setMedications] = useState<string[]>([]);
   const [conditions, setConditions] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
+  const [cuestionario, setCuestionario] = useState<CuestionarioRiesgo>({});
 
   useEffect(() => {
     if (!historyQuery.data) return;
-    setAllergies(historyQuery.data.allergies);
+    setAllergies(historyQuery.data.allergyDetails);
     setMedications(historyQuery.data.chronicMedications);
     setConditions(historyQuery.data.conditions);
     setNotes(historyQuery.data.notes ?? "");
+    setCuestionario(historyQuery.data.riskQuestionnaire);
   }, [historyQuery.data]);
+  const estructurada = historyQuery.data?.estructuradaDisponible ?? true;
 
   const saveFn = useServerFn(setMedicalHistory);
   const guardarOffline = useOfflineMutation<Record<string, unknown>>({
@@ -145,26 +388,36 @@ export function MedicalHistoryCard({
     // seguida reemplaza la pendiente anterior en vez de acumular dos
     // capturas para el mismo registro.
     identidad: () => patientId,
-    onExito: () => toast.success("Antecedentes médicos guardados."),
+    onExito: (resultado) => {
+      if ((resultado as { estructuradaPendiente?: boolean } | undefined)?.estructuradaPendiente) {
+        toast.warning(
+          "Guardamos las alergias por nombre. La severidad y el cuestionario todavía no están habilitados.",
+        );
+      } else {
+        toast.success("Antecedentes médicos guardados.");
+      }
+    },
   });
 
   function guardar() {
     guardarOffline.mutar({
       clinicId,
       patientId,
-      allergies,
+      allergies: allergies.map((a) => a.name),
       chronicMedications: medications,
       conditions,
       notes,
+      ...(estructurada ? { allergyDetails: allergies, riskQuestionnaire: cuestionario } : {}),
     });
   }
 
   const dirty =
     historyQuery.data &&
-    (JSON.stringify(allergies) !== JSON.stringify(historyQuery.data.allergies) ||
+    (JSON.stringify(allergies) !== JSON.stringify(historyQuery.data.allergyDetails) ||
       JSON.stringify(medications) !== JSON.stringify(historyQuery.data.chronicMedications) ||
       JSON.stringify(conditions) !== JSON.stringify(historyQuery.data.conditions) ||
-      notes !== (historyQuery.data.notes ?? ""));
+      notes !== (historyQuery.data.notes ?? "") ||
+      JSON.stringify(cuestionario) !== JSON.stringify(historyQuery.data.riskQuestionnaire));
 
   return (
     <section className="card-clinical p-6">
@@ -199,23 +452,25 @@ export function MedicalHistoryCard({
               ficha={f}
               puedeEditar={puedeEditar}
               onSumar={() => {
-                setAllergies((a) => unirSinRepetir(a, f.allergies));
+                setAllergies((a) => {
+                  const nombres = unirSinRepetir(
+                    a.map((x) => x.name),
+                    f.allergies,
+                  );
+                  return nombres.map(
+                    (name) =>
+                      a.find((x) => x.name === name) ?? { name, severity: "unknown" as const },
+                  );
+                });
                 setMedications((m) => unirSinRepetir(m, f.chronicMedications));
                 setConditions((c) => unirSinRepetir(c, f.conditions));
                 toast.info("Revisa los antecedentes sumados y guarda para dejarlos en esta ficha.");
               }}
             />
           ))}
+          <AllergyEditor items={allergies} onChange={setAllergies} disabled={!puedeEditar} />
           <ChipListEditor
-            label="Alergias"
-            placeholder="Ej. Penicilina"
-            items={allergies}
-            onChange={setAllergies}
-            disabled={!puedeEditar}
-            tone="destructive"
-          />
-          <ChipListEditor
-            label="Medicación crónica"
+            label="Medicación actual"
             placeholder="Ej. Losartán 50mg"
             items={medications}
             onChange={setMedications}
@@ -228,6 +483,13 @@ export function MedicalHistoryCard({
             onChange={setConditions}
             disabled={!puedeEditar}
           />
+          {estructurada && (
+            <RiskQuestionnaire
+              value={cuestionario}
+              onChange={setCuestionario}
+              disabled={!puedeEditar}
+            />
+          )}
           <div className="space-y-1.5">
             <p className="text-xs font-medium text-muted-foreground">Notas adicionales</p>
             {puedeEditar ? (
@@ -236,7 +498,7 @@ export function MedicalHistoryCard({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
-                placeholder="Ej. embarazo, precauciones al anestesiar…"
+                placeholder="Ej. precauciones al anestesiar…"
                 className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
               />
             ) : (

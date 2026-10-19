@@ -119,6 +119,7 @@ function mapPatientRow(
     nombre: row.full_name,
     documento: row.document_id ?? "",
     edad: row.birth_date ? calcularEdad(row.birth_date) : 0,
+    fechaNacimiento: row.birth_date ? row.birth_date.slice(0, 10) : null,
     telefono: row.phone ?? "",
     telefonoValido: row.phone_valid,
     email: row.email ?? "",

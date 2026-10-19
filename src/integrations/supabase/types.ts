@@ -2226,6 +2226,7 @@ export type Database = {
         Row: {
           body_snapshot: string;
           clinic_id: string;
+          guardian_id: string | null;
           id: string;
           patient_id: string;
           recorded_by: string;
@@ -2234,12 +2235,16 @@ export type Database = {
           signature_storage_path: string;
           signed_at: string;
           signed_by_name: string;
+          signer_document_snapshot: string | null;
+          signer_relationship_snapshot: string | null;
+          signer_role: string | null;
           template_id: string | null;
           title_snapshot: string;
         };
         Insert: {
           body_snapshot: string;
           clinic_id: string;
+          guardian_id?: string | null;
           id?: string;
           patient_id: string;
           recorded_by?: string;
@@ -2248,12 +2253,16 @@ export type Database = {
           signature_storage_path: string;
           signed_at?: string;
           signed_by_name: string;
+          signer_document_snapshot?: string | null;
+          signer_relationship_snapshot?: string | null;
+          signer_role?: string | null;
           template_id?: string | null;
           title_snapshot: string;
         };
         Update: {
           body_snapshot?: string;
           clinic_id?: string;
+          guardian_id?: string | null;
           id?: string;
           patient_id?: string;
           recorded_by?: string;
@@ -2262,6 +2271,9 @@ export type Database = {
           signature_storage_path?: string;
           signed_at?: string;
           signed_by_name?: string;
+          signer_document_snapshot?: string | null;
+          signer_relationship_snapshot?: string | null;
+          signer_role?: string | null;
           template_id?: string | null;
           title_snapshot?: string;
         };
@@ -2271,6 +2283,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_consents_guardian_id_fkey";
+            columns: ["guardian_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_guardians";
             referencedColumns: ["id"];
           },
           {
@@ -2352,37 +2371,160 @@ export type Database = {
           },
         ];
       };
+      patient_guardians: {
+        Row: {
+          archived_at: string | null;
+          archived_by: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          document_id: string;
+          email: string | null;
+          full_name: string;
+          id: string;
+          is_primary: boolean;
+          patient_id: string;
+          phone: string | null;
+          relationship: string;
+          relationship_detail: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          document_id: string;
+          email?: string | null;
+          full_name: string;
+          id?: string;
+          is_primary?: boolean;
+          patient_id: string;
+          phone?: string | null;
+          relationship: string;
+          relationship_detail?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          document_id?: string;
+          email?: string | null;
+          full_name?: string;
+          id?: string;
+          is_primary?: boolean;
+          patient_id?: string;
+          phone?: string | null;
+          relationship?: string;
+          relationship_detail?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_guardians_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_guardians_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_guardians_audit: {
+        Row: {
+          change_kind: string;
+          changed_by: string | null;
+          clinic_id: string;
+          guardian_id: string;
+          id: string;
+          patient_id: string;
+          recorded_at: string;
+          snapshot: Json;
+        };
+        Insert: {
+          change_kind: string;
+          changed_by?: string | null;
+          clinic_id: string;
+          guardian_id: string;
+          id?: string;
+          patient_id: string;
+          recorded_at?: string;
+          snapshot: Json;
+        };
+        Update: {
+          change_kind?: string;
+          changed_by?: string | null;
+          clinic_id?: string;
+          guardian_id?: string;
+          id?: string;
+          patient_id?: string;
+          recorded_at?: string;
+          snapshot?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_guardians_audit_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_guardians_audit_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_medical_history: {
         Row: {
           allergies: string[];
+          allergy_details: Json;
           chronic_medications: string[];
           clinic_id: string;
           conditions: string[];
           id: string;
           notes: string | null;
           patient_id: string;
+          risk_questionnaire: Json;
           updated_at: string;
           updated_by: string | null;
         };
         Insert: {
           allergies?: string[];
+          allergy_details?: Json;
           chronic_medications?: string[];
           clinic_id: string;
           conditions?: string[];
           id?: string;
           notes?: string | null;
           patient_id: string;
+          risk_questionnaire?: Json;
           updated_at?: string;
           updated_by?: string | null;
         };
         Update: {
           allergies?: string[];
+          allergy_details?: Json;
           chronic_medications?: string[];
           clinic_id?: string;
           conditions?: string[];
           id?: string;
           notes?: string | null;
           patient_id?: string;
+          risk_questionnaire?: Json;
           updated_at?: string;
           updated_by?: string | null;
         };
@@ -2406,6 +2548,7 @@ export type Database = {
       patient_medical_history_audit: {
         Row: {
           allergies: string[];
+          allergy_details: Json | null;
           change_kind: string;
           changed_by: string | null;
           chronic_medications: string[];
@@ -2415,9 +2558,11 @@ export type Database = {
           notes: string | null;
           patient_id: string;
           recorded_at: string;
+          risk_questionnaire: Json | null;
         };
         Insert: {
           allergies: string[];
+          allergy_details?: Json | null;
           change_kind: string;
           changed_by?: string | null;
           chronic_medications: string[];
@@ -2427,9 +2572,11 @@ export type Database = {
           notes?: string | null;
           patient_id: string;
           recorded_at?: string;
+          risk_questionnaire?: Json | null;
         };
         Update: {
           allergies?: string[];
+          allergy_details?: Json | null;
           change_kind?: string;
           changed_by?: string | null;
           chronic_medications?: string[];
@@ -2439,6 +2586,7 @@ export type Database = {
           notes?: string | null;
           patient_id?: string;
           recorded_at?: string;
+          risk_questionnaire?: Json | null;
         };
         Relationships: [
           {
@@ -2450,6 +2598,73 @@ export type Database = {
           },
           {
             foreignKeyName: "patient_medical_history_audit_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_vital_signs: {
+        Row: {
+          appointment_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          diastolic_mmhg: number;
+          heart_rate_bpm: number;
+          id: string;
+          measured_at: string;
+          notes: string | null;
+          patient_id: string;
+          recorded_by: string;
+          systolic_mmhg: number;
+          temperature_c: number | null;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          diastolic_mmhg: number;
+          heart_rate_bpm: number;
+          id?: string;
+          measured_at?: string;
+          notes?: string | null;
+          patient_id: string;
+          recorded_by?: string;
+          systolic_mmhg: number;
+          temperature_c?: number | null;
+        };
+        Update: {
+          appointment_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          diastolic_mmhg?: number;
+          heart_rate_bpm?: number;
+          id?: string;
+          measured_at?: string;
+          notes?: string | null;
+          patient_id?: string;
+          recorded_by?: string;
+          systolic_mmhg?: number;
+          temperature_c?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_vital_signs_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_vital_signs_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_vital_signs_patient_id_fkey";
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";

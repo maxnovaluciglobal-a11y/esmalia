@@ -166,7 +166,8 @@ describe("las server functions de la ficha registran la lectura", () => {
     ["../src/lib/clinical/clinical-notes.functions.ts", "notas", 1],
     ["../src/lib/clinical/odontogram.functions.ts", "odontograma", 2],
     ["../src/lib/clinical/periodontal.functions.ts", "periodontograma", 2],
-    ["../src/lib/clinical/medical-history.functions.ts", "anamnesis", 1],
+    // anamnesis + signos vitales (CLI-10)
+    ["../src/lib/clinical/medical-history.functions.ts", "anamnesis", 2],
     ["../src/lib/clinical/clinical-documents.functions.ts", "documentos", 2],
   ];
 
