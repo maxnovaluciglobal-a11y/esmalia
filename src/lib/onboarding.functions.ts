@@ -141,5 +141,22 @@ export const completeClinicSetup = createServerFn({ method: "POST" })
       console.warn("[lifecycle-email] bienvenida", err instanceof Error ? err.message : err);
     }
 
+    // Aviso interno al equipo de Esmalia (CS-10): una clínica que se registra
+    // sola no le llegaba a nadie. Nunca lanza; mismo tope que la bienvenida.
+    try {
+      const { notificarAltaDeClinica } = await import("@/lib/marketing/notify-alta.server");
+      const { conTope } = await import("@/lib/email/ciclo-de-vida.server");
+      await conTope(
+        notificarAltaDeClinica({
+          userId,
+          clinicName: data.clinic.name,
+          countryCode: data.clinic.country,
+          profesionales: data.professionals.length,
+        }),
+      );
+    } catch (err) {
+      console.warn("[alta] aviso interno", err instanceof Error ? err.message : err);
+    }
+
     return { clinicId, branchId: branch.id };
   });
