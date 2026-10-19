@@ -9,14 +9,17 @@ on:
 jobs:
   backup:
     runs-on: ubuntu-latest
+    # issues: write solo para el aviso de falla de abajo.
     permissions:
       contents: read
       issues: write
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    # Credenciales por paso, nunca a nivel de job: la service role de
+    # Supabase solo la ven los dos pasos que leen la base, y la clave de B2
+    # solo el que sube. `npm ci` (scripts de terceros) no ve ninguna.
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,12 +30,18 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y age rclone
 
       - name: Exportar datos + comprimir
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: node scripts/backup-data.mjs > backup.json.gz
 
       - name: Descargar archivos de Storage + empaquetar
         # Todos los buckets (hoy: clinical-documents). Si falla un listado el
         # step sale en rojo; un archivo suelto que no baja se saltea y queda
         # en storage-backup/manifest.json → failed (ver el script).
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           node scripts/backup-storage.mjs storage-backup
           tar -czf storage.tar.gz -C storage-backup .
