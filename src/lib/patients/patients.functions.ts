@@ -11,6 +11,7 @@ import {
 } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDb } from "@/lib/db-errors";
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
+import { toE164 } from "@/lib/messaging/telefonos";
 import type { Database } from "@/integrations/supabase/types";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
@@ -23,6 +24,38 @@ const UI_STATUS_TO_DB: Record<EstadoPaciente, "active" | "new" | "inactive"> = {
   nuevo: "new",
   inactivo: "inactive",
 };
+
+/**
+ * País de la clínica (`clinics.country`) para leer los teléfonos de sus
+ * pacientes. null si no se pudo leer: en ese caso el teléfono se guarda tal
+ * cual lo escribieron (no se adivina el país).
+ */
+async function paisDeLaClinica(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+): Promise<string | null> {
+  const { data } = await supabase
+    .from("clinics")
+    .select("country")
+    .eq("id", clinicId)
+    .maybeSingle();
+  return data?.country ?? null;
+}
+
+/**
+ * Teléfono tal como se guarda en `patients.phone` (BIL-11): en E.164
+ * ("+56912345678") cuando se puede leer con el país de la clínica; si no,
+ * el texto original, para no perder un dato que el staff cargó y que puede
+ * corregir después (el envío por WhatsApp igual lo rechaza).
+ */
+function telefonoParaGuardar(
+  raw: string | null | undefined,
+  country: string | null,
+): string | null {
+  const limpio = (raw ?? "").trim();
+  if (!limpio) return null;
+  return toE164(limpio, country) ?? limpio;
+}
 
 function calcularEdad(birthDate: string): number {
   const hoy = new Date();
@@ -359,7 +392,11 @@ export const createPatient = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ id: string }> => {
     const { supabase } = context;
 
-    const phoneValid = await validatePhoneNumber(data.telefono);
+    const telefono = telefonoParaGuardar(
+      data.telefono,
+      await paisDeLaClinica(supabase, data.clinicId),
+    );
+    const phoneValid = await validatePhoneNumber(telefono);
 
     const { data: inserted, error } = await supabase
       .from("patients")
@@ -368,7 +405,7 @@ export const createPatient = createServerFn({ method: "POST" })
         full_name: data.nombre,
         document_id: data.documento || null,
         birth_date: data.fechaNacimiento,
-        phone: data.telefono || null,
+        phone: telefono,
         phone_valid: phoneValid,
         email: data.email || null,
         branch_id: data.sucursalId ?? null,
@@ -550,6 +587,7 @@ export const importPatients = createServerFn({ method: "POST" })
       );
     const yaExisten = new Set((existentes ?? []).map((e) => e.document_id));
 
+    const pais = await paisDeLaClinica(supabase, data.clinicId);
     const warnings: ImportPatientsResult["warnings"] = [];
     let skipped = 0;
     const vistosEnEsteLote = new Set<string>();
@@ -584,7 +622,7 @@ export const importPatients = createServerFn({ method: "POST" })
           full_name: r.nombre,
           document_id: doc,
           birth_date: birthDate,
-          phone: r.telefono || null,
+          phone: telefonoParaGuardar(r.telefono, pais),
           email: r.email || null,
           status: "new" as const,
           created_by: userId,
@@ -697,23 +735,23 @@ export const updatePatient = createServerFn({ method: "POST" })
     // Solo re-valida contra Numverify si el teléfono realmente cambió — no
     // gastar cuota de nuevo en cada edición que no toca ese campo.
     let phoneValid: boolean | null | undefined;
+    let nextPhone: string | null = null;
     if (rest.telefono !== undefined) {
-      const { data: current } = await supabase
-        .from("patients")
-        .select("phone, phone_valid")
-        .eq("id", patientId)
-        .single();
-      const nextPhone = rest.telefono || null;
+      const [{ data: current }, pais] = await Promise.all([
+        supabase.from("patients").select("phone, phone_valid").eq("id", patientId).single(),
+        paisDeLaClinica(supabase, clinicId),
+      ]);
+      nextPhone = telefonoParaGuardar(rest.telefono, pais);
       phoneValid =
         current && nextPhone === current.phone
           ? current.phone_valid
-          : await validatePhoneNumber(rest.telefono);
+          : await validatePhoneNumber(nextPhone);
     }
 
     const patch = {
       ...(rest.nombre !== undefined && { full_name: rest.nombre }),
       ...(rest.documento !== undefined && { document_id: rest.documento || null }),
-      ...(rest.telefono !== undefined && { phone: rest.telefono || null, phone_valid: phoneValid }),
+      ...(rest.telefono !== undefined && { phone: nextPhone, phone_valid: phoneValid }),
       ...(rest.email !== undefined && { email: rest.email || null }),
       ...(rest.sucursalId !== undefined && { branch_id: rest.sucursalId }),
       ...(rest.profesionalId !== undefined && { primary_professional_id: rest.profesionalId }),

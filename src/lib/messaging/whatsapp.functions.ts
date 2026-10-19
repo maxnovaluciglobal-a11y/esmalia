@@ -429,6 +429,8 @@ export async function tryMetaTemplateSend(params: {
   templateKind: string;
   metaTemplate: { name: string; language: string } | null;
   recipientRaw: string;
+  /** País de la clínica (`clinics.country`): sin él, un número local no se envía. */
+  country: string | null;
   variables: Record<string, string>;
 }): Promise<MetaTemplateSendAttempt> {
   if (!params.metaTemplate || !hasMetaTemplateMapping(params.templateKind)) {
@@ -441,7 +443,7 @@ export async function tryMetaTemplateSend(params: {
       .eq("clinic_id", params.clinicId)
       .eq("status", "connected")
       .maybeSingle();
-    const to = normalizeToWaMe(params.recipientRaw);
+    const to = normalizeToWaMe(params.recipientRaw, params.country);
     if (!account || !to) return { viaApi: false, externalId: null };
 
     const bodyParams = buildMetaTemplateParams(params.templateKind, params.variables);

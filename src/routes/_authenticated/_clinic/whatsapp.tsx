@@ -479,7 +479,8 @@ function WhatsAppPage() {
 /** Link fijo para pegar en un QR o en la bio de Instagram — no genera imagen, cualquier generador de QR gratis sirve con este link. */
 function WaMeLinkCard({ displayPhone }: { displayPhone: string }) {
   const [copiedAt, setCopiedAt] = useState<number | null>(null);
-  const normalized = normalizeToWaMe(displayPhone);
+  const { access } = Route.useRouteContext();
+  const normalized = normalizeToWaMe(displayPhone, access.clinic?.country);
   const link = normalized ? `https://wa.me/${normalized}` : null;
 
   if (!link) {

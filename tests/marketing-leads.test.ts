@@ -3,7 +3,7 @@ import { CODIGO_PAIS_TELEFONO, hashIp, normalizarTelefonoPorPais } from "@/lib/m
 
 describe("normalizarTelefonoPorPais", () => {
   it("usa el código del país elegido, no el de Chile por defecto", () => {
-    // normalizeToWaMe tiene defaultCountryCode = "56" hardcodeado. Un dentista
+    // Antes normalizeToWaMe tenía "56" fijo como país por defecto. Un dentista
     // mexicano que escribe su número local no puede terminar con prefijo chileno.
     // Números que comienzan con dígitos no-código (6, 7, 8, 9) son claramente locales.
     expect(normalizarTelefonoPorPais("8912345678", "MX")).toBe("528912345678");

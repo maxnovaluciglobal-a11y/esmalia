@@ -8,7 +8,7 @@ import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { appOrigin } from "@/lib/app-origin.server";
 import { throwIfRequiresLlamadaOSuscripcion } from "@/lib/billing.functions";
 import { mensajeDb } from "@/lib/db-errors";
-import { buildWaMeUrl } from "@/lib/messaging/messaging";
+import { buildWaMeUrl, normalizeToWaMe } from "@/lib/messaging/messaging";
 import {
   PORTAL_COOKIE_MAX_AGE_SECONDS,
   PORTAL_COOKIE_NAME,
@@ -110,8 +110,16 @@ export const generatePortalLink = createServerFn({ method: "POST" })
           .eq("kind", "portal_invite")
           .eq("is_active", true)
           .maybeSingle(),
-        supabase.from("clinics").select("name").eq("id", data.clinicId).maybeSingle(),
+        supabase.from("clinics").select("name, country").eq("id", data.clinicId).maybeSingle(),
       ]);
+      const country = clinic?.country ?? null;
+
+      // BIL-11: un teléfono que no se puede leer con el país de la clínica
+      // se trata igual que "sin teléfono": se devuelve el link para copiarlo
+      // a mano y no se manda nada (ni API ni wa.me) a un número dudoso.
+      if (!normalizeToWaMe(patient.phone, country)) {
+        return { url, expiresInDays: data.ttlDays, waUrl: null, viaApi: false };
+      }
       const metaTemplate =
         template?.meta_status === "approved" && template.meta_template_name
           ? { name: template.meta_template_name, language: template.meta_language }
@@ -123,6 +131,7 @@ export const generatePortalLink = createServerFn({ method: "POST" })
         templateKind: "portal_invite",
         metaTemplate,
         recipientRaw: patient.phone,
+        country,
         variables: {
           paciente: patient.full_name,
           dias: String(data.ttlDays),
@@ -149,7 +158,7 @@ export const generatePortalLink = createServerFn({ method: "POST" })
       });
       if (insertErr) throw new Error("No pudimos registrar el envío. " + insertErr.message);
 
-      const waUrl = attempt.viaApi ? null : buildWaMeUrl(patient.phone, message);
+      const waUrl = attempt.viaApi ? null : buildWaMeUrl(patient.phone, message, country);
       return { url, expiresInDays: data.ttlDays, waUrl, viaApi: attempt.viaApi };
     },
   );
@@ -259,7 +268,7 @@ export const getExpiredPortalContact = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: clinic }, { data: branch }] = await Promise.all([
-      supabaseAdmin.from("clinics").select("name").eq("id", clinicId).maybeSingle(),
+      supabaseAdmin.from("clinics").select("name, country").eq("id", clinicId).maybeSingle(),
       supabaseAdmin
         .from("branches")
         .select("phone")
@@ -273,7 +282,11 @@ export const getExpiredPortalContact = createServerFn({ method: "POST" })
     if (!clinic) return null;
 
     const waUrl = branch?.phone
-      ? buildWaMeUrl(branch.phone, "Hola, mi link del portal venció — ¿me pueden mandar uno nuevo?")
+      ? buildWaMeUrl(
+          branch.phone,
+          "Hola, mi link del portal venció — ¿me pueden mandar uno nuevo?",
+          clinic.country,
+        )
       : null;
     return { clinicName: clinic.name, waUrl };
   });
