@@ -3589,10 +3589,14 @@ export type Database = {
       };
       subscriptions: {
         Row: {
+          activation_event_id: number | null;
+          activation_tracked_sub_id: string | null;
           cancel_at_period_end: boolean;
           clinic_id: string;
           created_at: string;
           current_period_end: string | null;
+          dispute_id: string | null;
+          disputed_at: string | null;
           past_due_since: string | null;
           status: string;
           stripe_customer_id: string | null;
@@ -3602,10 +3606,14 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
@@ -3615,10 +3623,14 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id?: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
