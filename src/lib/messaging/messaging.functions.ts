@@ -18,6 +18,7 @@ import {
 } from "@/lib/messaging/messaging";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
+import { quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { sendEmail } from "@/lib/messaging/email.server";
 import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-sandbox";
 import type { EmailSandboxConfig } from "@/lib/messaging/email-sandbox";
@@ -538,7 +539,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     ] = await Promise.all([
       supabase
         .from("patients")
-        .select("id, full_name, phone, email")
+        .select("id, full_name, phone, email, wa_opt_out_at")
         .in("id", patientIds.length ? patientIds : [""]),
       supabase
         .from("professionals")
@@ -558,8 +559,12 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     const patientById = new Map((patients ?? []).map((p) => [p.id, p]));
     const profNameById = new Map((professionals ?? []).map((p) => [p.id, p.full_name]));
     const tzByBranch = new Map((branches ?? []).map((b) => [b.id, b.timezone]));
+    // CON-09: quien pidió la baja de WhatsApp no vuelve a aparecer para ese canal.
+    const pacientesDeBaja = new Set(
+      (patients ?? []).filter((p) => p.wa_opt_out_at != null).map((p) => p.id),
+    );
 
-    return pendientes.map((a) => {
+    const filas = pendientes.map((a) => {
       const patient = patientById.get(a.patient_id);
       const { fechaLarga, hora } = formatFechaHoraLocal(
         a.starts_at,
@@ -581,6 +586,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
         emailSent: a.emailSent,
       };
     });
+    return quitarBajasDeWhatsApp(filas, pacientesDeBaja);
   });
 
 // ─────────────────────────────────────────────────────────────────────────
