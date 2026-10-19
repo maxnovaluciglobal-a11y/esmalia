@@ -57,6 +57,45 @@ export type FilaSuscripcionLocal = {
   stripe_subscription_id: string | null;
 } | null;
 
+const HORA_MS = 60 * 60 * 1000;
+/** Stripe exige que `subscription_data.trial_end` esté al menos 48 h en el futuro. */
+const MINIMO_TRIAL_END_MS = 48 * HORA_MS;
+
+/**
+ * Trial del checkout (auditoría 360, BIL-04). Antes era siempre
+ * `trial_period_days: 14`: una clínica en el día 13 del trial de la base (o
+ * con el trial ya vencido) recibía 14 días más, y volver a pasar por el
+ * checkout encadenaba pruebas.
+ *
+ * - Sin fila (clínica piloto anterior al trigger): nunca tuvo prueba → 14 días.
+ * - Ya tuvo una suscripción en Stripe: la prueba ya se usó → sin trial.
+ * - Trial de la base vigente: termina cuando termina el de la base. Si faltan
+ *   menos de 48 h (el mínimo de Stripe) se redondea a ese mínimo: como mucho
+ *   2 días de regalo, en vez de 14.
+ * - Trial de la base vencido, o cualquier otro estado: sin trial, cobro
+ *   inmediato.
+ *
+ * El mínimo se calcula desde el inicio de la hora para que dos llamadas con
+ * la misma clave de idempotencia manden exactamente los mismos parámetros
+ * (Stripe rechaza una clave repetida con parámetros distintos).
+ */
+export function trialDelCheckout(
+  fila: FilaSuscripcionLocal,
+  ahora: Date,
+  diasTrialPorDefecto: number,
+): { trial_end: number } | { trial_period_days: number } | null {
+  if (!fila) return { trial_period_days: diasTrialPorDefecto };
+  if (fila.stripe_subscription_id) return null;
+  if (fila.status !== "trialing" || !fila.trial_end) return null;
+
+  const fin = new Date(fila.trial_end).getTime();
+  if (fin <= ahora.getTime()) return null;
+
+  const inicioDeHora = Math.floor(ahora.getTime() / HORA_MS) * HORA_MS;
+  const minimo = inicioDeHora + MINIMO_TRIAL_END_MS + HORA_MS;
+  return { trial_end: Math.floor(Math.max(fin, minimo) / 1000) };
+}
+
 export type ResultadoCheckout = { url: string; destino: "checkout" | "portal" };
 
 /**
@@ -92,6 +131,7 @@ export async function crearCheckoutOPortal(
     return { url: portal.url, destino: "portal" };
   }
 
+  const trial = trialDelCheckout(p.fila, p.ahora, p.diasTrialPorDefecto);
   const session = await stripe.checkout.sessions.create(
     {
       mode: "subscription",
@@ -99,12 +139,19 @@ export async function crearCheckoutOPortal(
       customer: customerId ?? undefined,
       customer_email: customerId ? undefined : (p.email ?? undefined),
       client_reference_id: p.clinicId,
-      // No exigir tarjeta de entrada durante el trial: con trial el total
-      // del checkout es 0 y Stripe omite la recolección con este flag.
+      // Con trial el total del checkout es 0 y Stripe no pide tarjeta; sin
+      // trial (prueba ya usada o vencida) el cobro es inmediato y la pide.
       payment_method_collection: "if_required",
       metadata: { clinic_id: p.clinicId, clinic_name: p.clinicName },
       subscription_data: {
-        trial_period_days: p.diasTrialPorDefecto,
+        ...(trial ?? {}),
+        // BIL-04: si la prueba termina sin tarjeta, Stripe cancela en vez de
+        // emitir una factura impaga (`create_invoice`, el default, deja la
+        // suscripción en `past_due`). Cancelada queda igual que una clínica
+        // que nunca activó: informes pausados, nunca fuera de la app.
+        ...(trial
+          ? { trial_settings: { end_behavior: { missing_payment_method: "cancel" } } }
+          : {}),
         metadata: { clinic_id: p.clinicId },
       },
       success_url: p.successUrl,

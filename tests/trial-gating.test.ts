@@ -270,3 +270,34 @@ describe("requiereLlamadaOSuscripcion", () => {
     expect(requiereLlamadaOSuscripcion(null, null)).toBe(false);
   });
 });
+
+/**
+ * BIL-04 (auditoría 360): antes, `trialInformesBloqueados` devolvía false con
+ * `stripeSubscriptionId` (billing.ts) y la clínica que había apretado
+ * "Activar" sin tarjeta terminaba EXPULSADA al vencer la prueba, mientras que
+ * la que nunca tocó el botón solo perdía los informes. Ahora las dos quedan
+ * igual.
+ */
+describe("activar sin tarjeta no deja peor que no activar (BIL-04)", () => {
+  const ahora = new Date("2026-10-19T12:00:00Z");
+  const haceDias = (d: number) => new Date(ahora.getTime() - d * 86_400_000).toISOString();
+  const nivel = (sub: Subscription) => accesoPorSuscripcion(sub, ahora).nivel;
+
+  it("trial vencido sin activar, con Stripe todavía en trialing, o cancelado por Stripe: mismo nivel", () => {
+    const nuncaActivo = nivel({ ...base, trialEnd: haceDias(5) });
+    const activoSinTarjetaWebhookAtrasado = nivel({
+      ...base,
+      trialEnd: haceDias(5),
+      stripeSubscriptionId: "sub_1",
+    });
+    const canceladoAlFinDeLaPrueba = nivel({
+      ...base,
+      status: "canceled",
+      trialEnd: haceDias(5),
+      stripeSubscriptionId: "sub_1",
+    });
+    expect(nuncaActivo).toBe("restringido");
+    expect(activoSinTarjetaWebhookAtrasado).toBe(nuncaActivo);
+    expect(canceladoAlFinDeLaPrueba).toBe(nuncaActivo);
+  });
+});
