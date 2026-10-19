@@ -9,8 +9,6 @@ import {
 
 import { getMyAccess } from "@/lib/access/access.functions";
 import { ACCESS_QUERY_KEY, type ClinicAccess } from "@/lib/access/access";
-import { getMySubscription } from "@/lib/billing.functions";
-import { debeExpulsarDeLaApp } from "@/lib/billing";
 import { leerRolSimulado, puedeSimular } from "@/lib/access/role-simulation";
 import { ensureOfflineCacheHydrated } from "@/lib/offline/offline-cache";
 import { AppShell } from "@/components/app-shell";
@@ -18,7 +16,7 @@ import { reportBoundaryError } from "@/lib/error-reporting";
 import { captureException } from "@/lib/sentry";
 
 export const Route = createFileRoute("/_authenticated/_clinic")({
-  beforeLoad: async ({ location, context }): Promise<{ access: ClinicAccess }> => {
+  beforeLoad: async ({ context }): Promise<{ access: ClinicAccess }> => {
     const { queryClient, user } = context;
 
     // Restaura del disco lo que se guardó en visitas anteriores. Antes esto
@@ -57,37 +55,13 @@ export const Route = createFileRoute("/_authenticated/_clinic")({
       throw redirect({ to: "/onboarding" });
     }
 
-    // Gate de suscripción: sin trial/activa, solo se puede navegar a billing.
-    // Se hace acá (no en la ruta individual) para que aplique a toda la app
-    // de clínica de una. El propio endpoint `getMySubscription` falla suave
-    // si aún no hay Stripe wireado y devuelve null → el gate lo trata como
-    // "sin suscripción" y bloquea al owner al banner de activación.
-    const enBilling = location.pathname === "/suscripcion";
-    if (!enBilling) {
-      let sub = null;
-      try {
-        sub = await getMySubscription({ data: { clinicId: access.clinic.id } });
-      } catch {
-        // Sin tabla o error transitorio: no bloqueamos — Stripe puede
-        // no estar wireado todavía en dev.
-      }
-      // Solo el owner ve el gate real; el resto del equipo sigue trabajando
-      // aunque la sub esté vencida (la clínica es responsabilidad del owner).
-      //
-      // Un trial vencido sin tarjeta NO expulsa de la app — eso lo maneja
-      // trialInformesBloqueados puntualmente en cada ruta de informes (ver
-      // TrialDesbloqueo), sin sacar a nadie de agenda/pacientes/ficha
-      // clínica. Este redirect de acá es para el caso distinto: alguien
-      // que llegó a poner tarjeta y el cobro falló o se canceló
-      // (past_due/canceled/unpaid) o una suscripción activa cuyo período ya
-      // venció — ahí sí tiene sentido mandar derecho a /suscripcion.
-      // Lógica extraída a `debeExpulsarDeLaApp` (Task 11, fix round 1): es
-      // puro booleano que antes vivía inline acá sin ningún test — ver
-      // `tests/trial-gating.test.ts`.
-      if (access.role === "owner" && debeExpulsarDeLaApp(sub)) {
-        throw redirect({ to: "/suscripcion" });
-      }
-    }
+    // Sin gate de suscripción a nivel de app (auditoría 360, BIL-01): un
+    // cobro fallido, una disputa o una cancelación ya NO expulsan al owner a
+    // `/suscripcion`. La clínica es la custodia legal de la historia clínica
+    // y tiene que poder verla y exportarla siempre. Lo que se restringe
+    // (informes) lo decide `informesBloqueados` en cada ruta de informes y
+    // en su par del servidor; el aviso con días de gracia lo muestra
+    // `TrialBanner` vía `StatusStrip`. Ver `accesoPorSuscripcion` en billing.ts.
 
     // Simulación de rol: solo cambia lo que ve la interfaz. La autorización real
     // sigue viviendo en las políticas RLS con el rol verdadero del usuario.

@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { listBranches } from "@/lib/clinic-operations/clinic-catalog.functions";
 import {
   listStockByWarehouse,
@@ -922,7 +922,7 @@ function InventarioPage() {
     queryFn: () => fetchSubscription({ data: { clinicId } }),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   // product-2 (auditoría 360): filtro por sucursal. Solo tiene sentido
   // cuando la clínica tiene más de una sucursal ACTIVA — con 0-1 sucursales
@@ -996,7 +996,7 @@ function InventarioPage() {
   return (
     <AppShell title="Inventario" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Inventario" />
+        <TrialDesbloqueo pantalla="Inventario" sub={sub ?? null} />
       ) : (
         <div className="space-y-8">
           <div className="flex flex-wrap items-start justify-between gap-3">

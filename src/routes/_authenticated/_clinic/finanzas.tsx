@@ -10,7 +10,7 @@ import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { formatoFecha, hoyISO, parseIsoDate } from "@/lib/clinic-operations/clinic-data";
 import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
 import {
@@ -152,7 +152,7 @@ function FinanzasPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchSummary = useServerFn(getFinanceSummary);
   const {
@@ -279,7 +279,7 @@ function FinanzasPage() {
   return (
     <AppShell title="Finanzas" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Finanzas" />
+        <TrialDesbloqueo pantalla="Finanzas" sub={sub ?? null} />
       ) : (
         <div className="mx-auto max-w-6xl space-y-10">
           <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">

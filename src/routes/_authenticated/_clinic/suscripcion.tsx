@@ -132,6 +132,16 @@ function BillingPage() {
   // realmente pagada — un trial, vencido o no, deja ver el botón.
   const yaFacturando = sub?.status === "active";
   const hasCustomer = Boolean(sub?.stripeCustomerId);
+  // Auditoría 360 (BIL-03): con una suscripción viva en Stripe (past_due,
+  // trialing con Stripe, unpaid, paused…) no se ofrece otro checkout — se
+  // crearía una segunda suscripción que cobra en paralelo. Lo que sirve es el
+  // portal: actualizar la tarjeta o cambiar de plan. El servidor aplica la
+  // misma regla preguntándole a Stripe, esto es solo la cara visible.
+  const suscripcionViva =
+    Boolean(sub?.stripeSubscriptionId) &&
+    sub?.status !== "canceled" &&
+    sub?.status !== "incomplete_expired";
+  const ofrecerCheckout = !yaFacturando && !suscripcionViva;
   const activePlan = planFromPriceId(sub?.stripePriceId ?? null);
   const activePlanInfo = activePlan ? PLANS[activePlan] : null;
 
@@ -152,11 +162,11 @@ function BillingPage() {
     if (intentoDisparado.current || isLoading || isError) return;
     intentoDisparado.current = true;
     const planComprado = consumePlanIntent();
-    if (!planComprado || yaFacturando) return;
+    if (!planComprado || !ofrecerCheckout) return;
     setPlan(planComprado);
     startCheckout.mutate(planComprado);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isError, yaFacturando]);
+  }, [isLoading, isError, ofrecerCheckout]);
 
   return (
     <AppShell title="Suscripción" access={access}>
@@ -243,7 +253,7 @@ function BillingPage() {
               : "Al activar la suscripción vas a Stripe para dejar el método de pago. Puedes cancelar durante la prueba y no te cobramos."}
           </p>
 
-          {!yaFacturando && (
+          {ofrecerCheckout && (
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {(Object.entries(PLANS) as [PlanKey, (typeof PLANS)[PlanKey]][]).map(
                 ([key, info]) => (
@@ -279,7 +289,7 @@ function BillingPage() {
           )}
 
           <div className="mt-4 flex flex-wrap gap-3">
-            {!yaFacturando ? (
+            {ofrecerCheckout ? (
               <button
                 type="button"
                 onClick={() => startCheckout.mutate(undefined)}
@@ -310,7 +320,9 @@ function BillingPage() {
                 ) : (
                   <ExternalLink className="size-4" />
                 )}
-                Gestionar facturación
+                {suscripcionViva && !yaFacturando
+                  ? "Actualizar medio de pago"
+                  : "Gestionar facturación"}
               </button>
             )}
           </div>
