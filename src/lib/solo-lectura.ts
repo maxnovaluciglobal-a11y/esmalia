@@ -99,6 +99,9 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   iniciarExportacionClinica: "Exportar los datos de la clínica (#67) siempre está permitido.",
   firmarArchivosExportacion: "Descarga de la exportación.",
   leerTablaExportacion: "Lectura de la exportación.",
+  iniciarExportacionPaciente: "Exportar la ficha de un paciente siempre está permitido.",
+  firmarArchivosExportacionPaciente: "Descarga de la exportación de la ficha de un paciente.",
+  leerTablaExportacionPaciente: "Lectura de la exportación de la ficha de un paciente.",
   setActiveClinic: "Cambia la clínica que se está viendo; no toca datos.",
 
   // Estado personal del usuario, no datos de la clínica.
