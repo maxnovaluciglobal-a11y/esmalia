@@ -294,6 +294,9 @@ describe("RLS enforcement smoke test (usuario real, sin bypass)", () => {
           patient_id: patientId,
           template_id: consentTemplateId || null,
           title_snapshot: "Consentimiento smoke test",
+          // Obligatorios desde 20261019190000 (CLI-12): procedimiento e informante.
+          procedure_snapshot: "Procedimiento smoke test",
+          informed_by_professional_id: professionalId || null,
           body_snapshot: "Texto confidencial de prueba firmado",
           signature_storage_path: `${clinicId}/${patientId}/firma-smoke.png`,
           signed_by_name: pacienteNombre,

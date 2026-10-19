@@ -1104,30 +1104,54 @@ export type Database = {
       consent_templates: {
         Row: {
           active: boolean;
+          alternatives: string | null;
           body: string;
           clinic_id: string;
           created_at: string;
-          created_by: string;
+          created_by: string | null;
           id: string;
+          procedure: string | null;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          risks: string | null;
+          seed_key: string | null;
+          source: string;
           title: string;
+          updated_at: string;
         };
         Insert: {
           active?: boolean;
+          alternatives?: string | null;
           body: string;
           clinic_id: string;
           created_at?: string;
-          created_by?: string;
+          created_by?: string | null;
           id?: string;
+          procedure?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          risks?: string | null;
+          seed_key?: string | null;
+          source?: string;
           title: string;
+          updated_at?: string;
         };
         Update: {
           active?: boolean;
+          alternatives?: string | null;
           body?: string;
           clinic_id?: string;
           created_at?: string;
-          created_by?: string;
+          created_by?: string | null;
           id?: string;
+          procedure?: string | null;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          risks?: string | null;
+          seed_key?: string | null;
+          source?: string;
           title?: string;
+          updated_at?: string;
         };
         Relationships: [
           {
@@ -2254,14 +2278,22 @@ export type Database = {
       };
       patient_consents: {
         Row: {
+          alternatives_snapshot: string | null;
           body_snapshot: string;
           clinic_id: string;
+          content_sha256: string | null;
           guardian_id: string | null;
           id: string;
+          informed_by_license_snapshot: string | null;
+          informed_by_name_snapshot: string | null;
+          informed_by_professional_id: string | null;
           patient_id: string;
+          procedure_snapshot: string | null;
           recorded_by: string;
           revoked_at: string | null;
           revoked_by: string | null;
+          risks_snapshot: string | null;
+          signature_sha256: string | null;
           signature_storage_path: string;
           signed_at: string;
           signed_by_name: string;
@@ -2270,16 +2302,26 @@ export type Database = {
           signer_role: string | null;
           template_id: string | null;
           title_snapshot: string;
+          tooth_numbers: number[] | null;
+          treatment_item_id: string | null;
         };
         Insert: {
+          alternatives_snapshot?: string | null;
           body_snapshot: string;
           clinic_id: string;
+          content_sha256?: string | null;
           guardian_id?: string | null;
           id?: string;
+          informed_by_license_snapshot?: string | null;
+          informed_by_name_snapshot?: string | null;
+          informed_by_professional_id?: string | null;
           patient_id: string;
+          procedure_snapshot?: string | null;
           recorded_by?: string;
           revoked_at?: string | null;
           revoked_by?: string | null;
+          risks_snapshot?: string | null;
+          signature_sha256?: string | null;
           signature_storage_path: string;
           signed_at?: string;
           signed_by_name: string;
@@ -2288,16 +2330,26 @@ export type Database = {
           signer_role?: string | null;
           template_id?: string | null;
           title_snapshot: string;
+          tooth_numbers?: number[] | null;
+          treatment_item_id?: string | null;
         };
         Update: {
+          alternatives_snapshot?: string | null;
           body_snapshot?: string;
           clinic_id?: string;
+          content_sha256?: string | null;
           guardian_id?: string | null;
           id?: string;
+          informed_by_license_snapshot?: string | null;
+          informed_by_name_snapshot?: string | null;
+          informed_by_professional_id?: string | null;
           patient_id?: string;
+          procedure_snapshot?: string | null;
           recorded_by?: string;
           revoked_at?: string | null;
           revoked_by?: string | null;
+          risks_snapshot?: string | null;
+          signature_sha256?: string | null;
           signature_storage_path?: string;
           signed_at?: string;
           signed_by_name?: string;
@@ -2306,6 +2358,8 @@ export type Database = {
           signer_role?: string | null;
           template_id?: string | null;
           title_snapshot?: string;
+          tooth_numbers?: number[] | null;
+          treatment_item_id?: string | null;
         };
         Relationships: [
           {
@@ -2323,6 +2377,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "patient_consents_informed_by_professional_id_fkey";
+            columns: ["informed_by_professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "patient_consents_patient_id_fkey";
             columns: ["patient_id"];
             isOneToOne: false;
@@ -2334,6 +2395,13 @@ export type Database = {
             columns: ["template_id"];
             isOneToOne: false;
             referencedRelation: "consent_templates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_consents_treatment_item_id_fkey";
+            columns: ["treatment_item_id"];
+            isOneToOne: false;
+            referencedRelation: "treatment_items";
             referencedColumns: ["id"];
           },
         ];
@@ -3367,6 +3435,115 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      prescriptions: {
+        Row: {
+          clinic_address_snapshot: string | null;
+          clinic_id: string;
+          clinic_legal_name_snapshot: string | null;
+          clinic_name_snapshot: string;
+          clinic_phone_snapshot: string | null;
+          clinic_tax_id_snapshot: string | null;
+          content_sha256: string;
+          id: string;
+          instructions: string | null;
+          issued_at: string;
+          issued_by: string;
+          items: Json;
+          number: number;
+          patient_birth_date_snapshot: string | null;
+          patient_id: string;
+          patient_name_snapshot: string;
+          professional_id: string | null;
+          professional_license_snapshot: string;
+          professional_name_snapshot: string;
+          professional_specialty_snapshot: string | null;
+          signature_sha256: string | null;
+          signature_storage_path: string | null;
+          void_reason: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          year: number;
+        };
+        Insert: {
+          clinic_address_snapshot?: string | null;
+          clinic_id: string;
+          clinic_legal_name_snapshot?: string | null;
+          clinic_name_snapshot?: string;
+          clinic_phone_snapshot?: string | null;
+          clinic_tax_id_snapshot?: string | null;
+          content_sha256?: string;
+          id?: string;
+          instructions?: string | null;
+          issued_at?: string;
+          issued_by?: string;
+          items: Json;
+          number?: number;
+          patient_birth_date_snapshot?: string | null;
+          patient_id: string;
+          patient_name_snapshot?: string;
+          professional_id?: string | null;
+          professional_license_snapshot?: string;
+          professional_name_snapshot?: string;
+          professional_specialty_snapshot?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          year?: number;
+        };
+        Update: {
+          clinic_address_snapshot?: string | null;
+          clinic_id?: string;
+          clinic_legal_name_snapshot?: string | null;
+          clinic_name_snapshot?: string;
+          clinic_phone_snapshot?: string | null;
+          clinic_tax_id_snapshot?: string | null;
+          content_sha256?: string;
+          id?: string;
+          instructions?: string | null;
+          issued_at?: string;
+          issued_by?: string;
+          items?: Json;
+          number?: number;
+          patient_birth_date_snapshot?: string | null;
+          patient_id?: string;
+          patient_name_snapshot?: string;
+          professional_id?: string | null;
+          professional_license_snapshot?: string;
+          professional_name_snapshot?: string;
+          professional_specialty_snapshot?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "prescriptions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prescriptions_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prescriptions_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
             referencedColumns: ["id"];
           },
         ];

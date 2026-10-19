@@ -2,14 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
+import { esPiezaFdi, type OrigenPlantilla } from "@/lib/clinical/consentimientos";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
+import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import { idsDeLaFicha } from "@/lib/patients/fusion";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
 
-function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; mimeType: string } {
+export function decodeDataUrl(dataUrl: string): { bytes: Uint8Array; mimeType: string } {
   const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
   if (!match) throw new Error("Archivo inválido: formato de datos no reconocido.");
   const [, mimeType, base64] = match;
@@ -163,12 +164,25 @@ export const archivePatientDocument = createServerFn({ method: "POST" })
 // Consentimientos informados
 // ---------------------------------------------------------------
 
+export async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(bytes));
+  return Buffer.from(digest).toString("hex");
+}
+
 export type ConsentTemplate = {
   id: string;
   title: string;
+  procedure: string | null;
   body: string;
+  risks: string | null;
+  alternatives: string | null;
   active: boolean;
+  source: OrigenPlantilla;
+  reviewedAt: string | null;
 };
+
+const COLUMNAS_PLANTILLA =
+  "id, title, procedure, body, risks, alternatives, active, source, reviewed_at";
 
 export const listConsentTemplates = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -176,33 +190,110 @@ export const listConsentTemplates = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ConsentTemplate[]> => {
     const { data: rows, error } = await context.supabase
       .from("consent_templates")
-      .select("id, title, body, active")
+      .select(COLUMNAS_PLANTILLA)
       .eq("clinic_id", data.clinicId)
       .order("title", { ascending: true });
+    if (error && isUndefinedColumnError(error)) {
+      // Antes de aplicar la migración 20261019190000: solo título y texto.
+      const { data: viejas, error: errorViejo } = await context.supabase
+        .from("consent_templates")
+        .select("id, title, body, active")
+        .eq("clinic_id", data.clinicId)
+        .order("title", { ascending: true });
+      if (errorViejo)
+        throw new Error(
+          mensajeDb(errorViejo, "No pudimos cargar las plantillas de consentimiento."),
+        );
+      return (viejas ?? []).map((t) => ({
+        ...t,
+        procedure: null,
+        risks: null,
+        alternatives: null,
+        source: "clinic" as const,
+        reviewedAt: null,
+      }));
+    }
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar las plantillas de consentimiento."));
-    return rows ?? [];
+    return (rows ?? []).map((t) => ({
+      id: t.id,
+      title: t.title,
+      procedure: t.procedure,
+      body: t.body,
+      risks: t.risks,
+      alternatives: t.alternatives,
+      active: t.active,
+      source: t.source === "esmalia_model" ? "esmalia_model" : "clinic",
+      reviewedAt: t.reviewed_at,
+    }));
   });
+
+const PlantillaSchema = z.object({
+  clinicId: z.string().uuid(),
+  title: z.string().trim().min(2).max(120),
+  procedure: z.string().trim().min(2).max(200),
+  body: z.string().trim().min(10).max(8000),
+  risks: z.string().trim().max(4000).optional().or(z.literal("")),
+  alternatives: z.string().trim().max(4000).optional().or(z.literal("")),
+});
 
 export const createConsentTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z
-      .object({
-        clinicId: z.string().uuid(),
-        title: z.string().trim().min(2).max(120),
-        body: z.string().trim().min(10).max(8000),
-      })
-      .parse(input),
-  )
+  .validator((input: unknown) => PlantillaSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.from("consent_templates").insert({
       clinic_id: data.clinicId,
       title: data.title,
+      procedure: data.procedure,
       body: data.body,
+      risks: data.risks?.trim() || null,
+      alternatives: data.alternatives?.trim() || null,
       created_by: context.userId,
     });
     if (error) throw new Error("No tienes permisos para crear plantillas de consentimiento.");
+    return { ok: true };
+  });
+
+/**
+ * Editar una plantilla no toca lo ya firmado: cada consentimiento guarda su
+ * propio snapshot del texto.
+ */
+export const updateConsentTemplate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    PlantillaSchema.extend({ templateId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("consent_templates")
+      .update({
+        title: data.title,
+        procedure: data.procedure,
+        body: data.body,
+        risks: data.risks?.trim() || null,
+        alternatives: data.alternatives?.trim() || null,
+      })
+      .eq("id", data.templateId)
+      .eq("clinic_id", data.clinicId);
+    if (error) throw new Error("No tienes permisos para editar plantillas de consentimiento.");
+    return { ok: true };
+  });
+
+/** Marca (o desmarca) un modelo como revisado. Quién y cuándo lo estampa la base. */
+export const setConsentTemplateReviewed = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({ clinicId: z.string().uuid(), templateId: z.string().uuid(), reviewed: z.boolean() })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("consent_templates")
+      .update({ reviewed_at: data.reviewed ? new Date().toISOString() : null })
+      .eq("id", data.templateId)
+      .eq("clinic_id", data.clinicId);
+    if (error) throw new Error("No tienes permisos para editar plantillas de consentimiento.");
     return { ok: true };
   });
 
@@ -226,28 +317,22 @@ export const setConsentTemplateActive = createServerFn({ method: "POST" })
 export type PatientConsent = {
   id: string;
   titleSnapshot: string;
+  procedureSnapshot: string | null;
   bodySnapshot: string;
-  signedByName: string;
+  risksSnapshot: string | null;
+  alternativesSnapshot: string | null;
+  toothNumbers: number[];
+  informedByName: string | null;
+  informedByLicense: string | null;
   /** "tutor" si firmó el tutor o representante legal; null en firmas anteriores al dato. */
   signerRole: "paciente" | "tutor" | null;
   signerDocument: string | null;
   signerRelationship: string | null;
+  signedByName: string;
   signedAt: string;
+  contentSha256: string | null;
   revokedAt: string | null;
   signatureUrl: string | null;
-};
-
-type FilaConsentimiento = {
-  id: string;
-  title_snapshot: string;
-  body_snapshot: string;
-  signature_storage_path: string;
-  signed_by_name: string;
-  signed_at: string;
-  revoked_at: string | null;
-  signer_role?: string | null;
-  signer_document_snapshot?: string | null;
-  signer_relationship_snapshot?: string | null;
 };
 
 export const listPatientConsents = createServerFn({ method: "GET" })
@@ -265,40 +350,61 @@ export const listPatientConsents = createServerFn({ method: "GET" })
     // CLI-06: un documento o consentimiento firmado no se reescribe al
     // fusionar fichas: se lee también desde las fichas fusionadas en esta.
     const fichas = await idsDeLaFicha(context.supabase, data.clinicId, data.patientId);
-    const columnas =
-      "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at";
-    const consulta = (cols: string) =>
-      context.supabase
+    const nuevas = await context.supabase
+      .from("patient_consents")
+      .select(
+        "id, title_snapshot, procedure_snapshot, body_snapshot, risks_snapshot, alternatives_snapshot, tooth_numbers, informed_by_name_snapshot, informed_by_license_snapshot, signer_role, signer_document_snapshot, signer_relationship_snapshot, signature_storage_path, signed_by_name, signed_at, content_sha256, revoked_at",
+      )
+      .eq("clinic_id", data.clinicId)
+      .in("patient_id", fichas)
+      .order("signed_at", { ascending: false });
+
+    let rows: Array<Record<string, unknown>> | null = nuevas.data;
+    if (nuevas.error && isUndefinedColumnError(nuevas.error)) {
+      // Antes de aplicar la migración 20261019190000.
+      const viejas = await context.supabase
         .from("patient_consents")
-        .select(cols)
+        .select(
+          "id, title_snapshot, body_snapshot, signature_storage_path, signed_by_name, signed_at, revoked_at",
+        )
         .eq("clinic_id", data.clinicId)
         .in("patient_id", fichas)
         .order("signed_at", { ascending: false });
-    // Columnas del firmante (migración 20261019180000); sin ella, se listan
-    // igual sin ese dato.
-    let { data: rows, error } = await consulta(
-      `${columnas}, signer_role, signer_document_snapshot, signer_relationship_snapshot`,
-    );
-    if (error && isUndefinedColumnError(error)) ({ data: rows, error } = await consulta(columnas));
-    if (error)
-      throw new Error(mensajeDb(error, "No pudimos cargar los consentimientos del paciente."));
+      if (viejas.error)
+        throw new Error(
+          mensajeDb(viejas.error, "No pudimos cargar los consentimientos del paciente."),
+        );
+      rows = viejas.data;
+    } else if (nuevas.error) {
+      throw new Error(
+        mensajeDb(nuevas.error, "No pudimos cargar los consentimientos del paciente."),
+      );
+    }
 
+    const texto = (v: unknown) => (typeof v === "string" ? v : null);
     const consents: PatientConsent[] = [];
-    for (const row of (rows ?? []) as unknown as FilaConsentimiento[]) {
+    for (const row of rows ?? []) {
       const { data: signed } = await context.supabase.storage
         .from(BUCKET)
-        .createSignedUrl(row.signature_storage_path, SIGNED_URL_TTL_SECONDS);
+        .createSignedUrl(String(row.signature_storage_path), SIGNED_URL_TTL_SECONDS);
       consents.push({
-        id: row.id,
-        titleSnapshot: row.title_snapshot,
-        bodySnapshot: row.body_snapshot,
-        signedByName: row.signed_by_name,
+        id: String(row.id),
+        titleSnapshot: String(row.title_snapshot),
+        procedureSnapshot: texto(row.procedure_snapshot),
+        bodySnapshot: String(row.body_snapshot),
+        risksSnapshot: texto(row.risks_snapshot),
+        alternativesSnapshot: texto(row.alternatives_snapshot),
+        toothNumbers: Array.isArray(row.tooth_numbers) ? (row.tooth_numbers as number[]) : [],
+        informedByName: texto(row.informed_by_name_snapshot),
+        informedByLicense: texto(row.informed_by_license_snapshot),
         signerRole:
           row.signer_role === "paciente" || row.signer_role === "tutor" ? row.signer_role : null,
-        signerDocument: row.signer_document_snapshot ?? null,
-        signerRelationship: row.signer_relationship_snapshot ?? null,
-        signedAt: row.signed_at,
-        revokedAt: row.revoked_at,
+        signerDocument: texto(row.signer_document_snapshot),
+        signerRelationship: texto(row.signer_relationship_snapshot),
+        signedByName: String(row.signed_by_name),
+        signedAt: String(row.signed_at),
+        contentSha256: texto(row.content_sha256),
+        revokedAt: texto(row.revoked_at),
         signatureUrl: signed?.signedUrl ?? null,
       });
     }
@@ -315,13 +421,23 @@ export const signPatientConsent = createServerFn({ method: "POST" })
         patientId: z.string().uuid(),
         templateId: z.string().uuid().optional(),
         titleSnapshot: z.string().trim().min(2).max(120),
+        procedureSnapshot: z.string().trim().min(2).max(200),
         bodySnapshot: z.string().trim().min(10).max(8000),
-        signedByName: z.string().trim().min(2).max(120),
+        risksSnapshot: z.string().trim().max(4000).optional().or(z.literal("")),
+        alternativesSnapshot: z.string().trim().max(4000).optional().or(z.literal("")),
+        // Quién explicó el procedimiento. La base copia su nombre y registro.
+        informedByProfessionalId: z.string().uuid(),
+        toothNumbers: z
+          .array(z.number().int().refine(esPiezaFdi, "Pieza fuera de la notación FDI."))
+          .max(32)
+          .optional(),
+        treatmentItemId: z.string().uuid().optional(),
         // Tutor o representante legal que firma (CLI-11). Obligatorio si el
         // paciente es menor: lo exige el trigger `stamp_patient_consent_signer`,
         // que además copia el nombre, documento y parentesco del tutor al
         // registro (lo que mande el cliente en `signedByName` se pisa).
         guardianId: z.string().uuid().optional(),
+        signedByName: z.string().trim().min(2).max(120),
         // PNG del canvas de firma, data URL. Opcional a propósito: el canvas
         // es un widget de puntero puro (no hay forma significativa de
         // "dibujar" por teclado), así que un paciente/staff que usa teclado o
@@ -359,20 +475,25 @@ export const signPatientConsent = createServerFn({ method: "POST" })
       patient_id: data.patientId,
       template_id: data.templateId ?? null,
       title_snapshot: data.titleSnapshot,
+      procedure_snapshot: data.procedureSnapshot,
       body_snapshot: data.bodySnapshot,
-      signature_storage_path: path,
-      signed_by_name: data.signedByName,
+      risks_snapshot: data.risksSnapshot?.trim() || null,
+      alternatives_snapshot: data.alternativesSnapshot?.trim() || null,
+      informed_by_professional_id: data.informedByProfessionalId,
+      tooth_numbers: data.toothNumbers?.length ? data.toothNumbers : null,
+      treatment_item_id: data.treatmentItemId ?? null,
       ...(data.guardianId ? { guardian_id: data.guardianId } : {}),
+      signature_storage_path: path,
+      signature_sha256: await sha256Hex(bytes),
+      signed_by_name: data.signedByName,
       recorded_by: context.userId,
     });
     if (insertError) {
       await context.supabase.storage.from(BUCKET).remove([path]);
-      // El trigger del firmante responde en español ("El paciente es menor
-      // de edad…", "El tutor elegido no corresponde…"): ese sí se muestra.
+      // Los triggers responden en español ("El paciente es menor de edad…",
+      // "Indica el procedimiento…") y mensajeDb los deja pasar.
       throw new Error(
-        insertError.code === "23514" && /menor de edad|tutor/i.test(insertError.message)
-          ? insertError.message
-          : "No tienes permisos para registrar consentimientos firmados.",
+        mensajeDb(insertError, "No tienes permisos para registrar consentimientos firmados."),
       );
     }
     return { ok: true };

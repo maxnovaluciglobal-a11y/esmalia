@@ -181,8 +181,9 @@ CREATE TRIGGER patients_impedir_borrar_con_notas
 --   - sin el UPDATE a clinical_notes.patient_id (columna inexistente: hacía
 --     fallar la fusión entera). Las notas quedan con su `patient_ref`
 --     original; la ficha destino las lista junto a las suyas.
---   - documentos y consentimientos firmados tampoco se mueven (sus triggers
---     de inmutabilidad lo impiden): se leen desde la ficha destino.
+--   - documentos, consentimientos y recetas firmados tampoco se mueven (sus
+--     triggers de inmutabilidad lo impiden): se leen desde la ficha destino.
+--     Los tutores quedan en la ficha absorbida; los signos vitales se mueven.
 --   - no se fusiona hacia una ficha archivada ni una ficha ya fusionada (una
 --     cadena A→B→C escondería la historia).
 -- La anamnesis sigue sin combinarse sola: la ficha destino muestra las
@@ -242,6 +243,14 @@ BEGIN
   -- fichas fusionadas en ella.
   UPDATE public.messages            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.lab_orders          SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  -- Signos vitales (20261019180000): mediciones sin trigger de inmutabilidad,
+  -- se mueven con la atención. Recetas (20261019190000) y tutores no se
+  -- mueven: sus triggers lo impiden a propósito; las recetas se leen desde la
+  -- ficha destino y los tutores quedan en la ficha absorbida.
+  IF to_regclass('public.patient_vital_signs') IS NOT NULL THEN
+    EXECUTE 'UPDATE public.patient_vital_signs SET patient_id = $1 WHERE patient_id = $2 AND clinic_id = $3'
+      USING p_target_id, p_source_id, p_clinic_id;
+  END IF;
 
   UPDATE public.patients
      SET merged_into = p_target_id,

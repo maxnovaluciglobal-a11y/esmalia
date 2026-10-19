@@ -40,6 +40,7 @@ import { esMenorDeEdad, parentescoLegible, tutorPrincipal } from "@/lib/patients
 import { listAgreements, setPatientAgreement } from "@/lib/finance/clinic-finance.functions";
 import { PatientDocumentsCard } from "@/components/patient-documents-card";
 import { PatientConsentsCard } from "@/components/patient-consents-card";
+import { PatientPrescriptionsCard } from "@/components/patient-prescriptions-card";
 import { Odontogram, OdontogramResumen } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
 import { FinanceSection, type PiezaSeed } from "@/components/finance-section";
@@ -729,8 +730,21 @@ function PacienteDetalle() {
                 patientName={paciente.nombre}
                 fechaNacimiento={paciente.fechaNacimiento}
                 timezone={timezone}
+                myProfessionalId={access.myProfessionalId ?? null}
                 puedeEditar={puedeEscribirClinico}
                 puedeGestionar={hasPermission(access.role, "patients:manage")}
+              />
+              <PatientPrescriptionsCard
+                clinicId={clinicId}
+                patientId={paciente.id}
+                patientDocument={paciente.documento || null}
+                allergies={medicalHistoryQuery.data?.allergies ?? []}
+                timezone={access.clinic?.timezone ?? "America/Santiago"}
+                myProfessionalId={access.myProfessionalId ?? null}
+                puedeEmitir={
+                  puedeEscribirClinico &&
+                  (access.role === "owner" || access.role === "admin" || access.role === "dentist")
+                }
               />
             </TabsContent>
           )}
