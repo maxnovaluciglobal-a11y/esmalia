@@ -20,6 +20,7 @@ import { createFileRoute, Link, type ErrorComponentProps } from "@tanstack/react
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { marcarEquipoInterno } from "@/lib/marketing/eventos";
+import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import { listMarketingLeads } from "@/lib/marketing/leads.functions";
 import type { MetaLead } from "@/lib/marketing/leads";
 import type { Json } from "@/integrations/supabase/types";
@@ -67,6 +68,19 @@ function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
         >
           Volver al dashboard
         </Link>
+        {/* SEG-01: acá NO se ofrece activar el factor (revisión del PR #65):
+            con una contraseña robada de staff, eso alcanzaba para inscribir
+            un TOTP propio y subir a aal2. Se activa desde /preferencias, con
+            un inicio de sesión reciente. */}
+        {error.message === MENSAJE_STAFF_REQUIERE_MFA && (
+          <p className="mt-4 text-xs text-muted-foreground">
+            Actívala desde{" "}
+            <Link to="/preferencias" className="font-medium text-brand-700 hover:underline">
+              Preferencias
+            </Link>{" "}
+            justo después de iniciar sesión.
+          </p>
+        )}
       </div>
     </div>
   );

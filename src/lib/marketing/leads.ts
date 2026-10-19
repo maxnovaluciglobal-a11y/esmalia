@@ -2,24 +2,18 @@
 // Lógica pura de captación. Sin React, sin Supabase: se puede testear sin
 // levantar nada y se importa tanto desde la UI pública como desde la server fn.
 
-import { normalizeToWaMe } from "@/lib/messaging/messaging";
+import { CODIGO_PAIS, normalizeToWaMe, type PaisTelefono } from "@/lib/messaging/telefonos";
 
-export type PaisCaptacion = "CL" | "MX" | "CO" | "PE" | "AR";
+export type PaisCaptacion = PaisTelefono;
 
-/** Prefijo telefónico por país. normalizeToWaMe tiene "56" fijo como default;
- *  acá lo elegimos según el país que el visitante seleccionó. */
-export const CODIGO_PAIS_TELEFONO: Record<PaisCaptacion, string> = {
-  CL: "56",
-  MX: "52",
-  CO: "57",
-  PE: "51",
-  AR: "54",
-};
+/** Prefijo telefónico por país (el mismo mapa que usa la normalización). */
+export const CODIGO_PAIS_TELEFONO: Record<PaisCaptacion, string> = CODIGO_PAIS;
 
+/** El número se lee con las reglas del país que el visitante eligió. */
 export function normalizarTelefonoPorPais(phone: string, country: PaisCaptacion): string | null {
   const limpio = (phone ?? "").trim();
   if (!limpio) return null;
-  return normalizeToWaMe(limpio, CODIGO_PAIS_TELEFONO[country]);
+  return normalizeToWaMe(limpio, country);
 }
 
 /** SHA-256 hex de la IP con sal. Guardamos el hash y no la IP: para el rate

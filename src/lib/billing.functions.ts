@@ -9,8 +9,10 @@ import { urlDeLaApp } from "@/lib/app-origin.server";
 import {
   requiereLlamadaOSuscripcion,
   SUBSCRIPTION_STATUSES,
+  TRIAL_DAYS,
   type Subscription,
 } from "@/lib/billing";
+import { crearCheckoutOPortal, type ResultadoCheckout } from "@/lib/checkout-suscripcion.server";
 import { mensajeDb } from "@/lib/db-errors";
 import { planPriceId, getStripe, type BillingPlan } from "@/lib/stripe.server";
 
@@ -23,9 +25,11 @@ type SubscriptionRow = {
   trial_end: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
+  /** Opcional: no existe hasta aplicar `20261019130000_subscriptions_past_due_since.sql`. */
+  past_due_since?: string | null;
 };
 
-function mapSubscription(row: SubscriptionRow): Subscription {
+export function mapSubscription(row: SubscriptionRow): Subscription {
   const status = (SUBSCRIPTION_STATUSES as readonly string[]).includes(row.status)
     ? (row.status as Subscription["status"])
     : "incomplete";
@@ -38,8 +42,18 @@ function mapSubscription(row: SubscriptionRow): Subscription {
     trialEnd: row.trial_end,
     currentPeriodEnd: row.current_period_end,
     cancelAtPeriodEnd: row.cancel_at_period_end,
+    pastDueSince: row.past_due_since ?? null,
   };
 }
+
+/**
+ * `*` y no una lista de columnas: `past_due_since` llega con una migración
+ * que se aplica a mano (con OK de Walter). Pedirla por nombre antes de eso
+ * haría fallar la consulta entera (42703) y con ella el estado de la
+ * suscripción en toda la app. Con `*`, si la columna no está, simplemente no
+ * viene y `mapSubscription` la trata como `null`.
+ */
+export const SUBSCRIPTION_SELECT = "*";
 
 const SIN_PERMISOS_FACTURACION = "No tienes permisos para gestionar la suscripción de la clínica.";
 
@@ -50,9 +64,7 @@ export const getMySubscription = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<Subscription | null> => {
     const { data: row, error } = await context.supabase
       .from("subscriptions")
-      .select(
-        "clinic_id, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end, current_period_end, cancel_at_period_end",
-      )
+      .select(SUBSCRIPTION_SELECT)
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar la suscripción de la clínica."));
@@ -77,9 +89,7 @@ export async function throwIfRequiresLlamadaOSuscripcion(
   const [{ data: subRow }, { data: clinicRow }] = await Promise.all([
     supabase
       .from("subscriptions")
-      .select(
-        "clinic_id, status, stripe_customer_id, stripe_subscription_id, stripe_price_id, trial_end, current_period_end, cancel_at_period_end",
-      )
+      .select(SUBSCRIPTION_SELECT)
       .eq("clinic_id", clinicId)
       .maybeSingle(),
     supabase.from("clinics").select("onboarding_call_at").eq("id", clinicId).maybeSingle(),
@@ -92,14 +102,12 @@ export async function throwIfRequiresLlamadaOSuscripcion(
 }
 
 /**
- * Crea (o reutiliza) una sesión de Stripe Checkout para que la clínica
- * arranque su trial + suscripción. Devuelve la URL a la que hay que
- * redirigir. Guarda customer_id en la tabla local cuando lo obtiene.
+ * Crea una sesión de Stripe Checkout para que la clínica arranque su
+ * suscripción, o —si ya tiene una viva en Stripe— una sesión del Portal de
+ * facturación (auditoría 360, BIL-03: nunca una segunda suscripción). La
+ * decisión vive en `checkout-suscripcion.server.ts`.
  *
- * ⚠️ Requiere que Walter haya:
- *   1) Creado el producto + price en Stripe.
- *   2) Seteado STRIPE_SECRET_KEY y STRIPE_PRICE_ID_CLINIC_MONTHLY en env.
- *   3) Configurado el webhook a /api/stripe/webhook con STRIPE_WEBHOOK_SECRET.
+ * ⚠️ Requiere STRIPE_SECRET_KEY, STRIPE_PRICE_ID_* y el webhook configurados.
  */
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -111,7 +119,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ url: string }> => {
+  .handler(async ({ data, context }): Promise<ResultadoCheckout> => {
     const { supabase, userId } = context;
     // Auditoría 10-oct-2026: la pantalla /suscripcion exige `settings:manage`,
     // pero el server fn no — cualquier miembro (recepción, asistente) podía
@@ -148,39 +156,31 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       .eq("id", userId)
       .maybeSingle();
 
-    const { data: existing } = await supabase
+    // Si esta lectura falla no sabemos si ya hay una suscripción: abrir un
+    // checkout a ciegas es justo el doble cobro que se quiere evitar.
+    const { data: existing, error: existingErr } = await supabase
       .from("subscriptions")
-      .select("stripe_customer_id")
+      .select("status, trial_end, stripe_customer_id, stripe_subscription_id")
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
+    if (existingErr)
+      throw new Error(mensajeDb(existingErr, "No pudimos cargar la suscripción de la clínica."));
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      line_items: [{ price: priceId, quantity: 1 }],
-      customer: existing?.stripe_customer_id ?? undefined,
-      customer_email: existing?.stripe_customer_id ? undefined : (profile?.email ?? undefined),
-      client_reference_id: data.clinicId,
-      // No exigir tarjeta de entrada durante el trial (coherente con el copy
-      // de suscripcion.tsx: "no cobramos hasta que termine" el trial). Con
-      // trial_period_days > 0 el total del checkout es 0, así que Stripe
-      // omite la recolección de método de pago con este flag.
-      payment_method_collection: "if_required",
-      metadata: {
-        clinic_id: data.clinicId,
-        clinic_name: clinic.name ?? "",
-      },
-      subscription_data: {
-        trial_period_days: 14,
-        metadata: { clinic_id: data.clinicId },
-      },
+    return crearCheckoutOPortal(stripe, {
+      clinicId: data.clinicId,
+      clinicName: clinic.name ?? "",
+      plan: data.plan,
+      priceId,
+      email: profile?.email ?? null,
+      fila: existing ?? null,
+      ahora: new Date(),
+      diasTrialPorDefecto: TRIAL_DAYS,
       // El origen lo arma el servidor (PUBLIC_APP_URL): antes venía del
       // cliente y se podía mandar el retorno de Stripe a cualquier dominio.
-      success_url: urlDeLaApp("/suscripcion?checkout=success"),
-      cancel_url: urlDeLaApp("/suscripcion?checkout=cancel"),
+      successUrl: urlDeLaApp("/suscripcion?checkout=success"),
+      cancelUrl: urlDeLaApp("/suscripcion?checkout=cancel"),
+      portalReturnUrl: urlDeLaApp("/suscripcion"),
     });
-
-    if (!session.url) throw new Error("Stripe no devolvió URL de checkout.");
-    return { url: session.url };
   });
 
 /**

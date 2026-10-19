@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { BellRing, Mail, MailX, Star } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { VerificacionDosPasosCard } from "@/components/verificacion-dos-pasos";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { toast } from "sonner";
 import {
@@ -228,6 +229,10 @@ function PreferenciasPage() {
   return (
     <AppShell title="Preferencias de aviso" access={access}>
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        {/* SEG-01: la seguridad de la cuenta es personal, como los avisos:
+            cualquier rol la gestiona para sí mismo. */}
+        <VerificacionDosPasosCard />
+
         {puedeGestionarConfig && access.clinic && (
           <BranchReviewLinksSection clinicId={access.clinic.id} />
         )}

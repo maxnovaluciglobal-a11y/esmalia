@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
 import { buildWaMeUrl, normalizeToWaMe } from "@/lib/messaging/messaging";
+import { mensajeTelefonoInvalido } from "@/lib/messaging/telefonos";
 import {
   agruparConversaciones,
   serviceWindow,
@@ -243,19 +244,23 @@ export const replyToConversation = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     await assertNotDemoClinic(supabase, data.clinicId);
 
-    const { data: paciente, error: errPac } = await supabase
-      .from("patients")
-      .select("id, phone")
-      .eq("clinic_id", data.clinicId)
-      .eq("id", data.patientId)
-      .maybeSingle();
+    const [{ data: paciente, error: errPac }, { data: clinica }] = await Promise.all([
+      supabase
+        .from("patients")
+        .select("id, phone")
+        .eq("clinic_id", data.clinicId)
+        .eq("id", data.patientId)
+        .maybeSingle(),
+      supabase.from("clinics").select("country").eq("id", data.clinicId).maybeSingle(),
+    ]);
     if (errPac) throw new Error(mensajeDb(errPac, "No pudimos leer la ficha del paciente."));
     if (!paciente) throw new Error("No encontramos al paciente en esta clínica.");
     if (!paciente.phone) throw new Error("El paciente no tiene teléfono cargado en su ficha.");
 
-    const destino = normalizeToWaMe(paciente.phone);
-    if (!destino)
-      throw new Error("El teléfono del paciente no tiene un formato que WhatsApp acepte.");
+    // BIL-11: el número se lee con el país de la clínica, nunca con Chile por defecto.
+    const pais = clinica?.country ?? null;
+    const destino = normalizeToWaMe(paciente.phone, pais);
+    if (!destino) throw new Error(mensajeTelefonoInvalido(paciente.phone, pais));
 
     // La ventana se mide contra el último ENTRANTE real, no contra lo que
     // diga el cliente: el navegador no es fuente de verdad de una regla de Meta.
@@ -325,7 +330,7 @@ export const replyToConversation = createServerFn({ method: "POST" })
 
     return {
       via,
-      waMeUrl: via === "wa_me" ? buildWaMeUrl(paciente.phone, data.body) : null,
+      waMeUrl: via === "wa_me" ? buildWaMeUrl(paciente.phone, data.body, pais) : null,
       messageId: insertado.id,
     };
   });

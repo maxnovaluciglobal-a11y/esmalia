@@ -12,7 +12,9 @@ const MENSAJE_INICIAL = "Hola, quiero conocer Esmalia para mi clínica.";
 
 export function enlaceWhatsAppVentas(): { href: string; esWhatsApp: boolean } {
   const numero = import.meta.env.VITE_SALES_WHATSAPP as string | undefined;
-  const url = numero ? buildWaMeUrl(numero, MENSAJE_INICIAL) : null;
+  // El número de ventas se carga en formato internacional ("+56…"): no
+  // depende del país de nadie, por eso va sin país.
+  const url = numero ? buildWaMeUrl(numero, MENSAJE_INICIAL, null) : null;
   return url
     ? { href: url, esWhatsApp: true }
     : { href: `mailto:${EMAIL_CONTACTO}`, esWhatsApp: false };

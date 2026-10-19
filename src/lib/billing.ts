@@ -35,6 +35,13 @@ export interface Subscription {
   trialEnd: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;
+  /**
+   * Desde cuándo está en `past_due` (columna `past_due_since`, la mantiene un
+   * trigger). Opcional: hasta que se aplique la migración
+   * `20261019130000_subscriptions_past_due_since.sql` no viene, y una
+   * `past_due` sin fecha se trata como dentro de la gracia.
+   */
+  pastDueSince?: string | null;
 }
 
 /** Duración del trial. Única fuente de verdad: la migración que crea la fila
@@ -42,28 +49,52 @@ export interface Subscription {
  *  INSERT distintos. */
 export const TRIAL_DAYS = 14;
 
+/**
+ * Margen sobre las fechas que mueve Stripe (`currentPeriodEnd`, y `trialEnd`
+ * cuando el trial lo gestiona Stripe). Auditoría 360 (FN-04): si el webhook
+ * de renovación se atrasa o falla (firma, deploy, base caída → 500 y Stripe
+ * reintenta durante horas), la fecha local vence aunque el cliente esté al
+ * día. Durante estas 72 h la fila se considera vigente; si de verdad no
+ * pagó, Stripe manda `past_due`/`canceled` mucho antes.
+ */
+export const TOLERANCIA_RENOVACION_MS = 72 * 60 * 60 * 1000;
+
+function vencidaConTolerancia(iso: string, ahora: Date): boolean {
+  return new Date(iso).getTime() + TOLERANCIA_RENOVACION_MS <= ahora.getTime();
+}
+
 /** Considerada operativa: el usuario tiene acceso completo al panel. */
-export function isSubscriptionActive(sub: Subscription | null): boolean {
+export function isSubscriptionActive(sub: Subscription | null, ahora: Date = new Date()): boolean {
   if (!sub) return false;
   if (sub.status !== "trialing" && sub.status !== "active") return false;
   // Un trial con trial_end pasado está vencido aunque currentPeriodEnd sea
   // null: sin esta línea, la fila que crea el trigger nunca expiraría.
-  if (sub.status === "trialing" && sub.trialEnd && new Date(sub.trialEnd) <= new Date()) {
-    return false;
+  // El trial de la base (sin suscripción en Stripe) vence en punto: no hay
+  // webhook que esperar. El de Stripe tiene la misma tolerancia que la
+  // renovación, porque el paso a `active` también llega por webhook.
+  if (sub.status === "trialing" && sub.trialEnd) {
+    const vencido = sub.stripeSubscriptionId
+      ? vencidaConTolerancia(sub.trialEnd, ahora)
+      : new Date(sub.trialEnd) <= ahora;
+    if (vencido) return false;
   }
-  if (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) <= new Date()) return false;
+  if (sub.currentPeriodEnd && vencidaConTolerancia(sub.currentPeriodEnd, ahora)) return false;
   return true;
 }
 
-/** ¿Se bloquean los INFORMES (finanzas, comisiones, panel, inventario)?
+/** ¿Venció el trial de la base sin que la clínica activara nada? Es uno de
+ *  los casos de `informesBloqueados` (el gate que usan las pantallas).
  *  La operación diaria —agenda, pacientes, ficha clínica— nunca se bloquea.
  *  Devuelve false para sub === null: las clínicas piloto anteriores al trigger
  *  siguen con acceso libre y no se tocan. */
-export function trialInformesBloqueados(sub: Subscription | null): boolean {
+export function trialInformesBloqueados(
+  sub: Subscription | null,
+  ahora: Date = new Date(),
+): boolean {
   if (!sub) return false;
   if (sub.status !== "trialing") return false;
   if (sub.stripeSubscriptionId) return false;
-  return !!sub.trialEnd && new Date(sub.trialEnd) <= new Date();
+  return !!sub.trialEnd && new Date(sub.trialEnd) <= ahora;
 }
 
 /** Días restantes de trial (o null si no está en trial). */
@@ -74,21 +105,66 @@ export function trialDaysLeft(sub: Subscription | null): number | null {
 }
 
 /**
- * ¿Corresponde expulsar al owner de TODA la app hacia `/suscripcion`?
- *
- * Task 11, fix round 1: extraída de `_clinic/route.tsx::beforeLoad`, donde
- * vivía como expresión inline sin ningún test — la única línea que separa
- * "el trial venció y se activan los informes" de "el trial venció y se
- * cierra la app entera". `trialInformesBloqueados(sub) === true` implica
- * siempre `isSubscriptionActive(sub) === false` (un trial vencido sin
- * tarjeta nunca está "activo"), así que restar ese caso de
- * `!isSubscriptionActive(sub)` deja pasar exactamente "trial recién vencido,
- * sin tarjeta" y sigue expulsando en todos los demás casos de post-trial:
- * `past_due`/`canceled`/`unpaid`, o una suscripción `active` cuyo período ya
- * venció.
+ * Días de acceso completo después de un cobro fallido (BIL-01). Stripe sigue
+ * reintentando durante ese tiempo y la mayoría de los `past_due` se
+ * recuperan solos: cortar al primer intento castiga a quien no hizo nada.
  */
-export function debeExpulsarDeLaApp(sub: Subscription | null): boolean {
-  return !!sub && !isSubscriptionActive(sub) && !trialInformesBloqueados(sub);
+export const GRACIA_PAGO_FALLIDO_DIAS = 7;
+
+/**
+ * Qué puede hacer la clínica según su suscripción (auditoría 360, BIL-01).
+ *
+ * - `completo`: todo abierto.
+ * - `gracia`: cobro fallido hace menos de `GRACIA_PAGO_FALLIDO_DIAS`. Todo
+ *   abierto, con un banner que avisa los días que quedan.
+ * - `restringido`: trial vencido sin tarjeta, gracia agotada, cancelada,
+ *   impaga, pausada o período vencido (pasada la tolerancia). Se bloquean
+ *   los INFORMES (finanzas, comisiones, panel, inventario…), igual que con el
+ *   trial vencido.
+ *
+ * ⚠️ Ningún estado expulsa de la app ni bloquea agenda, pacientes, ficha
+ * clínica ni la exportación: la clínica es la custodia legal de la historia
+ * clínica (CL Ley 20.584, MX NOM-004, CO Res. 1995) y los Términos dicen que
+ * los datos no se pierden por un pago fallido. Antes, el owner con
+ * `past_due`/`canceled` quedaba encerrado en `/suscripcion` desde el primer
+ * intento fallido. El modo "solo lectura" completo (ver y exportar sí,
+ * crear/editar no) queda como siguiente paso: hoy `restringido` reutiliza el
+ * bloqueo de informes que ya existe y está probado.
+ */
+export type AccesoPorSuscripcion =
+  | { nivel: "completo" }
+  | { nivel: "gracia"; diasRestantes: number | null }
+  | { nivel: "restringido"; motivo: "trial_vencido" | "pago" };
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+export function accesoPorSuscripcion(
+  sub: Subscription | null,
+  ahora: Date = new Date(),
+): AccesoPorSuscripcion {
+  // Sin fila: clínicas piloto anteriores al trigger, no se tocan.
+  if (!sub) return { nivel: "completo" };
+  if (isSubscriptionActive(sub, ahora)) return { nivel: "completo" };
+
+  if (sub.status === "past_due") {
+    // Sin fecha (migración sin aplicar o fila vieja): no sabemos cuándo
+    // empezó, así que se da la gracia. Cuando Stripe agote los reintentos la
+    // suscripción pasa a `canceled`/`unpaid` y ahí sí se restringe.
+    if (!sub.pastDueSince) return { nivel: "gracia", diasRestantes: null };
+    const fin = new Date(sub.pastDueSince).getTime() + GRACIA_PAGO_FALLIDO_DIAS * DIA_MS;
+    const restante = fin - ahora.getTime();
+    if (restante > 0) return { nivel: "gracia", diasRestantes: Math.ceil(restante / DIA_MS) };
+    return { nivel: "restringido", motivo: "pago" };
+  }
+
+  if (trialInformesBloqueados(sub, ahora)) return { nivel: "restringido", motivo: "trial_vencido" };
+  return { nivel: "restringido", motivo: "pago" };
+}
+
+/** ¿Se bloquean los informes? Gate único para las rutas de informes y su par
+ *  en el servidor (`requireFinanceView`). Agenda, pacientes y ficha nunca. */
+export function informesBloqueados(sub: Subscription | null, ahora: Date = new Date()): boolean {
+  return accesoPorSuscripcion(sub, ahora).nivel === "restringido";
 }
 
 /**

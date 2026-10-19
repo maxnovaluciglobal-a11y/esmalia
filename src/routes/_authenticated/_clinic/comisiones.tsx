@@ -32,7 +32,7 @@ import {
 import { requireAnyPermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
-import { trialInformesBloqueados } from "@/lib/billing";
+import { informesBloqueados } from "@/lib/billing";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { formatMoney } from "@/lib/finance/finance";
 import {
@@ -104,7 +104,7 @@ function ComisionesPage() {
     enabled: Boolean(clinicId),
     staleTime: 60 * 1000,
   });
-  const bloqueado = trialInformesBloqueados(sub ?? null);
+  const bloqueado = informesBloqueados(sub ?? null);
 
   const fetchReport = useServerFn(getCommissionReport);
   const closePeriod = useServerFn(closeCommissionPeriod);
@@ -176,7 +176,7 @@ function ComisionesPage() {
   return (
     <AppShell title="Comisiones" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Comisiones" />
+        <TrialDesbloqueo pantalla="Comisiones" sub={sub ?? null} />
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-start justify-between gap-3">

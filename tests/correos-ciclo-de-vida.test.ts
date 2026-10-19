@@ -221,6 +221,9 @@ describe("plantillas", () => {
     expect(c.text).toContain("14 días");
     expect(c.text).toContain("sin ingresar una tarjeta");
     expect(c.text).toContain("23 de octubre");
+    // No promete "usarlo completo": 3 funciones se activan con la llamada (CS-02).
+    expect(c.text).not.toMatch(/completo/i);
+    expect(c.text).toContain("llamada de puesta en marcha");
     expect(c.html).toContain(`${APP}/profesionales`);
     expect(c.html).toContain(`${APP}/pacientes`);
     expect(c.html).toContain(`${APP}/equipo`);

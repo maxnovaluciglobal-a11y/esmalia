@@ -195,7 +195,7 @@ export const AJUSTES: readonly GrupoAjustes[] = [
       {
         to: "/preferencias",
         label: "Preferencias",
-        detalle: "Tus avisos",
+        detalle: "Tus avisos y la verificación en dos pasos",
         permisos: ["dashboard:view"],
       },
     ],

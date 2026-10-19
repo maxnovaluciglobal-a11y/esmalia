@@ -542,7 +542,7 @@ export const listMarketingLeads = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId);
+    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId, context.claims);
 
     const { data, error } = await supabaseAdmin
       .from("marketing_leads")

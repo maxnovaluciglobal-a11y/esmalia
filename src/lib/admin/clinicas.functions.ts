@@ -62,7 +62,7 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ClinicaStaffRow[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId);
+    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId, context.claims);
 
     const { data: clinics, error } = await supabaseAdmin
       .from("clinics")
@@ -127,7 +127,7 @@ export const marcarLlamadaHecha = createServerFn({ method: "POST" })
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId);
+    await requireEsmaliaStaffEmail(supabaseAdmin, context.userId, context.claims);
 
     const { error } = await supabaseAdmin
       .from("clinics")

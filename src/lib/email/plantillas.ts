@@ -53,9 +53,21 @@ export function correoBienvenida(d: DatosBienvenida): CorreoRenderizado {
     p(saludo(d.nombre)),
     p(
       { negrita: d.clinicName },
-      ` ya tiene su espacio en Esmalia. Tienes ${d.diasDePrueba} días para usarlo completo, gratis y sin ingresar una tarjeta`,
+      ` ya tiene su espacio en Esmalia. Tienes ${d.diasDePrueba} días de prueba gratis, sin ingresar una tarjeta`,
       d.finDePrueba ? `: la prueba termina el ${fechaLarga(d.finDePrueba)}.` : ".",
     ),
+    // Las 3 funciones de `requiereLlamadaOSuscripcion()` (billing.ts) no se
+    // abren solas con la prueba: decirlo acá evita que la clínica lo descubra
+    // al intentar usarlas.
+    {
+      tipo: "recuadro",
+      titulo: "Tres funciones se activan con una llamada",
+      partes: [
+        "WhatsApp oficial, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de 30 minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.",
+      ],
+      // Mismo Calendly que `LlamadaDesbloqueo` (llamada-desbloqueo.tsx).
+      enlace: { texto: "Agendar la llamada", href: "https://calendly.com/maxnovaluciglobal/30min" },
+    },
     { tipo: "boton", texto: "Entrar a Esmalia", href: unir(d.appUrl, "/dashboard") },
     { tipo: "subtitulo", texto: "Primeros pasos" },
     {

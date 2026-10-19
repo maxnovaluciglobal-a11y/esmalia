@@ -123,10 +123,10 @@ function Terminos() {
       <LegalUl>
         <LegalLi>
           <strong>Prueba gratis.</strong> Cada clínica nueva tiene 14 días gratis, sin dejar
-          tarjeta. Si al terminar no te suscribes, agenda, pacientes, ficha clínica y la exportación
-          de datos siguen abiertos; finanzas, comisiones, inventario y los demás informes se activan
-          al suscribirte. Si te suscribes durante la prueba, el primer cobro ocurre al terminar la
-          prueba, y si cancelas antes no te cobramos.
+          tarjeta. Si al terminar no te suscribes, agenda, pacientes y ficha clínica siguen
+          abiertos, y puedes pedirnos tus datos cuando quieras; finanzas, comisiones, inventario y
+          los demás informes se activan al suscribirte. Si te suscribes durante la prueba, el primer
+          cobro ocurre al terminar la prueba, y si cancelas antes no te cobramos.
         </LegalLi>
         <LegalLi>
           <strong>Cobro mensual por adelantado y renovación automática.</strong> La suscripción es
@@ -206,9 +206,16 @@ function Terminos() {
 
       <LegalH2>10. Terminación y tus datos</LegalH2>
       <LegalP>
-        Puedes dejar de usar Esmalia y pedir el cierre de tu cuenta cuando quieras. Puedes exportar
-        los datos de tu clínica desde la aplicación en cualquier momento, también antes de cerrar la
-        cuenta. Después de que termina el servicio, si nos lo pides por escrito a{" "}
+        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "Puedes exportar los
+            datos de tu clínica desde la aplicación en cualquier momento". */}
+        Puedes dejar de usar Esmalia y pedir el cierre de tu cuenta cuando quieras. En cualquier
+        momento, también antes de cerrar la cuenta, puedes pedirnos todos los datos de tu clínica
+        escribiendo a{" "}
+        <a href="mailto:soporte@esmalia.com" className={enlace}>
+          soporte@esmalia.com
+        </a>
+        : te los entregamos en formato estándar dentro de las 72 horas siguientes al pedido. Después
+        de que termina el servicio, si nos lo pides por escrito a{" "}
         <a href="mailto:privacidad@esmalia.com" className={enlace}>
           privacidad@esmalia.com
         </a>
@@ -220,7 +227,7 @@ function Terminos() {
         Podemos suspender o cerrar una cuenta que incumpla la sección 4 (uso aceptable) o que no
         pague (sección 6), avisando el motivo salvo que la ley nos impida hacerlo. Si cerramos
         Esmalia como servicio, avisamos con al menos 30 días de anticipación para que puedas
-        exportar tus datos.
+        pedirnos tus datos.
       </LegalP>
 
       <LegalH2>11. Límite de responsabilidad</LegalH2>
