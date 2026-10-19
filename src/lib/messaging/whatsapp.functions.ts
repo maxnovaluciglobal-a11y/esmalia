@@ -7,6 +7,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { throwIfRequiresLlamadaOSuscripcion } from "@/lib/billing.functions";
 import { mensajeDb } from "@/lib/db-errors";
+import { MENSAJE_PACIENTE_DADO_DE_BAJA } from "@/lib/messaging/baja-whatsapp";
 import { normalizeToWaMe } from "@/lib/messaging/messaging";
 import {
   buildMetaTemplateParams,
@@ -431,8 +432,17 @@ export async function tryMetaTemplateSend(params: {
   recipientRaw: string;
   /** País de la clínica (`clinics.country`): sin él, un número local no se envía. */
   country: string | null;
+  /**
+   * `patients.wa_opt_out_at` (CON-09). Obligatorio a propósito: un caller
+   * nuevo no puede olvidarse de la baja. Los callers ya cortan antes con un
+   * mensaje claro; esto es el cinturón.
+   */
+  waOptOutAt: string | null;
   variables: Record<string, string>;
 }): Promise<MetaTemplateSendAttempt> {
+  // Única excepción al "nunca tira": devolver `viaApi: false` haría que el
+  // caller cayera a wa.me, que es justo lo que la baja prohíbe.
+  if (params.waOptOutAt) throw new Error(MENSAJE_PACIENTE_DADO_DE_BAJA);
   if (!params.metaTemplate || !hasMetaTemplateMapping(params.templateKind)) {
     return { viaApi: false, externalId: null };
   }

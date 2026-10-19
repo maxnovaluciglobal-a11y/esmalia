@@ -53,7 +53,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "[Patty, la IA de Esmalia](/funciones/patty-ia), puede pasar tus apuntes a una nota SOAP, pulirla o resumirla. La versión queda marcada como asistida por IA y la firma sigue siendo tuya.",
+            "[Patty, la IA de Esmalia](/funciones/patty-ia), hoy en habilitación, podrá pasar tus apuntes a una nota SOAP, pulirla o resumirla. La versión queda marcada como asistida por IA y la firma sigue siendo tuya.",
         },
       ],
     },

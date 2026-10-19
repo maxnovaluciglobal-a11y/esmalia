@@ -1,3 +1,5 @@
+> **Archivado el 2026-10-19: histórico, no vigente.** Lo reemplaza la auditoría 360 total del 18-oct-2026 (fuera del repo: `04 - Esmalia/00 - Gestion/auditorias/2026-10-18-auditoria-360-total/`); lo que quedó por hacer está en [`docs/ROADMAP.md`](../ROADMAP.md). Se conserva como registro de cómo se pensó y decidió en su momento; no lo uses como fuente de estado ni de planes. Las rutas `docs/…` que aparecen abajo apuntan a la ubicación anterior (hoy `docs/archivo/`). Motivo: hallazgo GOB-03 de la auditoría 360 del 18-oct-2026.
+
 # Auditoría 360 — Esmalia (Aurora Dental OS) — 2026-08-26
 
 Auditoría más profunda hecha hasta ahora sobre el producto. 9 áreas, cada hallazgo pasado por investigación + contraauditoría + defensa antes de llegar a este reporte. Sigue en formato y espíritu a `AUDITORIA_360_REPORTE_2026-08-21.md`, pero cubre exclusivamente lo construido desde esa fecha (Tier 1-3 + Auth Google nativo) más lo que quedó pendiente de la ronda anterior.

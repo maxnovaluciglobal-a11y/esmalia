@@ -1,3 +1,5 @@
+> **Archivado el 2026-10-19: histórico, no vigente.** Lo reemplaza [`docs/Esmalia_Documento_Maestro_v2.md`](../Esmalia_Documento_Maestro_v2.md). Era la visión del prototipo de agosto (identidad visual, API pública, predicción de ausencias, facturación electrónica, multi-sucursal): buena parte de lo que describe **no existe** en el producto. Se conserva como registro de cómo se pensó y decidió en su momento; no lo uses como fuente de estado ni de planes. Las rutas `docs/…` que aparecen abajo apuntan a la ubicación anterior (hoy `docs/archivo/`). Motivo: hallazgo GOB-03 de la auditoría 360 del 18-oct-2026.
+
 # Esmalia — Documento maestro de producto
 
 ### Software de gestión odontológica cloud-first para Latinoamérica

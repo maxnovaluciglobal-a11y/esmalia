@@ -54,7 +54,7 @@ describe("lo que NO debe leer como pedido de agenda", () => {
   });
 
   it("ignora una baja de WhatsApp", () => {
-    for (const t of ["BAJA", "STOP", "CANCELAR", "UNSUBSCRIBE"]) {
+    for (const t of ["BAJA", "STOP", "NO MAS", "UNSUBSCRIBE"]) {
       expect(leer(t)).toBeNull();
     }
   });

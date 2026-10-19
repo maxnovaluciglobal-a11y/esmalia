@@ -547,6 +547,41 @@ export type Database = {
           },
         ];
       };
+      clinical_access_log: {
+        Row: {
+          accessed_at: string;
+          actor_id: string;
+          clinic_id: string;
+          id: string;
+          patient_id: string;
+          section: string;
+        };
+        Insert: {
+          accessed_at?: string;
+          actor_id: string;
+          clinic_id: string;
+          id?: string;
+          patient_id: string;
+          section: string;
+        };
+        Update: {
+          accessed_at?: string;
+          actor_id?: string;
+          clinic_id?: string;
+          id?: string;
+          patient_id?: string;
+          section?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinical_access_log_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinical_note_audit: {
         Row: {
           action: string;
@@ -2047,16 +2082,42 @@ export type Database = {
           },
         ];
       };
+      odontogram_condition_catalog: {
+        Row: {
+          alcance: string;
+          categoria: string;
+          condition: string;
+          grupo: string;
+          superficies: string[] | null;
+        };
+        Insert: {
+          alcance: string;
+          categoria: string;
+          condition: string;
+          grupo: string;
+          superficies?: string[] | null;
+        };
+        Update: {
+          alcance?: string;
+          categoria?: string;
+          condition?: string;
+          grupo?: string;
+          superficies?: string[] | null;
+        };
+        Relationships: [];
+      };
       odontogram_marks: {
         Row: {
           clinic_id: string;
           condition: Database["public"]["Enums"]["tooth_condition"];
+          conservation: string | null;
           id: string;
           material: string | null;
           notes: string | null;
           patient_id: string;
           recorded_at: string;
           recorded_by: string;
+          status: string;
           superseded_at: string | null;
           superseded_by: string | null;
           surface: Database["public"]["Enums"]["tooth_surface"];
@@ -2065,12 +2126,14 @@ export type Database = {
         Insert: {
           clinic_id: string;
           condition: Database["public"]["Enums"]["tooth_condition"];
+          conservation?: string | null;
           id?: string;
           material?: string | null;
           notes?: string | null;
           patient_id: string;
           recorded_at?: string;
           recorded_by?: string;
+          status?: string;
           superseded_at?: string | null;
           superseded_by?: string | null;
           surface: Database["public"]["Enums"]["tooth_surface"];
@@ -2079,12 +2142,14 @@ export type Database = {
         Update: {
           clinic_id?: string;
           condition?: Database["public"]["Enums"]["tooth_condition"];
+          conservation?: string | null;
           id?: string;
           material?: string | null;
           notes?: string | null;
           patient_id?: string;
           recorded_at?: string;
           recorded_by?: string;
+          status?: string;
           superseded_at?: string | null;
           superseded_by?: string | null;
           surface?: Database["public"]["Enums"]["tooth_surface"];
@@ -2160,6 +2225,7 @@ export type Database = {
         Row: {
           body_snapshot: string;
           clinic_id: string;
+          guardian_id: string | null;
           id: string;
           patient_id: string;
           recorded_by: string;
@@ -2168,12 +2234,16 @@ export type Database = {
           signature_storage_path: string;
           signed_at: string;
           signed_by_name: string;
+          signer_document_snapshot: string | null;
+          signer_relationship_snapshot: string | null;
+          signer_role: string | null;
           template_id: string | null;
           title_snapshot: string;
         };
         Insert: {
           body_snapshot: string;
           clinic_id: string;
+          guardian_id?: string | null;
           id?: string;
           patient_id: string;
           recorded_by?: string;
@@ -2182,12 +2252,16 @@ export type Database = {
           signature_storage_path: string;
           signed_at?: string;
           signed_by_name: string;
+          signer_document_snapshot?: string | null;
+          signer_relationship_snapshot?: string | null;
+          signer_role?: string | null;
           template_id?: string | null;
           title_snapshot: string;
         };
         Update: {
           body_snapshot?: string;
           clinic_id?: string;
+          guardian_id?: string | null;
           id?: string;
           patient_id?: string;
           recorded_by?: string;
@@ -2196,6 +2270,9 @@ export type Database = {
           signature_storage_path?: string;
           signed_at?: string;
           signed_by_name?: string;
+          signer_document_snapshot?: string | null;
+          signer_relationship_snapshot?: string | null;
+          signer_role?: string | null;
           template_id?: string | null;
           title_snapshot?: string;
         };
@@ -2205,6 +2282,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_consents_guardian_id_fkey";
+            columns: ["guardian_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_guardians";
             referencedColumns: ["id"];
           },
           {
@@ -2286,37 +2370,160 @@ export type Database = {
           },
         ];
       };
+      patient_guardians: {
+        Row: {
+          archived_at: string | null;
+          archived_by: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          document_id: string;
+          email: string | null;
+          full_name: string;
+          id: string;
+          is_primary: boolean;
+          patient_id: string;
+          phone: string | null;
+          relationship: string;
+          relationship_detail: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          document_id: string;
+          email?: string | null;
+          full_name: string;
+          id?: string;
+          is_primary?: boolean;
+          patient_id: string;
+          phone?: string | null;
+          relationship: string;
+          relationship_detail?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          document_id?: string;
+          email?: string | null;
+          full_name?: string;
+          id?: string;
+          is_primary?: boolean;
+          patient_id?: string;
+          phone?: string | null;
+          relationship?: string;
+          relationship_detail?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_guardians_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_guardians_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_guardians_audit: {
+        Row: {
+          change_kind: string;
+          changed_by: string | null;
+          clinic_id: string;
+          guardian_id: string;
+          id: string;
+          patient_id: string;
+          recorded_at: string;
+          snapshot: Json;
+        };
+        Insert: {
+          change_kind: string;
+          changed_by?: string | null;
+          clinic_id: string;
+          guardian_id: string;
+          id?: string;
+          patient_id: string;
+          recorded_at?: string;
+          snapshot: Json;
+        };
+        Update: {
+          change_kind?: string;
+          changed_by?: string | null;
+          clinic_id?: string;
+          guardian_id?: string;
+          id?: string;
+          patient_id?: string;
+          recorded_at?: string;
+          snapshot?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_guardians_audit_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_guardians_audit_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_medical_history: {
         Row: {
           allergies: string[];
+          allergy_details: Json;
           chronic_medications: string[];
           clinic_id: string;
           conditions: string[];
           id: string;
           notes: string | null;
           patient_id: string;
+          risk_questionnaire: Json;
           updated_at: string;
           updated_by: string | null;
         };
         Insert: {
           allergies?: string[];
+          allergy_details?: Json;
           chronic_medications?: string[];
           clinic_id: string;
           conditions?: string[];
           id?: string;
           notes?: string | null;
           patient_id: string;
+          risk_questionnaire?: Json;
           updated_at?: string;
           updated_by?: string | null;
         };
         Update: {
           allergies?: string[];
+          allergy_details?: Json;
           chronic_medications?: string[];
           clinic_id?: string;
           conditions?: string[];
           id?: string;
           notes?: string | null;
           patient_id?: string;
+          risk_questionnaire?: Json;
           updated_at?: string;
           updated_by?: string | null;
         };
@@ -2340,6 +2547,7 @@ export type Database = {
       patient_medical_history_audit: {
         Row: {
           allergies: string[];
+          allergy_details: Json | null;
           change_kind: string;
           changed_by: string | null;
           chronic_medications: string[];
@@ -2349,9 +2557,11 @@ export type Database = {
           notes: string | null;
           patient_id: string;
           recorded_at: string;
+          risk_questionnaire: Json | null;
         };
         Insert: {
           allergies: string[];
+          allergy_details?: Json | null;
           change_kind: string;
           changed_by?: string | null;
           chronic_medications: string[];
@@ -2361,9 +2571,11 @@ export type Database = {
           notes?: string | null;
           patient_id: string;
           recorded_at?: string;
+          risk_questionnaire?: Json | null;
         };
         Update: {
           allergies?: string[];
+          allergy_details?: Json | null;
           change_kind?: string;
           changed_by?: string | null;
           chronic_medications?: string[];
@@ -2373,6 +2585,7 @@ export type Database = {
           notes?: string | null;
           patient_id?: string;
           recorded_at?: string;
+          risk_questionnaire?: Json | null;
         };
         Relationships: [
           {
@@ -2384,6 +2597,73 @@ export type Database = {
           },
           {
             foreignKeyName: "patient_medical_history_audit_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_vital_signs: {
+        Row: {
+          appointment_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          diastolic_mmhg: number;
+          heart_rate_bpm: number;
+          id: string;
+          measured_at: string;
+          notes: string | null;
+          patient_id: string;
+          recorded_by: string;
+          systolic_mmhg: number;
+          temperature_c: number | null;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          diastolic_mmhg: number;
+          heart_rate_bpm: number;
+          id?: string;
+          measured_at?: string;
+          notes?: string | null;
+          patient_id: string;
+          recorded_by?: string;
+          systolic_mmhg: number;
+          temperature_c?: number | null;
+        };
+        Update: {
+          appointment_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          diastolic_mmhg?: number;
+          heart_rate_bpm?: number;
+          id?: string;
+          measured_at?: string;
+          notes?: string | null;
+          patient_id?: string;
+          recorded_by?: string;
+          systolic_mmhg?: number;
+          temperature_c?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_vital_signs_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_vital_signs_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_vital_signs_patient_id_fkey";
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
@@ -3589,10 +3869,14 @@ export type Database = {
       };
       subscriptions: {
         Row: {
+          activation_event_id: number | null;
+          activation_tracked_sub_id: string | null;
           cancel_at_period_end: boolean;
           clinic_id: string;
           created_at: string;
           current_period_end: string | null;
+          dispute_id: string | null;
+          disputed_at: string | null;
           past_due_since: string | null;
           status: string;
           stripe_customer_id: string | null;
@@ -3602,10 +3886,14 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
@@ -3615,10 +3903,14 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id?: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
@@ -4097,6 +4389,10 @@ export type Database = {
         Returns: boolean;
       };
       can_manage_clinic: { Args: { _clinic_id: string }; Returns: boolean };
+      cifrar_documento_id: {
+        Args: { p_document_id: string };
+        Returns: { documento_enc: string; documento_hash: string }[];
+      };
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
@@ -4161,6 +4457,10 @@ export type Database = {
         Args: { p_clinic_id: string; p_detalle?: Json };
         Returns: string;
       };
+      registrar_lectura_ficha: {
+        Args: { p_clinic_id: string; p_patient_id: string; p_seccion: string };
+        Returns: boolean;
+      };
       reset_demo_clinic: { Args: never; Returns: undefined };
       set_patient_document_id: {
         Args: { p_document_id: string; p_patient_id: string };
@@ -4215,7 +4515,26 @@ export type Database = {
         | "ausente"
         | "sellante"
         | "fractura"
-        | "protesis";
+        | "protesis"
+        | "restos_radiculares"
+        | "extraccion_indicada"
+        | "en_erupcion"
+        | "retenida"
+        | "supernumeraria"
+        | "diastema"
+        | "giroversion"
+        | "migracion"
+        | "transposicion"
+        | "perno_munon"
+        | "carilla"
+        | "incrustacion"
+        | "puente"
+        | "aparato_ortodoncia"
+        | "desgaste"
+        | "fluorosis"
+        | "hipoplasia"
+        | "mancha_blanca"
+        | "fosas_fisuras_profundas";
       tooth_surface: "mesial" | "distal" | "oclusal" | "vestibular" | "lingual" | "whole";
       treatment_item_status: "pending" | "in_progress" | "completed" | "skipped";
       treatment_plan_status: "active" | "on_hold" | "completed" | "cancelled";
@@ -4394,6 +4713,25 @@ export const Constants = {
         "sellante",
         "fractura",
         "protesis",
+        "restos_radiculares",
+        "extraccion_indicada",
+        "en_erupcion",
+        "retenida",
+        "supernumeraria",
+        "diastema",
+        "giroversion",
+        "migracion",
+        "transposicion",
+        "perno_munon",
+        "carilla",
+        "incrustacion",
+        "puente",
+        "aparato_ortodoncia",
+        "desgaste",
+        "fluorosis",
+        "hipoplasia",
+        "mancha_blanca",
+        "fosas_fisuras_profundas",
       ],
       tooth_surface: ["mesial", "distal", "oclusal", "vestibular", "lingual", "whole"],
       treatment_item_status: ["pending", "in_progress", "completed", "skipped"],
