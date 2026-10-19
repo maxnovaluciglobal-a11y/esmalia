@@ -160,6 +160,15 @@ export function avisoDeTrialQueCorresponde(
   return null;
 }
 
+/**
+ * Clave de idempotencia del aviso `trial_will_end` de Stripe. Lleva la fecha
+ * de fin: si la prueba se extiende, el aviso nuevo sale; si Stripe repite el
+ * evento (o llega por dos caminos), no.
+ */
+export function claveFinDePruebaStripe(subscriptionId: string, trialEndIso: string): string {
+  return `stripe:${subscriptionId}:${trialEndIso.slice(0, 10)}`;
+}
+
 // ─── Reporte semanal ─────────────────────────────────────────────────────
 
 export interface Semana {

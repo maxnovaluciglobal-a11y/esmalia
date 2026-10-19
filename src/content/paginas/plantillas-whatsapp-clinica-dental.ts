@@ -290,7 +290,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "En Esmalia, con el número de la clínica conectado a Meta, un paciente que responde solo **BAJA**, **STOP** o **CANCELAR** queda marcado como baja y sale de los mensajes proactivos (controles, cumpleaños, seguimientos). En modo manual (wa.me) la respuesta llega a tu WhatsApp y no a Esmalia, así que alguien de la clínica tiene que respetarla. Cómo funciona cada modo: [Conectar WhatsApp](/docs/whatsapp).",
+            "En Esmalia, con el número de la clínica conectado a Meta, un paciente que responde solo **BAJA**, **STOP** o **NO MÁS** queda marcado como baja y Esmalia deja de enviarle mensajes por WhatsApp (recordatorios, controles, cumpleaños, seguimientos). Si responde **CANCELAR**, la clínica lo recibe como un mensaje más, porque casi siempre quiere anular su cita. En modo manual (wa.me) la respuesta llega a tu WhatsApp y no a Esmalia, así que alguien de la clínica tiene que respetarla. Cómo funciona cada modo: [Conectar WhatsApp](/docs/whatsapp).",
         },
         {
           tipo: "aviso",
