@@ -2,9 +2,11 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarDatosClinica } from "@/components/exportar-datos-clinica";
 import { RoleSimulationBar } from "@/components/role-simulation-bar";
 import { ajustesVisibles } from "@/lib/access/navegacion";
 import { puedeSimular } from "@/lib/access/role-simulation";
+import { puedeExportarClinica } from "@/lib/exportacion/exportacion-clinica";
 
 /**
  * Índice de Ajustes (rediseño, fase 3): las 17 páginas de configuración que
@@ -61,6 +63,24 @@ function AjustesPage() {
             </ul>
           </section>
         ))}
+        {/* Exportación completa (CS-04/CON-01): lo prometen Términos, DPA y
+            la home. El servidor vuelve a verificar owner/admin. */}
+        {access.clinic && puedeExportarClinica(access.role) && (
+          <section aria-labelledby="ajustes-tus-datos">
+            <h2 id="ajustes-tus-datos" className="kicker">
+              Tus datos
+            </h2>
+            <div className="mt-3">
+              <ExportarDatosClinica
+                clinicId={access.clinic.id}
+                clinicName={access.clinic.name}
+                timezone={access.clinic.timezone}
+                isDemo={access.clinic.isDemo}
+                generadoPor={access.fullName ?? access.email ?? "Usuario de la clínica"}
+              />
+            </div>
+          </section>
+        )}
       </div>
     </AppShell>
   );
