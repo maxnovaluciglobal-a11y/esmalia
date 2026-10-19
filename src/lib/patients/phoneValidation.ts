@@ -15,10 +15,33 @@
 // Server-only: NUMVERIFY_API_KEY no tiene prefijo VITE_, nunca llega al
 // cliente (ver DEPLOY-VERCEL.md, sección "cliente vs servidor").
 
+const NUMVERIFY_URL = "https://apilayer.net/api/validate";
+
+/**
+ * Saca la clave y el teléfono de cualquier texto antes de loguearlo (por si
+ * un error trae la URL completa).
+ */
+function sinSecretos(texto: string, apiKey: string): string {
+  return texto
+    .split(apiKey)
+    .join("[redactado]")
+    .split(encodeURIComponent(apiKey))
+    .join("[redactado]")
+    .replace(/access_key=[^&\s]+/g, "access_key=[redactado]")
+    .replace(/number=[^&\s]+/g, "number=[redactado]");
+}
+
 /**
  * true/false si Numverify pudo validar la forma del número, null si no se
  * pudo determinar (sin key, timeout, error, o el campo vino vacío). Nunca
  * lanza — un fallo acá nunca debe romper el alta/edición de un paciente.
+ *
+ * Solo HTTPS (auditoría 360, OPS-03 / LEG-02): antes iba por HTTP y el
+ * teléfono del paciente y la clave viajaban en claro. La página pública de
+ * Numverify (numverify.com/product, consultada el 19-oct-2026) lista
+ * "256-bit HTTPS Encryption" en todos los planes, incluido el gratis. Si
+ * apilayer igual rechazara HTTPS para esta cuenta (`https_access_restricted`),
+ * se devuelve null: nunca se vuelve a HTTP.
  */
 export async function validatePhoneNumber(
   phone: string | null | undefined,
@@ -30,19 +53,29 @@ export async function validatePhoneNumber(
   if (!apiKey) return null;
 
   try {
-    // Free tier de Numverify es HTTP, no HTTPS.
-    const url = `http://apilayer.net/api/validate?access_key=${encodeURIComponent(apiKey)}&number=${encodeURIComponent(trimmed)}`;
+    const url = `${NUMVERIFY_URL}?access_key=${encodeURIComponent(apiKey)}&number=${encodeURIComponent(trimmed)}`;
     const res = await fetch(url, { signal: AbortSignal.timeout(4000) });
-    const json = await res.json();
+    const json = (await res.json()) as {
+      valid?: unknown;
+      error?: { code?: number; type?: string; info?: string };
+    };
 
     if (!res.ok || json.error || typeof json.valid !== "boolean") {
-      if (json.error)
-        console.error("[phoneValidation] Numverify error:", json.error.info ?? json.error);
+      if (json.error) {
+        // Solo el tipo y el código: nunca la clave ni el número del paciente.
+        console.error(
+          "[phoneValidation] Numverify error:",
+          sinSecretos(`${json.error.type ?? "desconocido"} (${json.error.code ?? "?"})`, apiKey),
+        );
+      }
       return null;
     }
-    return json.valid as boolean;
+    return json.valid;
   } catch (err) {
-    console.error("[phoneValidation] fetch error:", err instanceof Error ? err.message : err);
+    console.error(
+      "[phoneValidation] fetch error:",
+      sinSecretos(err instanceof Error ? err.message : String(err), apiKey),
+    );
     return null;
   }
 }
