@@ -233,18 +233,26 @@ async function applyInboundMessage(
   message: WhatsAppInboundMessage,
   contactName: string | undefined,
 ): Promise<void> {
-  const fromNormalized = normalizeToWaMe(message.from);
+  // BIL-11: `message.from` es el wa_id de Meta, siempre internacional y sin
+  // "+" ("5491123456789"). Los teléfonos de las fichas se leen con el país
+  // de la clínica: así "11 15 2345-6789" de una clínica argentina y el
+  // "549…" que manda Meta quedan iguales, y MX "521…" coincide con "52…".
+  const [{ data: clinica }, { data: patients }] = await Promise.all([
+    supabaseAdmin.from("clinics").select("country").eq("id", clinicId).maybeSingle(),
+    supabaseAdmin
+      .from("patients")
+      .select("id, phone")
+      .eq("clinic_id", clinicId)
+      .not("phone", "is", null),
+  ]);
+  const pais = clinica?.country ?? null;
+  const fromNormalized = normalizeToWaMe(`+${message.from}`, pais);
   if (!fromNormalized) return;
 
   const bodyText = message.type === "text" ? (message.text?.body ?? "") : "";
 
-  const { data: patients } = await supabaseAdmin
-    .from("patients")
-    .select("id, phone")
-    .eq("clinic_id", clinicId)
-    .not("phone", "is", null);
   const patient = (patients ?? []).find(
-    (p) => p.phone && normalizeToWaMe(p.phone) === fromNormalized,
+    (p) => p.phone && normalizeToWaMe(p.phone, pais) === fromNormalized,
   );
   if (!patient) {
     // Fase 3: desconocido — no es un paciente con ficha, es un lead.

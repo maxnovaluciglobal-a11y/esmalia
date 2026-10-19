@@ -696,6 +696,7 @@ function PacienteDetalle() {
                     <div className="mt-3">
                       <ReferralCodeCard
                         clinicId={clinicId}
+                        clinicCountry={access.clinic?.country ?? null}
                         patientName={paciente.nombre}
                         referralCode={paciente.referralCode}
                       />

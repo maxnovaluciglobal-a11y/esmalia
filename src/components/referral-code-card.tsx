@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   clinicId: string;
+  /** País de la clínica: hace falta si Meta devolvió el número sin "+". */
+  clinicCountry: string | null;
   patientName: string;
   referralCode: string | null;
 }
@@ -21,7 +23,7 @@ interface Props {
  * escribe directo a la clínica y el webhook detecta el código solo
  * (ver findReferrerByCode en api.whatsapp-webhook.ts).
  */
-export function ReferralCodeCard({ clinicId, patientName, referralCode }: Props) {
+export function ReferralCodeCard({ clinicId, clinicCountry, patientName, referralCode }: Props) {
   const [copiedAt, setCopiedAt] = useState<number | null>(null);
   const fetchAccount = useServerFn(getWhatsAppAccountStatus);
   const { data: account } = useQuery({
@@ -36,6 +38,7 @@ export function ReferralCodeCard({ clinicId, patientName, referralCode }: Props)
       ? buildWaMeUrl(
           account.displayPhone,
           `¡Hola! Te recomiendo mucho a mi dentista, escríbeles con este código: ${referralCode}`,
+          clinicCountry,
         )
       : null;
 

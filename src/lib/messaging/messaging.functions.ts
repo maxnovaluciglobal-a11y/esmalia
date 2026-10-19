@@ -17,6 +17,8 @@ import {
   type OutreachTemplateKind,
 } from "@/lib/messaging/messaging";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
+import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
+import { quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { sendEmail } from "@/lib/messaging/email.server";
 import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-sandbox";
 import type { EmailSandboxConfig } from "@/lib/messaging/email-sandbox";
@@ -190,13 +192,17 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
       // el trigger `block_demo_writes`): cortar antes del envío real.
       await assertNotDemoClinic(supabase, data.clinicId);
 
-      // Traer paciente para número y nombre
-      const { data: patient, error: patientErr } = await supabase
-        .from("patients")
-        .select("full_name, phone")
-        .eq("clinic_id", data.clinicId)
-        .eq("id", data.patientId)
-        .maybeSingle();
+      // Traer paciente para número y nombre, y el país de la clínica para
+      // leer el número (BIL-11: sin país, un número local no se envía).
+      const [{ data: patient, error: patientErr }, { data: clinic }] = await Promise.all([
+        supabase
+          .from("patients")
+          .select("full_name, phone")
+          .eq("clinic_id", data.clinicId)
+          .eq("id", data.patientId)
+          .maybeSingle(),
+        supabase.from("clinics").select("country").eq("id", data.clinicId).maybeSingle(),
+      ]);
       if (patientErr)
         throw new Error(mensajeDb(patientErr, "No pudimos obtener los datos del paciente."));
       if (!patient) throw new Error("Paciente no encontrado.");
@@ -204,6 +210,12 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
       const recipient = (data.recipientOverride ?? patient.phone ?? "").trim();
       if (!recipient) {
         throw new Error("El paciente no tiene teléfono cargado y no se pasó otro destino.");
+      }
+      const country = clinic?.country ?? null;
+      // Antes de registrar nada: si el número no se puede leer con el país
+      // de la clínica, no se manda ni por API ni por wa.me.
+      if (!normalizeToWaMe(recipient, country)) {
+        throw new Error(mensajeTelefonoInvalido(recipient, country));
       }
 
       // Resolver template
@@ -258,6 +270,7 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
             templateKind,
             metaTemplate,
             recipientRaw: recipient,
+            country,
             variables: { ...data.variables, paciente: patient.full_name },
           })
         : { viaApi: false, externalId: null };
@@ -294,7 +307,7 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
 
       if (insertErr) throw new Error("No pudimos registrar el mensaje. " + insertErr.message);
 
-      const waUrl = viaApi ? null : buildWaMeUrl(recipient, body);
+      const waUrl = viaApi ? null : buildWaMeUrl(recipient, body, country);
       return { id: inserted.id, waUrl, body, recipient, viaApi };
     },
   );
@@ -526,7 +539,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     ] = await Promise.all([
       supabase
         .from("patients")
-        .select("id, full_name, phone, email")
+        .select("id, full_name, phone, email, wa_opt_out_at")
         .in("id", patientIds.length ? patientIds : [""]),
       supabase
         .from("professionals")
@@ -546,8 +559,12 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     const patientById = new Map((patients ?? []).map((p) => [p.id, p]));
     const profNameById = new Map((professionals ?? []).map((p) => [p.id, p.full_name]));
     const tzByBranch = new Map((branches ?? []).map((b) => [b.id, b.timezone]));
+    // CON-09: quien pidió la baja de WhatsApp no vuelve a aparecer para ese canal.
+    const pacientesDeBaja = new Set(
+      (patients ?? []).filter((p) => p.wa_opt_out_at != null).map((p) => p.id),
+    );
 
-    return pendientes.map((a) => {
+    const filas = pendientes.map((a) => {
       const patient = patientById.get(a.patient_id);
       const { fechaLarga, hora } = formatFechaHoraLocal(
         a.starts_at,
@@ -569,6 +586,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
         emailSent: a.emailSent,
       };
     });
+    return quitarBajasDeWhatsApp(filas, pacientesDeBaja);
   });
 
 // ─────────────────────────────────────────────────────────────────────────

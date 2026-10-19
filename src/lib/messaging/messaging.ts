@@ -155,25 +155,6 @@ export function renderTemplateHtml(body: string, vars: Record<string, string>): 
   });
 }
 
-/**
- * Convierte un teléfono a formato E.164 apto para wa.me — solo dígitos, sin
- * signo + ni espacios. Chile por defecto (asume 56 si el número parece local).
- * Devuelve null si el input está vacío o no tiene suficientes dígitos.
- */
-export function normalizeToWaMe(phone: string, defaultCountryCode = "56"): string | null {
-  const digits = phone.replace(/\D/g, "");
-  if (!digits) return null;
-  // Si arranca con 0 (formato local con 0), lo saca
-  const trimmed = digits.replace(/^0+/, "");
-  if (trimmed.length < 8) return null;
-  // Si ya arranca con código de país conocido (55/56/57/54/51/52) lo respeta
-  const hasCountry = /^(?:5[0-9]|1|4[0-9]|3[0-9])/.test(trimmed);
-  return hasCountry && trimmed.length >= 10 ? trimmed : `${defaultCountryCode}${trimmed}`;
-}
-
-/** Construye la URL de wa.me con el mensaje encoded. */
-export function buildWaMeUrl(phone: string, message: string): string | null {
-  const normalized = normalizeToWaMe(phone);
-  if (!normalized) return null;
-  return `https://wa.me/${normalized}?text=${encodeURIComponent(message)}`;
-}
+// Teléfonos por país (BIL-11): la lógica vive en `telefonos.ts`. Se
+// re-exporta acá porque es donde la importaban todos los callers.
+export { buildWaMeUrl, normalizeToWaMe, toE164 } from "@/lib/messaging/telefonos";
