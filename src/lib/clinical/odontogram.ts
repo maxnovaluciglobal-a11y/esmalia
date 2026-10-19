@@ -18,6 +18,12 @@ export const SURFACE_LABELS: Record<ToothSurface, string> = {
   whole: "Pieza completa",
 };
 
+/**
+ * Condiciones del odontograma. El orden es el del enum `tooth_condition` en
+ * Postgres: las diez primeras son las originales (ago-2026) y las demás se
+ * agregaron en la migración 20261019170000 (auditoría 360, CLI-03). Un valor
+ * nuevo va SIEMPRE al final: `ALTER TYPE ... ADD VALUE` agrega al final.
+ */
 export const TOOTH_CONDITIONS = [
   "sano",
   "caries",
@@ -29,54 +35,304 @@ export const TOOTH_CONDITIONS = [
   "sellante",
   "fractura",
   "protesis",
+  "restos_radiculares",
+  "extraccion_indicada",
+  "en_erupcion",
+  "retenida",
+  "supernumeraria",
+  "diastema",
+  "giroversion",
+  "migracion",
+  "transposicion",
+  "perno_munon",
+  "carilla",
+  "incrustacion",
+  "puente",
+  "aparato_ortodoncia",
+  "desgaste",
+  "fluorosis",
+  "hipoplasia",
+  "mancha_blanca",
+  "fosas_fisuras_profundas",
 ] as const;
 export type ToothCondition = (typeof TOOTH_CONDITIONS)[number];
 
-export const CONDITION_LABELS: Record<ToothCondition, string> = {
-  sano: "Sano",
-  caries: "Caries",
-  obturacion: "Obturación",
-  endodoncia: "Endodoncia",
-  corona: "Corona",
-  implante: "Implante",
-  ausente: "Ausente",
-  sellante: "Sellante",
-  fractura: "Fractura",
-  protesis: "Prótesis",
+/**
+ * Estado del registro (CLI-02): lo que ya está en la boca vs. lo que el
+ * odontólogo indicó hacer. Cuando lo planificado se hace, se registra la
+ * misma condición como `existente` y la planificada se cierra sola.
+ */
+export const MARK_STATUSES = ["existente", "planificado"] as const;
+export type MarkStatus = (typeof MARK_STATUSES)[number];
+
+export const MARK_STATUS_LABELS: Record<MarkStatus, string> = {
+  existente: "Existente",
+  planificado: "Por realizar",
+};
+
+/** Estado de conservación de un tratamiento existente (CLI-02). */
+export const MARK_CONSERVATIONS = ["bueno", "malo"] as const;
+export type MarkConservation = (typeof MARK_CONSERVATIONS)[number];
+
+export const MARK_CONSERVATION_LABELS: Record<MarkConservation, string> = {
+  bueno: "Buen estado",
+  malo: "Mal estado",
 };
 
 /**
- * Color por condición para el SVG. Los tokens del design system no cubren
- * todos los estados clínicos, así que se declaran acá con hex explícitos
- * pensados para leerse bien tanto en claro como en oscuro.
+ * Alcance de una condición: la pieza completa (`whole`), una superficie, o
+ * cualquiera de las dos (la fractura puede ser de una cara o de la pieza).
  */
-export const CONDITION_COLORS: Record<ToothCondition, string> = {
-  sano: "#e4e1dc",
-  caries: "#b8432f",
-  obturacion: "#2f5f9e",
-  endodoncia: "#6b4a8a",
-  corona: "#c08a2e",
-  implante: "#2c6a78",
-  // #525252 original medía ~2.1:1 contra el fondo de tarjeta en modo oscuro
-  // (oklch(0.235 0.022 252)) — bajo el mínimo WCAG 1.4.11 de 3:1 para
-  // elementos gráficos no textuales. Este gris más claro da ~4.7:1 en claro
-  // y ~3.5:1 en oscuro, sin perder la lectura de "ausente" (gris neutro).
-  ausente: "#737373",
-  sellante: "#4f7a55",
-  fractura: "#c0622f",
-  protesis: "#7a4a6e",
+export type AlcanceCondicion = "pieza" | "superficie" | "ambos";
+
+/**
+ * Categoría clínica, que decide el color (ver `odontograma-reglas.ts`):
+ * - `patologia`: siempre roja (caries, fractura, restos radiculares…).
+ * - `tratamiento`: azul si existe en buen estado, roja si está en mal estado
+ *   o por realizar. Es la única categoría que admite "por realizar" y
+ *   "bueno/malo".
+ * - `hallazgo`: anomalías y estados de la pieza (ausente, en erupción,
+ *   giroversión…), azules.
+ * - `sano`: sin color.
+ */
+export type CategoriaCondicion = "sano" | "patologia" | "tratamiento" | "hallazgo";
+
+export interface DefinicionCondicion {
+  label: string;
+  /** Sigla corta para el recuadro de la pieza (inspirada en la NTS 188 de Perú). */
+  sigla: string;
+  alcance: AlcanceCondicion;
+  /**
+   * Grupo de reemplazo: una marca nueva cierra la vigente del MISMO grupo, en
+   * el mismo alcance y con el mismo estado. Casi todas forman su propio grupo
+   * (endodoncia y corona conviven). Dos grupos compartidos:
+   * - `presencia`: qué hay en el alvéolo (ausente, implante, restos…), una
+   *   sola respuesta por pieza.
+   * - `superficie`: el estado de una cara (caries, obturación, sellante…),
+   *   una sola respuesta por superficie; una restauración con caries
+   *   recurrente se registra como obturación en mal estado, como en la NTS.
+   */
+  grupo: string;
+  categoria: CategoriaCondicion;
+  /** Superficies admitidas cuando no son las cinco (diastema, carilla…). */
+  superficies?: readonly Exclude<ToothSurface, "whole">[];
+}
+
+export const CONDITION_CATALOG: Record<ToothCondition, DefinicionCondicion> = {
+  sano: { label: "Sano", sigla: "", alcance: "ambos", grupo: "sano", categoria: "sano" },
+  caries: {
+    label: "Caries",
+    sigla: "C",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "patologia",
+  },
+  obturacion: {
+    label: "Obturación",
+    sigla: "OB",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "tratamiento",
+  },
+  endodoncia: {
+    label: "Endodoncia",
+    sigla: "TC",
+    alcance: "pieza",
+    grupo: "endodoncia",
+    categoria: "tratamiento",
+  },
+  corona: {
+    label: "Corona",
+    sigla: "CO",
+    alcance: "pieza",
+    grupo: "corona",
+    categoria: "tratamiento",
+  },
+  implante: {
+    label: "Implante",
+    sigla: "IMP",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "tratamiento",
+  },
+  ausente: {
+    label: "Ausente",
+    sigla: "AUS",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "hallazgo",
+  },
+  sellante: {
+    label: "Sellante",
+    sigla: "SE",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "tratamiento",
+  },
+  fractura: {
+    label: "Fractura",
+    sigla: "FX",
+    alcance: "ambos",
+    grupo: "fractura",
+    categoria: "patologia",
+  },
+  protesis: {
+    label: "Prótesis removible",
+    sigla: "PR",
+    alcance: "pieza",
+    grupo: "protesis",
+    categoria: "tratamiento",
+  },
+  restos_radiculares: {
+    label: "Restos radiculares",
+    sigla: "RR",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "patologia",
+  },
+  extraccion_indicada: {
+    label: "Extracción indicada",
+    sigla: "EX",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "patologia",
+  },
+  en_erupcion: {
+    label: "En erupción",
+    sigla: "ERU",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "hallazgo",
+  },
+  retenida: {
+    label: "Retenida / impactada",
+    sigla: "RI",
+    alcance: "pieza",
+    grupo: "presencia",
+    categoria: "hallazgo",
+  },
+  supernumeraria: {
+    label: "Supernumeraria",
+    sigla: "SN",
+    alcance: "pieza",
+    grupo: "supernumeraria",
+    categoria: "hallazgo",
+  },
+  diastema: {
+    label: "Diastema",
+    sigla: "DIA",
+    alcance: "superficie",
+    grupo: "diastema",
+    categoria: "hallazgo",
+    superficies: ["mesial", "distal"],
+  },
+  giroversion: {
+    label: "Giroversión",
+    sigla: "GV",
+    alcance: "pieza",
+    grupo: "giroversion",
+    categoria: "hallazgo",
+  },
+  migracion: {
+    label: "Migración / extrusión / intrusión",
+    sigla: "MIG",
+    alcance: "pieza",
+    grupo: "migracion",
+    categoria: "hallazgo",
+  },
+  transposicion: {
+    label: "Transposición",
+    sigla: "TR",
+    alcance: "pieza",
+    grupo: "transposicion",
+    categoria: "hallazgo",
+  },
+  perno_munon: {
+    label: "Perno muñón",
+    sigla: "PM",
+    alcance: "pieza",
+    grupo: "perno_munon",
+    categoria: "tratamiento",
+  },
+  carilla: {
+    label: "Carilla",
+    sigla: "CV",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "tratamiento",
+    superficies: ["vestibular"],
+  },
+  incrustacion: {
+    label: "Incrustación",
+    sigla: "INC",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "tratamiento",
+  },
+  puente: {
+    label: "Prótesis fija (puente)",
+    sigla: "PF",
+    alcance: "pieza",
+    grupo: "puente",
+    categoria: "tratamiento",
+  },
+  aparato_ortodoncia: {
+    label: "Aparato de ortodoncia",
+    sigla: "AO",
+    alcance: "pieza",
+    grupo: "aparato_ortodoncia",
+    categoria: "tratamiento",
+  },
+  desgaste: {
+    label: "Desgaste",
+    sigla: "DES",
+    alcance: "superficie",
+    grupo: "desgaste",
+    categoria: "patologia",
+  },
+  fluorosis: {
+    label: "Fluorosis",
+    sigla: "FLU",
+    alcance: "pieza",
+    grupo: "fluorosis",
+    categoria: "hallazgo",
+  },
+  hipoplasia: {
+    label: "Hipoplasia del esmalte",
+    sigla: "HP",
+    alcance: "pieza",
+    grupo: "hipoplasia",
+    categoria: "hallazgo",
+  },
+  mancha_blanca: {
+    label: "Mancha blanca",
+    sigla: "MB",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "patologia",
+  },
+  fosas_fisuras_profundas: {
+    label: "Fosas y fisuras profundas",
+    sigla: "FFP",
+    alcance: "superficie",
+    grupo: "superficie",
+    categoria: "hallazgo",
+    superficies: ["oclusal"],
+  },
 };
+
+export const CONDITION_LABELS = Object.fromEntries(
+  TOOTH_CONDITIONS.map((c) => [c, CONDITION_CATALOG[c].label]),
+) as Record<ToothCondition, string>;
 
 /**
  * Condiciones que solo tienen sentido a nivel de pieza completa (no por
- * superficie). La UI restringe la elección al ver "whole" seleccionada.
+ * superficie): endodoncia, corona, implante, ausente, extracción indicada…
+ * Derivado del catálogo; la base lo valida con el mismo catálogo.
  */
-export const WHOLE_TOOTH_CONDITIONS: readonly ToothCondition[] = [
-  "ausente",
-  "implante",
-  "corona",
-  "protesis",
-];
+export const WHOLE_TOOTH_CONDITIONS: readonly ToothCondition[] = TOOTH_CONDITIONS.filter(
+  (c) => CONDITION_CATALOG[c].alcance === "pieza",
+);
 
 /**
  * Numeración FDI (ISO 3950). Cuadrantes 1-4 permanentes; 5-8 primarios.
@@ -170,6 +426,9 @@ export interface OdontogramMark {
   toothNumber: number;
   surface: ToothSurface;
   condition: ToothCondition;
+  status: MarkStatus;
+  /** Solo en tratamientos existentes; `null` = sin especificar (marcas anteriores a CLI-02). */
+  conservation: MarkConservation | null;
   material: string | null;
   notes: string | null;
   supersededAt: string | null;
@@ -178,15 +437,16 @@ export interface OdontogramMark {
   recordedByName: string | null;
 }
 
-export type ToothState = Partial<Record<ToothSurface, OdontogramMark>>;
+/** Marcas vigentes de una pieza: todas, sin perder ninguna (CLI-01). */
+export type ToothState = OdontogramMark[];
 
-/** Agrupa las marcas vigentes por número de pieza, y por superficie dentro. */
+/** Agrupa las marcas vigentes por número de pieza. Una pieza puede tener varias. */
 export function marksByTooth(marks: OdontogramMark[]): Map<number, ToothState> {
   const map = new Map<number, ToothState>();
   for (const mark of marks) {
     if (mark.supersededAt) continue;
-    const tooth = map.get(mark.toothNumber) ?? {};
-    tooth[mark.surface] = mark;
+    const tooth = map.get(mark.toothNumber) ?? [];
+    tooth.push(mark);
     map.set(mark.toothNumber, tooth);
   }
   return map;
