@@ -12,8 +12,8 @@ Ejecutada 2026-08-14. Esmalia ahora corre contra la cuenta Supabase propia de Wa
 ## Qué migró
 
 - **Schema**: las 23 migraciones de `supabase/migrations/*.sql` → 30 tablas + RLS + triggers + RPCs.
-- **Data**: `clinica Patricia` completa (1 clínica, 1 sucursal, 4 boxes, 2 profesionales, 8 especialidades, 3 procedures, 1 paciente María Fernanda Torres con odontograma + presupuesto P-2026-0001 + plan + pago + mensaje WA).
-- **auth.users**: 3 users recreados con Admin API preservando IDs (`walterlamadriz@gmail.com`, `qa.fase1.oralia@mailinator.com`, `ana.rivas.demo@oralia.test`). Passwords rotadas el 2026-08-15 — viven en memoria privada, no en este repo público. Ver `esmalia_auditoria_multiagente_2026_08_15.md`.
+- **Data**: la clínica piloto completa (1 clínica, 1 sucursal, 4 boxes, 2 profesionales, 8 especialidades, 3 procedures, 1 paciente de prueba con odontograma + presupuesto P-2026-0001 + plan + pago + mensaje WA).
+- **auth.users**: 3 users recreados con Admin API preservando IDs (la cuenta owner de Walter, una cuenta de QA y una cuenta demo; los correos no se versionan en este repo público). Passwords rotadas el 2026-08-15 — viven en memoria privada, no en este repo público. Ver `esmalia_auditoria_multiagente_2026_08_15.md`.
 
 ## Env vars actualizadas
 
@@ -30,8 +30,8 @@ SUPABASE_SERVICE_ROLE_KEY=sb_secret_...   (⚠️ nunca commitear)
 
 ## Verificado end-to-end en dev
 
-- Login `walterlamadriz@gmail.com` OK → dashboard `clinica Patricia` con 1 paciente / 1 nueva.
-- `/pacientes` lista María Fernanda Torres con datos correctos (RUT, edad, contacto).
+- Login con la cuenta owner OK → dashboard de la clínica piloto con 1 paciente / 1 nueva.
+- `/pacientes` lista al paciente de prueba con datos correctos (RUT, edad, contacto).
 - `/pacientes/:id` ficha completa: saldo **$50.000** ($90.000 plan - $40.000 pago), teléfono, mail, edad.
 - Odontograma con 2 marks (caries superseded por obturación en pieza 16 oclusal).
 - Plan de tratamiento activo con 2 items (limpieza + obturación).

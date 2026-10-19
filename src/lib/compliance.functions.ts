@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import type { LecturaDeFicha } from "@/lib/clinical/lecturas-ficha";
 
 type SupabaseCtx = SupabaseClient<Database>;
 
@@ -186,6 +187,79 @@ export const getComplianceLog = createServerFn({ method: "GET" })
       return {
         events,
         truncated: auditRows.length >= data.limit || reviewRows.length >= data.limit,
+      };
+    },
+  );
+
+const filtrosLecturas = z.object({
+  clinicId: z.string().uuid(),
+  /** Fecha inicial inclusive (YYYY-MM-DD). */
+  desde: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  /** Fecha final inclusive (YYYY-MM-DD). */
+  hasta: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  patientId: z.string().uuid().optional(),
+  limit: z.number().int().min(1).max(2000).default(1000),
+});
+
+/**
+ * Lecturas de fichas clínicas de la clínica (SEG-02), las más recientes
+ * primero. La RLS de `clinical_access_log` solo deja leer a owner/admin: a
+ * cualquier otro rol esto le devuelve una lista vacía.
+ */
+export const getLecturasDeFichas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => filtrosLecturas.parse(input))
+  .handler(
+    async ({ data, context }): Promise<{ lecturas: LecturaDeFicha[]; truncated: boolean }> => {
+      const { supabase } = context;
+      const desde = new Date(`${data.desde}T00:00:00.000Z`).toISOString();
+      const hasta = new Date(`${data.hasta}T23:59:59.999Z`).toISOString();
+
+      let q = supabase
+        .from("clinical_access_log")
+        .select("id, patient_id, actor_id, section, accessed_at")
+        .eq("clinic_id", data.clinicId)
+        .gte("accessed_at", desde)
+        .lte("accessed_at", hasta)
+        .order("accessed_at", { ascending: false })
+        .limit(data.limit);
+      if (data.patientId) q = q.eq("patient_id", data.patientId);
+      const { data: filas, error } = await q;
+      if (error) throw new Error("No pudimos leer el registro de lecturas de fichas.");
+
+      const rows = filas ?? [];
+      const patientIds = [...new Set(rows.map((r) => r.patient_id))];
+      const [actores, pacientesRes] = await Promise.all([
+        nombres(
+          supabase,
+          rows.map((r) => r.actor_id),
+        ),
+        patientIds.length
+          ? supabase
+              .from("patients")
+              .select("id, full_name")
+              .eq("clinic_id", data.clinicId)
+              .in("id", patientIds)
+          : Promise.resolve({ data: [] as Array<{ id: string; full_name: string }> }),
+      ]);
+      const pacientes = new Map(
+        ((pacientesRes.data ?? []) as Array<{ id: string; full_name: string }>).map((p) => [
+          p.id,
+          p.full_name,
+        ]),
+      );
+
+      return {
+        lecturas: rows.map((r) => ({
+          id: r.id,
+          accessedAt: r.accessed_at,
+          patientId: r.patient_id,
+          patientName: pacientes.get(r.patient_id) ?? null,
+          actorId: r.actor_id,
+          actorName: actores.get(r.actor_id) ?? null,
+          section: r.section,
+        })),
+        truncated: rows.length >= data.limit,
       };
     },
   );

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { filaYaCreada } from "@/lib/idempotency";
 import {
   MARK_CONSERVATIONS,
@@ -96,6 +97,12 @@ export const listOdontogramMarks = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<OdontogramMark[]> => {
     const { supabase } = context;
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "odontograma",
+    });
 
     const { rows: marks, error } = await seleccionarMarcas((columnas) =>
       supabase
@@ -116,6 +123,7 @@ export const listOdontogramMarks = createServerFn({ method: "GET" })
       ? await supabase.from("profiles").select("id, full_name").in("id", userIds)
       : { data: [] };
     const nameByUser = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+    await lectura;
     return marks.map((row) => mapRow(row, nameByUser));
   });
 
@@ -133,6 +141,12 @@ export const listOdontogramHistory = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<OdontogramMark[]> => {
     const { supabase } = context;
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "odontograma",
+    });
 
     const { rows: marks, error } = await seleccionarMarcas((columnas) => {
       let query = supabase
@@ -154,6 +168,7 @@ export const listOdontogramHistory = createServerFn({ method: "GET" })
       ? await supabase.from("profiles").select("id, full_name").in("id", userIds)
       : { data: [] };
     const nameByUser = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
+    await lectura;
     return marks.map((row) => mapRow(row, nameByUser));
   });
 

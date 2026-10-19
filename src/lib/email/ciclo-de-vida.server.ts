@@ -29,6 +29,7 @@ import {
 import {
   TIMEZONE_POR_DEFECTO,
   avisoDeTrialQueCorresponde,
+  claveFinDePruebaStripe,
   contarPresupuestosSinSeguimiento,
   esLunesLocal,
   fechaLocal,
@@ -42,6 +43,7 @@ import { sendClinicEmail, type ResultadoEnvio } from "./envio.server";
 import {
   correoBienvenida,
   correoFinDePrueba,
+  correoFinDePruebaStripe,
   correoPagoFallido,
   correoSemana,
   correoSuscripcionActiva,
@@ -251,6 +253,63 @@ export async function enviarSuscripcionActiva(input: {
   } catch (err) {
     log("suscripción activa", err instanceof Error ? err.message : err);
     return [{ status: "error", reason: "suscripción activa" }];
+  }
+}
+
+// ─── b2. Fin de la prueba de Stripe (trial_will_end) ─────────────────────
+
+/**
+ * Desde el webhook (`customer.subscription.trial_will_end`). Solo a los
+ * dueños, una vez por suscripción y fecha de fin: reusa el kind `trial_t3`
+ * (es el mismo aviso, "quedan 3 días") con una clave que no choca con la del
+ * trial de la base, que nunca se manda si hay suscripción de Stripe.
+ */
+export async function enviarFinDePruebaStripe(input: {
+  clinicId: string;
+  subscriptionId: string;
+  trialEndIso: string;
+  tieneMedioDePago: boolean;
+  priceId: string | null;
+  montoCents: number | null;
+  currency: string | null;
+}): Promise<ResultadoEnvio[]> {
+  try {
+    if (process.env.LIFECYCLE_EMAILS_ENABLED !== "true") return [{ status: "disabled" }];
+    const admin = await adminClient();
+    const c = await clinica(admin, input.clinicId);
+    if (!c || c.is_demo) return [];
+    const tz = c.timezone || TIMEZONE_POR_DEFECTO;
+    const finDePrueba = fechaLocal(new Date(input.trialEndIso), tz);
+    const resultados: ResultadoEnvio[] = [];
+    for (const d of await destinatarios(admin, c.id, ROLES_CUENTA)) {
+      const correo = correoFinDePruebaStripe({
+        appUrl: SITE_URL,
+        clinicName: c.name,
+        nombre: d.nombre,
+        finDePrueba,
+        tieneMedioDePago: input.tieneMedioDePago,
+        plan: nombreDelPlan(input.priceId),
+        montoCents: input.montoCents,
+        currency: input.currency,
+      });
+      resultados.push(
+        await sendClinicEmail(
+          {
+            clinicId: c.id,
+            kind: "trial_t3",
+            periodKey: claveFinDePruebaStripe(input.subscriptionId, input.trialEndIso),
+            to: d.email,
+            userId: d.userId,
+            ...correo,
+          },
+          admin,
+        ),
+      );
+    }
+    return resultados;
+  } catch (err) {
+    log("fin de prueba (Stripe)", err instanceof Error ? err.message : err);
+    return [{ status: "error", reason: "fin de prueba (Stripe)" }];
   }
 }
 

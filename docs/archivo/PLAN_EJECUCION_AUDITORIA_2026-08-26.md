@@ -1,3 +1,5 @@
+> **Archivado el 2026-10-19: histórico, no vigente.** Lo reemplaza [`docs/ROADMAP.md`](../ROADMAP.md) (única fuente de "qué viene", 90 días) y, para el estado del producto, [`docs/Esmalia_Documento_Maestro_v2.md`](../Esmalia_Documento_Maestro_v2.md). Se conserva como registro de cómo se pensó y decidió en su momento; no lo uses como fuente de estado ni de planes. Las rutas `docs/…` que aparecen abajo apuntan a la ubicación anterior (hoy `docs/archivo/`). Motivo: hallazgo GOB-03 de la auditoría 360 del 18-oct-2026.
+
 ## ⚠️ ESTADO REAL AL 27-AGO — leer antes de asumir algo por cerrado
 
 Todo el código de las Oleadas 1 y 2 está escrito, testeado (`tsc`/`eslint`/`vitest` limpios) y pusheado a `main` (8 commits, `ce55cfc`..`dda8c93`). **Pero las migraciones de Supabase escritas HOY (27-ago) todavía NO están aplicadas en el Supabase real** — confirmado con query directa (`patient_medical_history_audit`, `commission_settlements`, `inventory_items.branch_id`, el enum `commission_settled` de `message_templates`: ninguno existe todavía en la base real). El código degrada bien (no rompe nada), pero estas features específicas **no funcionan de verdad hasta que Walter corra el SQL**:
@@ -103,7 +105,7 @@ Estos sí tocan schema. Regla del repo: yo escribo el archivo en `supabase/migra
 - **Depende de:** nada de esta oleada, pero comparte tabla con 2.C (offline queue) — hacer 2.A primero, 2.C después sobre el resultado.
 - Migración nueva: convertir `patient_medical_history` al mismo patrón que `clinical_documents_and_consents` (INSERT + trigger que cierra la fila anterior, nunca UPDATE directo). Archivo `supabase/migrations/20260827XXXXXX_patient_medical_history_versioning.sql`.
 - Código: `src/lib/medical-history.functions.ts` deja de hacer UPDATE, pasa a INSERT nueva versión. `src/components/medical-history-card.tsx` lee la última versión vigente.
-- **Verificación antes de dar por cerrado:** contra Supabase real (no local), insertar dos versiones de alergia de un paciente de prueba, confirmar que la anterior queda con `closed_at` seteado y no se pierde, confirmar que RLS sigue funcionando igual que antes (mismo `clinic_id`/policy, solo cambia el patrón de escritura). Usar el paciente de prueba documentado en CLAUDE.md (María Fernanda Torres) o uno sintético nuevo, y borrar el dato sintético después si se crea.
+- **Verificación antes de dar por cerrado:** contra Supabase real (no local), insertar dos versiones de alergia de un paciente de prueba, confirmar que la anterior queda con `closed_at` seteado y no se pierde, confirmar que RLS sigue funcionando igual que antes (mismo `clinic_id`/policy, solo cambia el patrón de escritura). Usar un paciente de prueba sintético nuevo, y borrar el dato sintético después si se crea.
 
 ### 2.B — arq-2: smoke test de RLS para las 7 tablas Tier 1-3 (P0, sin código de producto)
 

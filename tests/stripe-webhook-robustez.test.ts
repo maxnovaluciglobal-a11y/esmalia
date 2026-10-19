@@ -82,6 +82,7 @@ function deps(
       webhooks: { constructEvent: () => ev } as unknown as StripeWebhookDeps["stripe"]["webhooks"],
       subscriptions: {
         retrieve: vi.fn(async () => subActiva),
+        list: vi.fn(async () => ({ data: [subActiva] })),
       } as unknown as StripeWebhookDeps["stripe"]["subscriptions"],
       charges: {
         retrieve: vi.fn(async () => ({ customer: "cus_1" })),
@@ -91,7 +92,13 @@ function deps(
     webhookSecret: "whsec_x",
     secretKey: "sk_live_x",
     reportarError,
-    avisos: { suscripcionActiva: vi.fn(async () => {}), pagoFallido: vi.fn(async () => {}) },
+    avisos: {
+      suscripcionActiva: vi.fn(async () => {}),
+      pagoFallido: vi.fn(async () => {}),
+      finDePrueba: vi.fn(async () => {}),
+      staff: vi.fn(async () => {}),
+    },
+    medicion: { suscripcionActivada: vi.fn(async () => {}) },
     ...extra,
   } as StripeWebhookDeps & { reportarError: ReturnType<typeof vi.fn> };
 }

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import {
   PERIODONTAL_POINTS,
   type PeriodontalChart,
@@ -97,6 +98,12 @@ export const listPeriodontalCharts = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<PeriodontalChartSummary[]> => {
     const { supabase } = context;
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "periodontograma",
+    });
 
     const { data: charts, error } = await supabase
       .from("periodontal_charts")
@@ -111,7 +118,10 @@ export const listPeriodontalCharts = createServerFn({ method: "GET" })
       );
 
     const chartRows = (charts ?? []) as ChartRow[];
-    if (chartRows.length === 0) return [];
+    if (chartRows.length === 0) {
+      await lectura;
+      return [];
+    }
 
     const chartIds = chartRows.map((c) => c.id);
     const { data: measurements, error: mErr } = await supabase
@@ -132,6 +142,7 @@ export const listPeriodontalCharts = createServerFn({ method: "GET" })
       : { data: [] };
     const nameByUser = new Map((profiles ?? []).map((p) => [p.id, p.full_name]));
 
+    await lectura;
     return chartRows.map((c) => {
       const rows = (measurements ?? []).filter((m) => m.chart_id === c.id);
       const teeth = new Set(rows.map((r) => r.tooth_number));
@@ -158,6 +169,12 @@ export const getLatestPeriodontalChart = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<PeriodontalChart | null> => {
     const { supabase } = context;
+    // SEG-02: en paralelo con la carga; se espera antes de responder.
+    const lectura = registrarLecturaDeFicha(supabase, {
+      clinicId: data.clinicId,
+      patientId: data.patientId,
+      seccion: "periodontograma",
+    });
 
     const { data: chart, error } = await supabase
       .from("periodontal_charts")
@@ -172,6 +189,7 @@ export const getLatestPeriodontalChart = createServerFn({ method: "GET" })
       throw new Error(
         mensajeDb(error, "No pudimos cargar el último sondaje periodontal del paciente."),
       );
+    await lectura;
     if (!chart) return null;
 
     return getPeriodontalChartById({
