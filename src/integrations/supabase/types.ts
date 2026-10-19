@@ -480,6 +480,41 @@ export type Database = {
           },
         ];
       };
+      clinic_data_exports: {
+        Row: {
+          actor_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          detalle: Json;
+          formato: string;
+          id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          detalle?: Json;
+          formato?: string;
+          id?: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          detalle?: Json;
+          formato?: string;
+          id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_data_exports_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinic_members: {
         Row: {
           clinic_id: string;
@@ -4121,6 +4156,10 @@ export type Database = {
           p_patient_ref?: string;
         };
         Returns: undefined;
+      };
+      registrar_exportacion_de_clinica: {
+        Args: { p_clinic_id: string; p_detalle?: Json };
+        Returns: string;
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       set_patient_document_id: {
