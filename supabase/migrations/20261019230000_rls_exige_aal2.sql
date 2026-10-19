@@ -315,6 +315,14 @@ create policy mfa_exige_aal2 on public.portal_access_log
   using ((select public.sesion_cumple_mfa()))
   with check ((select public.sesion_cumple_mfa()));
 
+drop policy if exists mfa_exige_aal2 on public.prescriptions;
+create policy mfa_exige_aal2 on public.prescriptions
+  as restrictive
+  for all
+  to authenticated
+  using ((select public.sesion_cumple_mfa()))
+  with check ((select public.sesion_cumple_mfa()));
+
 drop policy if exists mfa_exige_aal2 on public.quote_items;
 create policy mfa_exige_aal2 on public.quote_items
   as restrictive
@@ -714,6 +722,7 @@ commit;
 -- drop policy if exists mfa_exige_aal2 on public.periodontal_charts;
 -- drop policy if exists mfa_exige_aal2 on public.periodontal_measurements;
 -- drop policy if exists mfa_exige_aal2 on public.portal_access_log;
+-- drop policy if exists mfa_exige_aal2 on public.prescriptions;
 -- drop policy if exists mfa_exige_aal2 on public.quote_items;
 -- drop policy if exists mfa_exige_aal2 on public.quotes;
 -- drop policy if exists mfa_exige_aal2 on public.treatment_items;

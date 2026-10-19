@@ -60,6 +60,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   periodontal_charts: "periodontograma",
   periodontal_measurements: "mediciones del periodontograma",
   portal_access_log: "accesos del paciente a su portal",
+  prescriptions: "recetas: medicamentos indicados a un paciente",
   quote_items: "ítems de presupuestos",
   quotes: "presupuestos",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
