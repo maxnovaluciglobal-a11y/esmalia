@@ -198,7 +198,7 @@ export const pagina: PaginaContenido = {
             "Pregunta qué plan trae ficha clínica, odontograma y WhatsApp. En algunos software no vienen en el plan de entrada.",
             "Confirma cuántos mensajes de WhatsApp incluye y cuánto cuestan los extra.",
             "Revisa si necesitas emitir boleta o factura desde el sistema o si ya lo haces aparte.",
-            "Pregunta cómo sacas tus datos si te vas. En Esmalia los descargas tú desde Ajustes, en un ZIP con planillas CSV y los archivos del paciente.",
+            "Pregunta cómo sacas tus datos si te vas. En Esmalia los exportas tú mismo desde Ajustes en cualquier momento, en un ZIP con planillas CSV y los archivos del paciente, también antes de cerrar la cuenta ([FAQ](/faq)).",
           ],
         },
       ],
