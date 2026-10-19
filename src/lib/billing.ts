@@ -42,16 +42,36 @@ export interface Subscription {
  *  INSERT distintos. */
 export const TRIAL_DAYS = 14;
 
+/**
+ * Margen sobre las fechas que mueve Stripe (`currentPeriodEnd`, y `trialEnd`
+ * cuando el trial lo gestiona Stripe). Auditoría 360 (FN-04): si el webhook
+ * de renovación se atrasa o falla (firma, deploy, base caída → 500 y Stripe
+ * reintenta durante horas), la fecha local vence aunque el cliente esté al
+ * día. Durante estas 72 h la fila se considera vigente; si de verdad no
+ * pagó, Stripe manda `past_due`/`canceled` mucho antes.
+ */
+export const TOLERANCIA_RENOVACION_MS = 72 * 60 * 60 * 1000;
+
+function vencidaConTolerancia(iso: string, ahora: Date): boolean {
+  return new Date(iso).getTime() + TOLERANCIA_RENOVACION_MS <= ahora.getTime();
+}
+
 /** Considerada operativa: el usuario tiene acceso completo al panel. */
-export function isSubscriptionActive(sub: Subscription | null): boolean {
+export function isSubscriptionActive(sub: Subscription | null, ahora: Date = new Date()): boolean {
   if (!sub) return false;
   if (sub.status !== "trialing" && sub.status !== "active") return false;
   // Un trial con trial_end pasado está vencido aunque currentPeriodEnd sea
   // null: sin esta línea, la fila que crea el trigger nunca expiraría.
-  if (sub.status === "trialing" && sub.trialEnd && new Date(sub.trialEnd) <= new Date()) {
-    return false;
+  // El trial de la base (sin suscripción en Stripe) vence en punto: no hay
+  // webhook que esperar. El de Stripe tiene la misma tolerancia que la
+  // renovación, porque el paso a `active` también llega por webhook.
+  if (sub.status === "trialing" && sub.trialEnd) {
+    const vencido = sub.stripeSubscriptionId
+      ? vencidaConTolerancia(sub.trialEnd, ahora)
+      : new Date(sub.trialEnd) <= ahora;
+    if (vencido) return false;
   }
-  if (sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) <= new Date()) return false;
+  if (sub.currentPeriodEnd && vencidaConTolerancia(sub.currentPeriodEnd, ahora)) return false;
   return true;
 }
 

@@ -48,6 +48,43 @@ describe("isSubscriptionActive", () => {
   });
 });
 
+/**
+ * Auditoría 360 (FN-04): un webhook de renovación atrasado no puede dejar
+ * afuera a un cliente al día. 72 h de margen sobre las fechas que mueve Stripe.
+ */
+describe("isSubscriptionActive: tolerancia de 72 h", () => {
+  const ahora = new Date("2026-10-19T12:00:00Z");
+  const hace = (h: number) => new Date(ahora.getTime() - h * 3_600_000).toISOString();
+
+  it("renovación atrasada dentro de las 72 h: sigue activa", () => {
+    expect(
+      isSubscriptionActive({ ...base, status: "active", currentPeriodEnd: hace(1) }, ahora),
+    ).toBe(true);
+    expect(
+      isSubscriptionActive({ ...base, status: "active", currentPeriodEnd: hace(71) }, ahora),
+    ).toBe(true);
+  });
+
+  it("pasadas las 72 h sin renovación: ya no está activa", () => {
+    expect(
+      isSubscriptionActive({ ...base, status: "active", currentPeriodEnd: hace(72) }, ahora),
+    ).toBe(false);
+    expect(
+      isSubscriptionActive({ ...base, status: "active", currentPeriodEnd: hace(100) }, ahora),
+    ).toBe(false);
+  });
+
+  it("trial gestionado por Stripe: misma tolerancia (el paso a active llega por webhook)", () => {
+    const conStripe = { ...base, stripeSubscriptionId: "sub_1" };
+    expect(isSubscriptionActive({ ...conStripe, trialEnd: hace(10) }, ahora)).toBe(true);
+    expect(isSubscriptionActive({ ...conStripe, trialEnd: hace(73) }, ahora)).toBe(false);
+  });
+
+  it("trial de la base (sin Stripe): vence en punto, no hay webhook que esperar", () => {
+    expect(isSubscriptionActive({ ...base, trialEnd: hace(1) }, ahora)).toBe(false);
+  });
+});
+
 describe("trialInformesBloqueados", () => {
   it("no bloquea a las clínicas sin fila de suscripción", () => {
     // Las clínicas piloto existentes tienen sub === null y no se tocan.
@@ -124,8 +161,9 @@ describe("debeExpulsarDeLaApp", () => {
     // activo (sigue siendo "trialing" con `trial_end` pasado) — no tiene
     // sentido dejarlo con acceso a toda la app basado solo en que alguna vez
     // cargó una tarjeta, así que expulsar es lo correcto acá.
+    // Pasada la tolerancia de 72 h (dentro de ella sigue activo).
     expect(
-      debeExpulsarDeLaApp({ ...base, trialEnd: enDias(-1), stripeSubscriptionId: "sub_123" }),
+      debeExpulsarDeLaApp({ ...base, trialEnd: enDias(-4), stripeSubscriptionId: "sub_123" }),
     ).toBe(true);
   });
 
@@ -141,9 +179,15 @@ describe("debeExpulsarDeLaApp", () => {
     expect(debeExpulsarDeLaApp({ ...base, status: "unpaid" })).toBe(true);
   });
 
-  it("active con currentPeriodEnd vencido expulsa", () => {
-    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(-1) })).toBe(
+  it("active con currentPeriodEnd vencido hace más de 72 h expulsa", () => {
+    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(-4) })).toBe(
       true,
+    );
+  });
+
+  it("active con currentPeriodEnd vencido hace menos de 72 h NO expulsa (webhook atrasado)", () => {
+    expect(debeExpulsarDeLaApp({ ...base, status: "active", currentPeriodEnd: enDias(-1) })).toBe(
+      false,
     );
   });
 
