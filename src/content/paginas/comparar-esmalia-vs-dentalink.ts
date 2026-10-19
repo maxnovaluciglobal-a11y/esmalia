@@ -11,7 +11,7 @@ export const pagina: PaginaContenido = {
   resumen:
     "Según su web, Dentalink tiene más de 16 años y más de 15.000 clínicas, y emite boleta electrónica si tu plan incluye el servicio; su precio se cotiza. Esmalia publica su precio (US$29 o US$69 al mes), da 14 días sin tarjeta, sigue funcionando sin internet y no envía WhatsApp sin que tu equipo lo revise. No emite boleta ni factura.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales; si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
+            "Esmalia es nuestro producto. Relevamos los datos de Dentalink el 11-oct-2026 en sus webs oficiales; los de Esmalia están al 19-oct-2026. Si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
         },
         {
           tipo: "p",
@@ -41,7 +41,11 @@ export const pagina: PaginaContenido = {
               "No publica; demo o acceso de prueba con ventas",
               "14 días sin tarjeta",
             ],
-            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado, con periodontograma"],
+            [
+              "Odontograma",
+              "Sí, con periodontograma",
+              "Sí, FDI versionado, con estado (existente o por realizar) y periodontograma",
+            ],
             [
               "WhatsApp",
               "Arma el mensaje y se envía desde WhatsApp Web; contact center con IA para automatizar",
@@ -102,6 +106,7 @@ export const pagina: PaginaContenido = {
             "**Tu internet falla.** Con Esmalia sigues viendo la agenda y las fichas, cobrando y marcando el odontograma sin conexión. Todo se sincroniza solo cuando vuelve. Ver [sin internet](/funciones/sin-internet).",
             "**Prefieres que la IA proponga y tú decidas.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior, pero no firma, no le escribe a pacientes y no mueve la agenda. Ver [Patty IA](/funciones/patty-ia).",
             "**Quieres WhatsApp sin depender de WhatsApp Web abierto.** Esmalia trabaja en modo manual desde el primer día y, si conectas tu número a Meta, envía desde tu propio número. En los dos modos, alguien de tu clínica dispara el mensaje. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
+            "**Quieres poder llevarte todo cuando quieras.** Desde Ajustes descargas un ZIP con pacientes, citas, notas con todas sus versiones, odontograma con historial, presupuestos, pagos y consentimientos, más los archivos del paciente.",
             "**Quieres seguir viendo tus datos aunque no pagues.** Si no te suscribes después de la prueba, la agenda, los pacientes y la ficha siguen abiertos. Finanzas, comisiones, inventario e informes se activan al suscribirte.",
           ],
         },

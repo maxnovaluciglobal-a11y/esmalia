@@ -11,7 +11,7 @@ export const pagina: PaginaContenido = {
   resumen:
     "AgendaPro es un sistema de agenda y gestión que se ofrece para varios rubros, con pagos y facturación; en Chile la ficha clínica viene desde el plan Premium ($54.900 + IVA) y la factura electrónica en Pro o como complemento. Esmalia es solo dental: ficha, odontograma FDI y WhatsApp desde US$29 al mes, funciona sin internet, pero no emite factura.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales; si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
+            "Esmalia es nuestro producto. Relevamos los datos de AgendaPro el 11-oct-2026 en sus webs oficiales; los de Esmalia están al 19-oct-2026. Si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
         },
         {
           tipo: "p",
@@ -84,7 +84,11 @@ export const pagina: PaginaContenido = {
               "Desde $54.900 + IVA al mes (Premium)",
               "US$29/mes (1 profesional) o US$69/mes (hasta 3), con ficha desde el plan Solo",
             ],
-            ["Odontograma", "Mencionado en su página de México", "Sí, FDI versionado"],
+            [
+              "Odontograma",
+              "Mencionado en su página de México",
+              "Sí, FDI versionado, con estado (existente o por realizar)",
+            ],
             [
               "WhatsApp",
               "Confirmaciones incluidas por cupo; extra se paga aparte",
@@ -131,6 +135,7 @@ export const pagina: PaginaContenido = {
             "**Quieres que los recordatorios no dependan de un cupo.** Los planes de Esmalia no fijan un cupo de recordatorios. En modo manual, cada mensaje se abre en tu propio WhatsApp con el texto listo y tu equipo lo envía. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Necesitas atender aunque se corte internet.** Agenda, fichas, cobros y odontograma siguen funcionando y se sincronizan solos. Ver [sin internet](/funciones/sin-internet).",
             "**Quieres IA clínica, no de marketing.** Patty, hoy en habilitación, te ayudará con la nota SOAP y el resumen de la consulta anterior. No firma ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
+            "**Quieres poder llevarte todo cuando quieras.** Desde Ajustes descargas un ZIP con pacientes, citas, notas con todas sus versiones, odontograma con historial, presupuestos, pagos y consentimientos, más los archivos del paciente.",
           ],
         },
         {

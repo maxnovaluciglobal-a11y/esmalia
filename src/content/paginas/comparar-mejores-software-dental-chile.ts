@@ -11,7 +11,7 @@ export const pagina: PaginaContenido = {
   resumen:
     "No hay un software dental que sea el mejor para todas las clínicas de Chile. Según su web, Dentalink tiene más de 15.000 clínicas y emite boleta electrónica si tu plan incluye el servicio. AgendaPro se ofrece para varios rubros, no solo dental. Doctocliq tiene plan gratis. Esmalia conviene si quieres WhatsApp revisado por tu equipo, IA para notas y trabajar sin internet.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
@@ -20,7 +20,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales; si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
+            "Esmalia es nuestro producto. Relevamos estos datos el 11-oct-2026 en las webs oficiales y revisamos de nuevo Clinera, Dentidesk y Esmalia el 19-oct-2026. Si algo cambió, escríbenos a hola@esmalia.com y lo corregimos.",
         },
         {
           tipo: "p",
@@ -30,7 +30,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Dejamos fuera a Medilink: su web lo presenta como software para todo tipo de centros de salud y su página de inicio no menciona odontograma. Si tu consulta es solo dental, en esta lista hay opciones más específicas.",
+            "Dejamos fuera a Medilink: su web lo presenta como software para todo tipo de centros de salud y su página de inicio no menciona odontograma. Si tu consulta es solo dental, en esta lista hay opciones más específicas. La comparación uno a uno está en [Esmalia vs Medilink](/comparar/esmalia-vs-medilink).",
         },
       ],
     },
@@ -92,13 +92,13 @@ export const pagina: PaginaContenido = {
             ],
             [
               "Clinera",
-              "Desde US$223/mes en plan anual + US$450 de instalación",
-              "Anunciado como novedad en su web",
+              "US$279/mes (Vortex) o US$379/mes con marketing (Ecosistema), más USD 450 de implementación",
+              "Sí, FDI por pieza y cara; su web aclara que no es periodontograma",
               "Sí, con la API oficial de WhatsApp Business",
-              "Sí: agentes que agendan por WhatsApp y llaman",
+              "Sí: agente AURA que responde y agenda por WhatsApp, Instagram y Facebook",
               "No indica",
-              "DTE con Open Factura en Chile, anunciado como novedad en su web",
-              "No indica; demo agendada",
+              "Sí: DTE con Open Factura (SII)",
+              "No indica; se contrata por videollamada",
             ],
             [
               "Reservo",
@@ -123,7 +123,7 @@ export const pagina: PaginaContenido = {
             [
               "Esmalia",
               "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
-              "Sí, FDI versionado",
+              "Sí, FDI versionado, con estado (existente o por realizar) y periodontograma",
               "Sí: recordatorios 48 h y 3 h; ninguno sale solo",
               "En habilitación: Patty, para notas SOAP y resúmenes",
               "Sí, sincroniza al volver la conexión",
@@ -131,7 +131,7 @@ export const pagina: PaginaContenido = {
               "Sí, 14 días sin tarjeta",
             ],
           ],
-          nota: "Datos relevados el 11-oct-2026 en las webs oficiales. Precios de AgendaPro en pesos chilenos; los de Doctocliq, Clinera y Esmalia, en dólares.",
+          nota: "Datos relevados el 11-oct-2026 en las webs oficiales; Clinera, Dentidesk y Esmalia, revisados el 19-oct-2026. Precios de AgendaPro en pesos chilenos; los de Doctocliq, Clinera y Esmalia, en dólares.",
         },
       ],
     },
@@ -141,7 +141,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "**Necesitas emitir boleta o factura desde el mismo sistema:** Dentalink (si tu plan lo incluye), Dentidesk o AgendaPro Pro. Esmalia no lo hace.",
+            "**Necesitas emitir boleta o factura desde el mismo sistema:** Dentalink (si tu plan lo incluye), Dentidesk, Clinera o AgendaPro Pro. Esmalia no lo hace.",
             "**Quieres probar sin pagar ni hablar con ventas:** Doctocliq tiene plan gratis; Esmalia da 14 días sin tarjeta; Dentidesk, 15 días; AgendaPro, 7.",
             "**Atiendes varios rubros (dental, estética, fisioterapia):** AgendaPro, que según su web ofrece el sistema a esos rubros y declara más de 30.000 negocios en Latinoamérica.",
             "**Quieres un asistente de IA que agende solo por WhatsApp:** Clinera o el contact center de Dentalink. Esmalia, a propósito, no le escribe solo a ningún paciente.",
@@ -159,8 +159,8 @@ export const pagina: PaginaContenido = {
             "**Dentalink:** según su web, más de 16 años, más de 15.000 clínicas y más de 20 países. Publica periodontograma, software para ortodoncia en su plan Titanium, conexión en línea con aseguradoras y ocho herramientas de IA.",
             "**AgendaPro:** precios de planes publicados en pesos, ficha clínica, pagos y facturación en un mismo lugar, y más de 30.000 negocios en Latinoamérica según su web.",
             "**Doctocliq:** el plan gratis y los precios públicos en dólares. Ofrece facturación electrónica como complemento en Perú, México, Ecuador y Colombia.",
-            "**Dentidesk:** boletas y facturas integradas con el SII y 15 días de prueba.",
-            "**Clinera:** agentes de IA que agendan por WhatsApp y, según el plan, Instagram, Facebook y llamadas.",
+            "**Dentidesk:** boletas y facturas integradas con el SII, fichas de especialidad (endodoncia, periodoncia, ortodoncia, cirugía ortognática) y 15 días de prueba. Ver [Esmalia vs Dentidesk](/comparar/esmalia-vs-dentidesk).",
+            "**Clinera:** un agente de IA que responde y agenda por WhatsApp, Instagram y Facebook, odontograma FDI y emisión de DTE con Open Factura. Su plan Ecosistema suma campañas de marketing.",
             "**Reservo:** plan único con todas las funciones y usuarios ilimitados.",
             "**Dentalsoft:** odontograma en su plan DS Standard y demos guiadas por Google Meet.",
           ],
@@ -198,7 +198,7 @@ export const pagina: PaginaContenido = {
             "Pregunta qué plan trae ficha clínica, odontograma y WhatsApp. En algunos software no vienen en el plan de entrada.",
             "Confirma cuántos mensajes de WhatsApp incluye y cuánto cuestan los extra.",
             "Revisa si necesitas emitir boleta o factura desde el sistema o si ya lo haces aparte.",
-            "Pregunta cómo sacas tus datos si te vas. En Esmalia los exportas tú mismo desde Ajustes en cualquier momento, también antes de cerrar la cuenta ([FAQ](/faq)).",
+            "Pregunta cómo sacas tus datos si te vas. En Esmalia los exportas tú mismo desde Ajustes en cualquier momento, en un ZIP con planillas CSV y los archivos del paciente, también antes de cerrar la cuenta ([FAQ](/faq)).",
           ],
         },
       ],
@@ -211,7 +211,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Qué software dental emite boleta electrónica en Chile?",
-      a: "Según sus webs al 11-oct-2026: Dentalink (si el plan incluye el servicio), Dentidesk (boletas y facturas integradas con el SII), AgendaPro (plan Pro o complemento) y Reservo (boleta electrónica). Esmalia no emite DTE.",
+      a: "Según sus webs: Dentalink (si el plan incluye el servicio), Dentidesk (boletas y facturas integradas con el SII), Clinera (DTE con Open Factura), AgendaPro (plan Pro o complemento) y Reservo (boleta electrónica). Revisado el 11-oct-2026; Clinera y Dentidesk, el 19-oct-2026. Esmalia no emite DTE.",
     },
     {
       q: "¿Cuál es el software dental más barato en Chile?",
@@ -260,6 +260,15 @@ export const pagina: PaginaContenido = {
     { titulo: "Dentidesk: inicio", url: "https://www.dentidesk.com" },
     { titulo: "Clinera: inicio", url: "https://clinera.io" },
     { titulo: "Clinera: planes", url: "https://clinera.io/planes" },
+    { titulo: "Clinera: software dental", url: "https://clinera.io/software-dental" },
+    {
+      titulo: "Clinera: emite DTE con Open Factura",
+      url: "https://clinera.io/blog/clinera-emite-dte-open-factura",
+    },
+    {
+      titulo: "Dentidesk: odontograma, REMASEP e integraciones (13-ago-2026)",
+      url: "https://www.dentidesk.com/dentidesk/detail/48",
+    },
     { titulo: "Reservo: precios", url: "https://reservo.cl/precios/" },
     { titulo: "Dentalsoft: inicio", url: "https://www.dentalsoft.cl" },
     { titulo: "Medilink: inicio", url: "https://www.softwaremedilink.com" },
@@ -269,6 +278,8 @@ export const pagina: PaginaContenido = {
     "/comparar/esmalia-vs-dentalink",
     "/comparar/esmalia-vs-agendapro",
     "/comparar/esmalia-vs-doctocliq",
+    "/comparar/esmalia-vs-dentidesk",
+    "/comparar/esmalia-vs-medilink",
     "/software-dental-chile",
     "/precios",
   ],
