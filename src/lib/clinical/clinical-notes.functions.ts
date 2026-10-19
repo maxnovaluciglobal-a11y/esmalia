@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { filaYaCreada } from "@/lib/idempotency";
 import { mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { createNotification } from "@/lib/messaging/notifications.functions";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -58,6 +59,15 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       reviews: ClinicalNoteReview[];
     }> => {
       const { supabase } = context;
+      // SEG-02: en paralelo con la carga; se espera antes de responder.
+      // patientRef es el id del paciente; si no lo es, no hay ficha que anotar.
+      const lectura = z.string().uuid().safeParse(data.patientRef).success
+        ? registrarLecturaDeFicha(supabase, {
+            clinicId: data.clinicId,
+            patientId: data.patientRef,
+            seccion: "notas",
+          })
+        : Promise.resolve();
 
       // security-review 01-sep: clinical_note_versions no tiene columna
       // patient_ref (solo note_id) — antes se traía TODA la tabla de la
@@ -140,6 +150,7 @@ export const getPatientNotes = createServerFn({ method: "GET" })
         versionesPorNota.set(n.id, versionVigente(n, propias));
       }
 
+      await lectura;
       return {
         notes: notes.map((n) => ({
           id: n.id,

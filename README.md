@@ -6,7 +6,7 @@ prototipo en [Lovable](https://lovable.dev), en desarrollo activo desde este rep
 > El nombre de proyecto en Lovable es "Aurora Dental OS"; la marca del producto,
 > en todo el código y la documentación, es **Esmalia**.
 
-## Estado actual (2026-08-13)
+## Estado actual (2026-08-13, histórico; el vigente está en el Documento Maestro v2)
 
 Fases completas end-to-end verificadas contra la base de datos real:
 
@@ -22,10 +22,11 @@ notas clínicas con versionado/revisión/auditoría, notificaciones realtime,
 equipo y permisos con RLS testeada, exportación de compliance, subsistema
 completo de email/DNS.
 
-Ver [`docs/PLAN_ACCION.md`](docs/PLAN_ACCION.md) para detalle de cada fase,
-patrones establecidos y fases pendientes. Ver
-[`docs/Esmalia_Documento_Maestro_v1.md`](docs/Esmalia_Documento_Maestro_v1.md)
-para visión de producto original.
+Qué hace y qué no hace el producto hoy, estado comercial, stack, seguridad y
+cumplimiento: [`docs/Esmalia_Documento_Maestro_v2.md`](docs/Esmalia_Documento_Maestro_v2.md).
+Qué viene en los próximos 90 días: [`docs/ROADMAP.md`](docs/ROADMAP.md) (única
+fuente). Objetivos de disponibilidad: [`docs/SLO.md`](docs/SLO.md). Los planes y
+auditorías anteriores están en [`docs/archivo/`](docs/archivo/) como histórico.
 
 ## Desarrollo local
 
