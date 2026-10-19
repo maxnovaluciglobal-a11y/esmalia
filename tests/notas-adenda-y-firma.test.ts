@@ -115,22 +115,17 @@ describe("migración 20261019220000 (control estático)", () => {
     expect(sql).toMatch(/DROP POLICY IF EXISTS patients_delete_managers ON public\.patients/);
     expect(sql).toMatch(/REVOKE DELETE, TRUNCATE ON public\.patients FROM anon, authenticated/);
     expect(sql).toMatch(/ON DELETE RESTRICT NOT VALID/);
-    for (const tabla of [
-      "odontogram_marks",
-      "periodontal_charts",
-      "patient_medical_history",
-      "patient_documents",
-      "patient_consents",
-      "payments",
-      "quotes",
-      "treatment_plans",
-    ]) {
-      expect(sql, tabla).toContain(`'${tabla}'`);
-    }
+    // Las FKs salen del catálogo (todas las CASCADE hacia patients), no de
+    // una lista fija: así cubren las tablas clínicas nuevas.
+    expect(sql).toMatch(/c\.confrelid = 'public\.patients'::regclass/);
+    expect(sql).toMatch(/c\.confdeltype = 'c'/);
+    expect(sql).toMatch(/NOT IN \('messages', 'appointment_requests'\)/);
   });
 
-  it("la fusión ya no toca una columna inexistente de clinical_notes", () => {
+  it("la fusión no reescribe notas, documentos ni consentimientos", () => {
     expect(sql).not.toMatch(/UPDATE public\.clinical_notes\s+SET patient_id/);
+    expect(sql).not.toMatch(/UPDATE public\.patient_documents\s+SET patient_id/);
+    expect(sql).not.toMatch(/UPDATE public\.patient_consents\s+SET patient_id/);
   });
 
   it("una nota firmada no vuelve a borrador y la versión es obligatoria", () => {

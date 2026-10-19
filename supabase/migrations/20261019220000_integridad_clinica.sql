@@ -96,8 +96,8 @@ CREATE TRIGGER patients_controlar_archivo
 DROP POLICY IF EXISTS patients_delete_managers ON public.patients;
 REVOKE DELETE, TRUNCATE ON public.patients FROM anon, authenticated;
 
--- FKs clínicas: CASCADE → RESTRICT. Se busca el nombre real de cada FK en el
--- catálogo (no se asume el nombre por defecto) y se recrea NOT VALID +
+-- FKs clínicas: CASCADE → RESTRICT. Se toman del catálogo (no de una lista
+-- fija, para cubrir las tablas nuevas) y se recrean con el mismo nombre, NOT VALID +
 -- VALIDATE: la validación no bloquea escrituras y no puede fallar con los
 -- datos actuales, porque la FK anterior ya garantizaba lo mismo. Antes de
 -- tocar nada se cuentan huérfanos y, si hubiera alguno, la migración se
@@ -108,56 +108,42 @@ REVOKE DELETE, TRUNCATE ON public.patients FROM anon, authenticated;
 -- que ya eran SET NULL).
 DO $$
 DECLARE
-  t text;
-  v_fk text;
+  r record;
   v_huerfanos bigint;
+  v_nombre text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY[
-    'appointments',
-    'lab_orders',
-    'odontogram_marks',
-    'ortho_cases',
-    'patient_consents',
-    'patient_documents',
-    'patient_medical_history',
-    'patient_medical_history_audit',
-    'payments',
-    'periodontal_charts',
-    'portal_access_log',
-    'quotes',
-    'treatment_plans'
-  ] LOOP
-    IF to_regclass('public.' || t) IS NULL THEN
-      RAISE NOTICE 'Tabla public.% no existe, se omite.', t;
-      CONTINUE;
-    END IF;
-
+  -- Todas las FKs que hoy van en CASCADE desde `patients` (incluidas las
+  -- tablas clínicas que agregaron migraciones anteriores a esta: tutores,
+  -- signos vitales, recetas, ...), menos las que no son historia clínica.
+  FOR r IN
+    SELECT c.conrelid::regclass::text AS tabla, c.conname, a.attname AS columna
+      FROM pg_constraint c
+      JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+     WHERE c.contype = 'f'
+       AND c.confrelid = 'public.patients'::regclass
+       AND c.confdeltype = 'c'
+       AND array_length(c.conkey, 1) = 1
+       AND c.conrelid::regclass::text NOT IN ('messages', 'appointment_requests')
+     ORDER BY 1
+  LOOP
     EXECUTE format(
-      'SELECT count(*) FROM public.%I x WHERE x.patient_id IS NOT NULL
-         AND NOT EXISTS (SELECT 1 FROM public.patients p WHERE p.id = x.patient_id)', t)
+      'SELECT count(*) FROM %s x WHERE x.%I IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM public.patients p WHERE p.id = x.%I)',
+      r.tabla, r.columna, r.columna)
       INTO v_huerfanos;
     IF v_huerfanos > 0 THEN
-      RAISE EXCEPTION 'public.% tiene % filas con patient_id sin paciente: revisar antes de migrar.',
-        t, v_huerfanos;
+      RAISE EXCEPTION '% tiene % filas con %.% sin paciente: revisar antes de migrar.',
+        r.tabla, v_huerfanos, r.tabla, r.columna;
     END IF;
 
-    SELECT c.conname INTO v_fk
-      FROM pg_constraint c
-      JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey)
-     WHERE c.contype = 'f'
-       AND c.conrelid = ('public.' || t)::regclass
-       AND c.confrelid = 'public.patients'::regclass
-       AND a.attname = 'patient_id'
-     LIMIT 1;
-
-    IF v_fk IS NOT NULL THEN
-      EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT %I', t, v_fk);
-    END IF;
+    v_nombre := r.conname;
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.tabla, r.conname);
     EXECUTE format(
-      'ALTER TABLE public.%I ADD CONSTRAINT %I FOREIGN KEY (patient_id)
+      'ALTER TABLE %s ADD CONSTRAINT %I FOREIGN KEY (%I)
          REFERENCES public.patients(id) ON DELETE RESTRICT NOT VALID',
-      t, t || '_patient_id_fkey');
-    EXECUTE format('ALTER TABLE public.%I VALIDATE CONSTRAINT %I', t, t || '_patient_id_fkey');
+      r.tabla, v_nombre, r.columna);
+    EXECUTE format('ALTER TABLE %s VALIDATE CONSTRAINT %I', r.tabla, v_nombre);
+    RAISE NOTICE 'FK %.% → patients: CASCADE → RESTRICT', r.tabla, r.columna;
   END LOOP;
 END;
 $$;
@@ -195,6 +181,8 @@ CREATE TRIGGER patients_impedir_borrar_con_notas
 --   - sin el UPDATE a clinical_notes.patient_id (columna inexistente: hacía
 --     fallar la fusión entera). Las notas quedan con su `patient_ref`
 --     original; la ficha destino las lista junto a las suyas.
+--   - documentos y consentimientos firmados tampoco se mueven (sus triggers
+--     de inmutabilidad lo impiden): se leen desde la ficha destino.
 --   - no se fusiona hacia una ficha archivada ni una ficha ya fusionada (una
 --     cadena A→B→C escondería la historia).
 -- La anamnesis sigue sin combinarse sola: la ficha destino muestra las
@@ -248,8 +236,10 @@ BEGIN
   UPDATE public.treatment_plans     SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.odontogram_marks    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.periodontal_charts  SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-  UPDATE public.patient_documents   SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
-  UPDATE public.patient_consents    SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
+  -- patient_documents y patient_consents NO se mueven: sus triggers de
+  -- inmutabilidad (con razón) rechazan cambiar el patient_id y hacían fallar
+  -- la fusión. Igual que las notas, la ficha destino los lee desde las
+  -- fichas fusionadas en ella.
   UPDATE public.messages            SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
   UPDATE public.lab_orders          SET patient_id = p_target_id WHERE patient_id = p_source_id AND clinic_id = p_clinic_id;
 

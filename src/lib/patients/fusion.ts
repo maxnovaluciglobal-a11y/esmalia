@@ -108,3 +108,16 @@ export async function cargarFusiones(
   if (error) throw new Error("No pudimos leer las fichas fusionadas.");
   return (data ?? []) as FilaDeFusion[];
 }
+
+/**
+ * La ficha más todas las que se fusionaron en ella. Para registros que no
+ * se reescriben al fusionar (notas, documentos y consentimientos firmados):
+ * se leen por estos ids en vez de mover el `patient_id`.
+ */
+export async function idsDeLaFicha(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  patientId: string,
+): Promise<string[]> {
+  return [patientId, ...fichasAbsorbidas(patientId, await cargarFusiones(supabase, clinicId))];
+}

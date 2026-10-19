@@ -90,8 +90,8 @@ function FusionarFichasPage() {
         <p className="max-w-2xl text-sm text-muted-foreground">
           Toda clínica que migra de otro sistema llega con el mismo paciente cargado más de una vez.
           Elige cuál ficha sobrevive y el resto se fusiona en ella: citas, pagos, presupuestos,
-          odontograma y documentos se reasignan; las notas clínicas y la anamnesis de la ficha vieja
-          se muestran en la que queda.
+          odontograma y periodontograma se reasignan; las notas, documentos y consentimientos (que
+          no se reescriben) y la anamnesis de la ficha vieja se muestran en la que queda.
         </p>
 
         {isLoading && <p className="text-sm text-muted-foreground">Buscando duplicados…</p>}
@@ -199,9 +199,9 @@ function FusionarFichasPage() {
                   <p>
                     Todo lo de {confirmar?.fuentes.map((f) => `«${f.nombre}»`).join(", ")} pasa a la
                     ficha elegida: citas, pagos, presupuestos, planes, odontograma, periodontograma,
-                    documentos, consentimientos, mensajes y órdenes de laboratorio. Las notas
-                    clínicas no se reescriben (una nota firmada no se toca), pero se ven en la ficha
-                    elegida junto a las suyas.
+                    mensajes y órdenes de laboratorio. Las notas clínicas, los documentos y los
+                    consentimientos no se reescriben (un registro firmado no se toca), pero se ven
+                    en la ficha elegida junto a los suyos.
                   </p>
                   <p>
                     La anamnesis <strong>no</strong> se combina sola — juntar dos historias médicas
