@@ -17,6 +17,7 @@ import {
   verifyPortalToken,
   type PortalTokenPayload,
 } from "@/lib/patients/portal-token.server";
+import { motivoParaNoEnviarWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 
 // ────────────────────────────────────────────────────────────
@@ -51,12 +52,14 @@ export const generatePortalLink = createServerFn({ method: "POST" })
       waUrl: string | null;
       /** true si se mandó de verdad por la Cloud API (no hay wa.me que abrir). */
       viaApi: boolean;
+      /** CON-09: el paciente pidió la baja de WhatsApp; no se arma envío. */
+      dadoDeBajaWhatsApp?: boolean;
     }> => {
       const { supabase, userId } = context;
       // RLS ya cubre: el select fallará si el user no es miembro de la clínica.
       const { data: patient, error } = await supabase
         .from("patients")
-        .select("id, full_name, phone")
+        .select("id, full_name, phone, wa_opt_out_at")
         .eq("clinic_id", data.clinicId)
         .eq("id", data.patientId)
         .maybeSingle();
@@ -98,6 +101,19 @@ export const generatePortalLink = createServerFn({ method: "POST" })
         return { url, expiresInDays: data.ttlDays, waUrl: null, viaApi: false };
       }
 
+      // CON-09: con la baja de WhatsApp no se manda nada (ni API ni wa.me).
+      // El link se devuelve igual, como sin teléfono: quien lo copie a mano
+      // decide por qué canal dárselo.
+      if (motivoParaNoEnviarWhatsApp({ waOptOutAt: patient.wa_opt_out_at, tipo: "proactivo" })) {
+        return {
+          url,
+          expiresInDays: data.ttlDays,
+          waUrl: null,
+          viaApi: false,
+          dadoDeBajaWhatsApp: true,
+        };
+      }
+
       // Intento de envío real por Cloud API (mismo helper que
       // sendWhatsAppFromTemplate en messaging.functions.ts) + registro en
       // `messages` — antes este link jamás tocaba el historial del
@@ -132,6 +148,7 @@ export const generatePortalLink = createServerFn({ method: "POST" })
         metaTemplate,
         recipientRaw: patient.phone,
         country,
+        waOptOutAt: patient.wa_opt_out_at,
         variables: {
           paciente: patient.full_name,
           dias: String(data.ttlDays),

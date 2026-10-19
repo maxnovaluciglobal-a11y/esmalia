@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { filaYaCreada } from "@/lib/idempotency";
 import { mensajeDb } from "@/lib/db-errors";
+import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { cargarFusiones, fichasAbsorbidas } from "@/lib/patients/fusion";
 import { createNotification } from "@/lib/messaging/notifications.functions";
 import type { Database } from "@/integrations/supabase/types";
@@ -59,6 +60,15 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       reviews: ClinicalNoteReview[];
     }> => {
       const { supabase } = context;
+      // SEG-02: en paralelo con la carga; se espera antes de responder.
+      // patientRef es el id del paciente; si no lo es, no hay ficha que anotar.
+      const lectura = z.string().uuid().safeParse(data.patientRef).success
+        ? registrarLecturaDeFicha(supabase, {
+            clinicId: data.clinicId,
+            patientId: data.patientRef,
+            seccion: "notas",
+          })
+        : Promise.resolve();
 
       // CLI-06: las notas de una ficha fusionada en esta se quedan con su
       // `patient_ref` original (una nota firmada no se reescribe), así que
@@ -147,6 +157,7 @@ export const getPatientNotes = createServerFn({ method: "GET" })
         versionesPorNota.set(n.id, versionVigente(n, propias));
       }
 
+      await lectura;
       return {
         notes: notes.map((n) => ({
           id: n.id,
@@ -570,6 +581,31 @@ const PROMPTS: Record<"draft" | "summary" | "polish", string> = {
     "hechos clínicos y sin agregar información. Devuelve solo la nota reescrita.",
 };
 
+/**
+ * Lo que sabemos del paciente que NO puede salir hacia el modelo (IA-02):
+ * nombre, documento, teléfono y email registrados. El gateway los quita del
+ * texto por valor exacto, además de los patrones genéricos. Si `patientRef`
+ * no es un id de la base (demo), no hay nada que buscar.
+ */
+async function identificadoresDelPaciente(
+  supabase: SupabaseCtx,
+  clinicId: string,
+  patientRef: string,
+): Promise<{ nombres: string[]; valores: string[] }> {
+  if (!z.string().uuid().safeParse(patientRef).success) return { nombres: [], valores: [] };
+  const { data } = await supabase
+    .from("patients")
+    .select("full_name, document_id, phone, email")
+    .eq("id", patientRef)
+    .eq("clinic_id", clinicId)
+    .maybeSingle();
+  if (!data) return { nombres: [], valores: [] };
+  return {
+    nombres: [data.full_name].filter(Boolean),
+    valores: [data.document_id, data.phone, data.email].filter((v): v is string => Boolean(v)),
+  };
+}
+
 /** Genera texto con IA y registra la acción en la auditoría. */
 export const generateNoteText = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -595,12 +631,14 @@ export const generateNoteText = createServerFn({ method: "POST" })
         "\nCompleta solo con lo que aporte el profesional; deja 'no consignado' donde falte información."
       : "";
 
-    const { gatewayChat } = await import("@/lib/ai-gateway.server");
+    const { gatewayChat, iaHabilitada, IaPausadaError } = await import("@/lib/ai-gateway.server");
+    if (!iaHabilitada()) throw new IaPausadaError();
     const text = await gatewayChat({
       system: `${SYSTEM_BASE}\n\n${PROMPTS[data.action]}${guiaPlantilla}`,
       user: data.context
         ? `Contexto del paciente:\n${data.context}\n\nApuntes:\n${data.input}`
         : data.input,
+      identificadores: await identificadoresDelPaciente(supabase, data.clinicId, data.patientRef),
     });
 
     // Una llamada al modelo no cambia el estado de la base: va por la puerta
@@ -690,11 +728,13 @@ export const extractNoteEntities = createServerFn({ method: "POST" })
       throw new Error("Tu rol no puede estructurar notas clínicas.");
     }
 
-    const { gatewayChat } = await import("@/lib/ai-gateway.server");
+    const { gatewayChat, iaHabilitada, IaPausadaError } = await import("@/lib/ai-gateway.server");
+    if (!iaHabilitada()) throw new IaPausadaError();
     const raw = await gatewayChat({
       system: STRUCTURE_SYSTEM,
       user: `Nota clínica:\n${data.content}`,
       json: true,
+      identificadores: await identificadoresDelPaciente(supabase, data.clinicId, data.patientRef),
     });
 
     let parsed: z.infer<typeof extractionSchema>;

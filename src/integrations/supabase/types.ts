@@ -553,6 +553,41 @@ export type Database = {
           },
         ];
       };
+      clinical_access_log: {
+        Row: {
+          accessed_at: string;
+          actor_id: string;
+          clinic_id: string;
+          id: string;
+          patient_id: string;
+          section: string;
+        };
+        Insert: {
+          accessed_at?: string;
+          actor_id: string;
+          clinic_id: string;
+          id?: string;
+          patient_id: string;
+          section: string;
+        };
+        Update: {
+          accessed_at?: string;
+          actor_id?: string;
+          clinic_id?: string;
+          id?: string;
+          patient_id?: string;
+          section?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinical_access_log_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinical_note_audit: {
         Row: {
           action: string;
@@ -3626,10 +3661,14 @@ export type Database = {
       };
       subscriptions: {
         Row: {
+          activation_event_id: number | null;
+          activation_tracked_sub_id: string | null;
           cancel_at_period_end: boolean;
           clinic_id: string;
           created_at: string;
           current_period_end: string | null;
+          dispute_id: string | null;
+          disputed_at: string | null;
           past_due_since: string | null;
           status: string;
           stripe_customer_id: string | null;
@@ -3639,10 +3678,14 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
@@ -3652,10 +3695,14 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          activation_event_id?: number | null;
+          activation_tracked_sub_id?: string | null;
           cancel_at_period_end?: boolean;
           clinic_id?: string;
           created_at?: string;
           current_period_end?: string | null;
+          dispute_id?: string | null;
+          disputed_at?: string | null;
           past_due_since?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
@@ -4134,6 +4181,10 @@ export type Database = {
         Returns: boolean;
       };
       can_manage_clinic: { Args: { _clinic_id: string }; Returns: boolean };
+      cifrar_documento_id: {
+        Args: { p_document_id: string };
+        Returns: { documento_enc: string; documento_hash: string }[];
+      };
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
@@ -4217,6 +4268,10 @@ export type Database = {
       registrar_exportacion_de_clinica: {
         Args: { p_clinic_id: string; p_detalle?: Json };
         Returns: string;
+      };
+      registrar_lectura_ficha: {
+        Args: { p_clinic_id: string; p_patient_id: string; p_seccion: string };
+        Returns: boolean;
       };
       registrar_mis_datos_de_firma: {
         Args: { p_clinic_id: string; p_nombre: string; p_registro: string };

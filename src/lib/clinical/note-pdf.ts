@@ -24,6 +24,28 @@ interface ExportArgs {
   notaOriginal?: ClinicalNote | null;
 }
 
+/** Rótulo de una entidad que extrajo la IA y nadie validó (auditoría 360, IA-04). */
+export const ROTULO_IA_SIN_VALIDAR = "Sugerido por IA, sin validar";
+
+export function esSugerenciaIaSinValidar(e: Pick<ClinicalNoteEntity, "aiGenerated" | "confirmed">) {
+  return e.aiGenerated && !e.confirmed;
+}
+
+/** Línea del PDF para una entidad: término + detalles + estado de validación. */
+export function lineaEntidadPdf(e: ClinicalNoteEntity): string {
+  const detalles = [
+    e.tooth ? `pieza ${e.tooth}` : null,
+    e.code ? `código ${e.code}` : null,
+    e.dosage ?? null,
+    e.severity ?? null,
+    e.status ?? null,
+    e.confirmed ? "validado" : esSugerenciaIaSinValidar(e) ? ROTULO_IA_SIN_VALIDAR : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `• ${e.term}${detalles ? ` (${detalles})` : ""}`;
+}
+
 const MARGEN = 48;
 const ANCHO = 595.28; // A4 pt
 const ALTO = 841.89;
@@ -134,23 +156,17 @@ export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
   // Campos estructurados
   if (args.entidades.length) {
     titulo("Historia clínica estructurada");
+    if (args.entidades.some(esSugerenciaIaSinValidar)) {
+      texto(
+        `Los campos marcados "${ROTULO_IA_SIN_VALIDAR}" los propuso Patty (IA) y el profesional todavía no los confirmó: no son dato clínico registrado.`,
+        { size: 8, gris: true, espacio: 4 },
+      );
+    }
     for (const kind of ENTITY_KIND_ORDER) {
       const items = args.entidades.filter((e) => e.kind === kind);
       if (!items.length) continue;
       texto(ENTITY_KIND_LABELS[kind] ?? kind, { size: 10, bold: true, espacio: 2 });
-      for (const e of items) {
-        const detalles = [
-          e.tooth ? `pieza ${e.tooth}` : null,
-          e.code ? `código ${e.code}` : null,
-          e.dosage ?? null,
-          e.severity ?? null,
-          e.status ?? null,
-          e.confirmed ? "validado" : null,
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        texto(`• ${e.term}${detalles ? ` (${detalles})` : ""}`, { size: 9, espacio: 1 });
-      }
+      for (const e of items) texto(lineaEntidadPdf(e), { size: 9, espacio: 1 });
       y += 4;
     }
   }

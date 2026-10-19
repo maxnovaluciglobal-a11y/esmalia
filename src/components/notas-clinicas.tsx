@@ -65,6 +65,9 @@ import { estadoNota, reportarBloqueo } from "@/lib/block-diagnostics";
 import type { NoteAction } from "@/lib/clinical/note-permissions";
 import { leerRolSimulado } from "@/lib/access/role-simulation";
 import { exportarNotaPdf } from "@/lib/clinical/note-pdf";
+import { construirContextoPaciente } from "@/lib/ai/minimizacion";
+import { getEstadoIa } from "@/lib/ai/estado.functions";
+import { MENSAJE_IA_PAUSADA, esErrorIaPausada } from "@/lib/ai/estado";
 import { DatosDeFirmaDialog } from "@/components/datos-de-firma-dialog";
 
 import type { ClinicRole } from "@/lib/access/access";
@@ -111,6 +114,17 @@ export function NotasClinicas({
   const reviewersFn = useServerFn(listNoteReviewers);
   const requestReviewFn = useServerFn(requestNoteReview);
   const resolveReviewFn = useServerFn(resolveNoteReview);
+  const estadoIaFn = useServerFn(getEstadoIa);
+
+  // Patty pausada (docs/IA.md): mientras el servidor no tenga AI_ENABLED=true,
+  // la sección de Patty muestra "en habilitación" en vez de botones. Si la
+  // consulta falla o no llegó, se trata como apagada.
+  const { data: estadoIa } = useQuery({
+    queryKey: ["estado-ia"],
+    queryFn: () => estadoIaFn(),
+    staleTime: 5 * 60_000,
+  });
+  const pattyActiva = estadoIa?.habilitada === true;
 
   const [noteId, setNoteId] = useState<string | null>(null);
   // CLI-07: adenda en preparación (todavía sin guardar) a esta nota firmada.
@@ -216,12 +230,23 @@ export function NotasClinicas({
     }
   }
 
-  const contextoPaciente = `Paciente: ${paciente.nombre}, ${paciente.edad} años. Etiquetas: ${
-    paciente.etiquetas.join(", ") || "ninguna"
-  }. Última visita: ${paciente.ultimaVisita}. Antecedentes recientes: ${paciente.timeline
-    .slice(0, 4)
-    .map((e) => `${e.fecha} ${e.titulo}${e.detalle ? ` (${e.detalle})` : ""}`)
-    .join("; ")}`;
+  // Sin nombre ni edad exacta (IA-02): tramo etario, etiquetas y antecedentes.
+  const contextoPaciente = construirContextoPaciente({
+    edad: paciente.edad,
+    etiquetas: paciente.etiquetas,
+    ultimaVisita: paciente.ultimaVisita,
+    timeline: paciente.timeline,
+  });
+
+  /** Error de Patty: si el servidor dice que está pausada, la UI se entera y cambia. */
+  const errorDePatty = (e: Error) => {
+    if (esErrorIaPausada(e)) {
+      queryClient.setQueryData(["estado-ia"], { habilitada: false });
+      toast.info(MENSAJE_IA_PAUSADA);
+      return;
+    }
+    diagError("edit")(e);
+  };
 
   function nuevaNota() {
     if (
@@ -354,7 +379,7 @@ export function NotasClinicas({
       queryClient.invalidateQueries({ queryKey });
       toast.success("Listo. Revisa y ajusta antes de guardar.");
     },
-    onError: diagError("edit"),
+    onError: errorDePatty,
   });
 
   const restaurar = useMutation({
@@ -422,7 +447,7 @@ export function NotasClinicas({
           : "Patty no encontró campos estructurables en la nota.",
       );
     },
-    onError: diagError("edit"),
+    onError: errorDePatty,
   });
 
   const validar = useMutation({
@@ -500,7 +525,9 @@ export function NotasClinicas({
         <div>
           <h3 className="font-display text-lg font-semibold">Notas clínicas</h3>
           <p className="text-xs text-muted-foreground">
-            Patty (IA) redacta y resume; tú revisas y firmas. Con versiones y auditoría.
+            {pattyActiva
+              ? "Patty (IA) redacta y resume; tú revisas y firmas. Con versiones y auditoría."
+              : "Tú escribes y firmas. Con versiones y auditoría."}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -643,11 +670,25 @@ export function NotasClinicas({
             onChange={(e) => setContenido(e.target.value)}
             disabled={!puedeEditar || bloqueada}
             rows={12}
-            placeholder="Escribe apuntes rápidos (ej: molestia molar 36, sensibilidad al frío, se realiza obturación) y deja que Patty los convierta en una nota SOAP."
+            placeholder={
+              pattyActiva
+                ? "Escribe apuntes rápidos (ej: molestia molar 36, sensibilidad al frío, se realiza obturación) y deja que Patty los convierta en una nota SOAP."
+                : "Escribe la nota clínica (ej: molestia molar 36, sensibilidad al frío, se realiza obturación)."
+            }
             className="w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm leading-relaxed focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base disabled:opacity-60"
           />
 
-          {puedeEditar && (
+          {puedeEditar && !pattyActiva && (
+            <p
+              role="status"
+              className="flex items-start gap-1.5 rounded-xl border border-hairline p-3 text-xs text-muted-foreground"
+            >
+              <PattyMark size={14} className="mt-px" />
+              <span>{MENSAJE_IA_PAUSADA}</span>
+            </p>
+          )}
+
+          {puedeEditar && pattyActiva && (
             <section
               aria-labelledby="patty-nota-titulo"
               className="rounded-xl border border-hairline p-3"

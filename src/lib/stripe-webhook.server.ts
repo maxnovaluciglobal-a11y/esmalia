@@ -2,6 +2,8 @@ import type Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database, Json } from "@/integrations/supabase/types";
+import { esSuscripcionViva } from "@/lib/checkout-suscripcion.server";
+import { isUndefinedColumnError } from "@/lib/db-errors";
 
 /**
  * Núcleo del webhook de Stripe (`/api/stripe/webhook`), separado de la ruta
@@ -34,7 +36,7 @@ export type AdminClient = SupabaseClient<Database>;
 export interface StripeWebhookDeps {
   stripe: {
     webhooks: Pick<Stripe["webhooks"], "constructEvent">;
-    subscriptions: Pick<Stripe["subscriptions"], "retrieve">;
+    subscriptions: Pick<Stripe["subscriptions"], "retrieve" | "list">;
     charges: Pick<Stripe["charges"], "retrieve">;
   };
   admin: AdminClient;
@@ -42,10 +44,27 @@ export interface StripeWebhookDeps {
   /** `STRIPE_SECRET_KEY`: define si este deploy es live o test. */
   secretKey: string;
   reportarError: (err: unknown, contexto: { ruta: string; metodo?: string }) => Promise<void>;
+  /** Correos. Ninguno lanza: un correo no puede hacer que Stripe reintente. */
   avisos: {
     suscripcionActiva: (clinicId: string, sub: Stripe.Subscription) => Promise<void>;
     pagoFallido: (clinicId: string, invoiceId: string, invoice: Stripe.Invoice) => Promise<void>;
+    /** `trial_will_end`: correo a la clínica 3 días antes (idempotente por suscripción y fecha). */
+    finDePrueba: (clinicId: string, sub: Stripe.Subscription) => Promise<void>;
+    /** Aviso al equipo de Esmalia (`ESMALIA_STAFF_EMAILS`). `clave` = idempotencia. */
+    staff: (aviso: AvisoStaff) => Promise<void>;
   };
+  /** Telemetría del embudo. Nunca lanza. */
+  medicion: {
+    suscripcionActivada: (clinicId: string, sub: Stripe.Subscription) => Promise<void>;
+  };
+}
+
+export interface AvisoStaff {
+  asunto: string;
+  lineas: string[];
+  /** Clave de idempotencia del envío (el mismo hecho no avisa dos veces). */
+  clave: string;
+  clinicId: string | null;
 }
 
 const RUTA = "/api/stripe/webhook";
@@ -125,6 +144,144 @@ async function actualizarEstado(admin: AdminClient, clinicId: string, status: st
   if (error) throw new ErrorDeBaseEnWebhook(`update subscriptions → ${status}`, error);
 }
 
+/**
+ * ¿Hay con qué cobrar al terminar el trial? Tarjeta de la suscripción o, si
+ * no tiene, la predeterminada del customer.
+ */
+export function tieneMedioDePago(
+  sub: Pick<Stripe.Subscription, "default_payment_method" | "default_source">,
+  customer?: { invoice_settings?: { default_payment_method?: unknown } | null } | null,
+): boolean {
+  if (sub.default_payment_method || sub.default_source) return true;
+  return Boolean(customer?.invoice_settings?.default_payment_method);
+}
+
+/**
+ * Otras suscripciones vivas de la clínica, además de `nueva` (BIL-03). Si la
+ * nueva no está viva, no hay duplicado que avisar.
+ */
+export function otrasSuscripcionesVivas(
+  nueva: { id: string; status: string },
+  otras: ReadonlyArray<{ id: string; status: string }>,
+): Array<{ id: string; status: string }> {
+  if (!esSuscripcionViva(nueva.status)) return [];
+  const vistas = new Set<string>();
+  return otras.filter((o) => {
+    if (o.id === nueva.id || vistas.has(o.id) || !esSuscripcionViva(o.status)) return false;
+    vistas.add(o.id);
+    return true;
+  });
+}
+
+function idDelCustomer(c: string | { id: string } | null | undefined): string | null {
+  if (!c) return null;
+  return typeof c === "string" ? c : c.id;
+}
+
+/**
+ * BIL-03: si la clínica queda con dos suscripciones vivas (dos checkouts, un
+ * webhook perdido), avisa al staff. NO cancela nada: cuál se queda y si hay
+ * que reembolsar lo decide una persona. Se llama ANTES del upsert, que pisa
+ * `stripe_subscription_id` con la nueva. Es un aviso: si Stripe o la base
+ * fallan acá, se reporta y el webhook sigue.
+ */
+async function avisarSiHayOtraSuscripcionViva(
+  deps: StripeWebhookDeps,
+  clinicId: string,
+  nueva: Stripe.Subscription,
+): Promise<void> {
+  try {
+    if (!esSuscripcionViva(nueva.status)) return;
+    const { data: fila, error } = await deps.admin
+      .from("subscriptions")
+      .select("stripe_subscription_id")
+      .eq("clinic_id", clinicId)
+      .maybeSingle();
+    if (error) throw new ErrorDeBaseEnWebhook("leer suscripción local", error);
+
+    const otras: Array<{ id: string; status: string }> = [];
+    const customerId = idDelCustomer(nueva.customer);
+    if (customerId) {
+      const lista = await deps.stripe.subscriptions.list({
+        customer: customerId,
+        status: "all",
+        limit: 20,
+      });
+      for (const s of lista.data) otras.push({ id: s.id, status: s.status });
+    }
+    const local = fila?.stripe_subscription_id ?? null;
+    if (local && local !== nueva.id && !otras.some((o) => o.id === local)) {
+      // Webhook perdido: la anterior puede estar en otro customer.
+      const anterior = await deps.stripe.subscriptions.retrieve(local);
+      otras.push({ id: anterior.id, status: anterior.status });
+    }
+
+    const vivas = otrasSuscripcionesVivas(nueva, otras);
+    if (vivas.length === 0) return;
+    const ids = [nueva.id, ...vivas.map((v) => v.id)].sort();
+    await deps.avisos.staff({
+      asunto: "Clínica con dos suscripciones vivas en Stripe",
+      clinicId,
+      clave: `suscripcion-duplicada-${clinicId}-${ids.join("-")}`,
+      lineas: [
+        `Suscripción nueva: ${nueva.id} (${nueva.status}).`,
+        ...vivas.map((v) => `Otra suscripción viva: ${v.id} (${v.status}).`),
+        "Puede haber un doble cobro. No se canceló nada automáticamente: revisa en Stripe cuál se queda y si corresponde reembolsar.",
+        "Esmalia guarda solo la nueva en la fila de la clínica.",
+      ],
+    });
+  } catch (err) {
+    await deps.reportarError(err, { ruta: `${RUTA} suscripcion-duplicada`, metodo: "POST" });
+  }
+}
+
+/** La medición nunca debe poder cortar el webhook. */
+async function medirActivacion(
+  deps: StripeWebhookDeps,
+  clinicId: string,
+  sub: Stripe.Subscription,
+) {
+  if (sub.status !== "active" && sub.status !== "trialing") return;
+  try {
+    await deps.medicion.suscripcionActivada(clinicId, sub);
+  } catch (err) {
+    console.warn("[stripe webhook] medición", err instanceof Error ? err.message : err);
+  }
+}
+
+/**
+ * Marca (o desmarca) la disputa en la fila de la clínica. Si la migración
+ * 20261019210000 todavía no está aplicada, la columna no existe: se reporta y
+ * se sigue, porque el aviso al staff es lo que importa y un 500 haría que
+ * Stripe reintentara durante días sin que la columna aparezca.
+ */
+async function escribirMarcaDeDisputa(
+  deps: StripeWebhookDeps,
+  clinicId: string,
+  cambios: { disputed_at: string | null; dispute_id: string | null },
+  soloSiDisputa?: string,
+) {
+  let q = deps.admin.from("subscriptions").update(cambios).eq("clinic_id", clinicId);
+  if (soloSiDisputa) q = q.eq("dispute_id", soloSiDisputa);
+  const { error } = await q;
+  if (!error) return;
+  if (isUndefinedColumnError(error)) {
+    await deps.reportarError(
+      new Error(
+        `Marca de disputa sin columna (migración 20261019210000 pendiente): ${error.message}`,
+      ),
+      { ruta: `${RUTA} disputa`, metodo: "POST" },
+    );
+    return;
+  }
+  throw new ErrorDeBaseEnWebhook("marcar disputa en subscriptions", error);
+}
+
+/** Fecha `YYYY-MM-DD` (UTC) de un timestamp de Stripe, para el aviso al staff. */
+function fechaDeStripe(ts: number | null | undefined): string {
+  return ts ? new Date(ts * 1000).toISOString().slice(0, 10) : "sin dato";
+}
+
 /** Aplica el evento. Devuelve la clínica afectada (para `stripe_events`). */
 async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Promise<string | null> {
   const { admin, stripe, avisos } = deps;
@@ -139,10 +296,13 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
         const subId =
           typeof session.subscription === "string" ? session.subscription : session.subscription.id;
         const sub = await stripe.subscriptions.retrieve(subId);
+        await avisarSiHayOtraSuscripcionViva(deps, clinicId, sub);
         await upsertSubscription(admin, clinicId, sub);
         // Con trial, el checkout deja la suscripción en `trialing`: el
         // correo sale cuando pase a `active` (subscription.updated).
         if (sub.status === "active") await avisos.suscripcionActiva(clinicId, sub);
+        // Medición: una vez por suscripción (dedupe con la vuelta del checkout).
+        await medirActivacion(deps, clinicId, sub);
       }
       break;
     }
@@ -159,7 +319,12 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
         // `updated` viejo después de uno nuevo). Se guarda el estado ACTUAL
         // de Stripe, nunca la foto que trae el evento.
         const sub = await stripe.subscriptions.retrieve(delEvento.id);
+        const esAlta = event.type === "customer.subscription.created";
+        if (esAlta) await avisarSiHayOtraSuscripcionViva(deps, clinicId, sub);
         await upsertSubscription(admin, clinicId, sub);
+        // Solo en el alta: medir en cada `updated` contaría como "activada"
+        // una suscripción vieja la primera vez que se renueve.
+        if (esAlta) await medirActivacion(deps, clinicId, sub);
         const previo = (event.data as { previous_attributes?: Partial<Stripe.Subscription> })
           .previous_attributes?.status;
         const recienActiva =
@@ -211,18 +376,80 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
       }
       break;
     }
+    case "customer.subscription.trial_will_end": {
+      // Stripe lo manda 3 días antes de que termine el trial de una
+      // suscripción suya (el trial de la base sin checkout lo cubre el cron
+      // de correos). Se re-consulta: si ya no está en trial (pagó antes,
+      // canceló), no hay nada que avisar.
+      const delEvento = event.data.object as Stripe.Subscription;
+      clinicId = (delEvento.metadata?.clinic_id as string | undefined) ?? null;
+      const customerId = idDelCustomer(delEvento.customer);
+      if (!clinicId && customerId) clinicId = await clinicaPorCustomer(admin, customerId);
+      if (clinicId) {
+        const sub = await stripe.subscriptions.retrieve(delEvento.id);
+        await upsertSubscription(admin, clinicId, sub);
+        if (sub.status === "trialing" && sub.trial_end) await avisos.finDePrueba(clinicId, sub);
+      }
+      break;
+    }
     case "charge.dispute.created": {
+      // BIL-01 (4) y BIL-02: antes se escribía `canceled` en la fila, que no
+      // cancelaba nada en Stripe, pausaba los informes y el siguiente
+      // `subscription.updated` volvía a pisar. Ahora: marca para revisión
+      // manual + aviso al staff con la fecha límite de evidencia. El acceso
+      // de la clínica no cambia (ni la ficha ni nada).
       const dispute = event.data.object as Stripe.Dispute;
       const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
       const disputedCharge = await stripe.charges.retrieve(chargeId);
-      const customerId =
-        typeof disputedCharge.customer === "string"
-          ? disputedCharge.customer
-          : disputedCharge.customer?.id;
-      if (customerId) {
-        clinicId = await clinicaPorCustomer(admin, customerId);
-        if (clinicId) await actualizarEstado(admin, clinicId, "canceled");
+      const customerId = idDelCustomer(disputedCharge.customer);
+      if (customerId) clinicId = await clinicaPorCustomer(admin, customerId);
+      if (clinicId) {
+        await escribirMarcaDeDisputa(deps, clinicId, {
+          disputed_at: new Date(event.created * 1000).toISOString(),
+          dispute_id: dispute.id,
+        });
       }
+      await avisos.staff({
+        asunto: "Disputa abierta en Stripe",
+        clinicId,
+        clave: `disputa-abierta-${dispute.id}`,
+        lineas: [
+          `Disputa ${dispute.id} sobre el cobro ${chargeId}${customerId ? ` (customer ${customerId})` : ""}.`,
+          `Monto: ${dispute.amount} en unidad mínima de ${dispute.currency.toUpperCase()}. Motivo: ${dispute.reason}.`,
+          `Fecha límite para mandar evidencia: ${fechaDeStripe(dispute.evidence_details?.due_by)}.`,
+          clinicId
+            ? "La suscripción quedó marcada para revisión. El acceso de la clínica no se tocó."
+            : "No se encontró la clínica de este customer: revisar a mano.",
+          `https://dashboard.stripe.com/${event.livemode ? "" : "test/"}disputes/${dispute.id}`,
+        ],
+      });
+      break;
+    }
+    case "charge.dispute.closed": {
+      const dispute = event.data.object as Stripe.Dispute;
+      const chargeId = typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+      const disputedCharge = await stripe.charges.retrieve(chargeId);
+      const customerId = idDelCustomer(disputedCharge.customer);
+      if (customerId) clinicId = await clinicaPorCustomer(admin, customerId);
+      if (clinicId) {
+        // Solo si la marca es de ESTA disputa (podría haber una más nueva).
+        await escribirMarcaDeDisputa(
+          deps,
+          clinicId,
+          { disputed_at: null, dispute_id: null },
+          dispute.id,
+        );
+      }
+      await avisos.staff({
+        asunto: `Disputa cerrada en Stripe (${dispute.status})`,
+        clinicId,
+        clave: `disputa-cerrada-${dispute.id}`,
+        lineas: [
+          `Disputa ${dispute.id} sobre el cobro ${chargeId}: ${dispute.status}.`,
+          "Se quitó la marca de revisión de la suscripción.",
+          `https://dashboard.stripe.com/${event.livemode ? "" : "test/"}disputes/${dispute.id}`,
+        ],
+      });
       break;
     }
     default:
