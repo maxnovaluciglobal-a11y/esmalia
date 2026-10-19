@@ -1,3 +1,5 @@
+> **Archivado el 2026-10-19: histórico, no vigente.** Lo reemplaza [`docs/ROADMAP.md`](../ROADMAP.md) (única fuente de "qué viene", 90 días) y, para el estado del producto, [`docs/Esmalia_Documento_Maestro_v2.md`](../Esmalia_Documento_Maestro_v2.md). Se conserva como registro de cómo se pensó y decidió en su momento; no lo uses como fuente de estado ni de planes. Las rutas `docs/…` que aparecen abajo apuntan a la ubicación anterior (hoy `docs/archivo/`). Motivo: hallazgo GOB-03 de la auditoría 360 del 18-oct-2026.
+
 # Esmalia — Plan de acción
 
 _Auditado y escrito el 2026-08-11, tras importar el proyecto de Lovable y correrlo en local._

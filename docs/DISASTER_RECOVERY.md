@@ -1,6 +1,6 @@
 # Disaster Recovery — Esmalia
 
-Runbook para escenarios de falla operacional. Autoridad: Walter (`walterlamadriz@gmail.com`).
+Runbook para escenarios de falla operacional. Autoridad: Walter (dueño del proyecto; contacto en el plan de continuidad, fuera del repo).
 
 ---
 
@@ -150,11 +150,10 @@ Los escenarios #4 (sync con Lovable) y #6 (cierre de Lovable Cloud) quedan fuera
 
 ## Contactos y accesos
 
-- **Owner del proyecto:** Walter — `walterlamadriz@gmail.com`
+- **Owner del proyecto:** Walter (datos de contacto en `08 - Operaciones/continuidad/`, fuera del repo)
 - **Lovable:** editor `https://lovable.dev/projects/9f5bde21-41b4-43c0-bc81-ea2215cab660`
 - **GitHub:** `maxnovaluciglobal-a11y/esmalia` (rama `main`) — migrado desde `walterlamadriz-ai/esmalia` el 2026-08-31, la URL vieja redirige
 - **Supabase propio (producción real):** proyecto `hvfkygoguxvpmwslrccb`, `sa-east-1`, org MaxnovaLuci. El proyecto Lovable Cloud `9f5bde21-...` es un huérfano congelado al 14-ago, no producción.
-- **Login owner de la clínica "clinica Patricia":** `walterlamadriz@gmail.com` / password reseteada via SQL directo en Fase 1
 - **VPS fallback:** `91.99.204.162` (mismo host que GastroCore, ver memoria de proyectos)
 
 ## Checklist post-incidente
