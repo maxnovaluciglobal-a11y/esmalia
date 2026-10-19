@@ -52,7 +52,7 @@
 
 ## Empresa y legal
 
-- [Quiénes somos](https://esmalia.com/nosotros): Esmalia la fundó Walter La Madriz y la opera MAXNOVA & LUCI Global LLC (Estados Unidos). Está en etapa piloto.
+- [Quiénes somos](https://esmalia.com/nosotros): Esmalia la fundó Walter La Madriz y la opera MAXNOVA & LUCI Global LLC (Estados Unidos). Lo construye su fundador, con soporte directo.
 - [Política de privacidad](https://esmalia.com/privacidad)
 - [Términos de servicio](https://esmalia.com/terminos)
 - [Acuerdo de tratamiento de datos (DPA)](https://esmalia.com/dpa)

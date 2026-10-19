@@ -108,7 +108,8 @@ export const pagina: PaginaContenido = {
           items: [
             "El odontograma y las notas clínicas guardan versiones: una corrección agrega una versión nueva y no borra la anterior.",
             "Si no te suscribes después de la prueba de 14 días, la agenda, los pacientes y la ficha siguen abiertos.",
-            "Antes de cerrar tu cuenta puedes exportar los datos de tu clínica.",
+            // TODO(export): cuando exista "Exportar todo" en Ajustes, volver a prometer la exportación desde la app.
+            "Antes de cerrar tu cuenta puedes pedirnos todos los datos de tu clínica: te los entregamos en formato estándar dentro de 72 horas.",
             "La base de datos se respalda todos los días. Detalle en [Datos y seguridad](/docs/datos-y-seguridad).",
           ],
         },

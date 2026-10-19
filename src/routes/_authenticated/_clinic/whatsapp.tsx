@@ -53,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/whatsapp")({
       {
         name: "description",
         content:
-          "Conecta el WhatsApp de tu clínica para mandar recordatorios y avisos automáticos.",
+          "Conecta el WhatsApp de tu clínica: los recordatorios y avisos quedan listos y se envían con un clic.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -221,7 +221,7 @@ function WhatsAppPage() {
         },
       }),
     onSuccess: () => {
-      toast.success("WhatsApp conectado. Ya puedes mandar mensajes automáticos.");
+      toast.success("WhatsApp conectado. Ya puedes enviar mensajes con un clic desde Esmalia.");
       invalidar();
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -323,7 +323,7 @@ function WhatsAppPage() {
         <p className="text-sm text-muted-foreground">
           {requiereLlamada && (!platformConfigured || account?.status !== "connected")
             ? "Conecta el WhatsApp de tu clínica para mandar recordatorios, recall y avisos de saldo desde aquí — cada clínica usa su propio número, nunca compartimos uno entre clínicas."
-            : "Conecta el WhatsApp de tu clínica para mandar recordatorios, recall y avisos de saldo automáticamente. Cada clínica usa su propio número — nunca compartimos uno entre clínicas."}
+            : "Conecta el WhatsApp de tu clínica: Esmalia prepara los recordatorios, el recall y los avisos de saldo, y tu equipo los envía con un clic, sin abrir WhatsApp. Cada clínica usa su propio número — nunca compartimos uno entre clínicas."}
         </p>
 
         {isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
@@ -360,7 +360,7 @@ function WhatsAppPage() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {account.qualityRating
                       ? `Calidad reportada por Meta: ${account.qualityRating}`
-                      : "Los recordatorios y avisos se mandan automáticamente."}
+                      : "Los recordatorios y avisos se preparan solos y se envían con un clic."}
                   </p>
                 </div>
               </div>
@@ -385,8 +385,8 @@ function WhatsAppPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Desconectar WhatsApp?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Los recordatorios, el recall y los avisos de saldo dejan de mandarse
-                      automáticamente y vuelven a wa.me manual desde /recordatorios. Vas a poder
+                      Los recordatorios, el recall y los avisos de saldo dejan de enviarse por la
+                      API oficial y vuelven a wa.me manual desde /recordatorios. Vas a poder
                       reconectar cuando quieras.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
@@ -438,8 +438,8 @@ function WhatsAppPage() {
           account?.status !== "connected" &&
           requiereLlamada && (
             <LlamadaDesbloqueo
-              feature="WhatsApp automático"
-              descripcion="Conecta el WhatsApp real de tu clínica para mandar recordatorios, recall y avisos de saldo automáticamente por la API de Meta — en vez de wa.me manual."
+              feature="WhatsApp oficial"
+              descripcion="Conecta el WhatsApp real de tu clínica para enviar recordatorios, recall y avisos de saldo con un clic por la API oficial de Meta, sin abrir WhatsApp — en vez de wa.me manual."
               clinicName={access.clinic?.name}
               clinicEmail={access.email}
             />

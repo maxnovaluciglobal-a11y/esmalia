@@ -85,7 +85,7 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["", "Doctocliq", "Esmalia"],
           filas: [
-            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado"],
+            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado, con periodontograma"],
             [
               "WhatsApp",
               "Recordatorios automáticos con cupo mensual (gratis en planes semestrales y anuales); su inicio menciona también correo y SMS",
@@ -115,7 +115,7 @@ export const pagina: PaginaContenido = {
             [
               "Alcance",
               "Según su web: más de 4.000 doctores, más de 20 países",
-              "Etapa piloto; 5 países",
+              "Lanzado en 2026; 5 países",
             ],
           ],
         },
