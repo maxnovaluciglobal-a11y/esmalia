@@ -505,13 +505,17 @@ function Privacidad() {
       <LegalH2>9. Cuánto tiempo guardamos los datos</LegalH2>
       <LegalP>
         <strong>Datos de la clínica y de sus pacientes.</strong> Mientras la cuenta de la clínica
-        esté activa. La clínica puede exportar sus datos desde la aplicación en cualquier momento,
-        también antes de cerrar la cuenta. Después de que termina el servicio, si la clínica nos lo
-        pide por escrito a <Correo a="privacidad@esmalia.com" />, eliminamos sus datos o se los
-        devolvemos dentro de los 30 días siguientes al pedido. Mientras no recibamos esa
-        instrucción, no los usamos para nada más que devolvérselos a la clínica. La historia clínica
-        además tiene plazos legales de conservación propios en cada país: esos los define la clínica
-        como responsable, no nosotros.
+        esté activa.{" "}
+        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "La
+        clínica puede exportar sus datos desde la aplicación en cualquier momento". */}
+        En cualquier momento, también antes de cerrar la cuenta, la clínica puede pedirnos todos sus
+        datos escribiendo a <Correo a="soporte@esmalia.com" />, y se los entregamos en formato
+        estándar dentro de las 72 horas siguientes al pedido. Después de que termina el servicio, si
+        la clínica nos lo pide por escrito a <Correo a="privacidad@esmalia.com" />, eliminamos sus
+        datos o se los devolvemos dentro de los 30 días siguientes al pedido. Mientras no recibamos
+        esa instrucción, no los usamos para nada más que devolvérselos a la clínica. La historia
+        clínica además tiene plazos legales de conservación propios en cada país: esos los define la
+        clínica como responsable, no nosotros.
       </LegalP>
       <LegalP>
         <strong>Copias de respaldo.</strong> Los datos borrados no desaparecen en el mismo instante

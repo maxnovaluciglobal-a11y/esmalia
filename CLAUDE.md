@@ -30,8 +30,7 @@ SaaS de gestión para clínicas dentales de LatAm (target CL/MX/CO/PE/AR). Marca
 
 - **Preferido:** `preview_start({name: "esmalia"})` — entrada en `~/Documents/.claude/launch.json` puerto 8080.
 - Directo: `npm run dev` desde el repo → puerto 8080 (Vite).
-- Login owner de la clínica "clinica Patricia": `walterlamadriz@gmail.com` — password rotada el 2026-08-15 (ver memoria `esmalia_auditoria_multiagente_2026_08_15.md`, no en el repo: este repo es público en GitHub).
-- Paciente de prueba con datos reales: María Fernanda Torres, ID `d8db4f25-c160-4394-938a-3076282f66c4`.
+- Credenciales y datos de prueba: ver memoria local del proyecto, nunca en el repo (este repo es público en GitHub).
 
 ## Stack
 
@@ -49,7 +48,7 @@ Fases completas end-to-end contra DB real (para el detalle histórico + cronolog
 - **Fase 6 Tanda B.1-B.4** — `/tratamientos` sobre datos reales + formatMoney zero-decimal + tz de citas por sucursal + correlativo atómico via RPC.
 - **Prod hardening** (`13c2d27`) — portal pausado, docs de DR y deploy, Sentry, security headers, `.env.example` completo.
 
-**Resuelto desde el 09-oct-2026:** dominio `esmalia.com` comprado y en producción, Vercel Pro descartado (se queda en Hobby), pricing publicado en `/precios` (Solo US$29, Clínica US$69, Red a medida; cobro en USD por Stripe). **Pendiente:** trademark check formal de "Esmalia" y 3-5 clínicas piloto confirmadas. Estado vivo: `00 - Gestion/ESTADO.md` (fuera del repo) y `docs/DOMINIO_RUNBOOK.md`.
+**Resuelto desde el 09-oct-2026:** dominio `esmalia.com` comprado y en producción, Vercel Pro descartado por ahora (se queda en Hobby; ojo: los términos de Hobby prohíben el uso comercial, así que el plan está pendiente de decisión, ver auditoría 360 del 18-oct-2026), pricing publicado en `/precios` (Solo US$29, Clínica US$69, Red a medida; cobro en USD por Stripe). **Pendiente:** trademark check formal de "Esmalia" y 3-5 clínicas piloto confirmadas. Estado vivo: `00 - Gestion/ESTADO.md` (fuera del repo) y `docs/DOMINIO_RUNBOOK.md`.
 
 ## Reglas obligatorias
 
@@ -177,4 +176,4 @@ Revisión defensiva en local contra la base reconstruida (111 migraciones aplica
 
 - **64/64 tablas con RLS** (verdad del catálogo `pg_class`, no grep). **Ninguna** policy SELECT/ALL con `using (true)`. Tablas sensibles (`patients`, `clinical_notes`, `patient_medical_history`, `payments`, `whatsapp_leads`) scopeadas por `is_clinic_member`/`has_clinic_role`/`can_manage_clinic`.
 - Aislamiento multi-clínica **probado EN VIVO** (lectura y escritura, incluida `clinical_notes`): A no ve ni toca nada de B.
-- `whatsapp_credentials` guarda los tokens cifrados (`business_token_enc`/`registration_pin_enc`) y es *fail-closed* (RLS ON sin policy = solo `service_role`). Otras 4 tablas de backend igual (`lifecycle_emails`, `marketing_events`, `marketing_leads`, `stripe_events`). Secretos limpios.
+- `whatsapp_credentials` guarda los tokens cifrados (`business_token_enc`/`registration_pin_enc`) y es _fail-closed_ (RLS ON sin policy = solo `service_role`). Otras 4 tablas de backend igual (`lifecycle_emails`, `marketing_events`, `marketing_leads`, `stripe_events`). Secretos limpios.

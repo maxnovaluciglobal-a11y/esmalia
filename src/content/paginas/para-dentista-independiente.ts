@@ -83,7 +83,7 @@ export const pagina: PaginaContenido = {
             "**Recordatorios que controlas.** Que puedas ver qué mensaje sale y a quién, antes de que salga.",
             "**Moneda y hora de tu país.** Que los montos no se redondeen mal y la agenda no se corra una hora.",
             "**Funciona sin internet.** Pregunta qué pasa si se cae la conexión a mitad de una consulta.",
-            "**Te llevas tus datos.** Que puedas exportar todo si te vas, sin pedir permiso.",
+            "**Te llevas tus datos.** Que te entreguen todo en un formato estándar si te vas, rápido y sin trabas.",
             "**Qué no hace.** Por ejemplo, si emite o no boletas y facturas en tu país.",
           ],
         },

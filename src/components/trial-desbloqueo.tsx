@@ -19,7 +19,8 @@ const ABIERTO_SIEMPRE = [
   "Ficha clínica",
   "Tratamientos",
   "Aranceles",
-  "Exportar datos",
+  // TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "Exportar datos".
+  "Tus datos, a pedido en 72 horas",
 ];
 
 const SE_ACTIVA_AL_SUSCRIBIRTE = [

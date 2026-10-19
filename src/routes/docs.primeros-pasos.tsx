@@ -29,9 +29,9 @@ function PrimerosPasos() {
 
       <LegalH2>1. Crea tu clínica</LegalH2>
       <LegalP>
-        Desde "Empieza gratis" el onboarding te pide los datos básicos de tu clínica en 3 pasos:
-        nombre, sucursal y zona horaria, y tu cuenta de dueño/a. No hace falta tarjeta para
-        arrancar.
+        Desde "Empieza gratis" el onboarding te pide los datos básicos de tu clínica en 4 pasos: la
+        clínica (con su país, que fija moneda y zona horaria), la sucursal y sus boxes, las
+        especialidades y tu equipo. No hace falta tarjeta para arrancar.
       </LegalP>
 
       <LegalH2>2. Carga tus pacientes</LegalH2>

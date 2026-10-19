@@ -51,7 +51,7 @@ const grupos: { t: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: "¿Cuánto tarda el onboarding?",
-        a: "El alta de una clínica nueva es un flujo guiado de 3 pasos. Después de eso ya puedes cargar pacientes y agendar.",
+        a: "El alta de una clínica nueva es un flujo guiado de 4 pasos: clínica, sucursal y boxes, especialidades y equipo. Después de eso ya puedes cargar pacientes y agendar.",
       },
     ],
   },
@@ -89,7 +89,9 @@ const grupos: { t: string; items: { q: string; a: string }[] }[] = [
       },
       {
         q: "Si me quiero ir, ¿puedo llevarme mis datos?",
-        a: "Sí. Antes de cerrar tu cuenta te damos la opción de exportar los datos de tu clínica.",
+        // TODO(export): cuando exista "Exportar todo" en Ajustes, volver a ofrecer la
+        // exportación desde la app ("Antes de cerrar tu cuenta te damos la opción de exportar…").
+        a: "Sí. Si te vas, te entregamos todos los datos de tu clínica en formato estándar dentro de 72 horas, a pedido: escríbenos a soporte@esmalia.com.",
       },
     ],
   },

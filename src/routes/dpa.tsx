@@ -231,10 +231,11 @@ function Dpa() {
       <LegalP>
         Los pacientes ejercen sus derechos (acceso, rectificación, supresión, oposición,
         portabilidad y bloqueo) ante la clínica. Esmalia ayuda a la clínica a responderlos: la
-        aplicación permite corregir y exportar los datos, y lo que no se pueda hacer desde la
-        aplicación lo hacemos nosotros a pedido de la clínica, sin costo, en un plazo que le permita
-        cumplir el suyo. Si un paciente nos escribe directamente, le pasamos el pedido a la clínica
-        sin demora y no respondemos por ella salvo que nos lo indique.
+        aplicación permite corregir los datos, y lo que no se pueda hacer desde la aplicación (por
+        ejemplo, entregar una copia de los datos) lo hacemos nosotros a pedido de la clínica, sin
+        costo, en un plazo que le permita cumplir el suyo. Si un paciente nos escribe directamente,
+        le pasamos el pedido a la clínica sin demora y no respondemos por ella salvo que nos lo
+        indique.
       </LegalP>
 
       <LegalH2>9. Notificación de incidentes</LegalH2>
@@ -251,14 +252,21 @@ function Dpa() {
 
       <LegalH2>10. Devolución y supresión al terminar</LegalH2>
       <LegalP>
-        Mientras la cuenta esté activa, la clínica puede exportar sus datos desde la aplicación.
-        Cuando termina el servicio, la clínica puede pedir por escrito a <Privacidad /> que
-        eliminemos sus datos o que se los devolvamos; lo hacemos dentro de los 30 días siguientes al
-        pedido y le confirmamos por escrito cuando está hecho. Mientras no recibamos esa
-        instrucción, no usamos los datos para nada más que devolvérselos a la clínica. Las copias de
-        respaldo cifradas no se editan una por una: los datos borrados desaparecen de ellas cuando
-        esas copias rotan (hasta 90 días). Solo conservamos algo más allá de eso si una ley nos
-        obliga, y en ese caso lo mantenemos protegido y sin usarlo.
+        {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a "la clínica puede
+            exportar sus datos desde la aplicación". */}
+        Mientras la cuenta esté activa, la clínica puede pedir una copia de todos sus datos
+        escribiendo a{" "}
+        <a href="mailto:soporte@esmalia.com" className={enlace}>
+          soporte@esmalia.com
+        </a>
+        , y se la entregamos en formato estándar dentro de las 72 horas siguientes al pedido. Cuando
+        termina el servicio, la clínica puede pedir por escrito a <Privacidad /> que eliminemos sus
+        datos o que se los devolvamos; lo hacemos dentro de los 30 días siguientes al pedido y le
+        confirmamos por escrito cuando está hecho. Mientras no recibamos esa instrucción, no usamos
+        los datos para nada más que devolvérselos a la clínica. Las copias de respaldo cifradas no
+        se editan una por una: los datos borrados desaparecen de ellas cuando esas copias rotan
+        (hasta 90 días). Solo conservamos algo más allá de eso si una ley nos obliga, y en ese caso
+        lo mantenemos protegido y sin usarlo.
       </LegalP>
 
       <LegalH2>11. Auditoría</LegalH2>

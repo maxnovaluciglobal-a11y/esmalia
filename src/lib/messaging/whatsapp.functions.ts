@@ -181,7 +181,7 @@ export async function sincronizarPlantillasMeta(params: {
 }
 
 const SIN_PERMISOS_LLAMADA =
-  "Para conectar WhatsApp automático primero tienes que agendar la llamada de puesta en marcha o suscribirte.";
+  "Para conectar WhatsApp oficial primero tienes que agendar la llamada de puesta en marcha o suscribirte.";
 
 /** Estado de conexión de WhatsApp de la clínica. Null = nunca conectó. */
 export const getWhatsAppAccountStatus = createServerFn({ method: "GET" })

@@ -500,7 +500,9 @@ function Landing() {
               <li aria-hidden>·</li>
               <li>Sin tarjeta</li>
               <li aria-hidden>·</li>
-              <li>Si te vas, te llevas tus datos</li>
+              {/* TODO(export): cuando exista "Exportar todo" en Ajustes, volver a
+                  "Si te vas, te llevas tus datos". */}
+              <li>Si te vas, te entregamos tus datos en 72 horas</li>
             </ul>
           </div>
           <PantallaHoy />

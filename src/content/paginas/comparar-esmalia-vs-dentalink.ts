@@ -41,7 +41,7 @@ export const pagina: PaginaContenido = {
               "No publica; demo o acceso de prueba con ventas",
               "14 días sin tarjeta",
             ],
-            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado"],
+            ["Odontograma", "Sí, con periodontograma", "Sí, FDI versionado, con periodontograma"],
             [
               "WhatsApp",
               "Arma el mensaje y se envía desde WhatsApp Web; contact center con IA para automatizar",
@@ -70,7 +70,7 @@ export const pagina: PaginaContenido = {
             [
               "Trayectoria",
               "Según su web: más de 16 años, más de 15.000 clínicas, más de 20 países",
-              "Etapa piloto; Chile, Perú, México, Colombia y Argentina",
+              "Lanzado en 2026; Chile, Perú, México, Colombia y Argentina",
             ],
           ],
           nota: "Datos de Dentalink tomados de su web y su centro de ayuda el 11-oct-2026.",
@@ -87,7 +87,7 @@ export const pagina: PaginaContenido = {
             "**Trayectoria y escala.** Más de 16 años y más de 15.000 clínicas, según su web.",
             "**Herramientas de IA.** Su web publica ocho, entre ellas análisis de rayos X, simulador de sonrisas, reportes que responden preguntas y un contact center que atiende WhatsApp y teléfono.",
             "**Módulos de gestión.** Multicentro, comisiones, gastos e inventario en el plan Pro; ortodoncia, encuestas y campañas por email en Titanium.",
-            "**Periodontograma y aseguradoras.** Los dos aparecen en su web; en Esmalia no los ofrecemos como función publicada.",
+            "**Aseguradoras.** Su web publica conexión en línea con aseguradoras; Esmalia no la ofrece.",
           ],
         },
       ],
