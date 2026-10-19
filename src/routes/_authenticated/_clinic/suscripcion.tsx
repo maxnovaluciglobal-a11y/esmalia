@@ -15,6 +15,10 @@ import {
 import { SUBSCRIPTION_STATUS_LABELS, trialDaysLeft } from "@/lib/billing";
 import { approxLocalPricesLabel } from "@/lib/pricing-display";
 import { consumePlanIntent } from "@/lib/marketing/plan-intent";
+import {
+  registrarCheckoutIniciado,
+  registrarSuscripcionActivada,
+} from "@/lib/marketing/eventos-cuenta";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { requirePermission } from "@/lib/access/route-guards";
 
@@ -102,9 +106,12 @@ function BillingPage() {
     // `.mutate()` sin argumento, que cae al `plan` seleccionado en pantalla.
     mutationFn: async (planOverride?: PlanKey) => {
       // Las URLs de retorno las arma el servidor (PUBLIC_APP_URL).
+      const planElegido = planOverride ?? plan;
       const { url } = await checkout({
-        data: { clinicId, plan: planOverride ?? plan },
+        data: { clinicId, plan: planElegido },
       });
+      // Embudo (docs/MEDICION.md). Espera como mucho 0,8 s y nunca falla.
+      await registrarCheckoutIniciado(planElegido);
       window.location.href = url;
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -167,6 +174,27 @@ function BillingPage() {
     startCheckout.mutate(planComprado);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, isError, ofrecerCheckout]);
+
+  // Vuelta de Stripe (`success_url` = /suscripcion?checkout=success). El
+  // servidor sólo lo cuenta si la suscripción que escribe el webhook ya
+  // existe; después se limpia el parámetro para no contarlo de nuevo al
+  // recargar. TODO(medicion): el evento autoritativo es el webhook de Stripe
+  // (otro PR está cambiando billing; ver docs/MEDICION.md).
+  const retornoRegistrado = useRef(false);
+  useEffect(() => {
+    if (retornoRegistrado.current) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") !== "success") return;
+    retornoRegistrado.current = true;
+    void registrarSuscripcionActivada(clinicId);
+    params.delete("checkout");
+    const resto = params.toString();
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (resto ? `?${resto}` : "") + window.location.hash,
+    );
+  }, [clinicId]);
 
   return (
     <AppShell title="Suscripción" access={access}>

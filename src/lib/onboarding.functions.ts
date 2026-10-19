@@ -110,6 +110,27 @@ export const completeClinicSetup = createServerFn({ method: "POST" })
     if (doneError)
       throw new Error(mensajeDb(doneError, "No pudimos finalizar la configuración de la clínica."));
 
+    // Embudo (tracking plan, docs/MEDICION.md): la clínica quedó configurada.
+    // Sin ids ni nombres; nunca lanza.
+    try {
+      const { registrarEventoServidor, datosDelUsuario, conInterno } =
+        await import("@/lib/marketing/eventos-servidor.server");
+      const usuario = await datosDelUsuario(userId);
+      await registrarEventoServidor(
+        "onboarding_completado",
+        conInterno(
+          {
+            pais: data.clinic.country,
+            profesionales: String(data.professionals.length),
+            especialidades: String(data.specialties.length),
+          },
+          usuario.interno,
+        ),
+      );
+    } catch (err) {
+      console.warn("[ev] onboarding_completado", err instanceof Error ? err.message : err);
+    }
+
     // Correo de bienvenida (src/lib/email). Nunca lanza y espera como mucho
     // unos segundos: en serverless una promesa suelta puede congelarse al
     // responder. Con LIFECYCLE_EMAILS_ENABLED apagado vuelve al instante.

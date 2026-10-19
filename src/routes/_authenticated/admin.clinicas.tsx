@@ -11,7 +11,7 @@
 // `sin-acceso.tsx` (ambos piden un `ClinicAccess` con rol de clínica que esta
 // ruta no tiene en su contexto).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link, useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { CalendarCheck, Phone, PhoneCall } from "lucide-react";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
+import { marcarEquipoInterno } from "@/lib/marketing/eventos";
 import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import {
   activadaEn72h,
@@ -183,6 +184,11 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
 
 function AdminClinicasPage() {
   const clinicas = Route.useLoaderData();
+  // El loader ya pasó el gate de staff: las visitas de este equipo a las
+  // páginas públicas se marcan `interno` (docs/MEDICION.md).
+  useEffect(() => {
+    marcarEquipoInterno();
+  }, []);
   const router = useRouter();
   const marcarFn = useServerFn(marcarLlamadaHecha);
   // Cuál fila está en vuelo — sin esto, disparar la mutation en una fila

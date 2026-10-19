@@ -562,14 +562,19 @@ function Privacidad() {
         cerrar sesión o al limpiar los datos del navegador.
       </LegalP>
       <LegalP>
-        <strong>Cómo medimos las páginas públicas sin cookies.</strong> Contamos cuatro cosas — que
-        se vio la calculadora, que se usó, que se envió el formulario y que se hizo clic en un botón
-        — con un identificador aleatorio que se genera al abrir la pestaña, vive en memoria y
-        desaparece cuando la cierras. Cada evento lleva solo su nombre, ese identificador y
-        etiquetas cortas (por ejemplo, en qué botón se hizo clic), nunca cifras de tu clínica ni
-        datos de contacto. No queda nada guardado en tu equipo, no te seguimos entre visitas y no
-        hay Google Analytics ni PostHog: la política de seguridad del sitio los bloquea directamente
-        en el navegador.
+        <strong>Cómo medimos sin cookies.</strong> En las páginas públicas contamos qué página se
+        vio, de qué sitio llegaste (solo el dominio, por ejemplo google.com, nunca la dirección
+        completa), las etiquetas de campaña del enlace si las trae (utm_source, utm_medium y
+        utm_campaign) y el país aproximado que informa nuestro proveedor de hosting, sin guardar tu
+        dirección IP. También contamos que se vio o usó la calculadora, que se envió el formulario y
+        que se hizo clic en un botón. Si creas una cuenta, contamos sin tus datos que la cuenta se
+        creó, que la clínica quedó configurada, que se agendó la primera cita y que se inició o
+        activó la suscripción. Todo va con un identificador aleatorio que se genera al abrir la
+        pestaña, se guarda solo en el almacenamiento de esa pestaña y desaparece cuando la cierras.
+        Cada evento lleva solo su nombre, ese identificador y etiquetas cortas, nunca cifras de tu
+        clínica, tu email ni datos de contacto. No te seguimos entre visitas y no hay Google
+        Analytics ni PostHog: la política de seguridad del sitio los bloquea directamente en el
+        navegador.
       </LegalP>
 
       <LegalH2>11. Tus derechos</LegalH2>
