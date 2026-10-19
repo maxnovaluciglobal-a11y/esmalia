@@ -16,7 +16,7 @@ La lógica de decisión es pura y está en `src/lib/auth/mfa.ts`, con tests en `
 
 ### La frontera real: RLS exige `aal2` a quien activó MFA
 
-Migración `20261019200000_rls_exige_aal2.sql` (**sin aplicar, requiere OK de Walter**). Hasta ella, el desafío al iniciar sesión era solo una frontera **de interfaz**: el JWT `aal1` (solo contraseña) seguía siendo aceptado por PostgREST, y con la contraseña robada de un usuario con MFA se podía leer la historia clínica llamando `/rest/v1` directo.
+Migración `20261019230000_rls_exige_aal2.sql` (**sin aplicar, requiere OK de Walter**). Hasta ella, el desafío al iniciar sesión era solo una frontera **de interfaz**: el JWT `aal1` (solo contraseña) seguía siendo aceptado por PostgREST, y con la contraseña robada de un usuario con MFA se podía leer la historia clínica llamando `/rest/v1` directo.
 
 Patrón oficial de Supabase: una política `RESTRICTIVE` llamada `mfa_exige_aal2` en cada tabla sensible, `for all to authenticated`, con `using`/`with check` = `(select public.sesion_cumple_mfa())`. Las restrictivas se combinan con AND con las permisivas de siempre (`is_clinic_member`, `has_clinic_role`): no abren nada, solo cierran.
 

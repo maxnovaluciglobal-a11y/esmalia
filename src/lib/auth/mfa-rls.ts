@@ -2,7 +2,7 @@
 //
 // SEG-01, segunda parte: el MFA de quien lo activó tiene que valer también
 // contra PostgREST, no solo en la pantalla. La migración
-// `20261019200000_rls_exige_aal2.sql` agrega una política RESTRICTIVE
+// `20261019230000_rls_exige_aal2.sql` agrega una política RESTRICTIVE
 // `mfa_exige_aal2` en cada tabla de esta lista: si la cuenta tiene un factor
 // TOTP verificado, la sesión tiene que ser `aal2`; si no tiene ninguno, todo
 // sigue igual (`aal1` alcanza).
@@ -23,7 +23,7 @@ export const POLITICA_AAL2 = "mfa_exige_aal2";
 export const FUNCION_AAL2 = "public.sesion_cumple_mfa()";
 
 /** Ruta de la migración que crea las políticas. */
-export const MIGRACION_AAL2 = "20261019200000_rls_exige_aal2.sql";
+export const MIGRACION_AAL2 = "20261019230000_rls_exige_aal2.sql";
 
 /**
  * Tablas que exigen `aal2` a quien tiene MFA. Criterio: datos de salud,
