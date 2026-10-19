@@ -1952,7 +1952,7 @@ Expected: verde.
 
 - [ ] **Step 5: Verificar el comportamiento real, extremo a extremo**
 
-Con una clínica de prueba propia (no la demo, no "clinica Patricia"):
+Con una clínica de prueba propia (no la demo, no la clínica piloto):
 
 1. Crearla → verificar que nace con `trial_end` a 14 días.
 2. Entrar a `/finanzas` → **se ve normal**.

@@ -85,7 +85,7 @@ gap de `importPatients` se cerró el 01-sep) ya llaman al RPC. Lo que **NO** se
 resuelve solo con crear la clave: los pacientes que ya existen hoy (creados
 antes de que la clave exista) quedan con `document_id_enc` NULL para siempre a
 menos que alguien corra un backfill — eso es la Fase 1b, deliberadamente no
-construida, ver el resto de este doc y `docs/PLAN_ACCION.md`.
+construida, ver el resto de este doc y `docs/archivo/PLAN_ACCION.md` (histórico; lo vigente está en `docs/ROADMAP.md`).
 
 **Antes de avanzar a Fase 1b (cutover: leer solo del campo cifrado, backfill de
 pacientes existentes) sigue pendiente la confirmación legal** de si el cifrado

@@ -28,8 +28,10 @@ export interface Escenario {
 export const TABLA_NOTAS = "notas_prueba";
 
 export async function conectar() {
-  // La base gestionada usa un certificado propio en la cadena TLS.
-  const client = new Client({ ssl: { rejectUnauthorized: false } });
+  // La base local de tests (scripts/test-db/start.sh) corre sin TLS y exporta
+  // PGSSLMODE=disable; cualquier otra base va con TLS (certificado propio).
+  const ssl = process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false };
+  const client = new Client({ ssl });
   await client.connect();
   return client;
 }

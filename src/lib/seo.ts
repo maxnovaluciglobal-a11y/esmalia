@@ -37,7 +37,7 @@ const FEATURE_LIST = [
   "Presupuestos y planes de tratamiento",
   "Caja, saldos y comisiones de profesionales",
   "Funciona sin internet y sincroniza al volver la conexión",
-  "Patty, asistente de IA para notas y resúmenes, sin decisiones clínicas",
+  "Patty, IA para notas y resúmenes (en habilitación), sin decisiones clínicas",
 ];
 
 /** Precio mensual explícito (unitCode MON = mes, UN/CEFACT). */

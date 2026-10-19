@@ -5,27 +5,27 @@ export const pagina: PaginaContenido = {
   path: "/funciones/patty-ia",
   titulo: "Patty: IA para dentistas con límites claros | Esmalia",
   descripcion:
-    "Patty, la IA de Esmalia, pasa tus apuntes a una nota SOAP y resume la nota clínica. No firma, no escribe a pacientes ni mueve la agenda.",
+    "Patty, la IA de Esmalia, está en habilitación. Pasará tus apuntes a una nota SOAP y resumirá la nota. No firma, no escribe a pacientes ni mueve la agenda.",
   kicker: "Funciones",
   h1: "Patty, la IA de Esmalia para dentistas: qué hace y qué no",
   resumen:
-    "Patty es la IA de Esmalia. Redacta una nota SOAP a partir de tus apuntes, pule la redacción, resume la nota en un párrafo y tres puntos, extrae diagnósticos, tratamientos, medicamentos y alergias para que los confirmes. Propone; el profesional revisa y firma. Con el número de WhatsApp de la clínica conectado (en habilitación), también leerá los pedidos de hora que las reglas no entienden.",
+    "Patty, la IA de Esmalia, está en habilitación: la pausamos hasta tenerla sobre un proveedor de IA con contrato para datos de salud. Cuando vuelva, redactará una nota SOAP a partir de tus apuntes, pulirá la redacción, resumirá la nota y extraerá diagnósticos, tratamientos, medicamentos y alergias para que los confirmes. Propone; el profesional revisa y firma. Mientras tanto, las notas clínicas funcionan igual, sin IA.",
   publicado: "2026-10-11",
-  actualizado: "2026-10-11",
+  actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
-      h2: "¿Qué hace Patty dentro de Esmalia?",
+      h2: "¿Qué hará Patty dentro de Esmalia?",
       bloques: [
         {
           tipo: "aviso",
           texto:
-            "**La lectura de WhatsApp está en habilitación.** Necesita el número de la clínica conectado a WhatsApp Business (Meta), que todavía no está activo. Lo que Patty hace hoy está en el editor de notas clínicas.",
+            "**Patty está en habilitación.** Hoy no redacta, no resume ni lee mensajes: la pausamos hasta tenerla sobre un proveedor de IA con contrato de tratamiento de datos de salud. El editor de notas clínicas funciona igual, sin IA. Abajo está lo que hará cuando vuelva y con qué límites.",
         },
         {
           tipo: "p",
           texto:
-            "Patty es el nombre de la IA de Esmalia. Trabaja en dos lugares: el editor de notas clínicas y los mensajes de WhatsApp que llegan al número conectado de la clínica. En la interfaz, lo que hizo Patty se ve en color violeta, y ese color no significa otra cosa.",
+            "Patty es el nombre de la IA de Esmalia. Trabajará en dos lugares: el editor de notas clínicas y los mensajes de WhatsApp que llegan al número conectado de la clínica (que también está en habilitación con Meta). En la interfaz, lo que hizo Patty se ve en color violeta, y ese color no significa otra cosa.",
         },
         {
           tipo: "tabla",
@@ -57,7 +57,7 @@ export const pagina: PaginaContenido = {
               "Si el paciente pide, mueve o cancela una hora, para qué día y en qué franja.",
             ],
           ],
-          nota: "El contexto del paciente incluye nombre, edad, etiquetas, última visita y los últimos eventos de su ficha.",
+          nota: "El contexto del paciente lleva tramo de edad, etiquetas, última visita y los últimos eventos de su ficha. Nunca nombre, documento, teléfono ni email: Esmalia los quita del texto antes de enviarlo.",
         },
       ],
     },
@@ -83,7 +83,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "La mayoría de los mensajes de pacientes son cortos y previsibles, del tipo “quiero hora para el jueves en la tarde”. Esmalia los lee con reglas fijas, que no cuestan nada y responden siempre igual. Patty entra solo cuando las reglas no pueden leer el mensaje con confianza, por ejemplo si es largo o ambiguo. Si Patty tampoco está segura, no hace nada y el mensaje queda para que lo lea una persona.",
+            "La mayoría de los mensajes de pacientes son cortos y previsibles, del tipo “quiero hora para el jueves en la tarde”. Esmalia los lee con reglas fijas, que no cuestan nada y responden siempre igual. Patty entrará solo cuando las reglas no puedan leer el mensaje con confianza, por ejemplo si es largo o ambiguo. Si Patty tampoco está segura, no hará nada y el mensaje quedará para que lo lea una persona. Hoy, con Patty en habilitación, ese mensaje llega directo al equipo.",
         },
         {
           tipo: "p",
@@ -98,7 +98,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Para redactar, Esmalia envía al proveedor de IA configurado (Google Gemini u OpenAI) lo que esa tarea necesita: tus apuntes o la nota y el contexto breve del paciente. Para leer un pedido de hora, envía el texto del mensaje y la fecha. En las notas, solo los roles clínicos pueden usar Patty: propietario, administración, doctores y asistentes. Más sobre el manejo de datos en [datos y seguridad](/docs/datos-y-seguridad).",
+            "Hoy ninguno: con Patty en habilitación, Esmalia no envía nada a un proveedor de IA. Cuando vuelva, lo hará a un proveedor con contrato de tratamiento de datos, región definida y sin uso de los datos para entrenar modelos, y solo con lo que la tarea necesita: tus apuntes o la nota y el contexto breve del paciente, sin nombre, documento, teléfono ni email. Para leer un pedido de hora, el texto del mensaje y la fecha. En las notas, solo los roles clínicos podrán usar Patty: propietario, administración, doctores y asistentes. Más sobre el manejo de datos en [datos y seguridad](/docs/datos-y-seguridad).",
         },
       ],
     },
@@ -108,7 +108,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Las funciones de notas están en la [ficha clínica](/funciones/ficha-clinica), que viene en todos los planes desde Solo (US$29 al mes). La lectura de WhatsApp necesita el número de la clínica conectado a Meta, que durante la prueba se habilita al agendar la llamada de puesta en marcha o al suscribirte. Si la IA no responde en un momento dado, el editor te lo dice y el mensaje de WhatsApp llega al equipo con el aviso de siempre. Revisa los [precios](/precios).",
+            "Cuando vuelva, las funciones de notas estarán en la [ficha clínica](/funciones/ficha-clinica), que viene en todos los planes desde Solo (US$29 al mes), sin costo extra. La lectura de WhatsApp necesitará además el número de la clínica conectado a Meta. Mientras Patty está en habilitación, el editor lo dice y el mensaje de WhatsApp llega al equipo con el aviso de siempre. Revisa los [precios](/precios).",
         },
       ],
     },
@@ -142,7 +142,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Qué modelo de IA usa Patty?",
-      a: "Esmalia se conecta a Google Gemini o a OpenAI, según la configuración del servicio. El modelo cambia cómo se escribe el texto, no los límites: esos están en el código de Esmalia.",
+      a: "Hoy ninguno: Patty está en habilitación. Volverá sobre un proveedor con contrato de tratamiento de datos de salud, región definida y sin entrenamiento con tus datos. El modelo cambia cómo se escribe el texto, no los límites: esos están en el código de Esmalia.",
     },
   ],
   relacionados: [
@@ -151,5 +151,5 @@ export const pagina: PaginaContenido = {
     "/funciones/odontograma",
   ],
   enUnaLinea:
-    "Patty, la IA de Esmalia: redacta notas SOAP y resume la nota clínica. No firma ni decide.",
+    "Patty, la IA de Esmalia (en habilitación): redactará notas SOAP y resumirá la nota clínica. No firma ni decide.",
 };

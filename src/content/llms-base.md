@@ -16,7 +16,7 @@
 - Importación de pacientes desde una planilla (CSV) en todos los planes.
 - Sigue funcionando sin internet y sincroniza cuando vuelve la conexión.
 - Comisiones por profesional, caja diaria, laboratorios, inventario y portal de pacientes (según el plan).
-- Patty, la IA de Esmalia: pasa los apuntes del profesional a una nota SOAP, resume la nota clínica para la próxima consulta. Cuando la clínica pueda conectar su número de WhatsApp (en habilitación con Meta), también leerá los pedidos de hora que no son obvios. Propone, no decide: no firma notas, no le escribe sola a ningún paciente y no mueve la agenda.
+- Patty, la IA de Esmalia, está en habilitación: hoy no está activa, mientras se pasa a un proveedor de IA con contrato para datos de salud. Cuando vuelva, pasará los apuntes del profesional a una nota SOAP y resumirá la nota clínica para la próxima consulta; con el número de WhatsApp de la clínica conectado (también en habilitación con Meta), leerá los pedidos de hora que no son obvios. Propone, no decide: no firma notas, no le escribe sola a ningún paciente y no mueve la agenda.
 
 ## Qué no hace (todavía)
 

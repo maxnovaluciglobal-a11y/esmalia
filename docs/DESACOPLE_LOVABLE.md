@@ -9,7 +9,7 @@ El proyecto de Lovable (`aurora-clinic-ai`, workspace "Walter's Lovable") tiene
 su **última actualización el 2026-08-11** — el mismo día del commit
 `8d6205d Import Aurora Dental OS from Lovable`. Desde entonces:
 
-- Los **140 commits** del repo son de `walterlamadriz@gmail.com`. Lovable nunca
+- Los **140 commits** del repo son de la cuenta de Walter. Lovable nunca
   commiteó acá; fue un import de una sola vez.
 - `7ca6301` (14-ago) ya había migrado de Lovable Cloud a Supabase propio.
 - `c6f1861` + `9ebf9c8` (25-ago) ya habían sacado el auth de Lovable.

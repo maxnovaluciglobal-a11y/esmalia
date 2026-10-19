@@ -94,7 +94,7 @@ export const pagina: PaginaContenido = {
             [
               "IA",
               "Soyla IA responde WhatsApp y agenda; complemento en contrato semestral o anual",
-              "Patty: notas SOAP y resumen de la nota; no escribe sola",
+              "Patty (en habilitación): notas SOAP y resumen de la nota; no escribe sola",
             ],
             [
               "Sin internet",
@@ -146,7 +146,7 @@ export const pagina: PaginaContenido = {
             "**Son 2 o 3 profesionales.** El plan Clínica cubre hasta tres por US$69 al mes, con comisiones por profesional, roles y portal de pacientes. Ver [comisiones](/funciones/comisiones).",
             "**Se te corta internet.** Esmalia sigue funcionando: agenda, fichas, cobros y odontograma se guardan en el equipo y se sincronizan solos. Doctocliq dice en su FAQ que requiere conexión a internet. Ver [sin internet](/funciones/sin-internet).",
             "**Prefieres revisar antes de que un mensaje salga.** En Esmalia ningún WhatsApp a pacientes sale solo, y no hay cupo de recordatorios por plan. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
-            "**Quieres IA para la parte clínica.** Patty pasa tus apuntes a una nota SOAP y resume la nota anterior para la próxima consulta. No firma notas ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
+            "**Quieres IA para la parte clínica.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior para la próxima consulta. No firma notas ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
             "**Quieres probar más tiempo.** Son 14 días sin tarjeta, y si después no te suscribes, la agenda, los pacientes y la ficha siguen abiertos.",
           ],
         },
