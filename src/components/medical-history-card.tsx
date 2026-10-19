@@ -14,7 +14,12 @@ import {
   type CuestionarioRiesgo,
   type SeveridadAlergia,
 } from "@/lib/clinical/anamnesis";
-import { getMedicalHistory, setMedicalHistory } from "@/lib/clinical/medical-history.functions";
+import {
+  getMedicalHistory,
+  setMedicalHistory,
+  type AnamnesisDeFichaFusionada,
+} from "@/lib/clinical/medical-history.functions";
+import { unirSinRepetir } from "@/lib/patients/fusion";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { cn } from "@/lib/utils";
 
@@ -441,6 +446,28 @@ export function MedicalHistoryCard({
         </p>
       ) : (
         <div className="mt-4 space-y-4">
+          {(historyQuery.data?.deFichasFusionadas ?? []).map((f) => (
+            <AnamnesisFusionadaAlerta
+              key={f.patientId}
+              ficha={f}
+              puedeEditar={puedeEditar}
+              onSumar={() => {
+                setAllergies((a) => {
+                  const nombres = unirSinRepetir(
+                    a.map((x) => x.name),
+                    f.allergies,
+                  );
+                  return nombres.map(
+                    (name) =>
+                      a.find((x) => x.name === name) ?? { name, severity: "unknown" as const },
+                  );
+                });
+                setMedications((m) => unirSinRepetir(m, f.chronicMedications));
+                setConditions((c) => unirSinRepetir(c, f.conditions));
+                toast.info("Revisa los antecedentes sumados y guarda para dejarlos en esta ficha.");
+              }}
+            />
+          ))}
           <AllergyEditor items={allergies} onChange={setAllergies} disabled={!puedeEditar} />
           <ChipListEditor
             label="Medicación actual"
@@ -481,6 +508,65 @@ export function MedicalHistoryCard({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * CLI-06: la anamnesis de una ficha que se fusionó en esta. No se combina
+ * sola (nadie la revisó), pero tampoco puede quedar escondida en la ficha
+ * vieja: una alergia que no se ve es la que se receta. Quien puede editar la
+ * suma a esta ficha con un toque y la revisa antes de guardar.
+ */
+function AnamnesisFusionadaAlerta({
+  ficha,
+  puedeEditar,
+  onSumar,
+}: {
+  ficha: AnamnesisDeFichaFusionada;
+  puedeEditar: boolean;
+  onSumar: () => void;
+}) {
+  const partes = [
+    ficha.allergies.length ? `Alergias: ${ficha.allergies.join(", ")}` : null,
+    ficha.chronicMedications.length
+      ? `Medicación crónica: ${ficha.chronicMedications.join(", ")}`
+      : null,
+    ficha.conditions.length ? `Antecedentes: ${ficha.conditions.join(", ")}` : null,
+    ficha.notes?.trim() ? `Notas: ${ficha.notes.trim()}` : null,
+  ].filter(Boolean);
+  const tieneAlergias = ficha.allergies.length > 0;
+  return (
+    <div
+      role="alert"
+      className={
+        tieneAlergias
+          ? "rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"
+          : "rounded-lg border border-warning/30 bg-warning-soft p-3 text-xs text-warning"
+      }
+    >
+      <p className="flex items-center gap-1.5 font-semibold">
+        <AlertTriangle aria-hidden className="size-3.5 shrink-0" />
+        Antecedentes de la ficha fusionada «{ficha.nombre}»
+      </p>
+      <ul className="mt-1.5 space-y-0.5">
+        {partes.map((p) => (
+          <li key={p}>{p}</li>
+        ))}
+      </ul>
+      <p className="mt-1.5 text-foreground/80">
+        No se combinaron solos al fusionar las fichas. Revísalos y súmalos a esta ficha si
+        corresponden.
+      </p>
+      {puedeEditar && (
+        <button
+          type="button"
+          onClick={onSumar}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-current px-2.5 py-1 text-xs font-medium"
+        >
+          <Plus aria-hidden className="size-3" /> Sumar a esta ficha para revisar
+        </button>
+      )}
+    </div>
   );
 }
 

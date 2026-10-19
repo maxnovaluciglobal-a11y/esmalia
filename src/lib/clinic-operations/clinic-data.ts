@@ -83,6 +83,8 @@ export interface Paciente {
   waOptIn: boolean;
   /** Código de referido (6 caracteres, único por clínica) — generado por trigger al crear el paciente. */
   referralCode: string | null;
+  /** Fecha en que se archivó la ficha (LEG-08). null/undefined = activa. Archivar reemplaza a borrar. */
+  archivadaEl?: string | null;
 }
 
 export const HORA_INICIO = 8;

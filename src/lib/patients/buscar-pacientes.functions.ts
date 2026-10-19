@@ -58,6 +58,9 @@ export const buscarPacientes = createServerFn({ method: "GET" })
       .from("patients")
       .select("id, full_name, document_id, phone")
       .eq("clinic_id", data.clinicId)
+      // Las fichas archivadas (LEG-08) no salen en la búsqueda rápida: se
+      // ven desde Pacientes con el filtro de archivo.
+      .is("archived_at", null)
       .or(`full_name.ilike.${patron},document_id.ilike.${patron},phone.ilike.${patron}`)
       .order("full_name", { ascending: true })
       .limit(8);

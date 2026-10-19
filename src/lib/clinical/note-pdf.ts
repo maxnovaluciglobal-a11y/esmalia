@@ -3,6 +3,7 @@ import {
   ENTITY_KIND_LABELS,
   ENTITY_KIND_ORDER,
   formatoFechaHora,
+  lineaDeFirma,
   type ClinicalNote,
   type ClinicalNoteAuditEntry,
   type ClinicalNoteEntity,
@@ -17,6 +18,10 @@ interface ExportArgs {
   versiones: ClinicalNoteVersion[];
   auditoria: ClinicalNoteAuditEntry[];
   entidades: ClinicalNoteEntity[];
+  /** CLI-07: adendas de esta nota (se imprimen después del contenido). */
+  adendas?: ClinicalNote[];
+  /** CLI-07: si la nota exportada es una adenda, la nota que corrige. */
+  notaOriginal?: ClinicalNote | null;
 }
 
 /** Rótulo de una entidad que extrajo la IA y nadie validó (auditoría 360, IA-04). */
@@ -110,11 +115,38 @@ export async function exportarNotaPdf(args: ExportArgs): Promise<void> {
     )}`,
     { size: 9, gris: true, espacio: 1 },
   );
+  if (args.notaOriginal) {
+    texto(`Adenda a la nota «${args.notaOriginal.title}»`, { size: 9, gris: true, espacio: 1 });
+  }
   texto(`Exportada: ${formatoFechaHora(new Date().toISOString())}`, { size: 9, gris: true });
 
   // Contenido
   titulo("Contenido de la nota");
   texto(args.nota.content || "Sin contenido registrado.", { size: 10, espacio: 6 });
+
+  // Firma (CLI-08): nombre completo, registro profesional y fecha, tal como
+  // quedaron al firmar.
+  const firma = lineaDeFirma(args.nota);
+  titulo("Firma");
+  texto(firma ?? "Borrador sin firmar.", { size: 10, espacio: 6 });
+
+  // Adendas (CLI-07): la nota firmada no cambia; las correcciones van acá.
+  if (args.adendas?.length) {
+    titulo("Adendas");
+    for (const a of args.adendas) {
+      texto(`${a.title} · creada ${formatoFechaHora(a.createdAt)}`, {
+        size: 10,
+        bold: true,
+        espacio: 1,
+      });
+      texto(a.content || "Sin contenido registrado.", { size: 10, espacio: 1 });
+      texto(lineaDeFirma(a) ?? "Adenda en borrador, sin firmar.", {
+        size: 9,
+        gris: true,
+        espacio: 6,
+      });
+    }
+  }
 
   if (args.nota.summary) {
     titulo("Resumen");

@@ -11,6 +11,7 @@ import {
 } from "@/lib/clinical/recetas";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { isUndefinedTableError, mensajeDb } from "@/lib/db-errors";
+import { idsDeLaFicha } from "@/lib/patients/fusion";
 
 const BUCKET = "clinical-documents";
 const SIGNED_URL_TTL_SECONDS = 60 * 10;
@@ -71,11 +72,14 @@ export const listPatientPrescriptions = createServerFn({ method: "GET" })
       patientId: data.patientId,
       seccion: "documentos",
     });
+    // CLI-06: una receta emitida no se reescribe al fusionar fichas: se lee
+    // también desde las fichas fusionadas en esta.
+    const fichas = await idsDeLaFicha(context.supabase, data.clinicId, data.patientId);
     const { data: rows, error } = await context.supabase
       .from("prescriptions")
       .select(COLUMNAS)
       .eq("clinic_id", data.clinicId)
-      .eq("patient_id", data.patientId)
+      .in("patient_id", fichas)
       .order("issued_at", { ascending: false });
     if (error && isUndefinedTableError(error)) {
       await lectura;
