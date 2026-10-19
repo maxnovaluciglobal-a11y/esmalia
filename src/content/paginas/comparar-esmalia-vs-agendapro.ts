@@ -93,7 +93,7 @@ export const pagina: PaginaContenido = {
             [
               "IA",
               'Su web no lo presenta como IA; ofrece Charly, "experto en marketing inteligente", desde $149.900/mes + IVA',
-              "Patty: notas SOAP y resumen de la nota (la lectura de pedidos de hora llega con el número conectado, en habilitación)",
+              "Patty (en habilitación): notas SOAP y resumen de la nota; la lectura de pedidos de hora llegará con el número conectado",
             ],
             [
               "Sin internet",
@@ -130,7 +130,7 @@ export const pagina: PaginaContenido = {
             "**Eres una clínica solo dental de 1 a 3 profesionales.** La ficha clínica, el odontograma y los presupuestos vienen desde el plan de US$29, sin subir de plan. Ver [ficha clínica](/funciones/ficha-clinica) y [odontograma](/funciones/odontograma).",
             "**Quieres que los recordatorios no dependan de un cupo.** Los planes de Esmalia no fijan un cupo de recordatorios. En modo manual, cada mensaje se abre en tu propio WhatsApp con el texto listo y tu equipo lo envía. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Necesitas atender aunque se corte internet.** Agenda, fichas, cobros y odontograma siguen funcionando y se sincronizan solos. Ver [sin internet](/funciones/sin-internet).",
-            "**Quieres IA clínica, no de marketing.** Patty te ayuda con la nota SOAP y el resumen de la consulta anterior. No firma ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
+            "**Quieres IA clínica, no de marketing.** Patty, hoy en habilitación, te ayudará con la nota SOAP y el resumen de la consulta anterior. No firma ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
           ],
         },
         {
