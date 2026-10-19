@@ -7,6 +7,7 @@
 import { buildWaMeUrl } from "@/lib/messaging/messaging";
 
 export const EMAIL_CONTACTO = "hola@esmalia.com";
+export const EMAIL_SOPORTE = "soporte@esmalia.com";
 
 const MENSAJE_INICIAL = "Hola, quiero conocer Esmalia para mi clínica.";
 
@@ -18,4 +19,24 @@ export function enlaceWhatsAppVentas(): { href: string; esWhatsApp: boolean } {
   return url
     ? { href: url, esWhatsApp: true }
     : { href: `mailto:${EMAIL_CONTACTO}`, esWhatsApp: false };
+}
+
+/** Mensaje prellenado para pedir ayuda desde la app: lleva el nombre de la
+ *  clínica para que quien atiende sepa de quién es sin preguntar. */
+export function mensajeSoporte(clinicName?: string | null): string {
+  const nombre = clinicName?.trim();
+  return nombre
+    ? `Hola, necesito ayuda con Esmalia. Mi clínica es ${nombre}.`
+    : "Hola, necesito ayuda con Esmalia.";
+}
+
+/**
+ * WhatsApp de soporte para quien ya usa Esmalia. Hoy es el mismo número que
+ * el de ventas (`VITE_SALES_WHATSAPP`): en el piloto atiende una sola persona.
+ * `null` si el número no está cargado: el menú de ayuda ofrece solo el centro
+ * de ayuda y el correo, sin fingir un chat que no abre.
+ */
+export function enlaceWhatsAppSoporte(clinicName?: string | null): string | null {
+  const numero = import.meta.env.VITE_SALES_WHATSAPP as string | undefined;
+  return numero ? buildWaMeUrl(numero, mensajeSoporte(clinicName), null) : null;
 }
