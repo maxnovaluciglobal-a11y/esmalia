@@ -38,7 +38,7 @@ export interface Subscription {
   /**
    * Desde cuándo está en `past_due` (columna `past_due_since`, la mantiene un
    * trigger). Opcional: hasta que se aplique la migración
-   * `20261019120000_subscriptions_past_due_since.sql` no viene, y una
+   * `20261019130000_subscriptions_past_due_since.sql` no viene, y una
    * `past_due` sin fecha se trata como dentro de la gracia.
    */
   pastDueSince?: string | null;

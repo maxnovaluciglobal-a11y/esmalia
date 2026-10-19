@@ -25,7 +25,7 @@ type SubscriptionRow = {
   trial_end: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
-  /** Opcional: no existe hasta aplicar `20261019120000_subscriptions_past_due_since.sql`. */
+  /** Opcional: no existe hasta aplicar `20261019130000_subscriptions_past_due_since.sql`. */
   past_due_since?: string | null;
 };
 
