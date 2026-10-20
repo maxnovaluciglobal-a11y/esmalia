@@ -48,6 +48,7 @@ const ODONTOGRAMA = [
   "components/diente-anatomico.tsx",
   "components/odontograma-hallazgos.ts",
   "components/periodontal-chart.tsx",
+  "components/odontograma-sugerencia-presupuesto.tsx",
   "lib/clinical/odontograma-reglas.ts",
 ];
 
