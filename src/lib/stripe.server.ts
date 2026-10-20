@@ -35,7 +35,9 @@ export function stripeWebhookSecret(): string {
 }
 
 /**
- * Precios de fundador (2026-08-22): dos tiers en vez de un flat único.
+ * Precios de lista (2026-08-22): dos tiers en vez de un flat único. El precio
+ * fundador es un descuento del 50 % por 12 meses sobre estos precios (cupón de
+ * Stripe), no un precio distinto.
  * "solo" = 1 profesional/sillón, "clinica" = hasta 3. Ambos con trial de
  * 14 días. Se crean en el dashboard de Stripe (o vía API), el ID va por
  * env var para poder rotarlos sin redeploy.

@@ -4,7 +4,7 @@
  *
  * Esto NO es dinero real de la app (no tiene nada que ver con `finance.ts`,
  * `formatMoney`, ni con montos cobrados por Stripe). El cobro real es por
- * uno de los dos tiers de fundador definidos en `src/lib/stripe.server.ts`
+ * uno de los dos precios de lista definidos en `src/lib/stripe.server.ts`
  * ("solo" US$29/mes, "clínica" US$69/mes, ambos con trial de 14 días) —
  * este archivo no debe tocarse ni usarse para calcular nada que afecte un cobro.
  *
