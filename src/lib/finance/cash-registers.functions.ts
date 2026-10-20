@@ -8,6 +8,7 @@ import { mensajeDb } from "@/lib/db-errors";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import {
   diferenciaDeArqueo,
+  esCobroEnEfectivo,
   esperadoEnCaja,
   MENSAJE_MOTIVO_OBLIGATORIO,
   motivoFaltante,
@@ -239,7 +240,7 @@ export const closeCashRegister = createServerFn({ method: "POST" })
 
     const { data: cobros, error: cobrosError } = await context.supabase
       .from("payments")
-      .select("amount_cents")
+      .select("amount_cents, method")
       .eq("cash_register_id", data.id)
       // Un pago reversado no debe estar en caja: si se sumara, lo esperado
       // del cierre incluiría plata que en realidad se devolvió/anuló.
@@ -247,8 +248,12 @@ export const closeCashRegister = createServerFn({ method: "POST" })
     if (cobrosError)
       throw new Error(mensajeDb(cobrosError, "No pudimos sumar los cobros de la caja."));
 
-    const cobradoCents = (cobros ?? []).reduce((sum, p) => sum + p.amount_cents, 0);
-    const expectedCents = esperadoEnCaja(register.opening_amount_cents, cobradoCents);
+    // Solo el efectivo está en el cajón: tarjetas y transferencias se
+    // concilian con el banco y no entran a la diferencia del arqueo.
+    const cobradoEnEfectivoCents = (cobros ?? [])
+      .filter((p) => esCobroEnEfectivo(p.method))
+      .reduce((sum, p) => sum + p.amount_cents, 0);
+    const expectedCents = esperadoEnCaja(register.opening_amount_cents, cobradoEnEfectivoCents);
     const differenceCents = diferenciaDeArqueo(data.declaredClosingCents, expectedCents);
 
     if (motivoFaltante(differenceCents, data.notes)) throw new Error(MENSAJE_MOTIVO_OBLIGATORIO);
@@ -288,11 +293,17 @@ export const getCashRegisterBreakdown = createServerFn({ method: "GET" })
 
     const porMetodo = new Map<string, CashRegisterMethodBreakdown>();
     for (const row of rows ?? []) {
-      const key = row.method_name_snapshot || row.method;
-      const actual = porMetodo.get(key) ?? { method: key, amountCents: 0, count: 0 };
+      const nombre = row.method_name_snapshot || row.method;
+      const enEfectivo = esCobroEnEfectivo(row.method);
+      // Un medio propio llamado igual que otro no mezcla efectivo con banco.
+      const key = `${enEfectivo ? "cash" : "banco"}|${nombre}`;
+      const actual = porMetodo.get(key) ?? { method: nombre, amountCents: 0, count: 0, enEfectivo };
       actual.amountCents += row.amount_cents;
       actual.count += 1;
       porMetodo.set(key, actual);
     }
-    return Array.from(porMetodo.values()).sort((a, b) => b.amountCents - a.amountCents);
+    // Efectivo primero (es lo que se cuenta), después lo que va al banco.
+    return Array.from(porMetodo.values()).sort(
+      (a, b) => Number(b.enEfectivo) - Number(a.enEfectivo) || b.amountCents - a.amountCents,
+    );
   });

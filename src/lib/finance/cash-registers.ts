@@ -41,14 +41,62 @@ export interface CashRegisterMethodBreakdown {
   method: string;
   amountCents: number;
   count: number;
+  /**
+   * `true` si es efectivo (`payments.method = 'cash'`): entra al cajón y al
+   * arqueo. Débito, crédito, transferencia y "otro" no pasan por el cajón:
+   * se concilian con el banco y no entran a la diferencia.
+   */
+  enEfectivo: boolean;
+}
+
+/** Solo el efectivo pasa por el cajón. Un medio propio de la clínica cuenta por su `method`. */
+export function esCobroEnEfectivo(method: string | null | undefined): boolean {
+  return method === "cash";
+}
+
+export interface CobrosDelTurno {
+  efectivoCents: number;
+  efectivoCantidad: number;
+  /** Débito, crédito, transferencia y otros: a conciliar con el banco. */
+  aConciliarCents: number;
+  aConciliarCantidad: number;
+}
+
+/** Separa lo cobrado en el turno entre lo que está en el cajón y lo que no. */
+export function separarCobrosDelTurno(
+  filas: readonly Pick<CashRegisterMethodBreakdown, "amountCents" | "count" | "enEfectivo">[],
+): CobrosDelTurno {
+  const r: CobrosDelTurno = {
+    efectivoCents: 0,
+    efectivoCantidad: 0,
+    aConciliarCents: 0,
+    aConciliarCantidad: 0,
+  };
+  for (const f of filas) {
+    if (f.enEfectivo) {
+      r.efectivoCents += f.amountCents;
+      r.efectivoCantidad += f.count;
+    } else {
+      r.aConciliarCents += f.amountCents;
+      r.aConciliarCantidad += f.count;
+    }
+  }
+  return r;
 }
 
 /**
- * Lo esperado en caja al momento de cerrar: monto de apertura + lo cobrado
- * durante la sesión. Pura para poder testearla sin pegarle a la base.
+ * Lo esperado en el cajón al cerrar: monto de apertura + lo cobrado EN
+ * EFECTIVO durante la sesión. Los cobros con tarjeta o transferencia no
+ * están en el cajón, así que no entran (si entraran, un arqueo de billetes
+ * no cuadraría nunca en una clínica que cobra con débito).
+ *
+ * Hasta el 20-oct-2026 el servidor sumaba todos los medios. Los cierres
+ * guardados antes de ese cambio tienen `expected_closing_cents` y
+ * `difference_cents` calculados con todos los medios; no se recalculan
+ * (snapshot, regla 10). No había clínicas reales cobrando con caja.
  */
-export function esperadoEnCaja(openingAmountCents: number, cobradoCents: number): number {
-  return openingAmountCents + cobradoCents;
+export function esperadoEnCaja(openingAmountCents: number, cobradoEnEfectivoCents: number): number {
+  return openingAmountCents + cobradoEnEfectivoCents;
 }
 
 /** Diferencia entre lo contado por el cajero y lo esperado. Positivo = sobra. */

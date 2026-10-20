@@ -35,6 +35,7 @@ import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/fi
 import {
   CASH_REGISTER_STATUS_LABELS,
   esperadoEnCaja,
+  separarCobrosDelTurno,
   type CashRegister,
   type CashRegisterMethodBreakdown,
 } from "@/lib/finance/cash-registers";
@@ -95,6 +96,10 @@ function etiquetaDelDia(hoy: string): string {
   const fecha = new Date(`${hoy}T12:00:00Z`);
   const dia = new Intl.DateTimeFormat("es-CL", { weekday: "long", timeZone: "UTC" }).format(fecha);
   return `${dia} ${Number(hoy.slice(8, 10))}`.toUpperCase();
+}
+
+function notaEsperado(aperturaCents: number, cobrosEnEfectivo: number, currency: string) {
+  return `Apertura ${formatMoney(aperturaCents, currency)} + ${cobrosEnEfectivo} ${cobrosEnEfectivo === 1 ? "cobro" : "cobros"} en efectivo`;
 }
 
 function CajasPage() {
@@ -218,8 +223,12 @@ function CajasPage() {
   if (!clinicId) return null;
 
   const hoy = hoyISO(clinicTz);
-  const cobradoTurno = (cobrosTurno ?? []).reduce((s, b) => s + b.amountCents, 0);
-  const cantidadCobros = (cobrosTurno ?? []).reduce((s, b) => s + b.count, 0);
+  // Solo el efectivo está en el cajón; tarjetas y transferencias se
+  // concilian con el banco y no entran al esperado (mismo cálculo que el
+  // servidor al cerrar).
+  const turno = separarCobrosDelTurno(cobrosTurno ?? []);
+  const cobradoTurno = turno.efectivoCents;
+  const cantidadCobros = turno.efectivoCantidad;
   const ultimaCerrada = (history ?? []).find((r) => r.status === "closed");
 
   // ── KPIs: con caja abierta, el turno en curso; cerrada, el último arqueo.
@@ -239,7 +248,7 @@ function CajasPage() {
           ? formatMoney(esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno), currency)
           : "—",
         nota: esperadoListo
-          ? `Apertura ${formatMoney(openRegister.openingAmountCents, currency)} + ${cantidadCobros} ${cantidadCobros === 1 ? "cobro" : "cobros"}`
+          ? notaEsperado(openRegister.openingAmountCents, cantidadCobros, currency)
           : cobrosConError
             ? "Sin datos"
             : "Cargando…",
@@ -262,7 +271,7 @@ function CajasPage() {
           ultimaCerrada.expectedClosingCents === null
             ? "—"
             : formatMoney(ultimaCerrada.expectedClosingCents, ultimaCerrada.currency),
-        nota: "Apertura + cobros del turno",
+        nota: "Apertura + efectivo del turno",
       },
       {
         label: "Contado",
@@ -283,7 +292,7 @@ function CajasPage() {
   } else {
     kpis = [
       { label: "Estado", valor: "Cerrada", nota: "Todavía no hay turnos" },
-      { label: "Esperado", valor: "—", nota: "Apertura + cobros" },
+      { label: "Esperado", valor: "—", nota: "Apertura + efectivo" },
       { label: "Contado", valor: "—", nota: "Se anota al cerrar" },
       { label: "Diferencia", valor: "—", nota: "Se calcula al cerrar" },
     ];
@@ -305,8 +314,9 @@ function CajasPage() {
                   : "La caja está cerrada."}
             </h2>
             <p className="mt-3 max-w-prose text-sm text-muted-foreground">
-              Los cobros que registres mientras la caja está abierta se suman solos al esperado del
-              cierre.
+              Los cobros en efectivo que registres mientras la caja está abierta se suman solos al
+              esperado del cierre. Tarjetas y transferencias quedan aparte, para conciliar con el
+              banco.
             </p>
           </div>
           {!loadingOpen && !openConError && (
@@ -398,7 +408,11 @@ function CajasPage() {
                 expectedNota={
                   cobrosConError
                     ? "Sin datos"
-                    : `Apertura ${formatMoney(openRegister.openingAmountCents, openRegister.currency)} + ${cantidadCobros} ${cantidadCobros === 1 ? "cobro" : "cobros"}`
+                    : notaEsperado(
+                        openRegister.openingAmountCents,
+                        cantidadCobros,
+                        openRegister.currency,
+                      )
                 }
                 etiquetaSello={etiquetaDelDia(hoy)}
                 enviando={closeMutation.isPending}
@@ -611,7 +625,8 @@ function CajasPage() {
               <DialogTitle>Cerrar caja</DialogTitle>
               <DialogDescription>
                 Cuenta lo que hay en caja y anota el total. El sistema calcula solo la diferencia
-                contra lo esperado (apertura + cobros del turno).
+                contra lo esperado (apertura + cobros en efectivo del turno; tarjetas y
+                transferencias van aparte, a conciliar con el banco).
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -745,8 +760,25 @@ function TablaDesglose({
   filas: CashRegisterMethodBreakdown[];
   currency: string;
 }) {
-  const total = filas.reduce((s, b) => s + b.amountCents, 0);
-  const cantidad = filas.reduce((s, b) => s + b.count, 0);
+  const turno = separarCobrosDelTurno(filas);
+  const grupos = [
+    {
+      clave: "efectivo",
+      titulo: "En el cajón (efectivo)",
+      nota: "Entra al arqueo.",
+      filas: filas.filter((b) => b.enEfectivo),
+      cantidad: turno.efectivoCantidad,
+      total: turno.efectivoCents,
+    },
+    {
+      clave: "banco",
+      titulo: "A conciliar con el banco",
+      nota: "Tarjetas y transferencias: no están en el cajón ni entran a la diferencia.",
+      filas: filas.filter((b) => !b.enEfectivo),
+      cantidad: turno.aConciliarCantidad,
+      total: turno.aConciliarCents,
+    },
+  ].filter((g) => g.filas.length > 0);
   return (
     <div className="overflow-x-auto border-y border-border">
       <table className="w-full text-sm">
@@ -763,20 +795,39 @@ function TablaDesglose({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-hairline border-t border-hairline">
-          {filas.map((b) => (
-            <tr key={b.method}>
-              <td className="py-3 pr-3">{etiquetaMetodo(b.method)}</td>
-              <td className="py-3 pr-3 text-right cifra text-muted-foreground">{b.count}</td>
-              <td className="py-3 text-right cifra">{formatMoney(b.amountCents, currency)}</td>
+        {grupos.map((g) => (
+          <tbody key={g.clave} className="divide-y divide-hairline border-t border-hairline">
+            <tr>
+              <th scope="rowgroup" colSpan={3} className="pt-4 pb-2 text-left font-normal">
+                <span className="block text-sm font-medium">{g.titulo}</span>
+                <span className="block text-xs text-muted-foreground">{g.nota}</span>
+              </th>
             </tr>
-          ))}
-        </tbody>
+            {g.filas.map((b) => (
+              <tr key={`${g.clave}|${b.method}`}>
+                <td className="py-3 pr-3">{etiquetaMetodo(b.method)}</td>
+                <td className="py-3 pr-3 text-right cifra text-muted-foreground">{b.count}</td>
+                <td className="py-3 text-right cifra">{formatMoney(b.amountCents, currency)}</td>
+              </tr>
+            ))}
+            {grupos.length > 1 && (
+              <tr className="text-muted-foreground">
+                <td className="py-2.5 pr-3">Subtotal</td>
+                <td className="py-2.5 pr-3 text-right cifra">{g.cantidad}</td>
+                <td className="py-2.5 text-right cifra">{formatMoney(g.total, currency)}</td>
+              </tr>
+            )}
+          </tbody>
+        ))}
         <tfoot className="border-t border-border">
           <tr className="font-medium">
-            <td className="py-3 pr-3">Total</td>
-            <td className="py-3 pr-3 text-right cifra">{cantidad}</td>
-            <td className="py-3 text-right cifra">{formatMoney(total, currency)}</td>
+            <td className="py-3 pr-3">Total cobrado</td>
+            <td className="py-3 pr-3 text-right cifra">
+              {turno.efectivoCantidad + turno.aConciliarCantidad}
+            </td>
+            <td className="py-3 text-right cifra">
+              {formatMoney(turno.efectivoCents + turno.aConciliarCents, currency)}
+            </td>
           </tr>
         </tfoot>
       </table>
