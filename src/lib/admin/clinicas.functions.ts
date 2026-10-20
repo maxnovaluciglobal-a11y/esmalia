@@ -20,6 +20,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireEsmaliaStaffEmail } from "@/lib/admin/staff-gate";
 import type { CobroStaffFila } from "@/lib/admin/estado-cobro";
+import {
+  horasConLlamadaPendiente,
+  semaforoDeSalud,
+  type Semaforo,
+} from "@/lib/admin/salud-clinica";
 
 export type ClinicaStaffRow = {
   id: string;
@@ -37,6 +42,17 @@ export type ClinicaStaffRow = {
    *  agendó ninguna. Derivada de `appointments.created_at` — sin tabla ni
    *  evento nuevo, para no necesitar una migración de schema. */
   firstAppointmentAt: string | null;
+  /** Salud de la clínica (CS-09): semáforo y las cifras que lo explican. */
+  salud: {
+    semaforo: Semaforo;
+    citas7d: number;
+    pacientes: number;
+    usuariosActivos7d: number;
+    ultimoLoginDueno: string | null;
+  };
+  /** Horas desde el alta si sigue sin llamada de puesta en marcha pasadas
+   *  24 h (aviso para escribirle); `null` si no hay nada que avisar. */
+  horasLlamadaPendiente: number | null;
   /** Última vez que el staff extendió la prueba (quién, cuándo y cuántos
    *  días), o `null` si nunca. Sale de `trial_extensions`. */
   ultimaExtension: {
@@ -143,6 +159,58 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
       }
     }
 
+    // Salud (CS-09). Insumos baratos para una pantalla interna de pocas filas:
+    // citas creadas en 7 días (una consulta), miembros y su último ingreso
+    // (Auth admin, uno por usuario distinto) y pacientes por clínica (conteo
+    // exacto sin traer filas). Si alguna falla, esa cifra queda en 0/null y la
+    // pantalla no se cae.
+    const hace7Dias = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const [{ data: citasRecientes }, { data: miembros }] = clinicIds.length
+      ? await Promise.all([
+          supabaseAdmin
+            .from("appointments")
+            .select("clinic_id")
+            .in("clinic_id", clinicIds)
+            .gte("created_at", hace7Dias),
+          supabaseAdmin
+            .from("clinic_members")
+            .select("clinic_id, user_id, role")
+            .in("clinic_id", clinicIds),
+        ])
+      : [
+          { data: [] as { clinic_id: string }[] },
+          { data: [] as { clinic_id: string; user_id: string; role: string }[] },
+        ];
+
+    const citas7dPorClinica = new Map<string, number>();
+    for (const a of citasRecientes ?? []) {
+      citas7dPorClinica.set(a.clinic_id, (citas7dPorClinica.get(a.clinic_id) ?? 0) + 1);
+    }
+
+    const idsUsuarios = [...new Set((miembros ?? []).map((m) => m.user_id))];
+    const ultimoLoginPorUsuario = new Map<string, string | null>();
+    await Promise.all(
+      idsUsuarios.map(async (uid) => {
+        try {
+          const { data } = await supabaseAdmin.auth.admin.getUserById(uid);
+          ultimoLoginPorUsuario.set(uid, data?.user?.last_sign_in_at ?? null);
+        } catch {
+          ultimoLoginPorUsuario.set(uid, null);
+        }
+      }),
+    );
+
+    const pacientesPorClinica = new Map<string, number>();
+    await Promise.all(
+      clinicIds.map(async (id) => {
+        const { count } = await supabaseAdmin
+          .from("patients")
+          .select("id", { count: "exact", head: true })
+          .eq("clinic_id", id);
+        pacientesPorClinica.set(id, count ?? 0);
+      }),
+    );
+
     // Última extensión por clínica (orden descendente: la primera aparición
     // de cada `clinic_id` es la más reciente). Si la migración todavía no
     // está aplicada la tabla no existe: se muestra "sin dato" en vez de
@@ -170,8 +238,22 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
       }
     }
 
+    const ahora = new Date();
     return (clinics ?? []).map((c) => {
       const sub = subPorClinica.get(c.id);
+      const delEquipo = (miembros ?? []).filter((m) => m.clinic_id === c.id);
+      const logins = delEquipo.map((m) => ({
+        rol: m.role,
+        login: ultimoLoginPorUsuario.get(m.user_id) ?? null,
+      }));
+      const ultimoLoginDueno =
+        logins
+          .filter((l) => l.rol === "owner" && l.login)
+          .map((l) => l.login as string)
+          .sort()
+          .at(-1) ?? null;
+      const usuariosActivos7d = logins.filter((l) => l.login && l.login >= hace7Dias).length;
+      const citas7d = citas7dPorClinica.get(c.id) ?? 0;
       return {
         id: c.id,
         name: c.name,
@@ -191,6 +273,29 @@ export const listClinicsForStaff = createServerFn({ method: "GET" })
             }
           : null,
         onboardingCallAt: c.onboarding_call_at,
+        salud: {
+          semaforo: semaforoDeSalud(
+            {
+              createdAt: c.created_at,
+              citasUltimos7Dias: citas7d,
+              usuariosActivos7Dias: usuariosActivos7d,
+              ultimoLoginDueno,
+            },
+            ahora,
+          ),
+          citas7d,
+          pacientes: pacientesPorClinica.get(c.id) ?? 0,
+          usuariosActivos7d,
+          ultimoLoginDueno,
+        },
+        horasLlamadaPendiente: horasConLlamadaPendiente(
+          {
+            createdAt: c.created_at,
+            onboardingCallAt: c.onboarding_call_at,
+            suscrita: sub?.status === "active",
+          },
+          ahora,
+        ),
         firstAppointmentAt: primeraCitaPorClinica.get(c.id) ?? null,
         ultimaExtension: ultimaExtensionPorClinica.get(c.id) ?? null,
       };
