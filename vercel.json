@@ -12,6 +12,14 @@
     {
       "path": "/api/demo-reset",
       "schedule": "5 5 * * *"
+    },
+    {
+      "path": "/api/daily-digest",
+      "schedule": "37 * * * *"
+    },
+    {
+      "path": "/api/lifecycle-emails",
+      "schedule": "47 * * * *"
     }
   ],
   "headers": [

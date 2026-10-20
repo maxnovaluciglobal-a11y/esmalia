@@ -1,6 +1,6 @@
 # Deploy a producción — Esmalia
 
-> **Histórico (ago-2026). Estado vigente: `docs/DOMINIO_RUNBOOK.md` y `00 - Gestion/ESTADO.md`** (tablero del proyecto, fuera del repo). Desde que se escribió: la marca es **Esmalia**, producción vive en `https://esmalia.com` (09-oct-2026), Vercel sigue en **Hobby** (Pro descartado), Supabase está en plan **Pro**, y Sentry, `/api/health`, el webhook de Stripe y los backups diarios a B2 ya están en producción. Los ítems de abajo se dejaron como registro; las correcciones obvias van marcadas "(actualizado oct-2026)".
+> **Histórico (ago-2026). Estado vigente: `docs/DOMINIO_RUNBOOK.md` y `00 - Gestion/ESTADO.md`** (tablero del proyecto, fuera del repo). Desde que se escribió: la marca es **Esmalia**, producción vive en `https://esmalia.com` (09-oct-2026), Vercel pasó a **Pro** el 19-oct-2026, Supabase está en plan **Pro**, y Sentry, `/api/health`, el webhook de Stripe y los backups diarios a B2 ya están en producción. Los ítems de abajo se dejaron como registro; las correcciones obvias van marcadas "(actualizado oct-2026)".
 
 Checklist paso a paso para el primer lanzamiento B2B con clínicas piloto. Cada sección lista **quién debe hacerlo** (Walter vs código) y **cómo verificar** que quedó.
 
@@ -41,7 +41,7 @@ Estas cosas requieren decisión y firma de Walter antes de tocar código product
 
 ### 2.2 Vercel
 
-- [x] (actualizado oct-2026) **Vercel Pro descartado**: el proyecto sigue en Hobby, que alcanza para el dominio propio. Los crons horarios corren en GitHub Actions.
+- [x] (actualizado 20-oct-2026) **Vercel Pro desde el 19-oct-2026**: los crons horarios corren en Vercel Cron, con GitHub Actions de respaldo.
 - [x] Repo `maxnovaluciglobal-a11y/esmalia` conectado al proyecto Vercel `esmalia` (team `maxnovaluci-global`).
 - [x] (actualizado oct-2026) `esmalia.com` → Vercel (A `76.76.21.21`, CNAME `www`).
 - [ ] Environment Variables en Vercel (copiar de `.env.example`):

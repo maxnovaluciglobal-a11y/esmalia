@@ -5,15 +5,16 @@ import { cronAutorizado } from "@/lib/cron-auth.server";
 
 /**
  * Correos programados a la clínica: aviso de fin de prueba (T-3 y T-0) y el
- * reporte "Tu semana en la clínica" de los lunes. Lo dispara cada hora
- * `.github/workflows/lifecycle-emails.yml` con `CRON_SECRET` (Vercel Hobby no
- * permite crons horarios).
+ * reporte "Tu semana en la clínica" de los lunes. Lo dispara cada hora Vercel
+ * Cron (vercel.json, minuto 47) y, de respaldo,
+ * `.github/workflows/lifecycle-emails.yml` (minuto 17), los dos con
+ * `CRON_SECRET`.
  *
  * ⚠️ Nunca le escribe a un paciente: los destinatarios salen de
  * `clinic_members` (dueños y administradores).
  *
  * Frenos: interruptor `LIFECYCLE_EMAILS_ENABLED` (sin él no toca la base),
- * ventana local 8:00-11:59 de cada clínica, la demo afuera, idempotencia en
+ * ventana local 8:00-20:59 de cada clínica, la demo afuera, idempotencia en
  * `lifecycle_emails` y tope de clínicas y de correos por corrida.
  */
 export const Route = createFileRoute("/api/lifecycle-emails")({
