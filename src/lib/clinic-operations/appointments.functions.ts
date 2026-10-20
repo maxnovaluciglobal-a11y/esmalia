@@ -7,6 +7,7 @@ import { HORA_INICIO, type Cita, type EstadoCita } from "@/lib/clinic-operations
 import { mensajeDb } from "@/lib/db-errors";
 import { filaYaCreada } from "@/lib/idempotency";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
+import { enBloques, leerTodasLasPaginas, mapConLimite } from "@/lib/paginacion";
 import { requireFinanceViewRole } from "@/lib/finance/finance-reports.functions";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
@@ -116,6 +117,10 @@ const APPOINTMENT_COLUMNS =
  * no la estrategia de paginado real — con miles de citas/año, `truncated`
  * le avisa a la UI que hay más datos de los que se trajeron, en vez de
  * fallar en silencio como antes (ver auditoría de arquitectura 2026-08-15).
+ *
+ * Se lee de a páginas de 1000 con `.range()`: con un solo `.limit(10000)`
+ * PostgREST devolvía 1000 filas (`max_rows`), la agenda perdía citas y
+ * `truncated` nunca se encendía (auditoría de rendimiento, 20-oct-2026).
  */
 const APPOINTMENTS_ROW_LIMIT = 10_000;
 
@@ -173,48 +178,60 @@ export const listAppointments = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ items: Cita[]; truncated: boolean }> => {
     const { supabase } = context;
 
-    let query = supabase
-      .from("appointments")
-      .select(APPOINTMENT_COLUMNS)
-      .eq("clinic_id", data.clinicId)
-      .neq("status", "cancelada");
     const bounds = appointmentDateRangeToUtcBounds(data.desde, data.hasta);
-    if (bounds.gte) query = query.gte("starts_at", bounds.gte);
-    if (bounds.lt) query = query.lt("starts_at", bounds.lt);
+    const consultaCitas = () => {
+      let query = supabase
+        .from("appointments")
+        .select(APPOINTMENT_COLUMNS)
+        .eq("clinic_id", data.clinicId)
+        .neq("status", "cancelada");
+      if (bounds.gte) query = query.gte("starts_at", bounds.gte);
+      if (bounds.lt) query = query.lt("starts_at", bounds.lt);
+      return query;
+    };
 
-    const { data: rows, error } = await query
-      // Descendente a propósito: si el tope de fila corta la lista, que se
-      // pierda historial viejo y no la agenda futura (ver auditoría
-      // architecture-6). Los consumidores (agenda.tsx, dashboard.tsx)
-      // vuelven a ordenar ascendente por fecha/hora antes de mostrar, así
-      // que este orden crudo no les afecta.
-      .order("starts_at", { ascending: false })
-      .limit(APPOINTMENTS_ROW_LIMIT);
+    const {
+      filas: rows,
+      truncado: truncated,
+      error,
+    } = await leerTodasLasPaginas(
+      (desde, hasta) =>
+        consultaCitas()
+          // Descendente a propósito: si el tope de fila corta la lista, que se
+          // pierda historial viejo y no la agenda futura (ver auditoría
+          // architecture-6). Los consumidores (agenda.tsx, dashboard.tsx)
+          // vuelven a ordenar ascendente por fecha/hora antes de mostrar, así
+          // que este orden crudo no les afecta. `id` desempata entre páginas.
+          .order("starts_at", { ascending: false })
+          .order("id", { ascending: true })
+          .range(desde, hasta),
+      { tope: APPOINTMENTS_ROW_LIMIT },
+    );
 
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar las citas de la clínica."));
-    const truncated = (rows ?? []).length >= APPOINTMENTS_ROW_LIMIT;
 
-    const appointments = (rows ?? []) as AppointmentRow[];
+    const appointments = rows as AppointmentRow[];
     const patientIds = [...new Set(appointments.map((a) => a.patient_id))];
     const branchIds = [...new Set(appointments.map((a) => a.branch_id))];
 
-    const [{ data: patients, error: patError }, { data: branches, error: branchError }] =
-      await Promise.all([
-        supabase
-          .from("patients")
-          .select("id, full_name")
-          .in("id", patientIds.length ? patientIds : [""]),
-        supabase
-          .from("branches")
-          .select("id, timezone")
-          .in("id", branchIds.length ? branchIds : [""]),
-      ]);
+    // De a bloques: miles de ids en un solo `.in()` no entran en la URL.
+    const [bloquesPacientes, { data: branches, error: branchError }] = await Promise.all([
+      mapConLimite(enBloques(patientIds), 4, (ids) =>
+        supabase.from("patients").select("id, full_name").in("id", ids),
+      ),
+      supabase
+        .from("branches")
+        .select("id, timezone")
+        .in("id", branchIds.length ? branchIds : [""]),
+    ]);
+    const patError = bloquesPacientes.find((b) => b.error)?.error;
+    const patients = bloquesPacientes.flatMap((b) => b.data ?? []);
     if (patError)
       throw new Error(mensajeDb(patError, "No pudimos cargar los datos de los pacientes."));
     if (branchError)
       throw new Error(mensajeDb(branchError, "No pudimos cargar los datos de las sucursales."));
 
-    const nameByPatient = new Map((patients ?? []).map((p) => [p.id, p.full_name]));
+    const nameByPatient = new Map(patients.map((p) => [p.id, p.full_name]));
     const tzByBranch = new Map((branches ?? []).map((b) => [b.id, b.timezone]));
 
     return {
@@ -716,11 +733,13 @@ export const getAppointmentPatientBalances = createServerFn({ method: "GET" })
 
     if (!data.patientIds.length) return {};
 
-    const balances = await fetchPatientBalances(context.supabase, data.clinicId);
-    const pedidos = new Set(data.patientIds);
+    // Solo los pacientes pedidos (las citas que se ven), no la clínica entera.
+    const balances = await fetchPatientBalances(context.supabase, data.clinicId, [
+      ...new Set(data.patientIds),
+    ]);
     const out: Record<string, number> = {};
     for (const [patientId, { billedCents, paidCents }] of balances) {
-      if (pedidos.has(patientId)) out[patientId] = billedCents - paidCents;
+      out[patientId] = billedCents - paidCents;
     }
     return out;
   });

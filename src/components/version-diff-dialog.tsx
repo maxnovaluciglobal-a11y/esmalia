@@ -1,17 +1,28 @@
 import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, GitCompare, X } from "lucide-react";
 import { diffLineas, resumenDiff } from "@/lib/clinical/note-diff";
-import { formatoFechaHora, type ClinicalNoteVersion } from "@/lib/clinical/clinical-notes";
+import { formatoFechaHora, type ClinicalNoteVersionMeta } from "@/lib/clinical/clinical-notes";
+import { getNoteVersionContents } from "@/lib/clinical/clinical-notes.functions";
+import { mensajeDeError } from "@/lib/mensaje-error";
 
 interface Props {
-  versiones: ClinicalNoteVersion[];
+  clinicId: string;
+  noteId: string;
+  /** Historial de la nota (metadatos): alimenta los selectores. */
+  versiones: ClinicalNoteVersionMeta[];
   desde?: number | null;
   hasta?: number | null;
   onClose: () => void;
 }
 
-/** Comparador de contenido entre dos versiones de la nota clínica. */
-export function VersionDiffDialog({ versiones, desde, hasta, onClose }: Props) {
+/**
+ * Comparador de contenido entre dos versiones de la nota clínica. El
+ * contenido completo de las versiones se pide recién acá: la ficha solo
+ * carga metadatos (auditoría de rendimiento, 20-oct-2026).
+ */
+export function VersionDiffDialog({ clinicId, noteId, versiones, desde, hasta, onClose }: Props) {
   const ordenadas = useMemo(
     () => [...versiones].sort((a, b) => a.version - b.version),
     [versiones],
@@ -22,12 +33,21 @@ export function VersionDiffDialog({ versiones, desde, hasta, onClose }: Props) {
   const [a, setA] = useState<number>(desde ?? penultima);
   const [b, setB] = useState<number>(hasta ?? ultima);
 
-  const vA = ordenadas.find((v) => v.version === a);
-  const vB = ordenadas.find((v) => v.version === b);
-  const lineas = useMemo(
-    () => diffLineas(vA?.content ?? "", vB?.content ?? ""),
-    [vA?.content, vB?.content],
+  // La última versión va en la clave: si se guarda una nueva, no se reusa un
+  // contenido cacheado que todavía no la tiene.
+  const fetchContenidos = useServerFn(getNoteVersionContents);
+  const contenidos = useQuery({
+    queryKey: ["clinical-note-version-contents", clinicId, noteId, ultima],
+    queryFn: () => fetchContenidos({ data: { clinicId, noteId } }),
+  });
+  const contenidoPorVersion = useMemo(
+    () => new Map((contenidos.data ?? []).map((v) => [v.version, v.content])),
+    [contenidos.data],
   );
+
+  const contenidoA = contenidoPorVersion.get(a) ?? "";
+  const contenidoB = contenidoPorVersion.get(b) ?? "";
+  const lineas = useMemo(() => diffLineas(contenidoA, contenidoB), [contenidoA, contenidoB]);
   const conteo = resumenDiff(lineas);
 
   return (
@@ -73,7 +93,11 @@ export function VersionDiffDialog({ versiones, desde, hasta, onClose }: Props) {
         </div>
 
         <div className="overflow-y-auto px-5 py-4">
-          {conteo.agregadas === 0 && conteo.eliminadas === 0 ? (
+          {contenidos.isLoading ? (
+            <p className="text-xs text-muted-foreground">Cargando el contenido de las versiones…</p>
+          ) : contenidos.isError ? (
+            <p className="text-xs text-destructive">{mensajeDeError(contenidos.error)}</p>
+          ) : conteo.agregadas === 0 && conteo.eliminadas === 0 ? (
             <p className="text-xs text-muted-foreground">
               No hay diferencias de contenido entre estas dos versiones.
             </p>

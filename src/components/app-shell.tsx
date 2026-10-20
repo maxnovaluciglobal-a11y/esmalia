@@ -16,7 +16,7 @@ import { resetOfflineCache } from "@/lib/offline/offline-cache";
 import { useSincronizacionAutomatica } from "@/hooks/use-offline-mutation";
 import { leerCola, pendientes } from "@/lib/offline/offline-queue";
 import { hasPermission, ROLE_LABELS, type ClinicAccess } from "@/lib/access/access";
-import { listPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
+import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { AyudaMenu } from "@/components/ayuda-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -242,14 +242,20 @@ export function AppShell({
     queryFn: () => fetchReminders({ data: { clinicId: clinicId! } }),
     refetchInterval: 5 * 60_000,
   });
-  const fetchOutreach = useServerFn(listPendingOutreach);
-  const { data: outreachPendiente = [] } = useQuery({
-    queryKey: ["pending-outreach", clinicId],
+  // Solo la cuenta (auditoría de rendimiento, 20-oct-2026): el badge no
+  // necesita la lista entera en cada pestaña. La clave cuelga de
+  // ["pending-outreach", clinicId], así que invalidar la lista en
+  // /recordatorios también refresca el badge. `staleTime` igual al poll: volver
+  // a la pestaña no relanza el cálculo antes de tiempo.
+  const fetchOutreachCount = useServerFn(countPendingOutreach);
+  const { data: outreachPendiente } = useQuery({
+    queryKey: ["pending-outreach", clinicId, "count"],
     enabled: puedeVerRecordatorios,
-    queryFn: () => fetchOutreach({ data: { clinicId: clinicId! } }),
+    queryFn: () => fetchOutreachCount({ data: { clinicId: clinicId! } }),
     refetchInterval: 5 * 60_000,
+    staleTime: 5 * 60_000,
   });
-  const recordatoriosBadge = recordatoriosPendientes.length + outreachPendiente.length;
+  const recordatoriosBadge = recordatoriosPendientes.length + (outreachPendiente?.total ?? 0);
 
   // Badge de "Conversaciones": cuántos hilos terminan con un mensaje del
   // paciente. Query propia y liviana (no comparte cache con la pantalla) —

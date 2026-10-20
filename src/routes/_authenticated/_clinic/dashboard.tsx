@@ -29,7 +29,7 @@ import {
 import { getFinanceSummary } from "@/lib/finance/finance-reports.functions";
 import { formatMoney } from "@/lib/finance/finance";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
-import { listPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
+import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
 import { listPatients } from "@/lib/patients/patients.functions";
 import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
@@ -306,7 +306,7 @@ function Dashboard() {
   const fetchSubscription = useServerFn(getMySubscription);
   const fetchMembers = useServerFn(listClinicMembers);
   const fetchReminders = useServerFn(listPendingReminders);
-  const fetchOutreach = useServerFn(listPendingOutreach);
+  const fetchOutreachCount = useServerFn(countPendingOutreach);
   const fetchSinResponder = useServerFn(countConversacionesSinResponder);
 
   // Mismo queryKey que TrialBanner / StatusStrip / informes: comparten caché.
@@ -382,11 +382,13 @@ function Dashboard() {
     queryFn: () => fetchReminders({ data: { clinicId: clinicId! } }),
     refetchInterval: 5 * 60_000,
   });
-  const { data: outreach = [] } = useQuery({
-    queryKey: ["pending-outreach", clinicId],
+  // Misma clave que el badge del menú: comparten la cuenta (no la lista).
+  const { data: outreach } = useQuery({
+    queryKey: ["pending-outreach", clinicId, "count"],
     enabled: Boolean(clinicId) && gestionaAgenda,
-    queryFn: () => fetchOutreach({ data: { clinicId: clinicId! } }),
+    queryFn: () => fetchOutreachCount({ data: { clinicId: clinicId! } }),
     refetchInterval: 5 * 60_000,
+    staleTime: 5 * 60_000,
   });
   const { data: sinResponder = 0 } = useQuery({
     queryKey: ["conversations-pendientes", clinicId],
@@ -522,7 +524,7 @@ function Dashboard() {
             to: "/conversaciones",
           },
           {
-            n: recordatorios.length + outreach.length,
+            n: recordatorios.length + (outreach?.total ?? 0),
             titulo: "Avisos para despachar",
             detalle: "Recordatorios, controles y presupuestos",
             cta: "Avisar",

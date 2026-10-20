@@ -143,9 +143,11 @@ export function NotasClinicas({
   const [resumen, setResumen] = useState<string | null>(null);
   const [aiUsada, setAiUsada] = useState(false);
   const [panel, setPanel] = useState<"versiones" | "auditoria" | "revision">("versiones");
-  const [comparar, setComparar] = useState<{ desde: number | null; hasta: number | null } | null>(
-    null,
-  );
+  const [comparar, setComparar] = useState<{
+    noteId: string;
+    desde: number | null;
+    hasta: number | null;
+  } | null>(null);
   const [especialidad, setEspecialidad] = useState(NOTE_TEMPLATE_SPECIALTIES[0]);
   const [templateId, setTemplateId] = useState<string | null>(null);
   const [revisorId, setRevisorId] = useState("");
@@ -1092,11 +1094,17 @@ export function NotasClinicas({
                     <p className="mt-0.5 text-xs text-muted-foreground">
                       {v.authorName ?? "Usuario"} · {formatoFechaHora(v.createdAt)}
                     </p>
-                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{v.content}</p>
+                    <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{v.preview}</p>
                     <div className="mt-2 flex items-center gap-3">
                       {v.version > 1 && (
                         <button
-                          onClick={() => setComparar({ desde: v.version - 1, hasta: v.version })}
+                          onClick={() =>
+                            setComparar({
+                              noteId: v.noteId,
+                              desde: v.version - 1,
+                              hasta: v.version,
+                            })
+                          }
                           className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline"
                         >
                           <GitCompare className="size-3" /> Comparar con v{v.version - 1}
@@ -1195,7 +1203,11 @@ export function NotasClinicas({
                           {anterior?.noteVersion && r.noteVersion && (
                             <button
                               onClick={() =>
-                                setComparar({ desde: anterior.noteVersion, hasta: r.noteVersion })
+                                setComparar({
+                                  noteId: r.noteId,
+                                  desde: anterior.noteVersion,
+                                  hasta: r.noteVersion,
+                                })
                               }
                               className="mt-2 inline-flex items-center gap-1 text-xs text-brand-700 hover:underline"
                             >
@@ -1253,9 +1265,11 @@ export function NotasClinicas({
         }}
       />
 
-      {comparar && versiones.length > 0 && (
+      {comparar && clinicId && versiones.length > 0 && (
         <VersionDiffDialog
-          versiones={versiones}
+          clinicId={clinicId}
+          noteId={comparar.noteId}
+          versiones={versiones.filter((v) => v.noteId === comparar.noteId)}
           desde={comparar.desde}
           hasta={comparar.hasta}
           onClose={() => setComparar(null)}

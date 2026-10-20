@@ -5,6 +5,57 @@ import { randomUUID } from "node:crypto";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
 
 /**
+ * La implementación anterior a la RPC `patient_balances` (20-oct-2026),
+ * copiada tal cual: filas crudas sumadas en JS. Sirve de referencia para
+ * probar que la RPC calcula exactamente lo mismo sobre los mismos datos (con
+ * menos de 1000 filas, que es donde la versión vieja no se cortaba).
+ */
+async function saldosComoAntes(
+  supabase: SupabaseClient,
+  clinicId: string,
+  patientId?: string,
+): Promise<Map<string, { billedCents: number; paidCents: number }>> {
+  let billedQuery = supabase
+    .from("treatment_items")
+    .select("price_cents, patient_cents, treatment_plans!inner(patient_id, clinic_id, status)")
+    .eq("clinic_id", clinicId)
+    .neq("treatment_plans.status", "cancelled");
+  let paidQuery = supabase
+    .from("payments")
+    .select("patient_id, amount_cents")
+    .eq("clinic_id", clinicId)
+    .is("reversed_at", null);
+  if (patientId) {
+    billedQuery = billedQuery.eq("treatment_plans.patient_id", patientId);
+    paidQuery = paidQuery.eq("patient_id", patientId);
+  }
+  const [{ data: billedRows, error: billedErr }, { data: paidRows, error: paidErr }] =
+    await Promise.all([billedQuery, paidQuery]);
+  if (billedErr) throw billedErr;
+  if (paidErr) throw paidErr;
+  const byPatient = new Map<string, { billedCents: number; paidCents: number }>();
+  for (const r of billedRows ?? []) {
+    const pid = (r as unknown as { treatment_plans: { patient_id: string } }).treatment_plans
+      .patient_id;
+    const cur = byPatient.get(pid) ?? { billedCents: 0, paidCents: 0 };
+    const fila = r as { price_cents: number; patient_cents: number | null };
+    cur.billedCents += fila.patient_cents ?? fila.price_cents ?? 0;
+    byPatient.set(pid, cur);
+  }
+  for (const r of (paidRows ?? []) as Array<{ patient_id: string; amount_cents: number }>) {
+    const cur = byPatient.get(r.patient_id) ?? { billedCents: 0, paidCents: 0 };
+    cur.paidCents += r.amount_cents ?? 0;
+    byPatient.set(r.patient_id, cur);
+  }
+  return byPatient;
+}
+
+/** Map → objeto ordenado, para comparar sin depender del orden de inserción. */
+function comoObjeto(m: Map<string, { billedCents: number; paidCents: number }>) {
+  return Object.fromEntries([...m.entries()].sort(([a], [b]) => a.localeCompare(b)));
+}
+
+/**
  * Regresión de la unificación 01-sep-2026: `getPatient`
  * (patients.functions.ts) y `listPendingOutreach` (messaging.functions.ts)
  * reimplementaban por separado "total facturado en treatment_items (excluye
@@ -27,6 +78,7 @@ function requiredEnv(name: string): string {
 
 const SUPABASE_URL = requiredEnv("SUPABASE_URL");
 const SERVICE_ROLE_KEY = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+const ANON_KEY = requiredEnv("SUPABASE_PUBLISHABLE_KEY");
 
 describe("fetchPatientBalances — saldo unificado", () => {
   let admin: SupabaseClient;
@@ -35,15 +87,25 @@ describe("fetchPatientBalances — saldo unificado", () => {
   let patientAId: string;
   let patientBId: string;
   let patientCId: string;
+  let patientDId: string;
+  let patientEId: string;
+  let otherClinicId: string;
+  let otherOwnerId: string;
+  let ownerPassword: string;
+  let ownerEmail: string;
+  let otherOwnerEmail: string;
+  let otherOwnerPassword: string;
 
   beforeAll(async () => {
     admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    ownerEmail = `balances-owner-${randomUUID()}@esmalia-test.invalid`;
+    ownerPassword = `Bal-${randomUUID()}`;
     const { data: ownerRes, error: ownerErr } = await admin.auth.admin.createUser({
-      email: `balances-owner-${randomUUID()}@esmalia-test.invalid`,
-      password: `Bal-${randomUUID()}`,
+      email: ownerEmail,
+      password: ownerPassword,
       email_confirm: true,
     });
     if (ownerErr || !ownerRes.user) {
@@ -174,11 +236,93 @@ describe("fetchPatientBalances — saldo unificado", () => {
         price_cents: 15_000,
       },
     ]);
+
+    // Paciente D: sin plan, un pago vigente y uno REVERSADO (no cuenta).
+    // Paciente E: un plan en borrador con una línea de $0 (aparece con saldo
+    // cero: tiene algo facturado, aunque sea nada) y un pago a favor.
+    const { data: masPacientes } = await admin
+      .from("patients")
+      .insert([
+        { clinic_id: clinicId, full_name: "Paciente D", created_by: ownerUserId },
+        { clinic_id: clinicId, full_name: "Paciente E", created_by: ownerUserId },
+      ])
+      .select("id");
+    patientDId = masPacientes![0].id;
+    patientEId = masPacientes![1].id;
+    const { error: pagosErr } = await admin.from("payments").insert([
+      { clinic_id: clinicId, patient_id: patientDId, amount_cents: 7_000, created_by: ownerUserId },
+      {
+        clinic_id: clinicId,
+        patient_id: patientDId,
+        amount_cents: 3_000,
+        created_by: ownerUserId,
+        reversed_at: new Date().toISOString(),
+        reversed_by: ownerUserId,
+        reversal_reason: "Cobro duplicado",
+      },
+      { clinic_id: clinicId, patient_id: patientEId, amount_cents: 1_500, created_by: ownerUserId },
+    ]);
+    if (pagosErr) throw new Error(`No se pudieron crear pagos: ${pagosErr.message}`);
+    const { data: planE } = await admin
+      .from("treatment_plans")
+      .insert({
+        clinic_id: clinicId,
+        patient_id: patientEId,
+        name: "Plan E",
+        created_by: ownerUserId,
+      })
+      .select("id")
+      .single();
+    await admin.from("treatment_items").insert({
+      clinic_id: clinicId,
+      plan_id: planE!.id,
+      name_snapshot: "Control sin costo",
+      price_cents: 0,
+    });
+
+    // Otra clínica con su propio paciente y deuda: no puede filtrarse.
+    otherOwnerEmail = `balances-otro-${randomUUID()}@esmalia-test.invalid`;
+    otherOwnerPassword = `Bal-${randomUUID()}`;
+    const { data: otroRes } = await admin.auth.admin.createUser({
+      email: otherOwnerEmail,
+      password: otherOwnerPassword,
+      email_confirm: true,
+    });
+    otherOwnerId = otroRes!.user!.id;
+    const { data: otraClinica } = await admin
+      .from("clinics")
+      .insert({ name: "Clínica balances ajena", created_by: otherOwnerId })
+      .select("id")
+      .single();
+    otherClinicId = otraClinica!.id;
+    const { data: ajeno } = await admin
+      .from("patients")
+      .insert({ clinic_id: otherClinicId, full_name: "Paciente ajeno", created_by: otherOwnerId })
+      .select("id")
+      .single();
+    const { data: planAjeno } = await admin
+      .from("treatment_plans")
+      .insert({
+        clinic_id: otherClinicId,
+        patient_id: ajeno!.id,
+        name: "Plan ajeno",
+        created_by: otherOwnerId,
+      })
+      .select("id")
+      .single();
+    await admin.from("treatment_items").insert({
+      clinic_id: otherClinicId,
+      plan_id: planAjeno!.id,
+      name_snapshot: "Item ajeno",
+      price_cents: 99_000,
+    });
   }, 60_000);
 
   afterAll(async () => {
     if (clinicId) await admin.from("clinics").delete().eq("id", clinicId);
+    if (otherClinicId) await admin.from("clinics").delete().eq("id", otherClinicId);
     if (ownerUserId) await admin.auth.admin.deleteUser(ownerUserId);
+    if (otherOwnerId) await admin.auth.admin.deleteUser(otherOwnerId);
   }, 60_000);
 
   it("calcula el saldo de un solo paciente, ignorando el plan cancelled", async () => {
@@ -205,5 +349,118 @@ describe("fetchPatientBalances — saldo unificado", () => {
     // debiendo algo que el convenio ya pagó.
     const balances = await fetchPatientBalances(admin, clinicId, patientCId);
     expect(balances.get(patientCId)!.billedCents).toBeLessThan(140_000);
+  });
+
+  it("la RPC calcula exactamente lo mismo que la suma en JS de antes (clínica entera)", async () => {
+    const nuevo = await fetchPatientBalances(admin, clinicId);
+    const viejo = await saldosComoAntes(admin, clinicId);
+    expect(comoObjeto(nuevo)).toEqual(comoObjeto(viejo));
+    // Y los casos borde quedan como se espera, no solo "iguales".
+    expect(nuevo.get(patientDId)).toEqual({ billedCents: 0, paidCents: 7_000 });
+    expect(nuevo.get(patientEId)).toEqual({ billedCents: 0, paidCents: 1_500 });
+    expect(nuevo.size).toBe(4); // A, C, D, E — B no tiene movimiento
+  });
+
+  it("la RPC calcula lo mismo que antes paciente por paciente", async () => {
+    for (const id of [patientAId, patientBId, patientCId, patientDId, patientEId]) {
+      const nuevo = await fetchPatientBalances(admin, clinicId, id);
+      const viejo = await saldosComoAntes(admin, clinicId, id);
+      expect(comoObjeto(nuevo)).toEqual(comoObjeto(viejo));
+    }
+  });
+
+  it("con una lista de pacientes devuelve solo esos", async () => {
+    const balances = await fetchPatientBalances(admin, clinicId, [
+      patientAId,
+      patientDId,
+      patientBId,
+    ]);
+    expect([...balances.keys()].sort()).toEqual([patientAId, patientDId].sort());
+    expect(await fetchPatientBalances(admin, clinicId, [])).toEqual(new Map());
+  });
+
+  it("respeta la RLS: el dueño ve su clínica, otro usuario no ve nada", async () => {
+    const comoDuenio = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: e1 } = await comoDuenio.auth.signInWithPassword({
+      email: ownerEmail,
+      password: ownerPassword,
+    });
+    expect(e1).toBeNull();
+    expect(comoObjeto(await fetchPatientBalances(comoDuenio, clinicId))).toEqual(
+      comoObjeto(await fetchPatientBalances(admin, clinicId)),
+    );
+
+    const comoAjeno = createClient(SUPABASE_URL, ANON_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: e2 } = await comoAjeno.auth.signInWithPassword({
+      email: otherOwnerEmail,
+      password: otherOwnerPassword,
+    });
+    expect(e2).toBeNull();
+    expect((await fetchPatientBalances(comoAjeno, clinicId)).size).toBe(0);
+  });
+});
+
+describe("fetchPatientBalances — más de 1000 pacientes con movimiento", () => {
+  let admin: SupabaseClient;
+  let clinicId: string;
+  let ownerUserId: string;
+  const PACIENTES = 1_105;
+
+  beforeAll(async () => {
+    admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { data: ownerRes } = await admin.auth.admin.createUser({
+      email: `balances-mil-${randomUUID()}@esmalia-test.invalid`,
+      password: `Bal-${randomUUID()}`,
+      email_confirm: true,
+    });
+    ownerUserId = ownerRes!.user!.id;
+    const { data: clinic } = await admin
+      .from("clinics")
+      .insert({ name: "Clínica balances volumen", created_by: ownerUserId })
+      .select("id")
+      .single();
+    clinicId = clinic!.id;
+    const { data: pacientes, error } = await admin
+      .from("patients")
+      .insert(
+        Array.from({ length: PACIENTES }, (_, i) => ({
+          clinic_id: clinicId,
+          full_name: `Paciente volumen ${i}`,
+          created_by: ownerUserId,
+        })),
+      )
+      .select("id");
+    if (error || !pacientes) throw new Error(`No se pudieron crear pacientes: ${error?.message}`);
+    const { error: payErr } = await admin.from("payments").insert(
+      pacientes.map((p) => ({
+        clinic_id: clinicId,
+        patient_id: p.id,
+        amount_cents: 1_000,
+        created_by: ownerUserId,
+      })),
+    );
+    if (payErr) throw new Error(`No se pudieron crear pagos: ${payErr.message}`);
+  }, 120_000);
+
+  afterAll(async () => {
+    if (clinicId) {
+      await admin.from("payments").delete().eq("clinic_id", clinicId);
+      await admin.from("clinics").delete().eq("id", clinicId);
+    }
+    if (ownerUserId) await admin.auth.admin.deleteUser(ownerUserId);
+  }, 120_000);
+
+  it("no se corta en las 1000 filas de PostgREST (la versión vieja sí)", async () => {
+    const balances = await fetchPatientBalances(admin, clinicId);
+    expect(balances.size).toBe(PACIENTES);
+    // La suma en JS de antes perdía pacientes en silencio: es el bug.
+    const viejo = await saldosComoAntes(admin, clinicId);
+    expect(viejo.size).toBeLessThan(PACIENTES);
   });
 });

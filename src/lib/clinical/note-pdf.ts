@@ -7,7 +7,7 @@ import {
   type ClinicalNote,
   type ClinicalNoteAuditEntry,
   type ClinicalNoteEntity,
-  type ClinicalNoteVersion,
+  type ClinicalNoteVersionMeta,
 } from "@/lib/clinical/clinical-notes";
 import { ALTO, ANCHO, MARGEN, crearLienzo } from "@/lib/clinical/pdf-lienzo";
 
@@ -16,7 +16,7 @@ interface ExportArgs {
   pacienteNombre: string;
   pacienteDocumento: string;
   nota: ClinicalNote;
-  versiones: ClinicalNoteVersion[];
+  versiones: ClinicalNoteVersionMeta[];
   auditoria: ClinicalNoteAuditEntry[];
   entidades: ClinicalNoteEntity[];
   /** CLI-07: adendas de esta nota (se imprimen después del contenido). */

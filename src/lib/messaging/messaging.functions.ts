@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
+import { leerTodasLasPaginas } from "@/lib/paginacion";
 import { resolverDestinatario } from "@/lib/patients/destinatario.server";
 import {
   MESSAGE_CHANNELS,
@@ -675,326 +676,402 @@ export interface PendingOutreachItem {
 }
 
 /**
+ * Ventana de `messages` que hace falta mirar para los cooldowns: el más largo.
+ * Un envío más viejo que esto ya no frena ninguna sugerencia.
+ */
+const OUTREACH_MESSAGES_WINDOW_MS = Math.max(
+  HYGIENE_RECALL_COOLDOWN_MS,
+  PAYMENT_DUE_COOLDOWN_MS,
+  QUOTE_FOLLOW_UP_COOLDOWN_MS,
+  BIRTHDAY_COOLDOWN_MS,
+  TREATMENT_FOLLOWUP_COOLDOWN_MS,
+  REFERRAL_INVITE_COOLDOWN_MS,
+  NPS_SURVEY_COOLDOWN_MS,
+  // review_request se deduplica por cita, y la cita más vieja que se mira
+  // terminó hace REVIEW_REQUEST_MAX_WINDOW_MS: su pedido es más nuevo que eso.
+  REVIEW_REQUEST_MAX_WINDOW_MS,
+);
+/** Tratamientos completados que pueden disparar followup o encuesta. */
+const COMPLETED_ITEMS_WINDOW_MS = Math.max(
+  TREATMENT_FOLLOWUP_MAX_WINDOW_MS,
+  NPS_SURVEY_MAX_WINDOW_MS,
+);
+
+/**
  * Candidatos de recall/reseña/saldo, ya filtrados por opt-in y por cooldown
  * (no repetir la misma sugerencia todos los días). Solo pacientes con
  * wa_opt_in=true y sin wa_opt_out_at — a diferencia de los recordatorios de
  * cita (transaccionales a una reserva que el paciente ya hizo), esto es
  * outreach proactivo y necesita consentimiento explícito.
+ *
+ * Auditoría de rendimiento (20-oct-2026): ninguna lectura depende de que
+ * PostgREST devuelva "todo". Antes había `.limit(2000)`/`.limit(3000)` (que
+ * en realidad volvían 1000, el `max_rows`) y consultas sin límite: con
+ * volumen real se perdían candidatos o, peor, cooldowns (se volvía a sugerir
+ * lo que ya se mandó). Ahora:
+ *  - última visita y cita futura por paciente: RPC `outreach_patient_visits`
+ *    (agregado en Postgres, una fila por paciente con WhatsApp habilitado);
+ *  - saldo: `fetchPatientBalances` (RPC `patient_balances`);
+ *  - citas para reseña, mensajes para cooldown y tratamientos completados:
+ *    acotados por fecha a la ventana que de verdad usa cada regla;
+ *  - todo lo que puede pasar de 1000 filas se lee de a páginas.
  */
-export const listPendingOutreach = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }): Promise<PendingOutreachItem[]> => {
-    const { supabase } = context;
-    const clinicId = data.clinicId;
-    const ahora = Date.now();
+export async function calcularOutreachPendiente(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  ahora: number,
+): Promise<PendingOutreachItem[]> {
+  const desdeISO = (ms: number) => new Date(ahora - ms).toISOString();
 
-    const [
-      { data: optedInPatients, error: patErr },
-      { data: finalizadas, error: apptErr },
-      { data: futuras, error: futErr },
-      { data: recentOutreach, error: msgErr },
-      balances,
-      { data: clinic, error: clinicErr },
-      { data: sentQuotes, error: quoteErr },
-      { data: completedItems, error: completedErr },
-      { data: branchRows, error: branchErr },
-    ] = await Promise.all([
+  const [
+    { filas: optedInPatients, error: patErr },
+    { filas: visitas, error: visitErr },
+    { filas: finalizadasRecientes, error: apptErr },
+    { filas: recentOutreach, error: msgErr },
+    balances,
+    { data: clinic, error: clinicErr },
+    { filas: sentQuotes, error: quoteErr },
+    { filas: completedItems, error: completedErr },
+    { data: branchRows, error: branchErr },
+  ] = await Promise.all([
+    leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("patients")
         .select("id, full_name, phone, birth_date, referral_code")
         .eq("clinic_id", clinicId)
         .eq("wa_opt_in", true)
-        .is("wa_opt_out_at", null),
+        .is("wa_opt_out_at", null)
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .rpc("outreach_patient_visits", { p_clinic_id: clinicId })
+        .order("patient_id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    // Solo las que pueden pedir reseña: terminadas dentro de la ventana.
+    leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("appointments")
         .select("id, patient_id, branch_id, treatment_label, ends_at")
         .eq("clinic_id", clinicId)
         .eq("status", "finalizada")
+        .gte("ends_at", desdeISO(REVIEW_REQUEST_MAX_WINDOW_MS))
         .order("ends_at", { ascending: false })
-        .limit(2000),
-      supabase
-        .from("appointments")
-        .select("patient_id")
-        .eq("clinic_id", clinicId)
-        .neq("status", "cancelada")
-        .gt("starts_at", new Date(ahora).toISOString()),
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("messages")
         .select("patient_id, appointment_id, quote_id, template_kind, created_at")
         .eq("clinic_id", clinicId)
         .in("template_kind", [...OUTREACH_TEMPLATE_KINDS])
+        .gte("created_at", desdeISO(OUTREACH_MESSAGES_WINDOW_MS))
         .order("created_at", { ascending: false })
-        .limit(3000),
-      // Auditoría de código 01-sep-2026: antes reimplementaba acá mismo el
-      // cálculo de saldo que también hace getPatient — ver el comentario de
-      // fetchPatientBalances (patients.functions.ts) sobre por qué se unificó.
-      fetchPatientBalances(supabase, clinicId),
-      supabase.from("clinics").select("currency").eq("id", clinicId).single(),
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    // Auditoría de código 01-sep-2026: antes reimplementaba acá mismo el
+    // cálculo de saldo que también hace getPatient — ver el comentario de
+    // fetchPatientBalances (patients.functions.ts) sobre por qué se unificó.
+    fetchPatientBalances(supabase, clinicId),
+    supabase.from("clinics").select("currency").eq("id", clinicId).single(),
+    leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("quotes")
         .select("id, patient_id, number, total_cents, currency, sent_at")
         .eq("clinic_id", clinicId)
         .eq("status", "sent")
-        .not("sent_at", "is", null),
+        .not("sent_at", "is", null)
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    // Solo el último completado por paciente importa, y solo si cae dentro de
+    // la ventana del followup o de la encuesta: si el último es más viejo, el
+    // paciente no es candidato, y con este filtro tampoco aparece.
+    leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("treatment_items")
-        .select("name_snapshot, completed_at, treatment_plans!inner(patient_id, clinic_id)")
+        .select("id, name_snapshot, completed_at, treatment_plans!inner(patient_id, clinic_id)")
         .eq("clinic_id", clinicId)
         .eq("status", "completed")
-        .not("completed_at", "is", null)
+        .gte("completed_at", desdeISO(COMPLETED_ITEMS_WINDOW_MS))
         .order("completed_at", { ascending: false })
-        .limit(2000),
-      supabase.from("branches").select("id, google_review_url").eq("clinic_id", clinicId),
-    ]);
-    if (patErr)
-      throw new Error(
-        mensajeDb(patErr, "No pudimos cargar los pacientes con WhatsApp habilitado."),
-      );
-    if (apptErr)
-      throw new Error(mensajeDb(apptErr, "No pudimos cargar el historial de citas finalizadas."));
-    if (futErr)
-      throw new Error(mensajeDb(futErr, "No pudimos revisar las citas futuras de los pacientes."));
-    if (msgErr)
-      throw new Error(
-        mensajeDb(msgErr, "No pudimos revisar los mensajes de seguimiento ya enviados."),
-      );
-    if (completedErr)
-      throw new Error(mensajeDb(completedErr, "No pudimos cargar los tratamientos completados."));
-    if (clinicErr)
-      throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
-    if (quoteErr)
-      throw new Error(mensajeDb(quoteErr, "No pudimos cargar los presupuestos enviados."));
-    if (branchErr)
-      throw new Error(mensajeDb(branchErr, "No pudimos cargar los datos de las sucursales."));
-
-    const patientById = new Map((optedInPatients ?? []).map((p) => [p.id, p]));
-    const patientsWithFuture = new Set((futuras ?? []).map((f) => f.patient_id));
-    const reviewUrlByBranch = new Map(
-      (branchRows ?? []).map((b) => [b.id, b.google_review_url as string | null]),
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    supabase.from("branches").select("id, google_review_url").eq("clinic_id", clinicId),
+  ]);
+  if (patErr)
+    throw new Error(mensajeDb(patErr, "No pudimos cargar los pacientes con WhatsApp habilitado."));
+  if (visitErr)
+    throw new Error(mensajeDb(visitErr, "No pudimos cargar el historial de citas finalizadas."));
+  if (apptErr)
+    throw new Error(mensajeDb(apptErr, "No pudimos cargar el historial de citas finalizadas."));
+  if (msgErr)
+    throw new Error(
+      mensajeDb(msgErr, "No pudimos revisar los mensajes de seguimiento ya enviados."),
     );
+  if (completedErr)
+    throw new Error(mensajeDb(completedErr, "No pudimos cargar los tratamientos completados."));
+  if (clinicErr)
+    throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
+  if (quoteErr)
+    throw new Error(mensajeDb(quoteErr, "No pudimos cargar los presupuestos enviados."));
+  if (branchErr)
+    throw new Error(mensajeDb(branchErr, "No pudimos cargar los datos de las sucursales."));
 
-    // Última visita finalizada por paciente (ya viene ordenado desc, nos quedamos con la primera ocurrencia).
-    const lastVisitByPatient = new Map<string, string>();
-    for (const a of finalizadas ?? []) {
-      if (!lastVisitByPatient.has(a.patient_id)) lastVisitByPatient.set(a.patient_id, a.ends_at);
+  const finalizadas = finalizadasRecientes;
+  // Última visita finalizada por paciente, de la más reciente a la más vieja
+  // (el orden en que se listaban antes los candidatos).
+  const lastVisitByPatient = new Map<string, string>(
+    [...visitas]
+      .sort((a, b) => b.last_visit_at.localeCompare(a.last_visit_at))
+      .map((v) => [v.patient_id, v.last_visit_at]),
+  );
+  const patientsWithFuture = new Set(visitas.filter((v) => v.has_future).map((v) => v.patient_id));
+  const patientById = new Map(optedInPatients.map((p) => [p.id, p]));
+  const reviewUrlByBranch = new Map(
+    (branchRows ?? []).map((b) => [b.id, b.google_review_url as string | null]),
+  );
+
+  // Cooldown: último hygiene_recall/payment_due/birthday_greeting/
+  // treatment_followup/referral_invite por paciente, último quote_follow_up
+  // por presupuesto, review_request por cita.
+  const lastHygieneRecallByPatient = new Map<string, string>();
+  const lastPaymentDueByPatient = new Map<string, string>();
+  const lastQuoteFollowUpByQuote = new Map<string, string>();
+  const lastBirthdayByPatient = new Map<string, string>();
+  const lastTreatmentFollowupByPatient = new Map<string, string>();
+  const lastReferralInviteByPatient = new Map<string, string>();
+  const lastNpsSurveyByPatient = new Map<string, string>();
+  const reviewRequestedAppointments = new Set<string>();
+  for (const m of recentOutreach ?? []) {
+    if (m.template_kind === "hygiene_recall" && !lastHygieneRecallByPatient.has(m.patient_id)) {
+      lastHygieneRecallByPatient.set(m.patient_id, m.created_at);
     }
-
-    // Cooldown: último hygiene_recall/payment_due/birthday_greeting/
-    // treatment_followup/referral_invite por paciente, último quote_follow_up
-    // por presupuesto, review_request por cita.
-    const lastHygieneRecallByPatient = new Map<string, string>();
-    const lastPaymentDueByPatient = new Map<string, string>();
-    const lastQuoteFollowUpByQuote = new Map<string, string>();
-    const lastBirthdayByPatient = new Map<string, string>();
-    const lastTreatmentFollowupByPatient = new Map<string, string>();
-    const lastReferralInviteByPatient = new Map<string, string>();
-    const lastNpsSurveyByPatient = new Map<string, string>();
-    const reviewRequestedAppointments = new Set<string>();
-    for (const m of recentOutreach ?? []) {
-      if (m.template_kind === "hygiene_recall" && !lastHygieneRecallByPatient.has(m.patient_id)) {
-        lastHygieneRecallByPatient.set(m.patient_id, m.created_at);
-      }
-      if (m.template_kind === "payment_due" && !lastPaymentDueByPatient.has(m.patient_id)) {
-        lastPaymentDueByPatient.set(m.patient_id, m.created_at);
-      }
-      if (
-        m.template_kind === "quote_follow_up" &&
-        m.quote_id &&
-        !lastQuoteFollowUpByQuote.has(m.quote_id)
-      ) {
-        lastQuoteFollowUpByQuote.set(m.quote_id, m.created_at);
-      }
-      if (m.template_kind === "birthday_greeting" && !lastBirthdayByPatient.has(m.patient_id)) {
-        lastBirthdayByPatient.set(m.patient_id, m.created_at);
-      }
-      if (
-        m.template_kind === "treatment_followup" &&
-        !lastTreatmentFollowupByPatient.has(m.patient_id)
-      ) {
-        lastTreatmentFollowupByPatient.set(m.patient_id, m.created_at);
-      }
-      if (m.template_kind === "referral_invite" && !lastReferralInviteByPatient.has(m.patient_id)) {
-        lastReferralInviteByPatient.set(m.patient_id, m.created_at);
-      }
-      if (m.template_kind === "nps_survey" && !lastNpsSurveyByPatient.has(m.patient_id)) {
-        lastNpsSurveyByPatient.set(m.patient_id, m.created_at);
-      }
-      if (m.template_kind === "review_request" && m.appointment_id) {
-        reviewRequestedAppointments.add(m.appointment_id);
-      }
+    if (m.template_kind === "payment_due" && !lastPaymentDueByPatient.has(m.patient_id)) {
+      lastPaymentDueByPatient.set(m.patient_id, m.created_at);
     }
+    if (
+      m.template_kind === "quote_follow_up" &&
+      m.quote_id &&
+      !lastQuoteFollowUpByQuote.has(m.quote_id)
+    ) {
+      lastQuoteFollowUpByQuote.set(m.quote_id, m.created_at);
+    }
+    if (m.template_kind === "birthday_greeting" && !lastBirthdayByPatient.has(m.patient_id)) {
+      lastBirthdayByPatient.set(m.patient_id, m.created_at);
+    }
+    if (
+      m.template_kind === "treatment_followup" &&
+      !lastTreatmentFollowupByPatient.has(m.patient_id)
+    ) {
+      lastTreatmentFollowupByPatient.set(m.patient_id, m.created_at);
+    }
+    if (m.template_kind === "referral_invite" && !lastReferralInviteByPatient.has(m.patient_id)) {
+      lastReferralInviteByPatient.set(m.patient_id, m.created_at);
+    }
+    if (m.template_kind === "nps_survey" && !lastNpsSurveyByPatient.has(m.patient_id)) {
+      lastNpsSurveyByPatient.set(m.patient_id, m.created_at);
+    }
+    if (m.template_kind === "review_request" && m.appointment_id) {
+      reviewRequestedAppointments.add(m.appointment_id);
+    }
+  }
 
-    const items: PendingOutreachItem[] = [];
+  const items: PendingOutreachItem[] = [];
 
-    // ── hygiene_recall ──
-    for (const [patientId, lastVisitIso] of lastVisitByPatient) {
-      const patient = patientById.get(patientId);
-      if (!patient) continue; // sin opt-in, o no existe
-      if (patientsWithFuture.has(patientId)) continue; // ya viene de vuelta
-      const sinceMs = ahora - new Date(lastVisitIso).getTime();
-      if (sinceMs < HYGIENE_RECALL_AFTER_MS) continue;
-      const lastSent = lastHygieneRecallByPatient.get(patientId);
-      if (lastSent && ahora - new Date(lastSent).getTime() < HYGIENE_RECALL_COOLDOWN_MS) continue;
-      items.push({
-        patientId,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "hygiene_recall",
-        monthsSinceLastVisit: Math.floor(sinceMs / (30 * 24 * 60 * 60 * 1000)),
+  // ── hygiene_recall ──
+  for (const [patientId, lastVisitIso] of lastVisitByPatient) {
+    const patient = patientById.get(patientId);
+    if (!patient) continue; // sin opt-in, o no existe
+    if (patientsWithFuture.has(patientId)) continue; // ya viene de vuelta
+    const sinceMs = ahora - new Date(lastVisitIso).getTime();
+    if (sinceMs < HYGIENE_RECALL_AFTER_MS) continue;
+    const lastSent = lastHygieneRecallByPatient.get(patientId);
+    if (lastSent && ahora - new Date(lastSent).getTime() < HYGIENE_RECALL_COOLDOWN_MS) continue;
+    items.push({
+      patientId,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "hygiene_recall",
+      monthsSinceLastVisit: Math.floor(sinceMs / (30 * 24 * 60 * 60 * 1000)),
+    });
+  }
+
+  // ── review_request ──
+  for (const a of finalizadas ?? []) {
+    const patient = patientById.get(a.patient_id);
+    if (!patient) continue;
+    const sinceMs = ahora - new Date(a.ends_at).getTime();
+    if (sinceMs < REVIEW_REQUEST_MIN_DELAY_MS || sinceMs > REVIEW_REQUEST_MAX_WINDOW_MS) continue;
+    if (reviewRequestedAppointments.has(a.id)) continue;
+    items.push({
+      patientId: a.patient_id,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "review_request",
+      appointmentId: a.id,
+      treatmentLabel: a.treatment_label || "Consulta",
+      googleReviewUrl: (a.branch_id && reviewUrlByBranch.get(a.branch_id)) || null,
+    });
+  }
+
+  // ── payment_due ──
+  const currency = clinic?.currency ?? "CLP";
+  for (const [patientId, { billedCents, paidCents }] of balances) {
+    const balanceCents = billedCents - paidCents;
+    if (balanceCents <= 0) continue;
+    const patient = patientById.get(patientId);
+    if (!patient) continue;
+    const lastSent = lastPaymentDueByPatient.get(patientId);
+    if (lastSent && ahora - new Date(lastSent).getTime() < PAYMENT_DUE_COOLDOWN_MS) continue;
+    items.push({
+      patientId,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "payment_due",
+      balanceCents,
+      currency,
+    });
+  }
+
+  // ── quote_follow_up ──
+  for (const q of sentQuotes ?? []) {
+    if (!q.sent_at) continue; // ya filtrado por la query, pero TS no lo sabe
+    const patient = patientById.get(q.patient_id);
+    if (!patient) continue;
+    const sinceMs = ahora - new Date(q.sent_at).getTime();
+    if (sinceMs < QUOTE_FOLLOW_UP_AFTER_MS) continue;
+    const lastSent = lastQuoteFollowUpByQuote.get(q.id);
+    if (lastSent && ahora - new Date(lastSent).getTime() < QUOTE_FOLLOW_UP_COOLDOWN_MS) continue;
+    items.push({
+      patientId: q.patient_id,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "quote_follow_up",
+      quoteId: q.id,
+      quoteNumber: q.number,
+      quoteTotalCents: q.total_cents,
+      currency: q.currency,
+    });
+  }
+
+  // ── birthday_greeting ── (marketing: solo pacientes opt-in, comparación
+  // por mes/día en UTC — no hace falta precisión de huso horario para esto).
+  const hoy = new Date(ahora);
+  const mesHoy = hoy.getUTCMonth();
+  const diaHoy = hoy.getUTCDate();
+  for (const patient of optedInPatients ?? []) {
+    if (!patient.birth_date) continue;
+    const nacimiento = new Date(patient.birth_date);
+    if (nacimiento.getUTCMonth() !== mesHoy || nacimiento.getUTCDate() !== diaHoy) continue;
+    const lastSent = lastBirthdayByPatient.get(patient.id);
+    if (lastSent && ahora - new Date(lastSent).getTime() < BIRTHDAY_COOLDOWN_MS) continue;
+    items.push({
+      patientId: patient.id,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "birthday_greeting",
+    });
+  }
+
+  // ── treatment_followup ── (utility: seguimiento genérico de una visita
+  // real, no instrucciones clínicas por tipo de procedimiento — eso lo
+  // debería redactar un dentista, no fabricarlo acá). Un candidato por
+  // paciente, el tratamiento completado más reciente (ya viene ordenado
+  // desc, nos quedamos con la primera ocurrencia).
+  const lastCompletedByPatient = new Map<string, { completedAt: string; label: string }>();
+  for (const item of completedItems ?? []) {
+    const patientId = (item as unknown as { treatment_plans: { patient_id: string } })
+      .treatment_plans.patient_id;
+    if (!lastCompletedByPatient.has(patientId)) {
+      lastCompletedByPatient.set(patientId, {
+        completedAt: (item as { completed_at: string }).completed_at,
+        label: item.name_snapshot,
       });
     }
-
-    // ── review_request ──
-    for (const a of finalizadas ?? []) {
-      const patient = patientById.get(a.patient_id);
-      if (!patient) continue;
-      const sinceMs = ahora - new Date(a.ends_at).getTime();
-      if (sinceMs < REVIEW_REQUEST_MIN_DELAY_MS || sinceMs > REVIEW_REQUEST_MAX_WINDOW_MS) continue;
-      if (reviewRequestedAppointments.has(a.id)) continue;
-      items.push({
-        patientId: a.patient_id,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "review_request",
-        appointmentId: a.id,
-        treatmentLabel: a.treatment_label || "Consulta",
-        googleReviewUrl: (a.branch_id && reviewUrlByBranch.get(a.branch_id)) || null,
-      });
+  }
+  for (const [patientId, { completedAt, label }] of lastCompletedByPatient) {
+    const patient = patientById.get(patientId);
+    if (!patient) continue;
+    const sinceMs = ahora - new Date(completedAt).getTime();
+    if (sinceMs < TREATMENT_FOLLOWUP_MIN_DELAY_MS || sinceMs > TREATMENT_FOLLOWUP_MAX_WINDOW_MS) {
+      continue;
     }
-
-    // ── payment_due ──
-    const currency = clinic?.currency ?? "CLP";
-    for (const [patientId, { billedCents, paidCents }] of balances) {
-      const balanceCents = billedCents - paidCents;
-      if (balanceCents <= 0) continue;
-      const patient = patientById.get(patientId);
-      if (!patient) continue;
-      const lastSent = lastPaymentDueByPatient.get(patientId);
-      if (lastSent && ahora - new Date(lastSent).getTime() < PAYMENT_DUE_COOLDOWN_MS) continue;
-      items.push({
-        patientId,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "payment_due",
-        balanceCents,
-        currency,
-      });
+    const lastSent = lastTreatmentFollowupByPatient.get(patientId);
+    if (lastSent && ahora - new Date(lastSent).getTime() < TREATMENT_FOLLOWUP_COOLDOWN_MS) {
+      continue;
     }
+    items.push({
+      patientId,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "treatment_followup",
+      treatmentLabel: label,
+    });
+  }
 
-    // ── quote_follow_up ──
-    for (const q of sentQuotes ?? []) {
-      if (!q.sent_at) continue; // ya filtrado por la query, pero TS no lo sabe
-      const patient = patientById.get(q.patient_id);
-      if (!patient) continue;
-      const sinceMs = ahora - new Date(q.sent_at).getTime();
-      if (sinceMs < QUOTE_FOLLOW_UP_AFTER_MS) continue;
-      const lastSent = lastQuoteFollowUpByQuote.get(q.id);
-      if (lastSent && ahora - new Date(lastSent).getTime() < QUOTE_FOLLOW_UP_COOLDOWN_MS) continue;
-      items.push({
-        patientId: q.patient_id,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "quote_follow_up",
-        quoteId: q.id,
-        quoteNumber: q.number,
-        quoteTotalCents: q.total_cents,
-        currency: q.currency,
-      });
-    }
+  // ── nps_survey ── (encuesta de satisfacción: misma fuente que el followup
+  // —último tratamiento completado— pero ventana un poco más tardía y
+  // cooldown largo. Pide una calificación; el paciente responde por el mismo
+  // canal y el staff la lee en el historial, sin captura estructurada todavía.)
+  for (const [patientId, { completedAt, label }] of lastCompletedByPatient) {
+    const patient = patientById.get(patientId);
+    if (!patient) continue;
+    const sinceMs = ahora - new Date(completedAt).getTime();
+    if (sinceMs < NPS_SURVEY_MIN_DELAY_MS || sinceMs > NPS_SURVEY_MAX_WINDOW_MS) continue;
+    const lastSent = lastNpsSurveyByPatient.get(patientId);
+    if (lastSent && ahora - new Date(lastSent).getTime() < NPS_SURVEY_COOLDOWN_MS) continue;
+    items.push({
+      patientId,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "nps_survey",
+      treatmentLabel: label,
+    });
+  }
 
-    // ── birthday_greeting ── (marketing: solo pacientes opt-in, comparación
-    // por mes/día en UTC — no hace falta precisión de huso horario para esto).
-    const hoy = new Date(ahora);
-    const mesHoy = hoy.getUTCMonth();
-    const diaHoy = hoy.getUTCDate();
-    for (const patient of optedInPatients ?? []) {
-      if (!patient.birth_date) continue;
-      const nacimiento = new Date(patient.birth_date);
-      if (nacimiento.getUTCMonth() !== mesHoy || nacimiento.getUTCDate() !== diaHoy) continue;
-      const lastSent = lastBirthdayByPatient.get(patient.id);
-      if (lastSent && ahora - new Date(lastSent).getTime() < BIRTHDAY_COOLDOWN_MS) continue;
-      items.push({
-        patientId: patient.id,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "birthday_greeting",
-      });
-    }
+  // ── referral_invite ── (marketing: solo a quien ya vivió la clínica al
+  // menos una vez — lastVisitByPatient ya filtra exactamente eso).
+  for (const [patientId] of lastVisitByPatient) {
+    const patient = patientById.get(patientId);
+    if (!patient || !patient.referral_code) continue;
+    const lastSent = lastReferralInviteByPatient.get(patientId);
+    if (lastSent && ahora - new Date(lastSent).getTime() < REFERRAL_INVITE_COOLDOWN_MS) continue;
+    items.push({
+      patientId,
+      patientName: patient.full_name,
+      patientPhone: patient.phone,
+      kind: "referral_invite",
+      referralCode: patient.referral_code,
+    });
+  }
 
-    // ── treatment_followup ── (utility: seguimiento genérico de una visita
-    // real, no instrucciones clínicas por tipo de procedimiento — eso lo
-    // debería redactar un dentista, no fabricarlo acá). Un candidato por
-    // paciente, el tratamiento completado más reciente (ya viene ordenado
-    // desc, nos quedamos con la primera ocurrencia).
-    const lastCompletedByPatient = new Map<string, { completedAt: string; label: string }>();
-    for (const item of completedItems ?? []) {
-      const patientId = (item as unknown as { treatment_plans: { patient_id: string } })
-        .treatment_plans.patient_id;
-      if (!lastCompletedByPatient.has(patientId)) {
-        lastCompletedByPatient.set(patientId, {
-          completedAt: (item as { completed_at: string }).completed_at,
-          label: item.name_snapshot,
-        });
-      }
-    }
-    for (const [patientId, { completedAt, label }] of lastCompletedByPatient) {
-      const patient = patientById.get(patientId);
-      if (!patient) continue;
-      const sinceMs = ahora - new Date(completedAt).getTime();
-      if (sinceMs < TREATMENT_FOLLOWUP_MIN_DELAY_MS || sinceMs > TREATMENT_FOLLOWUP_MAX_WINDOW_MS) {
-        continue;
-      }
-      const lastSent = lastTreatmentFollowupByPatient.get(patientId);
-      if (lastSent && ahora - new Date(lastSent).getTime() < TREATMENT_FOLLOWUP_COOLDOWN_MS) {
-        continue;
-      }
-      items.push({
-        patientId,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "treatment_followup",
-        treatmentLabel: label,
-      });
-    }
+  return items;
+}
 
-    // ── nps_survey ── (encuesta de satisfacción: misma fuente que el followup
-    // —último tratamiento completado— pero ventana un poco más tardía y
-    // cooldown largo. Pide una calificación; el paciente responde por el mismo
-    // canal y el staff la lee en el historial, sin captura estructurada todavía.)
-    for (const [patientId, { completedAt, label }] of lastCompletedByPatient) {
-      const patient = patientById.get(patientId);
-      if (!patient) continue;
-      const sinceMs = ahora - new Date(completedAt).getTime();
-      if (sinceMs < NPS_SURVEY_MIN_DELAY_MS || sinceMs > NPS_SURVEY_MAX_WINDOW_MS) continue;
-      const lastSent = lastNpsSurveyByPatient.get(patientId);
-      if (lastSent && ahora - new Date(lastSent).getTime() < NPS_SURVEY_COOLDOWN_MS) continue;
-      items.push({
-        patientId,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "nps_survey",
-        treatmentLabel: label,
-      });
-    }
+export const listPendingOutreach = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<PendingOutreachItem[]> =>
+    calcularOutreachPendiente(context.supabase, data.clinicId, Date.now()),
+  );
 
-    // ── referral_invite ── (marketing: solo a quien ya vivió la clínica al
-    // menos una vez — lastVisitByPatient ya filtra exactamente eso).
-    for (const [patientId] of lastVisitByPatient) {
-      const patient = patientById.get(patientId);
-      if (!patient || !patient.referral_code) continue;
-      const lastSent = lastReferralInviteByPatient.get(patientId);
-      if (lastSent && ahora - new Date(lastSent).getTime() < REFERRAL_INVITE_COOLDOWN_MS) continue;
-      items.push({
-        patientId,
-        patientName: patient.full_name,
-        patientPhone: patient.phone,
-        kind: "referral_invite",
-        referralCode: patient.referral_code,
-      });
-    }
-
-    return items;
+/**
+ * Solo la cuenta, para el badge del menú y el tablero: misma regla que
+ * `listPendingOutreach` (no puede divergir: es la misma función) pero sin
+ * mandar la lista entera al navegador de cada pestaña abierta.
+ */
+export const countPendingOutreach = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<{ total: number }> => {
+    const items = await calcularOutreachPendiente(context.supabase, data.clinicId, Date.now());
+    return { total: items.length };
   });
 
 /** Prende/apaga el opt-in de WhatsApp del paciente. Lo apaga siempre puede cualquier operador; prenderlo requiere haberlo hablado con el paciente. */
