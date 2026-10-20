@@ -1,0 +1,2837 @@
+/*
+ * Landing A+ (/v2). Estilos propios de la landing, fuera de styles.css: todo
+ * cuelga de `.lv2` para no filtrarse a la app ni al resto del sitio.
+ *
+ * Tipografía: solo las variables del sistema (--font-heading, --font-body,
+ * --font-data/--font-mono), así el cambio a Instrument Sans + Geist Mono
+ * (PR aparte) llega solo.
+ *
+ * Movimiento: lo continuo (marquees, punto en vivo, guía de scroll) corre
+ * solo con `data-mov="on"`, que el cliente pone después de hidratar si no
+ * hay prefers-reduced-motion ni "Pausar movimiento". El HTML del servidor
+ * llega con `data-mov="off"`: todo se ve en su estado final.
+ */
+
+.lv2 {
+  /* Tokens propios de la landing (los compartidos salen de styles.css). */
+  --lv-paper-2: #eae6df;
+  --lv-ink-2: var(--muted-foreground);
+  --lv-ink-3: #66615b;
+  --lv-line: color-mix(in srgb, var(--foreground) 13%, transparent);
+  --lv-line-2: color-mix(in srgb, var(--foreground) 24%, transparent);
+  --lv-ocre-display: var(--brand-600);
+  --lv-ocre-ink: var(--brand-700);
+  --lv-ok-night: #9fcb98;
+  --lv-warn-night: #f0a868;
+  --lv-bad-night: #f09482;
+  --lv-patty-night: #c8b4ec;
+  /* Convención clínica del odontograma (COLORES_SIMBOLOGIA en
+     lib/clinical/odontograma-reglas.ts): azul = existente, rojo = por
+     realizar. Nunca cobalto. Sobre tinta, los mismos tonos aclarados. */
+  --lv-clin-ex: #1f5fbf;
+  --lv-clin-pl: #c62828;
+  --lv-clin-ex-n: #86adeb;
+  --lv-clin-pl-n: #ef8a84;
+  --lv-serif: var(--font-heading);
+  --lv-sans: var(--font-body);
+  --lv-mono: var(--font-data, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace));
+  --lv-r-l: var(--radius-panel, 14px);
+
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: clip;
+}
+
+.lv2 .lv-serif {
+  font-family: var(--lv-serif);
+  font-variant-numeric: lining-nums;
+}
+.lv2 .lv-mono {
+  font-family: var(--lv-mono);
+  font-variant-numeric: lining-nums tabular-nums;
+  letter-spacing: -0.01em;
+}
+.lv2 h1,
+.lv2 h2,
+.lv2 h3 {
+  font-weight: 500;
+  letter-spacing: normal;
+}
+.lv2 p {
+  text-wrap: pretty;
+}
+.lv2 .lv-on-night :focus-visible,
+.lv2 .lv-on-night:focus-visible {
+  outline-color: var(--brand-on-night);
+}
+
+.lv-wrap {
+  width: min(1320px, 100% - 48px);
+  margin-inline: auto;
+}
+@media (max-width: 720px) {
+  .lv-wrap {
+    width: calc(100% - 32px);
+  }
+}
+
+.lv-on-night {
+  background: var(--night);
+  color: var(--on-night);
+}
+
+.lv-h-sec {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(40px, 5.4vw, 80px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.lv-h-sec em {
+  font-style: italic;
+  color: var(--lv-ocre-display);
+}
+.lv-on-night .lv-h-sec em {
+  color: var(--brand-on-night);
+}
+.lv-h-sec.lv-h-sm {
+  font-size: clamp(34px, 4vw, 56px);
+}
+.lv-lead {
+  font-size: clamp(16px, 1.25vw, 18.5px);
+  line-height: 1.55;
+  color: var(--lv-ink-2);
+  max-width: 56ch;
+}
+.lv-on-night .lv-lead {
+  color: var(--on-night-2);
+}
+.lv-sec-head {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 32px;
+  align-items: end;
+  margin-bottom: clamp(36px, 5vw, 64px);
+}
+@media (max-width: 820px) {
+  .lv-sec-head {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-demo-note {
+  font: 500 12px/1.4 var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+.lv-on-night .lv-demo-note {
+  color: var(--on-night-2);
+}
+
+/* ── Botones ─────────────────────────────────────────────── */
+.lv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: 600 15px/1 var(--lv-sans);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    transform 0.25s var(--ease-out),
+    background-color 0.2s,
+    border-color 0.2s,
+    color 0.2s;
+  white-space: nowrap;
+}
+.lv-btn:active {
+  transform: scale(0.97);
+}
+.lv-btn-ocre {
+  background: var(--brand);
+  color: var(--night);
+}
+.lv-btn-ocre:hover {
+  background: var(--brand-500);
+}
+.lv-btn-ink {
+  background: var(--foreground);
+  color: var(--background);
+}
+.lv-btn-ink:hover {
+  background: var(--brand-700);
+  color: var(--background);
+}
+.lv-btn-line {
+  border-color: var(--lv-line-2);
+  color: var(--foreground);
+  background: transparent;
+}
+.lv-btn-line:hover {
+  border-color: var(--foreground);
+}
+.lv-on-night .lv-btn-line {
+  color: var(--on-night);
+  border-color: color-mix(in srgb, var(--on-night) 40%, transparent);
+}
+.lv-on-night .lv-btn-line:hover {
+  border-color: var(--on-night);
+}
+.lv-btn-sm {
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13.5px;
+}
+.lv-btn .lv-arrow {
+  transition: transform 0.3s var(--ease-out);
+}
+.lv-btn:hover .lv-arrow {
+  transform: translateX(3px);
+}
+
+.lv-chip {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--lv-line-2);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: 500 12.5px var(--lv-sans);
+}
+.lv-chip:hover {
+  border-color: var(--foreground);
+}
+.lv-chip svg {
+  width: 14px;
+  height: 14px;
+}
+.lv-on-night .lv-chip {
+  border-color: var(--night-line);
+  color: var(--on-night);
+}
+.lv-on-night .lv-chip:hover {
+  border-color: var(--brand-on-night);
+}
+
+/* Estados de cita: forma + ícono + texto, nunca solo color. */
+.lv-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font: 600 11.5px/1 var(--lv-sans);
+  white-space: nowrap;
+  border: 1px solid currentColor;
+}
+.lv-st svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+}
+.lv-st-ok {
+  color: var(--success);
+  background: var(--success-soft);
+}
+.lv-st-patty {
+  color: var(--ai);
+  background: var(--ai-soft);
+}
+
+/* ── Encabezado ──────────────────────────────────────────── */
+.lv-site {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 18px 0;
+}
+.lv-site nav {
+  display: flex;
+  gap: 24px;
+  font: 500 15px var(--lv-sans);
+}
+.lv-site nav a {
+  text-decoration: none;
+  color: var(--lv-ink-2);
+}
+.lv-site nav a:hover {
+  color: var(--foreground);
+}
+.lv-site .lv-sp {
+  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.lv-site .lv-ingresar {
+  font: 500 15px var(--lv-sans);
+  text-decoration: none;
+  color: var(--lv-ink-2);
+  padding: 8px;
+}
+.lv-site .lv-ingresar:hover {
+  color: var(--foreground);
+}
+@media (max-width: 1080px) {
+  .lv-site nav {
+    display: none;
+  }
+}
+@media (max-width: 560px) {
+  .lv-site {
+    gap: 12px;
+  }
+  .lv-site .lv-ingresar {
+    display: none;
+  }
+  .lv-site .lv-chip .lv-chip-l {
+    display: none;
+  }
+}
+
+/* ── Hero: tarjeta "Hoy" que se expande con el scroll ────── */
+.lv-hero-track {
+  position: relative;
+}
+.lv-hero-stage {
+  position: relative;
+  min-height: min(100svh, 940px);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 12px 0 28px;
+}
+.lv-hero-stage.is-sticky {
+  position: sticky;
+  top: 0;
+  height: min(100svh, 940px);
+}
+.lv-hero-head {
+  align-self: center;
+  width: min(1320px, 100% - 48px);
+  margin-inline: auto;
+}
+.lv-kicker {
+  display: block;
+  margin-bottom: 18px;
+  text-align: center;
+  font: 600 12px/1.3 var(--lv-sans);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lv-ocre-ink);
+}
+.lv-hero-rowwrap {
+  position: relative;
+}
+.lv-hero-row {
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 380px) 1fr;
+  align-items: center;
+  gap: 36px;
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(46px, 6.6vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
+}
+.lv-hh {
+  display: flex;
+  flex-direction: column;
+}
+.lv-hh-l {
+  align-items: flex-end;
+  text-align: right;
+}
+.lv-hh-r {
+  align-items: flex-start;
+  color: var(--lv-ocre-display);
+  font-style: italic;
+}
+.lv-ln {
+  display: block;
+  overflow: clip;
+  padding-bottom: 0.08em;
+}
+.lv-ln > span {
+  display: inline-block;
+}
+/* Entrada del titular: solo CSS, arranca en la primera pintura (sin
+   esperar al JS) y desde un estado ya casi visible. */
+@media (prefers-reduced-motion: no-preference) {
+  .lv-ln > span {
+    animation: lv-rise 0.9s var(--ease-out) both;
+  }
+  .lv-hh-l .lv-ln:nth-child(2) > span {
+    animation-delay: 0.06s;
+  }
+  .lv-hh-r .lv-ln:nth-child(1) > span {
+    animation-delay: 0.16s;
+  }
+  .lv-hh-r .lv-ln:nth-child(2) > span {
+    animation-delay: 0.22s;
+  }
+}
+@keyframes lv-rise {
+  from {
+    transform: translateY(45%);
+  }
+  to {
+    transform: none;
+  }
+}
+.lv-hero-slot {
+  display: block;
+  height: 300px;
+}
+.lv-hero-over {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 300px;
+  display: grid;
+  grid-template-columns: 1fr minmax(300px, 380px) 1fr;
+  gap: 36px;
+  pointer-events: none;
+  z-index: 4;
+}
+.lv-hoy {
+  grid-column: 2;
+  position: relative;
+  pointer-events: auto;
+  background: var(--night);
+  color: var(--on-night);
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1px var(--night-line);
+  padding: 22px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  transform-origin: center;
+}
+.lv-hoy .lv-t {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font: 500 12.5px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-hoy .lv-t b {
+  color: var(--brand-on-night);
+  font-weight: 600;
+}
+.lv-hoy .lv-big {
+  font-family: var(--lv-serif);
+  font-variant-numeric: lining-nums;
+  font-size: 58px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  margin-top: 14px;
+}
+.lv-hoy .lv-big em {
+  font-size: 0.5em;
+  color: var(--on-night-2);
+  font-style: italic;
+  margin-left: 6px;
+}
+.lv-hoy .lv-gap {
+  margin-top: 6px;
+  font: 500 14px var(--lv-sans);
+  color: var(--brand-on-night);
+}
+.lv-occ {
+  display: flex;
+  gap: 3px;
+  margin-top: 16px;
+  height: 8px;
+}
+.lv-occ i {
+  flex: 1;
+  border-radius: 2px;
+  background: var(--cobalt-on-night);
+}
+.lv-occ i.h {
+  background: repeating-linear-gradient(135deg, var(--brand-on-night) 0 2px, transparent 2px 5px);
+  outline: 1px solid var(--brand-on-night);
+  outline-offset: -1px;
+}
+.lv-occ i.l {
+  background: var(--night-3);
+}
+.lv-hoy .lv-next {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--night-line);
+  font: 500 13px var(--lv-sans);
+}
+.lv-hoy .lv-next .lv-mono {
+  color: var(--brand-on-night);
+}
+.lv-openday {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 0;
+  color: var(--on-night);
+  font: 600 13px var(--lv-sans);
+  cursor: pointer;
+  min-height: 32px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--brand-on-night);
+}
+.lv-hoy .lv-openday:focus-visible {
+  outline-color: var(--brand-on-night);
+}
+
+.lv-hero-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  width: min(1320px, 100% - 48px);
+  margin-inline: auto;
+  position: relative;
+  z-index: 1;
+}
+.lv-hero-foot .lv-lead {
+  max-width: 48ch;
+}
+.lv-ctas {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+  flex-wrap: wrap;
+}
+.lv-fine {
+  margin-top: 12px;
+  font: 500 13px var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+.lv-cue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font: 500 13px var(--lv-sans);
+  color: var(--lv-ink-2);
+}
+.lv-cue i {
+  display: block;
+  width: 1px;
+  height: 44px;
+  background: linear-gradient(var(--foreground) 0 50%, var(--lv-line) 50% 100%);
+  background-size: 1px 200%;
+}
+.lv2[data-mov="on"] .lv-cue i {
+  animation: lv-cue 2.4s var(--ease-io) infinite;
+}
+@keyframes lv-cue {
+  from {
+    background-position: 0 100%;
+  }
+  to {
+    background-position: 0 -100%;
+  }
+}
+
+/* La ventana en tinta que crece desde la tarjeta. Sin JS no se ve
+   (clip-path vacío): la tarjeta "Hoy" de arriba es el estado del SSR. */
+.lv-hero-win {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  clip-path: inset(50% 50% 50% 50%);
+  z-index: 3;
+}
+.lv-hero-win .lv-win-bg {
+  position: absolute;
+  inset: 0;
+  background: var(--night);
+  box-shadow: inset 0 0 0 1px var(--night-line);
+}
+.lv-dia {
+  position: absolute;
+  inset: 20px;
+  padding: clamp(18px, 2.6vw, 40px);
+  color: var(--on-night);
+  opacity: 0;
+  visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  z-index: 5;
+}
+.lv-dia.vis {
+  visibility: visible;
+  pointer-events: auto;
+}
+.lv-dia-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.lv-dia-top h2 {
+  font-family: var(--lv-serif);
+  font-size: clamp(30px, 3.6vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.lv-dia-top h2 em {
+  color: var(--brand-on-night);
+}
+.lv-dia-top .lv-sub {
+  font: 500 13px var(--lv-sans);
+  color: var(--on-night-2);
+  margin-top: 8px;
+}
+.lv-kpis {
+  display: flex;
+  gap: clamp(18px, 3vw, 44px);
+  margin: 0;
+}
+.lv-kpis div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 4px;
+}
+.lv-kpis dd {
+  margin: 0;
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.lv-kpis dt {
+  font: 500 12px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-kpis .acc dd {
+  color: var(--brand-on-night);
+}
+
+/* Línea de tiempo por sillón (hero y, más abajo, la reserva). */
+.lv-tl-wrap {
+  overflow-x: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+  scrollbar-color: var(--night-3) transparent;
+}
+.lv-tl {
+  min-width: 820px;
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  row-gap: 10px;
+  position: relative;
+}
+.lv-tl-hours {
+  grid-column: 2;
+  display: grid;
+  font: 400 11px var(--lv-mono);
+  color: var(--on-night-2);
+}
+.lv-tl-hours span {
+  border-left: 1px solid var(--night-line);
+  padding-left: 5px;
+}
+.lv-tl-who {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font: 600 13px var(--lv-sans);
+}
+.lv-tl-who small {
+  font: 500 11.5px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-tl-row {
+  position: relative;
+  height: clamp(64px, 10.5vh, 108px);
+  border-radius: 6px;
+}
+.lv-lunch {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(135deg, rgb(241 236 228 / 0.06) 0 1px, transparent 1px 7px);
+}
+.lv-ap {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 5px;
+  padding: 7px 9px;
+  font: 600 12px/1.25 var(--lv-sans);
+  overflow: hidden;
+  background: var(--night-3);
+  border: 1px solid var(--night-line);
+  color: var(--on-night);
+  transform-origin: left center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lv-ap > span:first-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lv-ap small {
+  font: 500 11px var(--lv-sans);
+  color: var(--on-night-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lv-ap.done {
+  background: transparent;
+  color: var(--on-night-2);
+}
+.lv-ap.chair {
+  background: var(--brand-on-night);
+  color: var(--night);
+  border-color: transparent;
+}
+.lv-ap.chair small {
+  color: var(--brand-900);
+}
+.lv-ap.pend {
+  border-style: dashed;
+  border-color: var(--lv-warn-night);
+}
+.lv-ap.miss {
+  background: transparent;
+  text-decoration: line-through;
+  color: var(--lv-bad-night);
+  border-color: var(--lv-bad-night);
+}
+.lv-ap.miss small {
+  color: var(--lv-bad-night);
+}
+.lv-ap.gap {
+  background: repeating-linear-gradient(135deg, rgb(225 173 102 / 0.18) 0 2px, transparent 2px 7px);
+  border: 1px solid var(--brand-on-night);
+  color: var(--brand-on-night);
+}
+.lv-ap.gap small {
+  color: var(--brand-on-night);
+}
+.lv-ap.gap button {
+  margin-top: auto;
+  align-self: flex-start;
+  background: var(--brand-on-night);
+  color: var(--night);
+  border: 0;
+  border-radius: 999px;
+  font: 600 11px var(--lv-sans);
+  padding: 3px 8px;
+  cursor: pointer;
+}
+.lv-ap.gap.filled {
+  background: var(--night-3);
+  border-color: var(--night-line);
+  color: var(--on-night);
+}
+.lv2[data-mov="on"] .lv-dia.open .lv-ap {
+  animation: lv-grow 0.9s var(--ease-out) both;
+  animation-delay: calc(var(--i) * 35ms);
+}
+@keyframes lv-grow {
+  from {
+    clip-path: inset(0 70% 0 0 round 5px);
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 5px);
+  }
+}
+.lv-now {
+  position: absolute;
+  top: -22px;
+  bottom: 0;
+  width: 2px;
+  background: var(--cobalt-on-night);
+  z-index: 2;
+  pointer-events: none;
+}
+.lv-now span {
+  position: absolute;
+  bottom: -18px;
+  left: -14px;
+  font: 500 11px var(--lv-mono);
+  color: var(--cobalt-on-night);
+}
+.lv-dia-bot {
+  display: flex;
+  gap: 14px 28px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--night-line);
+  font: 500 13.5px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-dia-bot b {
+  color: var(--on-night);
+}
+.lv-dia-bot .lv-patty-mini {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  color: var(--lv-patty-night);
+}
+.lv-dia-bot .lv-demo {
+  margin-left: auto;
+  font-size: 12px;
+}
+.lv-close-day {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: var(--night-3);
+  color: var(--on-night);
+  border: 1px solid var(--night-line);
+  border-radius: 999px;
+  min-height: 32px;
+  padding: 0 12px;
+  font: 600 12px var(--lv-sans);
+  cursor: pointer;
+  display: none;
+  z-index: 6;
+}
+.lv-hero-stage.forced .lv-close-day {
+  display: block;
+}
+
+@media (max-width: 820px) {
+  .lv-hero-stage {
+    padding-top: 4px;
+  }
+  .lv-kicker {
+    text-align: left;
+  }
+  .lv-hero-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    font-size: clamp(44px, 13vw, 64px);
+  }
+  .lv-hh-l {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .lv-hh-r {
+    align-items: flex-end;
+    text-align: right;
+  }
+  .lv-hero-slot {
+    height: 236px;
+    order: 3;
+  }
+  .lv-hero-over {
+    height: 236px;
+    grid-template-columns: 1fr;
+  }
+  .lv-hoy {
+    grid-column: 1;
+    padding: 18px;
+  }
+  .lv-hoy .lv-big {
+    font-size: 46px;
+  }
+  .lv-hero-foot {
+    flex-direction: column;
+    align-items: flex-start;
+    margin-top: 22px;
+  }
+  .lv-cue {
+    display: none;
+  }
+  .lv-dia {
+    inset: 10px;
+  }
+}
+
+/* ── Banda ocre con marquee ──────────────────────────────── */
+.lv-band {
+  background: var(--brand);
+  color: var(--night);
+  overflow: hidden;
+  border-block: 1px solid rgb(21 18 15 / 0.2);
+}
+.lv-marq {
+  display: flex;
+  width: max-content;
+}
+.lv-marq span {
+  font-family: var(--lv-serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(34px, 4.4vw, 64px);
+  line-height: 1.25;
+  padding: 10px 0;
+  white-space: nowrap;
+}
+.lv-marq span::after {
+  content: "";
+  display: inline-block;
+  width: 0.32em;
+  height: 0.32em;
+  margin: 0 0.55em;
+  vertical-align: 0.18em;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+/* ── Cifras en carrusel ──────────────────────────────────── */
+.lv-nums {
+  padding: clamp(80px, 10vw, 140px) 0 clamp(60px, 8vw, 110px);
+}
+.lv-rail {
+  --rp: max(24px, calc((100% - 1320px) / 2));
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding: 4px var(--rp) 20px;
+  scroll-padding-inline: var(--rp);
+  scrollbar-width: none;
+  margin: 0;
+  list-style: none;
+}
+.lv-rail::-webkit-scrollbar {
+  display: none;
+}
+.lv-rail.is-grab {
+  cursor: grab;
+}
+@media (max-width: 720px) {
+  .lv-rail {
+    --rp: 16px;
+  }
+}
+.lv-stat {
+  flex: 0 0 clamp(260px, 26vw, 350px);
+  aspect-ratio: 4 / 5;
+  border-radius: var(--lv-r-l);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  scroll-snap-align: start;
+  position: relative;
+  overflow: hidden;
+}
+.lv-stat .n {
+  font-family: var(--lv-serif);
+  font-variant-numeric: lining-nums;
+  font-weight: 500;
+  font-size: clamp(104px, 10vw, 156px);
+  line-height: 0.82;
+  letter-spacing: -0.04em;
+}
+.lv-stat .n small {
+  font-size: 0.32em;
+  letter-spacing: -0.01em;
+  font-style: italic;
+  margin-left: 0.08em;
+}
+.lv-stat .tx {
+  margin-top: auto;
+  font: 500 17px/1.35 var(--lv-sans);
+  max-width: 24ch;
+}
+.lv-stat .src {
+  margin-top: 14px;
+  font: 500 12px var(--lv-mono);
+}
+.lv-s-ocre {
+  background: var(--brand);
+  color: var(--night);
+}
+.lv-s-cob {
+  background: var(--cobalt);
+  color: #ffffff;
+}
+.lv-s-pet {
+  background: var(--petrol);
+  color: var(--petrol-foreground);
+}
+.lv-s-ink {
+  background: var(--night);
+  color: var(--on-night);
+}
+.lv-s-ocre2 {
+  background: var(--brand-on-night);
+  color: var(--night);
+}
+.lv-s-paper {
+  background: var(--lv-paper-2);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--lv-line);
+}
+.lv-rail-ctl {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  margin-top: 8px;
+}
+.lv-rail-ctl .lv-arrows {
+  display: flex;
+  gap: 10px;
+}
+.lv-rbtn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--lv-line-2);
+  background: transparent;
+  color: var(--foreground);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    transform 0.3s var(--ease-out);
+}
+.lv-rbtn:hover {
+  background: var(--foreground);
+  color: var(--background);
+}
+.lv-rbtn:active {
+  transform: scale(0.94);
+}
+.lv-rbtn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+}
+.lv-prog {
+  flex: 1;
+  max-width: 340px;
+  height: 2px;
+  background: var(--lv-line);
+  position: relative;
+}
+.lv-prog i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 30%;
+  background: var(--foreground);
+}
+
+/* ── Timeline de los 14 días ─────────────────────────────── */
+.lv-how {
+  padding: clamp(80px, 10vw, 140px) 0;
+}
+.lv-tlh {
+  margin-top: clamp(36px, 5vw, 64px);
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) 1fr;
+  column-gap: 28px;
+  list-style: none;
+  padding: 0;
+}
+.lv-tlh-days {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  font: 500 11px var(--lv-mono);
+  color: var(--on-night-2);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--night-line);
+}
+.lv-tlh-days span {
+  padding-left: 4px;
+  border-left: 1px solid var(--night-line);
+  white-space: nowrap;
+}
+.lv-tlh-item {
+  display: contents;
+}
+.lv-tlh-lbl {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--night-line);
+  font: 500 15px/1.35 var(--lv-sans);
+}
+.lv-tlh-lbl small {
+  display: block;
+  color: var(--on-night-2);
+  font-size: 13px;
+  margin-top: 2px;
+}
+.lv-tlh-trk {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(14, 1fr);
+  align-items: center;
+  border-bottom: 1px solid var(--night-line);
+  background: repeating-linear-gradient(
+    90deg,
+    var(--night-line) 0 1px,
+    transparent 1px calc(100% / 14)
+  );
+}
+.lv-bar {
+  height: 12px;
+  border-radius: 6px;
+  background: var(--night-3);
+  border: 1px solid color-mix(in srgb, var(--on-night) 30%, transparent);
+}
+.lv-bar.oc {
+  background: var(--brand-on-night);
+  border-color: transparent;
+}
+.lv-bar.cb {
+  background: var(--cobalt-on-night);
+  border-color: transparent;
+}
+.lv-dm {
+  width: 12px;
+  height: 12px;
+  background: var(--on-night);
+  transform: rotate(45deg);
+  justify-self: center;
+}
+.lv-dm.oc {
+  background: var(--brand-on-night);
+  width: 18px;
+  height: 18px;
+}
+.lv-dm.sm {
+  width: 7px;
+  height: 7px;
+  background: var(--lv-ok-night);
+}
+@media (max-width: 820px) {
+  .lv-tlh {
+    grid-template-columns: 1fr;
+  }
+  .lv-tlh-days {
+    grid-column: 1;
+  }
+  .lv-tlh-lbl {
+    border-bottom: 0;
+    padding: 16px 0 8px;
+  }
+  .lv-tlh-trk {
+    height: 34px;
+  }
+}
+
+/* ── Precios ─────────────────────────────────────────────── */
+.lv-price {
+  padding: clamp(80px, 10vw, 140px) 0;
+}
+.lv-p-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 16px;
+}
+@media (max-width: 820px) {
+  .lv-p-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-plan {
+  border-radius: var(--lv-r-l);
+  padding: clamp(24px, 3vw, 40px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  border: 1px solid var(--lv-line-2);
+  background: var(--card);
+}
+.lv-plan.night {
+  background: var(--night);
+  color: var(--on-night);
+  border-color: var(--night);
+}
+.lv-plan .nm {
+  font-family: var(--lv-serif);
+  font-size: 34px;
+  line-height: 1;
+}
+.lv-plan .who {
+  color: var(--lv-ink-2);
+  font-size: 15px;
+}
+.lv-plan.night .who {
+  color: var(--on-night-2);
+}
+.lv-plan .pros {
+  font: 600 15px var(--lv-sans);
+}
+.lv-plan .pr {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+}
+.lv-plan .pr b {
+  font-family: var(--lv-serif);
+  font-variant-numeric: lining-nums;
+  font-weight: 500;
+  font-size: clamp(80px, 8vw, 124px);
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+}
+.lv-plan.night .pr b {
+  color: var(--brand-on-night);
+}
+.lv-plan .pr span {
+  font: 500 14px var(--lv-mono);
+  color: var(--lv-ink-2);
+}
+.lv-plan.night .pr span {
+  color: var(--on-night-2);
+}
+.lv-plan .lv-btn {
+  align-self: flex-start;
+  margin-top: auto;
+}
+.lv-p-incl {
+  margin-top: 16px;
+  border-radius: var(--lv-r-l);
+  border: 1px solid var(--lv-line-2);
+  padding: clamp(22px, 2.6vw, 32px);
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 2fr);
+  gap: 18px 32px;
+}
+@media (max-width: 820px) {
+  .lv-p-incl {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-p-incl h3 {
+  font-family: var(--lv-serif);
+  font-size: 28px;
+  line-height: 1.05;
+}
+.lv-p-incl h3 em {
+  color: var(--lv-ocre-display);
+}
+.lv-p-incl ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px 24px;
+  font-size: 15px;
+}
+.lv-p-incl li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.lv-p-incl li svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 4px;
+  stroke: var(--lv-ocre-ink);
+  fill: none;
+  stroke-width: 2;
+}
+.lv-p-note {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px 28px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--lv-line-2);
+  align-items: baseline;
+}
+.lv-p-note h3 {
+  font-family: var(--lv-serif);
+  font-size: 26px;
+  font-style: italic;
+}
+.lv-p-note p {
+  color: var(--lv-ink-2);
+  max-width: 72ch;
+}
+@media (max-width: 820px) {
+  .lv-p-note {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── CTA final ───────────────────────────────────────────── */
+.lv-end {
+  padding: clamp(70px, 9vw, 120px) 0 0;
+  overflow: hidden;
+}
+.lv-end-in {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 32px;
+  align-items: end;
+}
+@media (max-width: 820px) {
+  .lv-end-in {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-big-marq {
+  margin-top: clamp(50px, 7vw, 90px);
+  border-top: 1px solid var(--night-line);
+}
+.lv-big-marq .lv-marq span {
+  font-size: clamp(70px, 11vw, 170px);
+  line-height: 1.1;
+  color: var(--on-night);
+  padding: 6px 0 18px;
+}
+.lv-big-marq .lv-marq span::after {
+  background: var(--brand-on-night);
+}
+.lv-big-marq .lv-marq span:nth-child(even) {
+  color: var(--brand-on-night);
+}
+
+/* ── Secciones reutilizadas de la portada actual ─────────── */
+.lv-calc {
+  padding: clamp(40px, 6vw, 80px) 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lv2 *,
+  .lv2 *::before,
+  .lv2 *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Así reserva tu paciente (PR 6) ──────────────────────── */
+.lv-book {
+  padding: clamp(80px, 9vw, 130px) 0 clamp(70px, 8vw, 110px);
+}
+.lv-bk-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  gap: 18px;
+  align-items: stretch;
+}
+@media (max-width: 1020px) {
+  .lv-bk-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-bk-w {
+  background: var(--card);
+  border: 1px solid var(--lv-line-2);
+  border-radius: var(--lv-r-l);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 24px 50px -34px rgb(21 18 15 / 0.45);
+}
+.lv-bk-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.lv-bk-cl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font: 600 15px var(--lv-sans);
+}
+.lv-bk-tag {
+  font: 500 11.5px var(--lv-mono);
+  color: var(--lv-ink-2);
+  border: 1px solid var(--lv-line-2);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.lv-bk-w fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.lv-bk-w legend {
+  font: 600 12.5px var(--lv-sans);
+  color: var(--lv-ink-3);
+  margin-bottom: 8px;
+  padding: 0;
+}
+.lv-bk-opts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lv-bk-opts label {
+  position: relative;
+  cursor: pointer;
+}
+.lv-bk-opts input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+  margin: 0;
+}
+.lv-bk-opts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--lv-line-2);
+  font: 600 14px var(--lv-sans);
+  transition:
+    background-color 0.2s,
+    color 0.2s,
+    border-color 0.2s;
+}
+.lv-bk-opts span small {
+  font: 500 12px var(--lv-mono);
+  color: var(--lv-ink-3);
+}
+.lv-bk-opts input:checked + span {
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+.lv-bk-opts input:checked + span small {
+  color: var(--brand-on-night);
+}
+.lv-bk-opts input:focus-visible + span {
+  outline: 2px solid var(--brand-700);
+  outline-offset: 2px;
+}
+.lv-bk-days span {
+  height: 52px;
+  border-radius: 12px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  font: 500 12px var(--lv-sans);
+  min-width: 76px;
+}
+.lv-bk-days span b {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: 24px;
+  line-height: 1;
+}
+.lv-bk-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 6px;
+}
+.lv-bk-slots button {
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--lv-line-2);
+  background: var(--background);
+  font: 500 14px var(--lv-mono);
+  cursor: pointer;
+  color: var(--foreground);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.1;
+}
+.lv-bk-slots button small {
+  font: 600 10.5px var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+.lv-bk-slots button:hover {
+  border-color: var(--foreground);
+}
+.lv-bk-slots button[aria-pressed="true"] {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--night);
+}
+.lv-bk-slots button[aria-pressed="true"] small {
+  color: var(--brand-900);
+}
+.lv-bk-slots .none {
+  grid-column: 1 / -1;
+  font: 500 14px var(--lv-sans);
+  color: var(--lv-ink-3);
+  padding: 8px 0;
+}
+.lv-bk-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-bk-foot p {
+  font: 500 14px/1.4 var(--lv-sans);
+  color: var(--lv-ink-2);
+}
+.lv-bk-foot p.ok {
+  color: var(--success);
+}
+.lv-bk-foot .lv-btn[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lv-bk-ag {
+  border-radius: var(--lv-r-l);
+  padding: clamp(20px, 2.4vw, 30px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+.lv-bk-ag .lbl {
+  color: var(--on-night-2);
+  font: 600 12.5px var(--lv-sans);
+}
+.lv-bk-ag-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+}
+.lv-bk-ag h3 {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(28px, 2.6vw, 38px);
+  line-height: 1;
+  margin-top: 6px;
+}
+.lv-bk-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 12.5px var(--lv-sans);
+  color: var(--lv-ok-night);
+}
+.lv-bk-live i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lv-ok-night);
+}
+.lv2[data-mov="on"] .lv-bk-live i {
+  animation: lv-live 1.8s var(--ease-io) infinite;
+}
+@keyframes lv-live {
+  50% {
+    box-shadow: 0 0 0 5px rgb(159 203 152 / 0.18);
+  }
+}
+.lv-bk-tl {
+  min-width: 600px;
+  grid-template-columns: 118px 1fr;
+}
+.lv-bk-row {
+  position: relative;
+  height: 72px;
+  border-radius: 6px;
+}
+.lv-ap.new {
+  background: var(--brand-on-night);
+  color: var(--night);
+  border: 0;
+  z-index: 3;
+  overflow: visible;
+}
+.lv-ap.new small {
+  color: var(--brand-900);
+}
+.lv-ap.new::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 8px;
+  border: 2px solid var(--brand-on-night);
+}
+.lv2[data-mov="on"] .lv-ap.new {
+  animation: lv-drop 0.9s var(--ease-out) both;
+}
+.lv2[data-mov="on"] .lv-ap.new::after {
+  opacity: 0;
+  animation: lv-ring 1.6s 0.5s var(--ease-out) 2;
+}
+@keyframes lv-drop {
+  from {
+    transform: translateY(-36px) scale(0.9);
+    opacity: 0;
+  }
+}
+@keyframes lv-ring {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.25);
+  }
+}
+.lv-bk-note {
+  font: 500 13.5px/1.5 var(--lv-sans);
+  color: var(--on-night-2);
+  border-top: 1px solid var(--night-line);
+  padding-top: 14px;
+}
+.lv-bk-note b {
+  color: var(--lv-warn-night);
+}
+
+/* ── Bento en tinta (PR 6) ───────────────────────────────── */
+.lv-bento-sec {
+  padding: clamp(80px, 10vw, 140px) 0;
+}
+.lv-bento {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 14px;
+}
+.lv-cell {
+  background: var(--night-2);
+  border: 1px solid var(--night-line);
+  border-radius: var(--lv-r-l);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  min-width: 0;
+}
+.lv-cell h3 {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(26px, 2.3vw, 34px);
+  line-height: 1.02;
+  letter-spacing: -0.01em;
+}
+.lv-cell h3 em {
+  color: var(--brand-on-night);
+}
+.lv-cell p {
+  color: var(--on-night-2);
+  font-size: 14.5px;
+  margin-top: 10px;
+  max-width: 46ch;
+}
+.lv-c-flow {
+  grid-column: span 4;
+  grid-row: span 2;
+  display: flex;
+  flex-direction: column;
+}
+.lv-c-off,
+.lv-c-occ {
+  grid-column: span 2;
+}
+.lv-c-odo,
+.lv-c-caja {
+  grid-column: span 3;
+}
+.lv-c-more {
+  grid-column: span 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 0;
+  align-items: center;
+  padding: 20px 24px;
+  list-style: none;
+  margin: 0;
+}
+@media (max-width: 1020px) {
+  .lv-c-flow {
+    grid-column: span 6;
+  }
+  .lv-c-off,
+  .lv-c-occ {
+    grid-column: span 3;
+  }
+}
+@media (max-width: 680px) {
+  .lv-bento {
+    grid-template-columns: 1fr;
+  }
+  .lv-cell {
+    grid-column: auto !important;
+    grid-row: auto !important;
+    padding: 20px;
+  }
+}
+.lv-flow-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+.lv-flow {
+  position: relative;
+  margin: auto 0;
+  padding: 22px 0 0;
+  aspect-ratio: 1000 / 430;
+  list-style: none;
+}
+.lv-flow svg.lines {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lv-flow .ln-base {
+  stroke: var(--night-3);
+  stroke-width: 2;
+  fill: none;
+}
+.lv-flow .ln-run {
+  stroke: var(--brand-on-night);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 6 8;
+}
+.lv2[data-mov="on"] .lv-flow .ln-run {
+  animation: lv-dash 1.2s linear infinite;
+}
+@keyframes lv-dash {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+.lv-node {
+  position: absolute;
+  width: 27%;
+  transform: translate(-50%, -50%);
+  background: var(--night);
+  border: 1px solid var(--night-line);
+  border-radius: 10px;
+  padding: 11px 13px;
+  transition:
+    border-color 0.4s,
+    background-color 0.4s,
+    transform 0.5s var(--ease-out);
+}
+.lv-node .k {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font: 600 13px/1.2 var(--lv-sans);
+}
+.lv-node .k svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--on-night-2);
+  fill: none;
+  stroke-width: 1.7;
+  flex: none;
+}
+.lv-node .d {
+  font: 500 12px/1.35 var(--lv-sans);
+  color: var(--on-night-2);
+  margin-top: 5px;
+}
+.lv-node .d.lv-mono {
+  font-size: 11.5px;
+}
+.lv-node.on {
+  border-color: var(--brand-on-night);
+  background: #221b12;
+  transform: translate(-50%, -50%) scale(1.04);
+}
+.lv-node.on .k svg {
+  stroke: var(--brand-on-night);
+}
+.lv-node.patty {
+  border-style: dashed;
+}
+.lv-node.patty.on {
+  border-color: var(--lv-patty-night);
+  background: #211a2c;
+}
+.lv-node .bub {
+  margin-top: 6px;
+  display: inline-block;
+  background: #1f3a27;
+  color: #cfe8c9;
+  font: 500 12px var(--lv-sans);
+  padding: 5px 9px;
+  border-radius: 9px 9px 9px 2px;
+}
+.lv-node .flip {
+  margin-top: 6px;
+}
+.lv-st-n-warn {
+  color: var(--lv-warn-night);
+  background: transparent;
+  border-style: dashed;
+}
+.lv-st-n-ok {
+  color: var(--lv-ok-night);
+  background: rgb(159 203 152 / 0.1);
+}
+.lv-st-n-patty {
+  color: var(--lv-patty-night);
+  background: rgb(200 180 236 / 0.1);
+}
+.lv-flow-ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+@media (max-width: 820px) {
+  .lv-flow-ol {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .lv-flow {
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding-left: 18px;
+    border-left: 1px dashed var(--night-line);
+    margin-left: 6px;
+  }
+  .lv-flow svg.lines {
+    display: none;
+  }
+  .lv-node {
+    position: relative;
+    width: auto;
+    left: auto !important;
+    top: auto !important;
+    transform: none;
+  }
+  .lv-node.on {
+    transform: translateX(4px);
+  }
+}
+.lv-flow-foot {
+  margin-top: 18px;
+  font: 500 12.5px var(--lv-sans);
+  color: var(--on-night-2);
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+.lv-off-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  min-height: 34px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--night-line);
+  font: 600 13px var(--lv-sans);
+  background: var(--night);
+}
+.lv-off-pill svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+}
+.lv-off-pill[data-s="off"] {
+  color: var(--lv-warn-night);
+  border-color: var(--lv-warn-night);
+}
+.lv-off-pill[data-s="queue"] {
+  color: var(--brand-on-night);
+  border-color: var(--brand-on-night);
+}
+.lv-off-pill[data-s="sync"] {
+  color: var(--lv-ok-night);
+  border-color: var(--lv-ok-night);
+}
+.lv-bars {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  align-items: end;
+  height: 132px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lv-bars li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  justify-content: flex-end;
+}
+.lv-bars i {
+  display: block;
+  width: 100%;
+  border-radius: 3px 3px 0 0;
+  background: var(--cobalt-on-night);
+  transform-origin: bottom;
+}
+.lv-bars i.lo {
+  background: repeating-linear-gradient(135deg, var(--brand-on-night) 0 2px, transparent 2px 6px);
+  outline: 1px solid var(--brand-on-night);
+  outline-offset: -1px;
+}
+.lv-bars b {
+  font: 500 11px var(--lv-mono);
+  color: var(--on-night);
+}
+.lv-bars span {
+  font: 500 11px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-mini-odo {
+  display: flex;
+  gap: 4px;
+  margin-top: 22px;
+  justify-content: space-between;
+}
+.lv-mini-odo svg {
+  flex: 1;
+  max-width: 40px;
+  height: auto;
+}
+.lv-mini-odo .tooth {
+  fill: var(--night-3);
+  stroke: var(--night-line);
+}
+.lv-mini-odo .ex .tooth {
+  fill: var(--lv-clin-ex-n);
+  stroke: var(--lv-clin-ex-n);
+}
+.lv-mini-odo .pl .tooth {
+  fill: color-mix(in srgb, var(--lv-clin-pl-n) 20%, transparent);
+  stroke: var(--lv-clin-pl-n);
+  stroke-width: 1.6;
+}
+.lv-mini-odo text {
+  font: 500 9px var(--lv-mono);
+  fill: var(--on-night-2);
+}
+.lv-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  font: 500 12px var(--lv-sans);
+  color: var(--on-night-2);
+  flex-wrap: wrap;
+}
+.lv-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+.lv-caja-mini {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 14px;
+  align-items: end;
+  margin: 22px 0 0;
+}
+@media (max-width: 520px) {
+  .lv-caja-mini {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lv-caja-mini .lv-seal {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+}
+.lv-cell .lv-caja-mini p {
+  margin: 0;
+}
+.lv-caja-mini span {
+  display: block;
+  font: 500 12px var(--lv-sans);
+  color: var(--on-night-2);
+}
+.lv-caja-mini b {
+  display: block;
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: 34px;
+  line-height: 1.05;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.lv-seal {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  border: 1.5px solid var(--lv-ok-night);
+  color: var(--lv-ok-night);
+  display: grid;
+  place-items: center;
+  font: 600 12px/1.1 var(--lv-sans);
+  text-align: center;
+  transform: rotate(-12deg);
+}
+.lv-c-more li {
+  font: 500 15px var(--lv-sans);
+  color: var(--on-night);
+}
+.lv-c-more li + li::before {
+  content: "";
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  background: var(--brand-on-night);
+  transform: rotate(45deg);
+  margin: 0 16px;
+  vertical-align: 3px;
+}
+.lv-c-more .lbl {
+  font-family: var(--lv-serif);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--brand-on-night);
+  margin-right: 20px;
+}
+
+/* ── Arco de 32 piezas (PR 7) ────────────────────────────── */
+.lv-arc-sec {
+  border-top: 1px solid var(--lv-line);
+}
+.lv-arc-track {
+  position: relative;
+}
+.lv-arc-stage {
+  position: relative;
+  padding: clamp(70px, 8vw, 110px) 0;
+}
+.lv-arc-stage.is-sticky {
+  position: sticky;
+  top: 0;
+  height: min(100svh, 900px);
+  padding: 0;
+  display: grid;
+  align-items: center;
+}
+.lv-arc-in {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .lv-arc-in {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-arc-leg {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  font: 600 14px var(--lv-sans);
+}
+.lv-arc-leg i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+.lv-arc-leg i.ex {
+  background: var(--lv-clin-ex);
+}
+.lv-arc-leg i.pl {
+  background: color-mix(in srgb, var(--lv-clin-pl) 12%, transparent);
+  border: 2px solid var(--lv-clin-pl);
+}
+.lv-why {
+  margin-top: 16px;
+  font: 400 15px/1.55 var(--lv-sans);
+  color: var(--lv-ink-2);
+  max-width: 46ch;
+  padding-top: 14px;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-why b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.lv-arc-svg {
+  width: 100%;
+  height: auto;
+  max-height: min(78svh, 700px);
+  overflow: visible;
+}
+.lv-arc-svg .tb {
+  fill: var(--card);
+  stroke: var(--lv-ink-2);
+  stroke-width: 1.6;
+  transition:
+    fill 0.5s,
+    stroke 0.5s;
+}
+.lv-arc-svg .scat .tb {
+  stroke: var(--lv-ocre-display);
+}
+.lv-arc-svg .tn {
+  font: 500 11px var(--lv-mono);
+  fill: var(--lv-ink-3);
+  text-anchor: middle;
+}
+.lv-arc-svg .mid-l {
+  stroke: var(--lv-line-2);
+  stroke-dasharray: 4 5;
+}
+
+/* ── Acordeón con el molar (PR 7) ────────────────────────── */
+.lv-tooth-sec {
+  padding: clamp(70px, 9vw, 130px) 0;
+  background: var(--lv-paper-2);
+  border-top: 1px solid var(--lv-line);
+  overflow: clip;
+}
+.lv-ts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(24px, 3vw, 48px);
+  align-items: start;
+}
+.lv-ts-title {
+  position: sticky;
+  top: 40px;
+}
+.lv-ts-title .lv-lead {
+  margin-top: 18px;
+}
+@media (max-width: 1020px) {
+  .lv-ts-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lv-ts-title {
+    grid-column: 1 / -1;
+    position: static;
+  }
+}
+@media (max-width: 680px) {
+  .lv-ts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-fig {
+  position: relative;
+  aspect-ratio: 400 / 500;
+  max-width: 470px;
+  margin: 0 auto;
+  width: 100%;
+}
+.lv-fig .tilt {
+  position: absolute;
+  inset: 0;
+  transform: perspective(900px) rotateY(-8deg) rotateX(3deg);
+}
+.lv2[data-mov="on"] .lv-fig .tilt {
+  animation: lv-tilt 9s var(--ease-io) infinite;
+}
+@keyframes lv-tilt {
+  0%,
+  100% {
+    transform: perspective(900px) rotateY(-14deg) rotateX(4deg);
+  }
+  50% {
+    transform: perspective(900px) rotateY(14deg) rotateX(-2deg);
+  }
+}
+.lv-fig svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lv-fig .ov {
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-out);
+}
+.lv-fig[data-mod="agenda"] .ov-agenda,
+.lv-fig[data-mod="ficha"] .ov-ficha,
+.lv-fig[data-mod="caja"] .ov-caja,
+.lv-fig[data-mod="patty"] .ov-patty {
+  opacity: 1;
+}
+.lv-fig .ring {
+  stroke: var(--lv-ocre-display);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  transition: stroke-dashoffset 1.4s var(--ease-out);
+}
+.lv-fig[data-mod="agenda"] .ring {
+  stroke-dashoffset: 0;
+}
+.lv-fig .fillpay {
+  transition: transform 1.2s var(--ease-out);
+  transform: translateY(500px);
+}
+.lv-fig[data-mod="caja"] .fillpay {
+  transform: translateY(205px);
+}
+.lv-tag {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--lv-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 600 13px/1.3 var(--lv-sans);
+  box-shadow: 0 10px 30px -12px rgb(21 18 15 / 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.6s var(--ease-out),
+    visibility 0.45s;
+  max-width: 230px;
+}
+.lv-tag small {
+  display: block;
+  font: 500 12px/1.35 var(--lv-sans);
+  color: var(--lv-ink-2);
+  margin-top: 3px;
+}
+.lv-tag .lv-st {
+  margin-top: 7px;
+}
+.lv-fig[data-mod="agenda"] .t-agenda,
+.lv-fig[data-mod="ficha"] .t-ficha,
+.lv-fig[data-mod="caja"] .t-caja,
+.lv-fig[data-mod="patty"] .t-patty {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.lv-tag.t-patty {
+  border-color: var(--ai);
+  background: var(--ai-soft);
+}
+.lv-tag.t-patty b {
+  color: var(--ai);
+}
+.lv-st-pl {
+  color: var(--lv-clin-pl);
+  background: color-mix(in srgb, var(--lv-clin-pl) 10%, var(--card));
+  border-style: dashed;
+}
+@media (max-width: 680px) {
+  .lv-fig .lv-tag {
+    max-width: 200px;
+  }
+  .lv-fig .t-ficha,
+  .lv-fig .t-patty {
+    right: 0 !important;
+  }
+  .lv-fig .t-agenda,
+  .lv-fig .t-caja {
+    left: 0 !important;
+  }
+}
+.lv-pbar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--lv-line);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.lv-pbar i {
+  display: block;
+  height: 100%;
+  width: 50%;
+  background: var(--brand);
+}
+.lv-acc {
+  border-top: 1px solid var(--lv-line-2);
+}
+.lv-acc-i {
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-acc-i h3 {
+  margin: 0;
+}
+.lv-acc-b {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--foreground);
+}
+.lv-acc-b .nm {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(30px, 2.8vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.lv-acc-b .nm.patty {
+  color: var(--ai);
+}
+.lv-acc-b .pl {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--lv-line-2);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.5s var(--ease-out),
+    background-color 0.3s,
+    color 0.3s;
+}
+.lv-acc-b .pl svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+.lv-acc-b[aria-expanded="true"] .pl {
+  transform: rotate(45deg);
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+.lv-acc-p {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.55s var(--ease-out);
+}
+.lv-acc-p > div {
+  overflow: hidden;
+}
+.lv-acc-i.open .lv-acc-p {
+  grid-template-rows: 1fr;
+}
+.lv-acc-p p {
+  color: var(--lv-ink-2);
+  padding-bottom: 10px;
+  max-width: 46ch;
+}
+.lv-acc-p ul {
+  margin: 6px 0 24px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lv-acc-p li {
+  font: 500 12.5px var(--lv-sans);
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lv-line-2);
+}
+.lv-acc-p .no {
+  font-size: 13.5px;
+  color: var(--lv-ink-3);
+  padding-bottom: 22px;
+}
+.lv-acc-p .no b {
+  color: var(--lv-ink-2);
+  font-weight: 600;
+}
+.lv-timer {
+  height: 2px;
+  background: var(--lv-line);
+  margin: -1px 0 0;
+  overflow: hidden;
+}
+.lv-timer i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand);
+}
+.lv2[data-mov="on"] .lv-acc-i.open .lv-timer i.run {
+  animation: lv-tim 6s linear forwards;
+}
+@keyframes lv-tim {
+  to {
+    width: 100%;
+  }
+}
+
+/* ── Patty propone, tú decides (PR 7) ────────────────────── */
+.lv-pt-sec {
+  padding: clamp(80px, 9vw, 130px) 0;
+  background: var(--ai-soft);
+  border-top: 1px solid var(--lv-line);
+}
+.lv-pt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .lv-pt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-pt-sec .lv-h-sec em {
+  color: var(--ai);
+}
+.lv-pt-av {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 18px;
+}
+.lv-pt-copy .lv-lead {
+  margin-top: 18px;
+}
+.lv-pt-rules {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 52ch;
+}
+.lv-pt-rules li {
+  padding-left: 26px;
+  position: relative;
+  color: var(--lv-ink-2);
+  font-size: 15.5px;
+}
+.lv-pt-rules li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: var(--ai);
+}
+.lv-pt-rules b {
+  color: var(--foreground);
+}
+.lv-pt-card {
+  background: var(--card);
+  border: 1px solid var(--lv-line-2);
+  border-radius: var(--lv-r-l);
+  padding: 22px;
+  box-shadow: 0 24px 50px -34px rgb(60 30 100 / 0.5);
+}
+.lv-pt-card-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font: 500 14px var(--lv-sans);
+  color: var(--lv-ink-2);
+  flex-wrap: wrap;
+}
+.lv-pt-card-h > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.lv-pt-card-h svg {
+  width: 26px;
+  height: 26px;
+}
+.lv-pt-card-h b {
+  color: var(--ai);
+}
+.lv-pt-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.lv-pt-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  font: 500 15px var(--lv-sans);
+  color: var(--lv-ink-3);
+  border-bottom: 1px solid var(--lv-line);
+}
+.lv-pt-list li i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--lv-line-2);
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.lv-pt-list li.run,
+.lv-pt-list li.done {
+  color: var(--foreground);
+}
+.lv-pt-list li.run i {
+  border-color: var(--ai);
+  border-style: solid;
+  border-top-color: transparent;
+}
+.lv2[data-mov="on"] .lv-pt-list li.run i {
+  animation: lv-spin 0.8s linear infinite;
+}
+.lv-pt-list li.done i {
+  background: var(--ai);
+  border-color: var(--ai);
+  border-style: solid;
+}
+.lv-pt-list li.done i::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+@keyframes lv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.lv-pt-draft {
+  margin-top: 16px;
+  border: 1px dashed var(--ai);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--ai-soft);
+  transition:
+    opacity 0.4s,
+    transform 0.5s var(--ease-out);
+}
+.lv-pt-draft.wait {
+  /* Sin bajar la opacidad: el texto tiene que seguir llegando a AA. */
+  border-style: dotted;
+  transform: translateY(6px);
+}
+.lv-pt-draft .lbl {
+  font: 600 12px var(--lv-sans);
+  color: var(--ai);
+}
+.lv-pt-draft dl {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 6px 8px;
+  margin: 8px 0 0;
+}
+.lv-pt-draft dt {
+  font-family: var(--lv-serif);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ai);
+}
+.lv-pt-draft dd {
+  margin: 0;
+  font-size: 14.5px;
+}
+.lv-pt-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.lv-pt-acts .lv-btn {
+  background: var(--ai);
+  color: var(--ai-foreground);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.lv-pt-acts .lv-btn.lv-btn-line {
+  background: transparent;
+  color: var(--ai);
+  border-color: var(--ai);
+}
+.lv-pt-foot {
+  margin-top: 10px;
+  font: 500 12.5px var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+
+/* ── Todavía no hacemos (PR 7) ───────────────────────────── */
+.lv-ny {
+  padding: clamp(70px, 8vw, 110px) 0;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-ny-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .lv-ny-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-ny .lv-lead {
+  margin-top: 16px;
+}
+.lv-ny-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--foreground);
+}
+.lv-ny-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-ny-list svg {
+  width: 26px;
+  height: 26px;
+  stroke: var(--lv-ocre-display);
+  fill: none;
+  stroke-width: 1.6;
+  margin-top: 2px;
+}
+.lv-ny-list b {
+  display: block;
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(26px, 2.4vw, 34px);
+  line-height: 1.05;
+  text-decoration: line-through;
+  text-decoration-color: var(--brand);
+  text-decoration-thickness: 2px;
+}
+.lv-ny-list span {
+  display: block;
+  margin-top: 6px;
+  color: var(--lv-ink-2);
+  max-width: 56ch;
+}
+
+/* ── Testimonios reservados (PR 7) ───────────────────────── */
+.lv-tst {
+  padding: 0 0 clamp(80px, 10vw, 140px);
+}
+.lv-tst-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+  align-items: start;
+}
+.lv-tst-grid li:nth-child(2) {
+  margin-top: 72px;
+}
+.lv-tst-grid li:nth-child(3) {
+  margin-top: 28px;
+}
+@media (max-width: 820px) {
+  .lv-tst-grid {
+    grid-template-columns: 1fr;
+  }
+  .lv-tst-grid li {
+    margin-top: 0 !important;
+  }
+}
+.lv-ph {
+  border: 1.5px dashed var(--lv-line-2);
+  border-radius: var(--lv-r-l);
+  padding: 26px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--lv-ink-2);
+}
+.lv-ph p {
+  font-family: var(--lv-serif);
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--lv-ink-3);
+}
+.lv-ph span {
+  margin-top: auto;
+  font: 500 12.5px var(--lv-mono);
+}
+
+/* ── FAQ corta (PR 7) ────────────────────────────────────── */
+.lv-faq {
+  padding: clamp(70px, 9vw, 120px) 0;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-faq-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 40px;
+}
+@media (max-width: 820px) {
+  .lv-faq-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-faq details {
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-faq details:first-child {
+  border-top: 1px solid var(--lv-line-2);
+}
+.lv-faq summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  font: 600 17px/1.35 var(--lv-sans);
+}
+.lv-faq summary::-webkit-details-marker {
+  display: none;
+}
+.lv-faq summary::after {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.4s var(--ease-out);
+}
+.lv-faq details[open] summary::after {
+  transform: rotate(-135deg);
+}
+.lv-faq details p {
+  padding: 0 0 22px;
+  color: var(--lv-ink-2);
+  max-width: 64ch;
+}
+.lv-faq-mas {
+  margin-top: 20px;
+  font: 500 14px var(--lv-sans);
+}
+
+/* ── Patty, chip flotante (PR 7) ─────────────────────────── */
+.lv-patty-chip {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 8px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--lv-line-2);
+  box-shadow: 0 18px 40px -18px rgb(21 18 15 / 0.45);
+  max-width: min(380px, calc(100% - 36px));
+}
+.lv2[data-mov="on"] .lv-patty-chip {
+  animation: lv-chipin 0.9s 1.4s var(--ease-out) both;
+}
+@keyframes lv-chipin {
+  from {
+    transform: translateY(30px);
+  }
+}
+.lv-patty-chip .txt {
+  font: 500 13px/1.3 var(--lv-sans);
+  color: var(--lv-ink-2);
+  text-decoration: none;
+}
+.lv-patty-chip .txt:hover span {
+  text-decoration: underline;
+}
+.lv-patty-chip .txt b {
+  color: var(--ai);
+  font-weight: 600;
+}
+.lv-patty-chip .x {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--lv-ink-2);
+  flex: none;
+}
+.lv-patty-chip .x:hover {
+  background: var(--lv-paper-2);
+  color: var(--foreground);
+}
+.lv-patty-chip .x svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.lv-pav {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.lv2[data-mov="on"] .lv-pav .eye {
+  animation: lv-blink 5.5s infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes lv-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@media (max-width: 560px) {
+  .lv-patty-chip .txt span {
+    display: none;
+  }
+}

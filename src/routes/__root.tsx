@@ -123,7 +123,7 @@ if (typeof window !== "undefined") migrarAlmacenamientoLocal();
  * AppShell (clave `esmalia:theme`, si no hay elección sigue al sistema) y
  * solo en la app: las páginas públicas siguen siempre en claro.
  */
-const SCRIPT_TEMA_SIN_DESTELLO = `(function(){try{var p=location.pathname.split("/")[1]||"";var pub=["","auth","demo","docs","dpa","faq","nosotros","portal","portal-laboratorio","precios","privacidad","recursos","software-dental-latam","software-dental-chile","software-dental-argentina","software-dental-mexico","software-dental-colombia","software-dental-peru","funciones","comparar","alternativas","guias","plantillas","para","terminos","calculadora-rentabilidad-dental"];if(pub.indexOf(p)>=0)return;var t=localStorage.getItem("esmalia:theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})();`;
+const SCRIPT_TEMA_SIN_DESTELLO = `(function(){try{var p=location.pathname.split("/")[1]||"";var pub=["","auth","demo","docs","dpa","faq","nosotros","portal","portal-laboratorio","precios","privacidad","recursos","software-dental-latam","software-dental-chile","software-dental-argentina","software-dental-mexico","software-dental-colombia","software-dental-peru","funciones","comparar","alternativas","guias","plantillas","para","terminos","calculadora-rentabilidad-dental","v2"];if(pub.indexOf(p)>=0)return;var t=localStorage.getItem("esmalia:theme");if(t==="dark"||(t!=="light"&&matchMedia("(prefers-color-scheme: dark)").matches))document.documentElement.classList.add("dark")}catch(e){}})();`;
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
