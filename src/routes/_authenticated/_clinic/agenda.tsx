@@ -53,6 +53,7 @@ import {
   useConnectivity,
 } from "@/hooks/use-connectivity";
 import { useFlag } from "@/lib/flags";
+import { interpretarNuevaCita, leerNuevaCita } from "@/lib/shell-v2";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
 import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
 import {
@@ -163,7 +164,8 @@ interface AgendaSearch {
   estado: string;
   page: number;
   /** Id de paciente: abre "Nueva cita" con ese paciente ya elegido (botón
-   * "Agendar" de la ficha). Se limpia de la URL al abrir el diálogo. */
+   * "Agendar" de la ficha). `1` la abre vacía (acción "Nueva cita" del ⌘K).
+   * Se limpia de la URL al abrir el diálogo (`interpretarNuevaCita`). */
   nueva?: string;
 }
 
@@ -185,7 +187,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
     profesional: str(search.profesional),
     estado: str(search.estado),
     page: num(search.page, 1),
-    nueva: str(search.nueva) || undefined,
+    nueva: leerNuevaCita(search.nueva),
   }),
   beforeLoad: requirePermission("agenda:view"),
   head: () => ({
@@ -321,8 +323,9 @@ function NuevaCitaDialog({
   }
 
   useEffect(() => {
-    if (!pacienteInicial) return;
-    setPacienteId(pacienteInicial);
+    const pedido = interpretarNuevaCita(pacienteInicial);
+    if (!pedido.abrir) return;
+    if (pedido.pacienteId) setPacienteId(pedido.pacienteId);
     completarUnicos();
     setOpen(true);
     onPacienteInicialConsumido?.();
@@ -1680,8 +1683,12 @@ function AgendaPage() {
           />
         </FilterBar>
 
-        <div className="grid gap-8 xl:grid-cols-12">
-          <div className="space-y-4 xl:col-span-9">
+        {/* `grid-cols-1` y `min-w-0`: sin ellos la columna implícita crece al
+            ancho mínimo de la grilla de la agenda y, en celular, la página
+            queda más ancha que la pantalla. La grilla se desplaza adentro de
+            su propio contenedor. */}
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
+          <div className="min-w-0 space-y-4 xl:col-span-9">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <button
@@ -1711,7 +1718,7 @@ function AgendaPage() {
                   {labelPeriodo(search.vista, fecha)}
                 </h2>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <div className="flex rounded-lg border border-hairline p-0.5 text-xs">
                   {(["dia", "semana", "mes"] as const).map((v) => (
                     <button
@@ -1911,7 +1918,7 @@ function AgendaPage() {
             </div>
           </div>
 
-          <aside className="space-y-4 xl:col-span-3">
+          <aside className="min-w-0 space-y-4 xl:col-span-3">
             {solicitudes.length > 0 && (
               <>
                 <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-muted-foreground">

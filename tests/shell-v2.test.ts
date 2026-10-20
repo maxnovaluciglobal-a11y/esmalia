@@ -6,7 +6,16 @@ import { describe, expect, it } from "vitest";
 
 import { PastillaConexionVista } from "@/components/pastilla-conexion";
 import { resolverFlag } from "@/lib/flags";
-import { accionesRapidas, claseItemNav, propsItemNav, textoConexion } from "@/lib/shell-v2";
+import {
+  accionesRapidas,
+  claseItemNav,
+  decidirAbrirCaja,
+  interpretarNuevaCita,
+  leerNuevaCita,
+  leerPedidoAbrirCaja,
+  propsItemNav,
+  textoConexion,
+} from "@/lib/shell-v2";
 
 const leer = (rel: string) => readFileSync(path.resolve(__dirname, "..", rel), "utf8");
 
@@ -88,6 +97,77 @@ describe("shell A+ (flag shell-v2)", () => {
     });
   });
 
+  describe("las acciones del ⌘K abren el diálogo, no solo la página", () => {
+    it("cada acción lleva el pedido en la URL", () => {
+      const porId = Object.fromEntries(accionesRapidas("owner").map((a) => [a.id, a.href]));
+      expect(porId).toEqual({
+        "nueva-cita": "/agenda?nueva=1",
+        "abrir-caja": "/cajas?abrir=1",
+      });
+    });
+
+    it("agenda: lee ?nueva=1 aunque el parser lo entregue como número", () => {
+      expect(leerNuevaCita(1)).toBe("1");
+      expect(leerNuevaCita("1")).toBe("1");
+      expect(leerNuevaCita(" abc ")).toBe("abc");
+      expect(leerNuevaCita("")).toBeUndefined();
+      expect(leerNuevaCita(undefined)).toBeUndefined();
+      expect(leerNuevaCita({ a: 1 })).toBeUndefined();
+      expect(leerNuevaCita(Number.NaN)).toBeUndefined();
+    });
+
+    it("agenda: 1 abre vacía; un id abre con ese paciente; vacío no abre", () => {
+      expect(interpretarNuevaCita("1")).toEqual({ abrir: true, pacienteId: null });
+      const id = "7f3c2a1e-0000-4000-8000-000000000001";
+      expect(interpretarNuevaCita(id)).toEqual({ abrir: true, pacienteId: id });
+      expect(interpretarNuevaCita(undefined)).toEqual({ abrir: false, pacienteId: null });
+      expect(interpretarNuevaCita("  ")).toEqual({ abrir: false, pacienteId: null });
+    });
+
+    it("caja: solo 1 cuenta como pedido", () => {
+      expect(leerPedidoAbrirCaja(1)).toBe("1");
+      expect(leerPedidoAbrirCaja("1")).toBe("1");
+      expect(leerPedidoAbrirCaja("0")).toBeUndefined();
+      expect(leerPedidoAbrirCaja(true)).toBeUndefined();
+      expect(leerPedidoAbrirCaja(undefined)).toBeUndefined();
+    });
+
+    it("caja: espera la carga, no abre un segundo turno y descarta si falla", () => {
+      const base = { pedido: true, cargando: false, conError: false, cajaAbierta: false };
+      expect(decidirAbrirCaja({ ...base, pedido: false })).toBe("nada");
+      expect(decidirAbrirCaja({ ...base, cargando: true })).toBe("esperar");
+      expect(decidirAbrirCaja(base)).toBe("abrir");
+      expect(decidirAbrirCaja({ ...base, cajaAbierta: true })).toBe("ya-abierta");
+      expect(decidirAbrirCaja({ ...base, conError: true })).toBe("descartar");
+    });
+
+    it("las rutas leen el pedido y lo borran de la URL", () => {
+      const agenda = leer("src/routes/_authenticated/_clinic/agenda.tsx");
+      expect(agenda).toContain("nueva: leerNuevaCita(search.nueva)");
+      expect(agenda).toContain("interpretarNuevaCita(pacienteInicial)");
+      const cajas = leer("src/routes/_authenticated/_clinic/cajas.tsx");
+      expect(cajas).toContain("abrir: leerPedidoAbrirCaja(search.abrir)");
+      expect(cajas).toMatch(/abrir: undefined \}\), replace: true/);
+    });
+  });
+
+  describe("agenda a 390 px", () => {
+    it("la columna de la agenda no crece al ancho de la grilla", () => {
+      const agenda = leer("src/routes/_authenticated/_clinic/agenda.tsx");
+      expect(agenda).toContain('className="grid grid-cols-1 gap-8 xl:grid-cols-12"');
+      expect(agenda).toContain('className="min-w-0 space-y-4 xl:col-span-9"');
+      expect(agenda).toContain('className="min-w-0 space-y-4 xl:col-span-3"');
+    });
+  });
+
+  describe("sidebar en tinta", () => {
+    it("recupera la tinta de la página en vez de la hundida de .dark", () => {
+      const css = leer("src/styles.css");
+      expect(css).toContain("--night-pagina: var(--night);");
+      expect(css).toMatch(/\.dark\.tinta-de-pagina \{\s*--night: var\(--night-pagina\);/);
+    });
+  });
+
   describe("con el flag apagado el shell no cambia", () => {
     const shell = leer("src/components/app-shell.tsx");
     const tabla = leer("src/components/ui/table.tsx");
@@ -95,7 +175,7 @@ describe("shell A+ (flag shell-v2)", () => {
 
     it("el aside conserva bg-sidebar y la tinta solo entra con el flag", () => {
       expect(shell).toMatch(
-        /shellV2\s*\?\s*"dark border-r border-night-line bg-night text-on-night"/,
+        /shellV2\s*\?\s*"dark tinta-de-pagina border-r border-night-line bg-night text-on-night"/,
       );
       expect(shell).toContain(': "border-r border-border bg-sidebar"');
       expect(shell).toContain('data-shell-v2={shellV2 ? "" : undefined}');

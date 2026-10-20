@@ -1,5 +1,5 @@
-import { useId, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useId, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Lock, LockOpen } from "lucide-react";
@@ -48,10 +48,15 @@ import {
   openCashRegister,
 } from "@/lib/finance/cash-registers.functions";
 import { useFlag } from "@/lib/flags";
+import { decidirAbrirCaja, leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell-v2";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_clinic/cajas")({
+  // `?abrir=1` abre "Abrir caja" al entrar (acción del ⌘K) y se borra.
+  validateSearch: (search: Record<string, unknown>): { abrir?: typeof PEDIDO_ABRIR } => ({
+    abrir: leerPedidoAbrirCaja(search.abrir),
+  }),
   beforeLoad: requirePermission("cash:manage"),
   head: () => ({
     meta: [
@@ -189,6 +194,23 @@ function CajasPage() {
     },
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
+
+  // Pedido del ⌘K (`?abrir=1`): se resuelve una vez que se sabe si ya hay
+  // un turno abierto, y el parámetro se borra para que recargar no reabra.
+  const { abrir } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const decisionAbrir = decidirAbrirCaja({
+    pedido: abrir === PEDIDO_ABRIR,
+    cargando: !clinicId || loadingOpen,
+    conError: openConError,
+    cajaAbierta: Boolean(openRegister),
+  });
+  useEffect(() => {
+    if (decisionAbrir === "nada" || decisionAbrir === "esperar") return;
+    if (decisionAbrir === "abrir") setOpenDialogOpen(true);
+    if (decisionAbrir === "ya-abierta") toast.info("La caja ya está abierta.");
+    void navigate({ search: (prev) => ({ ...prev, abrir: undefined }), replace: true });
+  }, [decisionAbrir, navigate]);
 
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [declaredAmount, setDeclaredAmount] = useState<number | null>(0);

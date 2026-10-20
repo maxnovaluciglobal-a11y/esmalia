@@ -208,7 +208,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="es">
+    // El script de tema agrega `dark` a <html> antes de hidratar: es la
+    // única diferencia esperada con el SSR, y solo en este elemento.
+    <html lang="es" suppressHydrationWarning>
       <head>
         <HeadContent />
       </head>

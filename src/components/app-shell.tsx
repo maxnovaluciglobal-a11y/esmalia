@@ -321,8 +321,9 @@ export function AppShell({
           "sticky top-0 hidden h-dvh w-60 shrink-0 flex-col lg:flex",
           // `dark` en el aside: los tokens de adentro (logo, selector de
           // clínica, foco) se leen sobre tinta aunque la página esté en claro.
+          // `tinta-de-pagina` evita que ese `dark` hunda el fondo (styles.css).
           shellV2
-            ? "dark border-r border-night-line bg-night text-on-night"
+            ? "dark tinta-de-pagina border-r border-night-line bg-night text-on-night"
             : "border-r border-border bg-sidebar",
         )}
       >
