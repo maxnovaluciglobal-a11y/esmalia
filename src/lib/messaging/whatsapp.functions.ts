@@ -1,4 +1,4 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
@@ -15,7 +15,6 @@ import {
   type WhatsAppAccount,
   type WhatsAppAccountStatus,
 } from "@/lib/messaging/whatsapp";
-import { cifrarCredencial, nuevoPinWhatsApp } from "@/lib/messaging/credenciales-whatsapp.server";
 import {
   cuerpoConVariables,
   estadoPlantillaDesdeMeta,
@@ -77,10 +76,15 @@ function requireMetaAppConfig() {
 // Los módulos .server se cargan con import dinámico: este archivo también
 // llega al bundle del cliente (las server functions se referencian desde
 // las rutas) y el plugin de TanStack Start bloquea imports estáticos de *.server.
-async function tokenDeClinica(clinicId: string): Promise<string> {
+// Fuera de un `.handler()` además hace falta `createServerOnlyFn`: sin él
+// `vite dev` rechaza el import dinámico (ver `escribirLeadEnBase` en
+// leads.functions.ts). Es identidad en runtime.
+const tokenDeClinica = createServerOnlyFn(async function tokenDeClinica(
+  clinicId: string,
+): Promise<string> {
   const { tokenWhatsAppDeClinica } = await import("@/lib/messaging/token-whatsapp.server");
   return tokenWhatsAppDeClinica(clinicId);
-}
+});
 
 /** Error de la Graph API en texto legible, sin volcar el JSON entero. */
 async function errorDeMeta(res: Response): Promise<string> {
@@ -101,86 +105,91 @@ async function errorDeMeta(res: Response): Promise<string> {
  * Una plantilla que ya existe en Meta no es error: se toma su estado actual.
  * Nunca tira: devuelve cuántas quedaron registradas, para mostrarlo.
  */
-export async function sincronizarPlantillasMeta(params: {
-  clinicId: string;
-  wabaId: string;
-  token: string;
-  userId: string;
-}): Promise<{ registradas: number; fallidas: string[] }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const version = metaApiVersion();
-  const fallidas: string[] = [];
-  let registradas = 0;
+export const sincronizarPlantillasMeta = createServerOnlyFn(
+  async function sincronizarPlantillasMeta(params: {
+    clinicId: string;
+    wabaId: string;
+    token: string;
+    userId: string;
+  }): Promise<{ registradas: number; fallidas: string[] }> {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const version = metaApiVersion();
+    const fallidas: string[] = [];
+    let registradas = 0;
 
-  for (const kind of Object.keys(PLANTILLAS_META) as KindConPlantillaMeta[]) {
-    const plantilla = PLANTILLAS_META[kind];
-    let estado = "pending";
-    try {
-      const res = await fetch(
-        `https://graph.facebook.com/${version}/${params.wabaId}/message_templates`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${params.token}`, "Content-Type": "application/json" },
-          body: JSON.stringify(payloadPlantillaMeta(kind)),
-        },
-      );
-      if (res.ok) {
-        const json = (await res.json()) as { status?: string };
-        estado = estadoPlantillaDesdeMeta(json.status ?? "PENDING");
-      } else {
-        // ¿Ya existía? Se consulta su estado en vez de darla por fallida.
-        const consulta = await fetch(
-          `https://graph.facebook.com/${version}/${params.wabaId}/message_templates?name=${plantilla.nombre}&fields=name,status,language`,
-          { headers: { Authorization: `Bearer ${params.token}` } },
+    for (const kind of Object.keys(PLANTILLAS_META) as KindConPlantillaMeta[]) {
+      const plantilla = PLANTILLAS_META[kind];
+      let estado = "pending";
+      try {
+        const res = await fetch(
+          `https://graph.facebook.com/${version}/${params.wabaId}/message_templates`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${params.token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payloadPlantillaMeta(kind)),
+          },
         );
-        const lista = consulta.ok
-          ? ((await consulta.json()) as {
-              data?: Array<{ name: string; status: string; language: string }>;
-            })
-          : { data: [] };
-        const existente = lista.data?.find(
-          (t) => t.name === plantilla.nombre && t.language === IDIOMA_META,
-        );
-        if (!existente) {
-          fallidas.push(`${plantilla.nombre}: ${await errorDeMeta(res)}`);
-          continue;
+        if (res.ok) {
+          const json = (await res.json()) as { status?: string };
+          estado = estadoPlantillaDesdeMeta(json.status ?? "PENDING");
+        } else {
+          // ¿Ya existía? Se consulta su estado en vez de darla por fallida.
+          const consulta = await fetch(
+            `https://graph.facebook.com/${version}/${params.wabaId}/message_templates?name=${plantilla.nombre}&fields=name,status,language`,
+            { headers: { Authorization: `Bearer ${params.token}` } },
+          );
+          const lista = consulta.ok
+            ? ((await consulta.json()) as {
+                data?: Array<{ name: string; status: string; language: string }>;
+              })
+            : { data: [] };
+          const existente = lista.data?.find(
+            (t) => t.name === plantilla.nombre && t.language === IDIOMA_META,
+          );
+          if (!existente) {
+            fallidas.push(`${plantilla.nombre}: ${await errorDeMeta(res)}`);
+            continue;
+          }
+          estado = estadoPlantillaDesdeMeta(existente.status);
         }
-        estado = estadoPlantillaDesdeMeta(existente.status);
-      }
 
-      const meta = {
-        meta_template_name: plantilla.nombre,
-        meta_language: IDIOMA_META,
-        meta_status: estado,
-        meta_category: plantilla.categoria.toLowerCase(),
-      };
-      const { data: filas } = await supabaseAdmin
-        .from("message_templates")
-        .update(meta)
-        .eq("clinic_id", params.clinicId)
-        .eq("kind", kind)
-        .eq("channel", "whatsapp")
-        .select("id");
-      if (!filas?.length) {
-        // La clínica no tenía plantilla de WhatsApp para este caso: se crea
-        // con el mismo texto (sirve también para el envío manual).
-        await supabaseAdmin.from("message_templates").insert({
-          clinic_id: params.clinicId,
-          kind,
-          channel: "whatsapp",
-          name: plantilla.nombre,
-          body: cuerpoConVariables(kind),
-          created_by: params.userId,
-          ...meta,
-        });
+        const meta = {
+          meta_template_name: plantilla.nombre,
+          meta_language: IDIOMA_META,
+          meta_status: estado,
+          meta_category: plantilla.categoria.toLowerCase(),
+        };
+        const { data: filas } = await supabaseAdmin
+          .from("message_templates")
+          .update(meta)
+          .eq("clinic_id", params.clinicId)
+          .eq("kind", kind)
+          .eq("channel", "whatsapp")
+          .select("id");
+        if (!filas?.length) {
+          // La clínica no tenía plantilla de WhatsApp para este caso: se crea
+          // con el mismo texto (sirve también para el envío manual).
+          await supabaseAdmin.from("message_templates").insert({
+            clinic_id: params.clinicId,
+            kind,
+            channel: "whatsapp",
+            name: plantilla.nombre,
+            body: cuerpoConVariables(kind),
+            created_by: params.userId,
+            ...meta,
+          });
+        }
+        registradas += 1;
+      } catch (err) {
+        fallidas.push(`${plantilla.nombre}: ${(err as Error).message}`);
       }
-      registradas += 1;
-    } catch (err) {
-      fallidas.push(`${plantilla.nombre}: ${(err as Error).message}`);
     }
-  }
-  return { registradas, fallidas };
-}
+    return { registradas, fallidas };
+  },
+);
 
 const SIN_PERMISOS_LLAMADA =
   "Para conectar WhatsApp oficial primero tienes que agendar la llamada de puesta en marcha o suscribirte.";
