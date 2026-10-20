@@ -101,7 +101,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Presupuestos y caja vienen desde el plan Solo (US$29 al mes) y están en todos los planes. Crear un presupuesto necesita internet; los cobros sí se pueden registrar sin conexión. Revisa los [precios](/precios) o mira un plan de tratamiento en la [demo](/demo).",
+            "Presupuestos y caja vienen desde el plan Solo (US$29 al mes) y están en todos los planes. Crear un presupuesto necesita internet; los cobros sí se pueden registrar sin conexión. Revisa los [precios](/precios) o mira un plan de tratamiento en la [demo](/demo). Si todavía presupuestas en papel, usa nuestra [plantilla de presupuesto dental](/plantillas/presupuesto-dental).",
         },
       ],
     },
@@ -143,6 +143,7 @@ export const pagina: PaginaContenido = {
     "/funciones/comisiones",
     "/funciones/recordatorios-whatsapp",
     "/funciones/ficha-clinica",
+    "/plantillas/presupuesto-dental",
   ],
   enUnaLinea:
     "Presupuestos por pieza y por fases que al aceptarse se vuelven plan de tratamiento, con saldo por línea.",

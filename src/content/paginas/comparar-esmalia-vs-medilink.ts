@@ -195,6 +195,7 @@ export const pagina: PaginaContenido = {
     "/comparar/mejores-software-dental-chile",
     "/funciones/odontograma",
     "/funciones/sin-internet",
+    "/guias/ia-en-odontologia",
     "/precios",
   ],
   enUnaLinea:

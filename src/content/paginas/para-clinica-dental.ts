@@ -186,6 +186,7 @@ export const pagina: PaginaContenido = {
     "/funciones/comisiones",
     "/funciones/recordatorios-whatsapp",
     "/comparar/esmalia-vs-dentalink",
+    "/plantillas/inventario-clinica-dental",
     "/software-dental-chile",
     "/precios",
   ],

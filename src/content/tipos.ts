@@ -9,7 +9,14 @@
 export type Bloque =
   | { tipo: "p"; texto: string }
   | { tipo: "lista"; items: string[]; ordenada?: boolean }
-  | { tipo: "tabla"; columnas: string[]; filas: string[][]; nota?: string }
+  | {
+      tipo: "tabla";
+      columnas: string[];
+      filas: string[][];
+      nota?: string;
+      /** Formulario para imprimir y llenar a mano: celdas altas con líneas. */
+      rellenable?: boolean;
+    }
   /** Recuadro destacado: límites del producto, advertencias, "qué no hace". */
   | { tipo: "aviso"; texto: string }
   /** Texto para copiar y pegar (mensajes de WhatsApp, cláusulas de plantilla). */

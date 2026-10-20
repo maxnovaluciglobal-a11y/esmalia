@@ -54,9 +54,23 @@ function BotonCopiar({ texto }: { texto: string }) {
           })
           .catch(() => {});
       }}
-      className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+      className="rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground print:hidden"
     >
       {copiado ? "Copiado" : "Copiar"}
+    </button>
+  );
+}
+
+/** Solo en plantillas: imprime la página con los estilos `print:` (sin
+ *  header, footer, CTA ni botones). Un onClick, nada más de JS. */
+function BotonImprimir() {
+  return (
+    <button
+      type="button"
+      onClick={() => window.print()}
+      className="mt-4 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground print:hidden"
+    >
+      Imprimir o guardar en PDF
     </button>
   );
 }
@@ -88,11 +102,11 @@ function RenderBloque({ bloque }: { bloque: Bloque }): ReactNode {
     }
     case "tabla":
       return (
-        <figure className="mt-6">
-          <div className="overflow-x-auto rounded-xl border border-hairline">
+        <figure className="mt-6 print:break-inside-avoid">
+          <div className="overflow-x-auto rounded-xl border border-hairline print:overflow-visible">
             <table
               className={cn(
-                "w-full border-collapse text-left text-sm",
+                "w-full border-collapse text-left text-sm print:min-w-0 print:text-xs",
                 // Tablas anchas (comparativas): se desplazan en su contenedor en
                 // vez de apretar cada celda a dos palabras por línea.
                 bloque.columnas.length > 5 ? "min-w-[900px]" : "min-w-[560px]",
@@ -112,11 +126,21 @@ function RenderBloque({ bloque }: { bloque: Bloque }): ReactNode {
                   <tr key={i} className="border-t border-hairline align-top">
                     {fila.map((celda, j) =>
                       j === 0 ? (
-                        <th key={j} scope="row" className="px-3 py-2.5 font-medium">
+                        <th
+                          key={j}
+                          scope="row"
+                          className={cn("px-3 py-2.5 font-medium", bloque.rellenable && "h-11")}
+                        >
                           <TextoEnLinea texto={celda} />
                         </th>
                       ) : (
-                        <td key={j} className="px-3 py-2.5 text-foreground/80">
+                        <td
+                          key={j}
+                          className={cn(
+                            "px-3 py-2.5 text-foreground/80",
+                            bloque.rellenable && "h-11 border-l border-hairline",
+                          )}
+                        >
                           <TextoEnLinea texto={celda} />
                         </td>
                       ),
@@ -141,7 +165,7 @@ function RenderBloque({ bloque }: { bloque: Bloque }): ReactNode {
       );
     case "plantilla":
       return (
-        <div className="mt-4 rounded-xl border border-hairline bg-card p-4">
+        <div className="mt-4 rounded-xl border border-hairline bg-card p-4 print:break-inside-avoid">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold">{bloque.titulo}</p>
             <BotonCopiar texto={bloque.texto} />
@@ -173,7 +197,7 @@ export function PaginaContenidoView({
 }) {
   return (
     <PublicPageShell mainClassName="max-w-3xl px-6 py-14 text-foreground sm:py-20">
-      <nav aria-label="Ruta" className="text-xs text-muted-foreground">
+      <nav aria-label="Ruta" className="text-xs text-muted-foreground print:hidden">
         <Link to="/" className="hover:underline">
           Inicio
         </Link>
@@ -196,6 +220,7 @@ export function PaginaContenidoView({
             ? ` · Revisado por ${pagina.revisor.nombre} (${pagina.revisor.credencial})`
             : null}
         </p>
+        {pagina.coleccion === "plantillas" ? <BotonImprimir /> : null}
 
         {pagina.secciones.map((s) => (
           <section key={s.h2} className="mt-12">
@@ -229,7 +254,7 @@ export function PaginaContenidoView({
           </section>
         ) : null}
 
-        <section className="mt-14 rounded-2xl border border-hairline bg-card p-6 sm:p-8">
+        <section className="mt-14 rounded-2xl border border-hairline bg-card p-6 sm:p-8 print:hidden">
           <h2 className="font-display text-2xl font-normal">Mira Esmalia por dentro</h2>
           <p className="mt-2 text-foreground/80">
             Entra a una clínica de demostración con datos de ejemplo, o prueba 14 días gratis sin
@@ -272,7 +297,7 @@ export function PaginaContenidoView({
         ) : null}
 
         {relacionados.length ? (
-          <section className="mt-12">
+          <section className="mt-12 print:hidden">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
               Sigue leyendo
             </h2>
