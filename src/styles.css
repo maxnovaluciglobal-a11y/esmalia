@@ -211,18 +211,19 @@
   --space-7: 32.2px;
   --space-8: 36.8px;
 
-  /* Papel y tinta */
-  --background: #f3f2f2;
+  /* Papel y tinta (A+, 19-oct-2026: papel #F4F2EE, tarjeta #FCFBF9 y
+     tinta #15120F del prototipo a-plus-final). */
+  --background: #f4f2ee;
   /* La superficie (sidebar, franjas) se separa del papel y las tarjetas
      quedan un paso más claras: antes papel, superficie y tarjeta daban
      1,04–1,08:1 entre sí y todo se leía como un mismo gris (auditoría
      07-oct-2026). */
-  --surface: #e4e1dc;
-  --foreground: #201f1d;
-  --card: #fbfaf8;
-  --card-foreground: #201f1d;
-  --popover: #fbfaf8;
-  --popover-foreground: #201f1d;
+  --surface: #e4e0d9;
+  --foreground: #15120f;
+  --card: #fcfbf9;
+  --card-foreground: #15120f;
+  --popover: #fcfbf9;
+  --popover-foreground: #15120f;
 
   /* Rampa del acento */
   --brand: #b68235;
@@ -236,7 +237,7 @@
   --brand-800: #5a3b0a;
   --brand-900: #3a270d;
   /* Tinta sobre ocre (~5,5:1): el blanco sobre #b68235 no llega a AA. */
-  --brand-foreground: #201f1d;
+  --brand-foreground: #15120f;
   --brand-soft: #fff3e4;
 
   /* IA (Patty): violeta ciruela, el único acento frío del sistema. Significa
@@ -251,10 +252,10 @@
   /* Semánticos shadcn re-mapeados: así cambian los 48 componentes de ui/. */
   --primary: #7d5411;
   --primary-foreground: #ffffff;
-  --secondary: #e9e6e1;
-  --secondary-foreground: #201f1d;
-  --muted: #e9e6e1;
-  --muted-foreground: #5f5c59;
+  --secondary: #eae6df;
+  --secondary-foreground: #15120f;
+  --muted: #eae6df;
+  --muted-foreground: #5b554f;
   --accent: color-mix(in srgb, #b68235 10%, transparent);
   --accent-foreground: #5a3b0a;
   /* Estados: cuatro tintas de pigmento con la luminosidad del ocre 700.
@@ -277,18 +278,18 @@
   --neutral-soft: #e6e4e2;
   --neutral-border: #8e8984;
 
-  --divider: color-mix(in srgb, #201f1d 16%, transparent);
-  --border: color-mix(in srgb, #201f1d 16%, transparent);
-  --hairline: color-mix(in srgb, #201f1d 9%, transparent);
+  --divider: color-mix(in srgb, #15120f 16%, transparent);
+  --border: color-mix(in srgb, #15120f 16%, transparent);
+  --hairline: color-mix(in srgb, #15120f 9%, transparent);
   /* Bordes de controles (campos, botones de contorno): ≥ 3:1 sobre papel
      y tarjeta (WCAG 1.4.11). Tarjetas y divisores siguen en --border. */
-  --input: color-mix(in srgb, #201f1d 50%, transparent);
-  --control: color-mix(in srgb, #201f1d 50%, transparent);
+  --input: color-mix(in srgb, #15120f 50%, transparent);
+  --control: color-mix(in srgb, #15120f 50%, transparent);
   --ring: #7d5411;
 
-  --shadow-ink-soft: rgb(45 43 43 / 0.14);
-  --shadow-ink-mid: rgb(45 43 43 / 0.16);
-  --shadow-ink-strong: rgb(45 43 43 / 0.22);
+  --shadow-ink-soft: rgb(21 18 15 / 0.14);
+  --shadow-ink-mid: rgb(21 18 15 / 0.16);
+  --shadow-ink-strong: rgb(21 18 15 / 0.22);
 
   --chart-1: #b68235;
   --chart-2: #605d5d;
@@ -296,13 +297,13 @@
   --chart-4: #5b8f9a;
   --chart-5: #c47a3c;
 
-  --sidebar: #e4e1dc;
-  --sidebar-foreground: #201f1d;
+  --sidebar: #e4e0d9;
+  --sidebar-foreground: #15120f;
   --sidebar-primary: #7d5411;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: color-mix(in srgb, #b68235 12%, transparent);
   --sidebar-accent-foreground: #5a3b0a;
-  --sidebar-border: color-mix(in srgb, #201f1d 12%, transparent);
+  --sidebar-border: color-mix(in srgb, #15120f 12%, transparent);
   --sidebar-ring: #b68235;
 
   /* ---- A+ (19-oct-2026): tokens aditivos ---- */
@@ -341,13 +342,13 @@
 /* Modo oscuro: la misma rampa leída sobre tinta. El acento sube a los
    pasos claros para conservar contraste. */
 .dark {
-  --background: #1d1c1b;
-  --surface: #171615;
-  --foreground: #ece9e4;
-  --card: #232120;
-  --card-foreground: #ece9e4;
-  --popover: #252322;
-  --popover-foreground: #ece9e4;
+  --background: #1a1714;
+  --surface: #13110e;
+  --foreground: #f1ece4;
+  --card: #221e1a;
+  --card-foreground: #f1ece4;
+  --popover: #26211d;
+  --popover-foreground: #f1ece4;
 
   --brand: #e1ad66;
   --brand-100: #3a270d;
@@ -359,26 +360,26 @@
   --brand-700: #facb8d;
   --brand-800: #ffe3bf;
   --brand-900: #fff3e4;
-  --brand-foreground: #1d1c1b;
+  --brand-foreground: #1a1714;
   --brand-soft: #3a270d;
 
   /* Lavanda sobre tinta: 8,5:1 sobre la tarjeta, 8,0:1 sobre su fondo
      ciruela; borde 3,2:1. */
   --ai: #c8b4ec;
-  --ai-foreground: #1d1c1b;
+  --ai-foreground: #1a1714;
   --ai-soft: #2c2238;
   --ai-border: #7a64a0;
 
   --primary: #facb8d;
-  --primary-foreground: #1d1c1b;
-  --secondary: #2a2827;
-  --secondary-foreground: #ece9e4;
-  --muted: #2a2827;
-  --muted-foreground: #b3aea8;
+  --primary-foreground: #1a1714;
+  --secondary: #2c2722;
+  --secondary-foreground: #f1ece4;
+  --muted: #2c2722;
+  --muted-foreground: #b9b0a5;
   --accent: color-mix(in srgb, #e1ad66 14%, transparent);
   --accent-foreground: #ffe3bf;
   --destructive: #f09482;
-  --destructive-foreground: #1d1c1b;
+  --destructive-foreground: #1a1714;
   --destructive-soft: #3b1d17;
   --destructive-border: #b95a48;
   --success: #9fcb98;
@@ -391,14 +392,14 @@
   --info-soft: #15292e;
   --info-border: #4f8c98;
   --neutral: #b8b2ab;
-  --neutral-soft: #2a2827;
+  --neutral-soft: #2c2722;
   --neutral-border: #7a7570;
 
-  --divider: color-mix(in srgb, #ece9e4 16%, transparent);
-  --border: color-mix(in srgb, #ece9e4 16%, transparent);
-  --hairline: color-mix(in srgb, #ece9e4 9%, transparent);
-  --input: color-mix(in srgb, #ece9e4 45%, transparent);
-  --control: color-mix(in srgb, #ece9e4 45%, transparent);
+  --divider: color-mix(in srgb, #f1ece4 16%, transparent);
+  --border: color-mix(in srgb, #f1ece4 16%, transparent);
+  --hairline: color-mix(in srgb, #f1ece4 9%, transparent);
+  --input: color-mix(in srgb, #f1ece4 45%, transparent);
+  --control: color-mix(in srgb, #f1ece4 45%, transparent);
   --ring: #facb8d;
 
   --shadow-ink-soft: rgb(0 0 0 / 0.3);
@@ -411,13 +412,13 @@
   --chart-4: #8cc6d2;
   --chart-5: #f0a868;
 
-  --sidebar: #171615;
-  --sidebar-foreground: #ece9e4;
+  --sidebar: #13110e;
+  --sidebar-foreground: #f1ece4;
   --sidebar-primary: #facb8d;
-  --sidebar-primary-foreground: #1d1c1b;
+  --sidebar-primary-foreground: #1a1714;
   --sidebar-accent: color-mix(in srgb, #e1ad66 14%, transparent);
   --sidebar-accent-foreground: #ffe3bf;
-  --sidebar-border: color-mix(in srgb, #ece9e4 12%, transparent);
+  --sidebar-border: color-mix(in srgb, #f1ece4 12%, transparent);
   --sidebar-ring: #e1ad66;
 
   /* ---- A+ (19-oct-2026) ---- */
@@ -429,14 +430,14 @@
   --on-night: #f1ece4;
   --on-night-2: #ada59a;
   --brand-on-night: #e1ad66;
-  /* Invertido: cobalto claro sobre tarjeta oscura (6,4:1 sobre #232120). */
+  /* Invertido: cobalto claro sobre tarjeta oscura (6,6:1 sobre #221e1a). */
   --cobalt: #8e9dff;
   --cobalt-ink: #a9b4ff;
   --cobalt-soft: #1e2450;
   --cobalt-on-night: #8e9dff;
-  /* 6,6:1 sobre la tarjeta; tinta sobre petróleo 7,0:1. */
+  /* 6,8:1 sobre la tarjeta; tinta sobre petróleo 7,3:1. */
   --petrol: #5fb3b8;
-  --petrol-foreground: #1d1c1b;
+  --petrol-foreground: #1a1714;
 }
 
 @layer base {

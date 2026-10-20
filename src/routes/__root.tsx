@@ -157,8 +157,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: SOCIAL_IMAGE_URL },
       // Pinta la barra del navegador con el papel (claro) o la tinta (oscuro)
       // cuando la app corre instalada (display: standalone).
-      { name: "theme-color", content: "#f3f2f2", media: "(prefers-color-scheme: light)" },
-      { name: "theme-color", content: "#1d1c1b", media: "(prefers-color-scheme: dark)" },
+      { name: "theme-color", content: "#f4f2ee", media: "(prefers-color-scheme: light)" },
+      { name: "theme-color", content: "#1a1714", media: "(prefers-color-scheme: dark)" },
       // Verificación del dominio en el portafolio de Meta (Maxnova & Luci LLC): no es secreto.
       { name: "facebook-domain-verification", content: "b58oz2sxb22bc64yescoo5mrkaul01" },
       { name: "apple-mobile-web-app-capable", content: "yes" },

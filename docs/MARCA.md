@@ -40,6 +40,7 @@ Solo los del sistema (`src/styles.css`). Nada fuera de esta tabla.
 Contraste medido (WCAG, elemento gráfico pide 3:1):
 
 - Arco `#b68235` sobre papel `#fbfaf8`: 3,23:1; sobre fondo `#f3f2f2`: 3,02:1. Pasa justo: no apoyar el wordmark a color sobre grises más oscuros que `#f3f2f2`; ahí va la versión monocromo.
+- Con el papel y la tinta A+ de la app (19-oct-2026: fondo `#f4f2ee`, tarjeta `#fcfbf9`, tinta `#15120f`): arco sobre el fondo 3,01:1 y sobre la tarjeta 3,26:1, igual que antes. Los SVG del logo siguen con la tinta `#201f1d` y el papel `#fbfaf8`: la diferencia con los tokens nuevos no se ve a simple vista y no justifica regenerar los archivos de marca.
 - Arco `#b68235` sobre tinta `#201f1d`: 4,89:1 (pasaría), pero en el negativo se usa `#e1ad66` (8,13:1), que es el `--brand` del modo oscuro: así el logo se ve igual en la app y en los archivos, y el arco no queda apagado al lado de letras casi blancas.
 - Monograma `#7d5411` sobre papel: 6,39:1. Sobre tinta no sirve (2,47:1): usar el negativo `#facb8d` (10,97:1).
 
