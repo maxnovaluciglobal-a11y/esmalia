@@ -13,7 +13,8 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { listClinicMembers } from "@/lib/access/access.functions";
 import { getMySubscription } from "@/lib/billing.functions";
-import { accesoPorSuscripcion } from "@/lib/billing";
+import { accesoPorSuscripcion, requiereLlamadaOSuscripcion } from "@/lib/billing";
+import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
 import {
   formatoFecha,
   formatoFechaLarga,
@@ -78,6 +79,8 @@ type PasoActivacion = {
   hecho: boolean;
   label: string;
   to?: "/pacientes" | "/agenda" | "/equipo";
+  /** Enlace externo (la llamada de puesta en marcha): se abre en otra pestaña. */
+  href?: string;
   cta?: string;
 };
 
@@ -117,6 +120,16 @@ function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
               <Link to={paso.to} className="shrink-0 text-xs text-brand-700 hover:underline">
                 {paso.cta} →
               </Link>
+            )}
+            {!paso.hecho && paso.href && (
+              <a
+                href={paso.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="shrink-0 text-xs text-brand-700 hover:underline"
+              >
+                {paso.cta} →
+              </a>
             )}
           </li>
         ))}
@@ -550,6 +563,21 @@ function Dashboard() {
       label: "Agendar la primera cita",
       to: "/agenda",
       cta: "Ir a la agenda",
+    },
+    {
+      // CS-02: WhatsApp, portal y efectividad se activan con la llamada de
+      // puesta en marcha (o suscribiéndose). Estar en el checklist evita que
+      // la clínica lo descubra al chocar con el candado. Mientras carga la
+      // suscripción no se muestra, para que no parpadee.
+      hecho:
+        sub === undefined ||
+        !requiereLlamadaOSuscripcion(sub, access.clinic?.onboardingCallAt ?? null),
+      label: `Hacer la puesta en marcha (${MINUTOS_PUESTA_EN_MARCHA} min): activa WhatsApp y el portal`,
+      href: enlacePuestaEnMarcha({
+        clinicName: access.clinic?.name,
+        clinicEmail: access.email,
+      }).href,
+      cta: "Agendar",
     },
   ];
 
