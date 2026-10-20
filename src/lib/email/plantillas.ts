@@ -39,6 +39,12 @@ const montoConMoneda = (cents: number, currency: string) =>
 /** Qué queda bloqueado cuando el trial vence sin tarjeta (`trialInformesBloqueados`). */
 const LO_QUE_SE_PAUSA = "finanzas, comisiones, inventario y panel de desempeño";
 
+/**
+ * Lo que destraba la llamada (`requiereLlamadaOSuscripcion` en billing.ts),
+ * con las mismas palabras en la bienvenida y en el aviso de llamada pendiente.
+ */
+const LO_QUE_ACTIVA_LA_LLAMADA = `El WhatsApp de la clínica, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de ${MINUTOS_PUESTA_EN_MARCHA} minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.`;
+
 // ─── a. Bienvenida ───────────────────────────────────────────────────────
 
 export interface DatosBienvenida {
@@ -64,9 +70,7 @@ export function correoBienvenida(d: DatosBienvenida): CorreoRenderizado {
     {
       tipo: "recuadro",
       titulo: "Tres funciones se activan con una llamada",
-      partes: [
-        `El WhatsApp de la clínica, el portal del paciente y la página de efectividad se activan en una llamada de puesta en marcha de ${MINUTOS_PUESTA_EN_MARCHA} minutos, o al suscribirte. En la llamada revisamos tu configuración y te ayudamos a traer tus pacientes.`,
-      ],
+      partes: [LO_QUE_ACTIVA_LA_LLAMADA],
       // Mismo enlace que `LlamadaDesbloqueo` (llamada-desbloqueo.tsx).
       enlace: { texto: "Agendar la llamada", href: enlacePuestaEnMarcha().href },
     },
@@ -108,6 +112,56 @@ export function correoBienvenida(d: DatosBienvenida): CorreoRenderizado {
     titulo: "Tu clínica ya está en Esmalia",
     bloques,
     pie: { motivo: `Recibes este correo porque creaste ${d.clinicName} en Esmalia.` },
+  });
+}
+
+// ─── a2. Llamada de puesta en marcha pendiente ───────────────────────────
+
+export interface DatosLlamadaPendiente {
+  appUrl: string;
+  clinicName: string;
+  nombre?: string | null;
+  /** Enlace para agendar. Por defecto, `enlacePuestaEnMarcha` con el nombre de
+   *  la clínica (Calendly → WhatsApp de ventas → correo). */
+  agendarHref?: string;
+}
+
+/**
+ * 24 h después del alta, si la clínica sigue en prueba sin la llamada. Corto:
+ * qué se activa con la llamada (lo mismo que dice la bienvenida) y un botón
+ * para agendarla. No promete nada que el producto no haga.
+ */
+export function correoLlamadaPendiente(d: DatosLlamadaPendiente): CorreoRenderizado {
+  const bloques: Bloque[] = [
+    p(saludo(d.nombre)),
+    p(
+      { negrita: d.clinicName },
+      " ya está en Esmalia, pero todavía falta la llamada de puesta en marcha.",
+    ),
+    {
+      tipo: "recuadro",
+      titulo: "Qué se activa con la llamada",
+      partes: [LO_QUE_ACTIVA_LA_LLAMADA],
+    },
+    p("Mientras tanto, la agenda, los pacientes y las fichas clínicas funcionan con normalidad."),
+    {
+      tipo: "boton",
+      texto: "Agendar la llamada",
+      href: d.agendarHref ?? enlacePuestaEnMarcha({ clinicName: d.clinicName }).href,
+    },
+    pTenue(
+      "Si tienes dudas o ningún horario te sirve, responde este correo. Lo lee una persona del equipo de Esmalia.",
+    ),
+  ];
+  return renderCorreo({
+    appUrl: d.appUrl,
+    asunto: "Falta tu llamada de puesta en marcha en Esmalia",
+    preencabezado: `${MINUTOS_PUESTA_EN_MARCHA} minutos para activar el WhatsApp de la clínica, el portal del paciente y la página de efectividad.`,
+    titulo: "Agenda tu puesta en marcha",
+    bloques,
+    pie: {
+      motivo: `Recibes este correo porque administras ${d.clinicName} en Esmalia.`,
+    },
   });
 }
 
