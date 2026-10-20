@@ -58,7 +58,7 @@ import {
   NOTE_TEMPLATE_SPECIALTIES,
   getNoteTemplate,
 } from "@/lib/clinical/note-templates";
-import { PattyMark } from "@/components/patty";
+import { PattyCara } from "@/components/patty-cara";
 import { VersionDiffDialog } from "@/components/version-diff-dialog";
 import { DevDiagnosticsPanel } from "@/components/dev-diagnostics-panel";
 import { estadoNota, reportarBloqueo } from "@/lib/block-diagnostics";
@@ -689,9 +689,9 @@ export function NotasClinicas({
           {puedeEditar && !pattyActiva && (
             <p
               role="status"
-              className="flex items-start gap-1.5 rounded-xl border border-hairline p-3 text-xs text-muted-foreground"
+              className="flex items-center gap-2.5 rounded-xl border border-hairline p-3 text-xs text-muted-foreground"
             >
-              <PattyMark size={14} className="mt-px" />
+              <PattyCara px={28} decorativa />
               <span>{MENSAJE_IA_PAUSADA}</span>
             </p>
           )}
@@ -703,9 +703,9 @@ export function NotasClinicas({
             >
               <p
                 id="patty-nota-titulo"
-                className="mb-2.5 flex items-center gap-1.5 text-xs text-muted-foreground"
+                className="mb-2.5 flex items-center gap-2.5 text-xs text-muted-foreground"
               >
-                <PattyMark size={14} />
+                <PattyCara px={28} decorativa />
                 <span>
                   <span className="font-display text-[1.15em] italic text-ai">Patty</span> puede
                   ayudarte con esta nota
@@ -960,8 +960,8 @@ export function NotasClinicas({
 
           {resumen && (
             <div className="rounded-xl border border-ai-border/60 bg-ai-soft p-4">
-              <p className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold text-ai">
-                <PattyMark size={14} />
+              <p className="mb-2 flex items-center gap-2.5 text-xs font-semibold text-ai">
+                <PattyCara px={28} decorativa />
                 <span>
                   Resumen de <span className="font-display text-[1.15em] italic">Patty</span>
                 </span>

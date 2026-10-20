@@ -12,6 +12,17 @@ import type { LecturaDeAgenda } from "@/lib/messaging/intencion-de-agenda";
  */
 export type FuenteDeLectura = "reglas" | "ia";
 
+/**
+ * Prefijo del detalle cuando leyó la IA. La campana de avisos lo reconoce
+ * para mostrar la cara de Patty al lado (solo visual).
+ */
+export const PREFIJO_LECTURA_DE_PATTY = "Patty leyó: ";
+
+/** El cuerpo de un aviso lo escribió una lectura de Patty. */
+export function esLecturaDePatty(cuerpo: string | null | undefined): boolean {
+  return Boolean(cuerpo?.startsWith(PREFIJO_LECTURA_DE_PATTY));
+}
+
 export const ETIQUETA_DE_INTENCION = {
   agendar: "pide una hora",
   reagendar: "quiere mover su hora",
@@ -37,6 +48,6 @@ export function avisoDeAgenda(
   const detalle = `${etiqueta} ${cuandoDeLectura(lectura)}`;
   return {
     titulo: etiqueta,
-    detalle: fuente === "ia" ? `Patty leyó: ${detalle}` : detalle,
+    detalle: fuente === "ia" ? `${PREFIJO_LECTURA_DE_PATTY}${detalle}` : detalle,
   };
 }
