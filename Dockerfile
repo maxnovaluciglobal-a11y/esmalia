@@ -1,19 +1,24 @@
+# Self-hosted fallback for Esmalia (see docs/SLO.md and docs/DISASTER_RECOVERY.md).
+# Builds the same app Vercel runs, with Nitro's `node-server` preset, and serves
+# it from a standalone Node server in .output/.
+
 # ---------- Build ----------
-FROM oven/bun:1 AS build
+FROM node:24-alpine AS build
 WORKDIR /app
 
-# Instala dependencias (capa cacheable)
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+# Dependencies (cacheable layer). HUSKY=0 skips the git hooks install from
+# the `prepare` script: there is no .git inside the image.
+ENV HUSKY=0
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
 
-# Copia el resto del código y construye
+# Rest of the source, then build
 COPY . .
 
-# Nitro genera un servidor Node autónomo en .output/
 ENV NITRO_PRESET=node-server
 ENV NODE_ENV=production
 
-# Variables VITE_* se inyectan en el bundle del navegador en build-time
+# VITE_* variables are baked into the browser bundle at build time
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_PROJECT_ID
@@ -21,10 +26,10 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
 
-RUN bun run build
+RUN npm run build
 
 # ---------- Runtime ----------
-FROM node:22-alpine AS runtime
+FROM node:24-alpine AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production

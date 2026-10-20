@@ -21,7 +21,6 @@ import {
   PAYMENT_METHODS,
   QUOTE_STATUSES,
   TREATMENT_ITEM_STATUSES,
-  TREATMENT_PLAN_STATUSES,
   type Payment,
   type Procedure,
   type Quote,
@@ -1644,24 +1643,6 @@ export const setTreatmentItemStatus = createServerFn({ method: "POST" })
     }
 
     return { ok: true, skippedSupplyCount };
-  });
-
-export const setTreatmentPlanStatus = createServerFn({ method: "POST" })
-  .middleware([requireEscrituraPorFila("treatment_plans", "planId")])
-  .validator((input: unknown) =>
-    z.object({ planId: z.string().uuid(), status: z.enum(TREATMENT_PLAN_STATUSES) }).parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    const patch = {
-      status: data.status,
-      ...(data.status === "completed" && { completed_at: new Date().toISOString() }),
-    };
-    const { error } = await context.supabase
-      .from("treatment_plans")
-      .update(patch)
-      .eq("id", data.planId);
-    if (error) throw new Error("No pudimos actualizar el plan.");
-    return { ok: true };
   });
 
 // ─── PAYMENTS ────────────────────────────────────────────────────────────

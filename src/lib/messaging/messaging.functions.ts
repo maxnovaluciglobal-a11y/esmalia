@@ -14,7 +14,6 @@ import {
   renderTemplate,
   renderTemplateHtml,
   type Message,
-  type MessageTemplate,
   type OutreachTemplateKind,
 } from "@/lib/messaging/messaging";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
@@ -57,7 +56,6 @@ export async function loadEmailSandboxConfig(
 
 const MESSAGE_COLUMNS =
   "id, direction, appointment_id, quote_id, template_id, template_kind, channel, status, recipient, body, sent_at, created_at";
-const TEMPLATE_COLUMNS = "id, kind, name, channel, body, is_active";
 
 type MessageRow = {
   id: string;
@@ -72,15 +70,6 @@ type MessageRow = {
   body: string;
   sent_at: string | null;
   created_at: string;
-};
-
-type TemplateRow = {
-  id: string;
-  kind: string;
-  name: string;
-  channel: string;
-  body: string;
-  is_active: boolean;
 };
 
 function mapMessage(row: MessageRow): Message {
@@ -99,34 +88,6 @@ function mapMessage(row: MessageRow): Message {
     createdAt: row.created_at,
   };
 }
-
-function mapTemplate(row: TemplateRow): MessageTemplate {
-  return {
-    id: row.id,
-    kind: row.kind as MessageTemplate["kind"],
-    name: row.name,
-    channel: row.channel as MessageTemplate["channel"],
-    body: row.body,
-    isActive: row.is_active,
-  };
-}
-
-/** Templates activos de la clínica. */
-export const listMessageTemplates = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }): Promise<MessageTemplate[]> => {
-    const { data: rows, error } = await context.supabase
-      .from("message_templates")
-      .select(TEMPLATE_COLUMNS)
-      .eq("clinic_id", data.clinicId)
-      .eq("is_active", true)
-      .order("kind", { ascending: true })
-      .order("name", { ascending: true });
-
-    if (error) throw new Error(mensajeDb(error, "No pudimos cargar las plantillas de mensajes."));
-    return (rows ?? []).map((r) => mapTemplate(r as TemplateRow));
-  });
 
 /** Historial de mensajes del paciente (más reciente primero). */
 export const listMessages = createServerFn({ method: "GET" })

@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -24,11 +23,11 @@ import {
   horaDeMinutos,
   rangoDeGrilla,
   huecosLibres,
-  minutosAhoraEnZona,
   PASO_HUECO_MIN,
   semillaDeHueco,
   type SemillaCita,
 } from "@/components/agenda-hueco";
+import { useMinutosAhora } from "@/hooks/use-minutos-ahora";
 import { claseBloque, tonoDeEstadoCita } from "@/lib/clinic-operations/estado-cita-tono";
 import { claseEstadoBadge, etiquetaBloqueCita, rangoHorarioCita } from "@/components/cita-acciones";
 import { buttonVariants } from "@/components/ui/button";
@@ -61,26 +60,6 @@ const estadoClases = Object.fromEntries(
 ) as Record<Cita["estado"], string>;
 
 const ALTO_HUECO = PASO_HUECO_MIN * PIXELES_POR_MINUTO;
-
-/**
- * Minutos desde HORA_INICIO de "ahora" en el huso de la clínica, o null si la
- * vista no es hoy. Arranca en null y se calcula en el efecto: en SSR el reloj
- * del servidor no tiene por qué coincidir con el del navegador (hydration).
- */
-export function useMinutosAhora(activo: boolean, timeZone: string | undefined): number | null {
-  const [minutos, setMinutos] = useState<number | null>(null);
-  useEffect(() => {
-    if (!activo) {
-      setMinutos(null);
-      return;
-    }
-    const actualizar = () => setMinutos(minutosAhoraEnZona(timeZone, new Date()));
-    actualizar();
-    const id = window.setInterval(actualizar, 60_000);
-    return () => window.clearInterval(id);
-  }, [activo, timeZone]);
-  return minutos;
-}
 
 const claveHueco = (profesionalId: string, minutos: number) => `${profesionalId}:${minutos}`;
 

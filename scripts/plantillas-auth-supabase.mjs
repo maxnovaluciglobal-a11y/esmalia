@@ -14,7 +14,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { createServer } from "vite";
-import tsConfigPaths from "vite-tsconfig-paths";
 
 const raiz = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const salida = path.join(raiz, ".email-muestras", "auth");
@@ -23,7 +22,7 @@ const vite = await createServer({
   root: raiz,
   configFile: false,
   logLevel: "error",
-  plugins: [tsConfigPaths()],
+  resolve: { tsconfigPaths: true },
   server: { middlewareMode: true, hmr: false },
   appType: "custom",
 });

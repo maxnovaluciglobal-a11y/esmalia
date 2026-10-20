@@ -34,6 +34,7 @@ function cerrar(id: string | number) {
   toast.dismiss(id);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- rendered only through toast.custom; the module's API is the imperative mostrarAvisoReprogramacion
 function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props) {
   // Sonner pausa el tiempo con el mouse encima; con el foco adentro lo
   // pausamos acá (teclado y lector de pantalla). Al salir, vuelve a correr.

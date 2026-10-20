@@ -37,7 +37,7 @@ function leer(rutaRelativa: string): string {
 /**
  * Extrae el cuerpo de un `export const <nombre> = createServerFn(...)` hasta
  * el próximo `export const` (o fin de archivo) — suficiente para inspeccionar
- * su `.inputValidator` y su `.handler` sin un parser de TS real.
+ * su `.validator` y su `.handler` sin un parser de TS real.
  */
 function cuerpoDeFuncion(fuente: string, nombre: string): string {
   const inicio = fuente.indexOf(`export const ${nombre} = createServerFn(`);

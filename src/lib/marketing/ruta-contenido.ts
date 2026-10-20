@@ -1,6 +1,5 @@
 import { notFound } from "@tanstack/react-router";
 
-import { PaginaContenidoView } from "@/components/marketing/pagina-contenido";
 import { aEnlace, type Enlace, NOMBRE_COLECCION, paginaPorPath } from "@/content";
 import type { Coleccion, PaginaContenido } from "@/content/tipos";
 import { contenidoHead } from "@/lib/seo";
@@ -37,8 +36,4 @@ export function headDePagina(datos: DatosPagina | undefined) {
     coleccionNombre: NOMBRE_COLECCION[pagina.coleccion],
     coleccionPath: INDICE_DE[pagina.coleccion],
   });
-}
-
-export function VistaPagina({ datos }: { datos: DatosPagina }) {
-  return <PaginaContenidoView pagina={datos.pagina} relacionados={datos.relacionados} />;
 }

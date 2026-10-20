@@ -504,48 +504,6 @@ export const declineAppointmentRequest = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export interface PortalAccessLogEntry {
-  id: string;
-  patientId: string;
-  event: "session_opened" | "overview_viewed";
-  ipHint: string | null;
-  userAgent: string | null;
-  createdAt: string;
-}
-
-/** Auditoría de accesos al portal. Solo staff de la clínica (RLS). */
-export const listPortalAccessLog = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z
-      .object({
-        clinicId: z.string().uuid(),
-        patientId: z.string().uuid().optional(),
-        limit: z.number().int().min(1).max(200).default(50),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }): Promise<PortalAccessLogEntry[]> => {
-    let q = context.supabase
-      .from("portal_access_log")
-      .select("id, patient_id, event, ip_hint, user_agent, created_at")
-      .eq("clinic_id", data.clinicId)
-      .order("created_at", { ascending: false })
-      .limit(data.limit);
-    if (data.patientId) q = q.eq("patient_id", data.patientId);
-    const { data: rows, error } = await q;
-    if (error)
-      throw new Error(mensajeDb(error, "No pudimos cargar el historial de accesos al portal."));
-    return (rows ?? []).map((r) => ({
-      id: r.id,
-      patientId: r.patient_id,
-      event: r.event as "session_opened" | "overview_viewed",
-      ipHint: r.ip_hint,
-      userAgent: r.user_agent,
-      createdAt: r.created_at,
-    }));
-  });
-
 /** Vincula una solicitud a la cita real recién creada y la cierra. */
 export const markAppointmentRequestScheduled = createServerFn({ method: "POST" })
   .middleware([requireEscritura])

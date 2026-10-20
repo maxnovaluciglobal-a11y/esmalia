@@ -92,6 +92,9 @@
     }
   ],
   "redirects": [
+    { "source": "/login", "destination": "/auth", "permanent": true },
+    { "source": "/ingresar", "destination": "/auth", "permanent": true },
+    { "source": "/registro", "destination": "/auth?signup=true", "permanent": true },
     {
       "source": "/v2",
       "destination": "/",

@@ -42,7 +42,7 @@ const SIGNED_URL_TTL_SECONDS = 60 * 10;
 
 export const iniciarExportacionClinica = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<{ exportId: string }> => {
     const { supabase, userId } = context;
     await exigirPermisoExportacion(supabase, data.clinicId, userId);
@@ -66,7 +66,7 @@ export const iniciarExportacionClinica = createServerFn({ method: "POST" })
 
 export const leerTablaExportacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         clinicId: z.string().uuid(),
@@ -88,7 +88,7 @@ export const leerTablaExportacion = createServerFn({ method: "POST" })
 
 export const firmarArchivosExportacion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z
       .object({
         clinicId: z.string().uuid(),
@@ -141,7 +141,7 @@ async function firmarRutas(
 
 export const iniciarExportacionPaciente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data, context }): Promise<{ exportId: string }> => {
@@ -173,7 +173,7 @@ const ExportacionPacienteSchema = z.object({
 
 export const leerTablaExportacionPaciente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     ExportacionPacienteSchema.extend({
       clave: z.enum(CLAVES_EXPORTACION_PACIENTE),
       offset: z.number().int().min(0),
@@ -202,7 +202,7 @@ export const leerTablaExportacionPaciente = createServerFn({ method: "POST" })
 
 export const firmarArchivosExportacionPaciente = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     ExportacionPacienteSchema.extend({
       rutas: z.array(z.string().min(1).max(512)).min(1).max(100),
     }).parse(input),
