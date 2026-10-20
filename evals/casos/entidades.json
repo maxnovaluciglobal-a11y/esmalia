@@ -1,0 +1,327 @@
+{
+  "descripcion": "Nota clínica -> entidades. Casos 100% inventados. 'esperado' lista, por tipo, las entidades que deberían salir; cada entidad es una lista de alias aceptados (se comparan sin mayúsculas ni tildes, por inclusión). 'dientes' son las piezas FDI que deberían aparecer en algún campo tooth. Tipos: alergias (allergies), medicamentos (medications), condiciones (diagnoses), dientes. 'toleradas' (opcional) lista entidades ambiguas que no cuentan ni a favor ni en contra si el modelo las pone en ese tipo (ej. un barniz de flúor como medicamento).",
+  "casos": [
+    {
+      "id": "ent-01",
+      "nota": "S: Dolor espontáneo en 36 hace 3 días. Alérgica a la penicilina. O: Caries profunda distal 36, percusión positiva. A: Pulpitis irreversible 36. P: Endodoncia 36. Ibuprofeno 400 mg cada 8 h por 3 días.",
+      "esperado": {
+        "alergias": [["penicilina"]],
+        "medicamentos": [["ibuprofeno"]],
+        "condiciones": [["pulpitis"]],
+        "dientes": ["36"]
+      }
+    },
+    {
+      "id": "ent-02",
+      "nota": "Control post exodoncia 48. Sin dolor. Cicatrización normal. Se retiran puntos. Niega alergias.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [],
+        "dientes": ["48"]
+      }
+    },
+    {
+      "id": "ent-03",
+      "nota": "Paciente hipertenso en tratamiento con losartán 50 mg/día. Gingivitis generalizada. Se realiza destartraje supragingival.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["losartan"]],
+        "condiciones": [["gingivitis"], ["hipertens"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-04",
+      "nota": "Alergia al látex y a la sulfa. Caries oclusal 26 y 27. Se realiza resina 26; 27 queda pendiente.",
+      "esperado": {
+        "alergias": [["latex"], ["sulfa"]],
+        "medicamentos": [],
+        "condiciones": [["caries"]],
+        "dientes": ["26", "27"]
+      }
+    },
+    {
+      "id": "ent-05",
+      "nota": "Diabetes tipo 2 en tratamiento con metformina 850 mg. Periodontitis estadio II. Clorhexidina 0,12% colutorio 2 veces al día por 14 días.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["metformina"], ["clorhexidina"]],
+        "condiciones": [["diabetes"], ["periodontitis"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-06",
+      "nota": "Fractura coronaria 11 sin exposición pulpar por caída. Se protege con ionómero. Sin antecedentes mórbidos.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["fractura"]],
+        "dientes": ["11"]
+      },
+      "toleradas": {
+        "medicamentos": [["ionomero"]]
+      }
+    },
+    {
+      "id": "ent-07",
+      "nota": "Absceso vestibular 25. Drenaje. Amoxicilina 500 mg c/8 h por 7 días. Paracetamol 1 g si dolor.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["amoxicilina"], ["paracetamol"]],
+        "condiciones": [["absceso"]],
+        "dientes": ["25"]
+      }
+    },
+    {
+      "id": "ent-08",
+      "nota": "Pericoronaritis 38. Paciente alérgico a AINEs (refiere broncoespasmo con aspirina). Se indica paracetamol 500 mg.",
+      "esperado": {
+        "alergias": [["aine", "antiinflamatorio", "aspirina", "acido acetilsalicilico"]],
+        "medicamentos": [["paracetamol"]],
+        "condiciones": [["pericoronaritis"]],
+        "dientes": ["38"]
+      }
+    },
+    {
+      "id": "ent-09",
+      "nota": "Niño de 7 años. Caries en 74 y 75. Se indica fluoruro barniz y sellantes en 16 y 46.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["caries"]],
+        "dientes": ["74", "75", "16", "46"]
+      },
+      "toleradas": {
+        "medicamentos": [["fluor"]],
+        "condiciones": []
+      }
+    },
+    {
+      "id": "ent-10",
+      "nota": "Paciente anticoagulado con warfarina por fibrilación auricular. INR de ayer 2,4. Exodoncia 44 con hemostasia local reforzada.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["warfarina", "acenocumarol"]],
+        "condiciones": [["fibrilacion"]],
+        "dientes": ["44"]
+      }
+    },
+    {
+      "id": "ent-11",
+      "nota": "Bruxismo nocturno con facetas de desgaste en 13 y 23. Se indica plano miorrelajante.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["bruxismo"]],
+        "dientes": ["13", "23"]
+      }
+    },
+    {
+      "id": "ent-12",
+      "nota": "Asma bronquial, usa salbutamol inhalador SOS. Alergia a ibuprofeno. Gingivitis asociada a placa.",
+      "esperado": {
+        "alergias": [["ibuprofeno"]],
+        "medicamentos": [["salbutamol"]],
+        "condiciones": [["asma"], ["gingivitis"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-13",
+      "nota": "Control endodoncia 21. Lesión periapical en reducción. Asintomático.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["lesion periapical", "periodontitis apical"]],
+        "dientes": ["21"]
+      }
+    },
+    {
+      "id": "ent-14",
+      "nota": "Embarazada de 20 semanas. Gingivitis del embarazo. Toma ácido fólico y hierro.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [
+          ["acido folico", "folico"],
+          ["hierro", "sulfato ferroso"]
+        ],
+        "condiciones": [["gingivitis"]],
+        "dientes": []
+      },
+      "toleradas": {
+        "condiciones": [["embaraz", "gestacion"]]
+      }
+    },
+    {
+      "id": "ent-15",
+      "nota": "Hipotiroidismo en tratamiento con levotiroxina 75 mcg. Caries cervical 33 y 43.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["levotiroxina"]],
+        "condiciones": [["hipotiroidismo"], ["caries"]],
+        "dientes": ["33", "43"]
+      }
+    },
+    {
+      "id": "ent-16",
+      "nota": "Úlcera traumática en reborde lingual derecho por prótesis total inferior. Se alivia la base.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["ulcera"]],
+        "dientes": []
+      },
+      "toleradas": {
+        "condiciones": [["protesis", "edentul"]]
+      }
+    },
+    {
+      "id": "ent-17",
+      "nota": "Alergia a la clorhexidina (dermatitis). Profilaxis y destartraje. Sin medicación habitual.",
+      "esperado": {
+        "alergias": [["clorhexidina"]],
+        "medicamentos": [],
+        "condiciones": [],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-18",
+      "nota": "Pulpotomía 85 con formocresol y corona de acero. Paciente de 5 años sin antecedentes.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [],
+        "dientes": ["85"]
+      }
+    },
+    {
+      "id": "ent-19",
+      "nota": "Osteoporosis en tratamiento con alendronato hace 4 años. Evaluación para implante zona 46. Se deriva a cirujano.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["alendronato"]],
+        "condiciones": [["osteoporosis"]],
+        "dientes": ["46"]
+      }
+    },
+    {
+      "id": "ent-20",
+      "nota": "Herpes labial recurrente activo. Se posterga atención. Se indica aciclovir crema 5 veces al día.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["aciclovir"]],
+        "condiciones": [["herpes"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-21",
+      "nota": "Sensibilidad dentinaria en 14 y 15 por recesión gingival. Barniz de flúor. Pasta desensibilizante con nitrato de potasio.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["nitrato de potasio", "desensibilizante"]],
+        "condiciones": [["sensibilidad", "hipersensibilidad"], ["recesion"]],
+        "dientes": ["14", "15"]
+      },
+      "toleradas": {
+        "medicamentos": [["fluor"]]
+      }
+    },
+    {
+      "id": "ent-22",
+      "nota": "Alergia a mariscos y al yodo. Exodoncia 18 sin complicaciones. Ketorolaco 10 mg c/8 h por 2 días.",
+      "esperado": {
+        "alergias": [["marisco"], ["yodo"]],
+        "medicamentos": [["ketorolaco"]],
+        "condiciones": [],
+        "dientes": ["18"]
+      }
+    },
+    {
+      "id": "ent-23",
+      "nota": "Candidiasis oral asociada a prótesis. Nistatina suspensión 4 veces al día por 10 días. Retirar prótesis de noche.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["nistatina"]],
+        "condiciones": [["candidiasis"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-24",
+      "nota": "Trastorno temporomandibular con dolor muscular. Apertura 35 mm. Se indica naproxeno 550 mg c/12 h por 5 días.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["naproxeno"]],
+        "condiciones": [["temporomandibular", "ttm", "atm"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-25",
+      "nota": "Movilidad grado II en 31 y 41. Periodontitis estadio III. Ferulización programada.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["periodontitis"], ["movilidad"]],
+        "dientes": ["31", "41"]
+      },
+      "toleradas": {
+        "condiciones": []
+      }
+    },
+    {
+      "id": "ent-26",
+      "nota": "Paciente niega alergias. Toma atorvastatina y aspirina 100 mg diaria. Corona 46 cementada.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["atorvastatina"], ["aspirina", "acido acetilsalicilico"]],
+        "condiciones": [],
+        "dientes": ["46"]
+      }
+    },
+    {
+      "id": "ent-27",
+      "nota": "Lesión blanca de 8 mm en borde lateral izquierdo de lengua, no se desprende. Derivación para biopsia.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["lesion blanca", "leucoplasia"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-28",
+      "nota": "Alergia a la amoxicilina. Celulitis facial leve por 36. Clindamicina 300 mg c/6 h por 7 días.",
+      "esperado": {
+        "alergias": [["amoxicilina"]],
+        "medicamentos": [["clindamicina"]],
+        "condiciones": [["celulitis"]],
+        "dientes": ["36"]
+      }
+    },
+    {
+      "id": "ent-29",
+      "nota": "Consulta por presupuesto de ortodoncia. Apiñamiento anteroinferior. Sin antecedentes médicos.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [],
+        "condiciones": [["apinamiento"]],
+        "dientes": []
+      }
+    },
+    {
+      "id": "ent-30",
+      "nota": "Epilepsia controlada con ácido valproico. Hiperplasia gingival leve. Profilaxis. Próximo control en 3 meses.",
+      "esperado": {
+        "alergias": [],
+        "medicamentos": [["valproico", "valproato"]],
+        "condiciones": [["epilepsia"], ["hiperplasia"]],
+        "dientes": []
+      }
+    }
+  ]
+}

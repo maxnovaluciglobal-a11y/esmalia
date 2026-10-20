@@ -2,7 +2,7 @@
  * Patty pausada (auditoría 360: IA-01..IA-04, LEG-01, SEG-04).
  *
  * Test puro: sin red y sin base. `fetch` se reemplaza por un espía; si algo
- * intentara llamar a Gemini/OpenAI con el interruptor apagado, el espía lo
+ * intentara llamar a un proveedor (Anthropic/Vertex/OpenAI) con el interruptor apagado, el espía lo
  * registra y el test falla.
  */
 import { readFileSync } from "node:fs";
@@ -26,7 +26,13 @@ import {
 import type { ClinicalNoteEntity } from "@/lib/clinical/clinical-notes";
 import { interpretarConIA } from "@/lib/messaging/intencion-de-agenda-ia";
 
-const VARS = ["AI_ENABLED", "GEMINI_API_KEY", "OPENAI_API_KEY", "AI_PROVIDER"] as const;
+const VARS = [
+  "AI_ENABLED",
+  "ANTHROPIC_API_KEY",
+  "OPENAI_API_KEY",
+  "AI_PROVIDER_CLINICO",
+  "AI_PROVIDER_AGENDA",
+] as const;
 let guardadas: Record<string, string | undefined> = {};
 let fetchSpy: ReturnType<typeof vi.fn>;
 
@@ -34,7 +40,7 @@ beforeEach(() => {
   guardadas = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
   for (const k of VARS) delete process.env[k];
   // Claves falsas cargadas: el interruptor tiene que frenar AUNQUE haya claves.
-  process.env.GEMINI_API_KEY = "test-gemini-key";
+  process.env.ANTHROPIC_API_KEY = "test-anthropic-key";
   process.env.OPENAI_API_KEY = "test-openai-key";
   fetchSpy = vi.fn(async () => {
     throw new Error("fetch no debería llamarse en este test");
@@ -62,9 +68,9 @@ describe("interruptor AI_ENABLED", () => {
   );
 
   it("sin definir: gatewayChat lanza IaPausadaError y no hace ningún fetch", async () => {
-    const promesa = gatewayChat({ system: "s", user: "u" });
+    const promesa = gatewayChat({ uso: "clinico", system: "s", user: "u" });
     await expect(promesa).rejects.toBeInstanceOf(IaPausadaError);
-    await expect(gatewayChat({ system: "s", user: "u" })).rejects.toMatchObject({
+    await expect(gatewayChat({ uso: "clinico", system: "s", user: "u" })).rejects.toMatchObject({
       code: CODIGO_IA_PAUSADA,
       message: MENSAJE_IA_PAUSADA,
     });
@@ -73,7 +79,8 @@ describe("interruptor AI_ENABLED", () => {
 
   it("apagada: resolverProveedorIa devuelve null aunque haya claves", () => {
     process.env.AI_ENABLED = "false";
-    expect(resolverProveedorIa()).toBeNull();
+    expect(resolverProveedorIa("clinico")).toBeNull();
+    expect(resolverProveedorIa("agenda")).toBeNull();
   });
 
   it("apagada: la lectura de WhatsApp devuelve null sin llamar al modelo", async () => {
@@ -91,11 +98,11 @@ describe("interruptor AI_ENABLED", () => {
   it("prendida: recién ahí sale el request (con fetch simulado)", async () => {
     process.env.AI_ENABLED = "true";
     fetchSpy.mockResolvedValueOnce(
-      new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+      new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), {
         status: 200,
       }),
     );
-    await expect(gatewayChat({ system: "s", user: "u" })).resolves.toBe("ok");
+    await expect(gatewayChat({ uso: "clinico", system: "s", user: "u" })).resolves.toBe("ok");
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });
@@ -157,11 +164,12 @@ describe("minimización: ninguna PII directa sale hacia el modelo", () => {
   it("gatewayChat (prendida) manda el texto ya redactado: el payload no lleva PII", async () => {
     process.env.AI_ENABLED = "true";
     fetchSpy.mockResolvedValueOnce(
-      new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }), {
+      new Response(JSON.stringify({ content: [{ type: "text", text: "ok" }] }), {
         status: 200,
       }),
     );
     await gatewayChat({
+      uso: "clinico",
       system: "sistema",
       user: `Contexto del paciente:\n${construirContextoPaciente(paciente)}\n\nApuntes:\nMaría José Pérez Soto, tel ${paciente.telefono}, ${paciente.email}, RUT ${paciente.documento}. Dolor 36.`,
       identificadores: {

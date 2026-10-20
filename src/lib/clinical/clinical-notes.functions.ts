@@ -13,6 +13,7 @@ import type { Database } from "@/integrations/supabase/types";
 type SupabaseCtx = SupabaseClient<Database>;
 import { versionVigenteSegunCoincidencia } from "@/lib/clinical/clinical-notes";
 import { leerTodasLasPaginas } from "@/lib/paginacion";
+import { PROMPTS_NOTA, PROMPT_ENTIDADES, SYSTEM_BASE } from "@/lib/ai/prompts";
 import type {
   ClinicalEntityKind,
   ClinicalNote,
@@ -628,24 +629,6 @@ const aiInput = clinicPatient.extend({
   templateId: z.string().max(64).nullable().optional(),
 });
 
-const SYSTEM_BASE =
-  "Eres un asistente clínico odontológico para LatAm. Escribes en español neutro, en tono profesional, " +
-  "conciso y objetivo. Nunca inventes datos que no estén en la información entregada; si algo falta, " +
-  "indícalo como 'no consignado'. No entregues diagnósticos definitivos ni prescripciones: solo redactas " +
-  "documentación clínica a partir de lo que registró el profesional.";
-
-const PROMPTS: Record<"draft" | "summary" | "polish", string> = {
-  draft:
-    "Redacta una nota clínica odontológica estructurada en formato SOAP (Subjetivo, Objetivo, Análisis, Plan) " +
-    "a partir de los apuntes del profesional. Usa viñetas cortas dentro de cada sección. Devuelve solo la nota.",
-  summary:
-    "Resume la nota clínica en un párrafo de máximo 80 palabras seguido de 3 viñetas con los puntos clave " +
-    "(hallazgos, procedimiento realizado, próximo paso). Devuelve solo el resumen.",
-  polish:
-    "Reescribe la nota clínica con mejor redacción, ortografía y orden, conservando exactamente los mismos " +
-    "hechos clínicos y sin agregar información. Devuelve solo la nota reescrita.",
-};
-
 /**
  * Lo que sabemos del paciente que NO puede salir hacia el modelo (IA-02):
  * nombre, documento, teléfono y email registrados. El gateway los quita del
@@ -699,7 +682,8 @@ export const generateNoteText = createServerFn({ method: "POST" })
     const { gatewayChat, iaHabilitada, IaPausadaError } = await import("@/lib/ai-gateway.server");
     if (!iaHabilitada()) throw new IaPausadaError();
     const text = await gatewayChat({
-      system: `${SYSTEM_BASE}\n\n${PROMPTS[data.action]}${guiaPlantilla}`,
+      uso: "clinico",
+      system: `${SYSTEM_BASE}\n\n${PROMPTS_NOTA[data.action]}${guiaPlantilla}`,
       user: data.context
         ? `Contexto del paciente:\n${data.context}\n\nApuntes:\n${data.input}`
         : data.input,
@@ -751,25 +735,6 @@ const extractionSchema = z.object({
   allergies: listSchema,
 });
 
-const STRUCTURE_SYSTEM = `${SYSTEM_BASE}
-
-Tu tarea ahora es extraer campos estructurados desde una nota clínica odontológica para búsqueda y facturación.
-Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma:
-{
-  "diagnoses":   [{"term":"","code":null,"tooth":null,"severity":null,"status":null,"notes":null,"confidence":0.0}],
-  "treatments":  [{"term":"","code":null,"tooth":null,"quantity":null,"status":null,"notes":null,"confidence":0.0}],
-  "medications": [{"term":"","dosage":null,"quantity":null,"status":null,"notes":null,"confidence":0.0}],
-  "allergies":   [{"term":"","severity":null,"status":null,"notes":null,"confidence":0.0}]
-}
-Reglas:
-- Solo extrae lo explícito en la nota; si algo no está, usa null. Nunca inventes códigos.
-- "code": código clínico solo si aparece textualmente en la nota (ej. CIE-10, código de prestación).
-- "tooth": pieza dental en notación FDI cuando se mencione (ej. "36").
-- "quantity": número de sesiones o unidades facturables cuando esté indicado; si no, null.
-- "status": estado como "realizado", "pendiente", "activo", "resuelto" según el texto.
-- "confidence": tu certeza entre 0 y 1.
-- Si una categoría no tiene datos, devuelve un arreglo vacío.`;
-
 const structureInput = clinicPatient.extend({
   noteId: z.string().uuid(),
   content: z.string().min(10).max(20000),
@@ -793,10 +758,12 @@ export const extractNoteEntities = createServerFn({ method: "POST" })
       throw new Error("Tu rol no puede estructurar notas clínicas.");
     }
 
-    const { gatewayChat, iaHabilitada, IaPausadaError } = await import("@/lib/ai-gateway.server");
+    const { gatewayChat, iaHabilitada, IaPausadaError, limpiarJson } =
+      await import("@/lib/ai-gateway.server");
     if (!iaHabilitada()) throw new IaPausadaError();
     const raw = await gatewayChat({
-      system: STRUCTURE_SYSTEM,
+      uso: "clinico",
+      system: PROMPT_ENTIDADES,
       user: `Nota clínica:\n${data.content}`,
       json: true,
       identificadores: await identificadoresDelPaciente(supabase, data.clinicId, data.patientRef),
@@ -804,11 +771,7 @@ export const extractNoteEntities = createServerFn({ method: "POST" })
 
     let parsed: z.infer<typeof extractionSchema>;
     try {
-      const limpio = raw
-        .replace(/^```(?:json)?/i, "")
-        .replace(/```$/, "")
-        .trim();
-      parsed = extractionSchema.parse(JSON.parse(limpio));
+      parsed = extractionSchema.parse(JSON.parse(limpiarJson(raw)));
     } catch {
       throw new Error("La IA no devolvió campos estructurados legibles. Intenta nuevamente.");
     }

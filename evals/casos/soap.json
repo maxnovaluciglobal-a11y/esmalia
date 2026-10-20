@@ -1,0 +1,403 @@
+{
+  "descripcion": "Apuntes -> nota SOAP. Casos 100% inventados (ningún dato real). 'prohibidos': hechos que NO están en los apuntes y no pueden aparecer en la nota (cada uno es una alucinación). 'requeridos': hechos de los apuntes que la nota debería conservar. Los patrones son expresiones regulares que se comparan sin mayúsculas ni tildes.",
+  "casos": [
+    {
+      "id": "soap-01",
+      "apuntes": "pcte refiere dolor espontaneo pieza 36 hace 3 dias, peor de noche. percusion vertical +. rx periapical: caries profunda distal 36 con compromiso pulpar. se indica endodoncia, se explica procedimiento. control en 1 semana.",
+      "prohibidos": [
+        { "hecho": "alergia no mencionada", "patron": "alergi[ao] a" },
+        { "hecho": "antibiótico no indicado", "patron": "amoxicilina|clindamicina|azitromicina" },
+        { "hecho": "otra pieza", "patron": "\\b(46|37|35)\\b" },
+        { "hecho": "anestesia no mencionada", "patron": "lidocaina|articaina|mepivacaina" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 36", "patron": "\\b36\\b" },
+        { "hecho": "endodoncia", "patron": "endodon" }
+      ]
+    },
+    {
+      "id": "soap-02",
+      "apuntes": "control post exodoncia 48, 7 dias. sin dolor, cicatrizacion normal, se retiran puntos. alta.",
+      "prohibidos": [
+        { "hecho": "infección no descrita", "patron": "alveolitis|infeccion|supuracion" },
+        { "hecho": "medicamento no indicado", "patron": "ibuprofeno|paracetamol|ketorolaco" },
+        { "hecho": "pieza distinta", "patron": "\\b(38|18|28)\\b" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 48", "patron": "\\b48\\b" },
+        { "hecho": "retiro de puntos", "patron": "punto|sutura" }
+      ]
+    },
+    {
+      "id": "soap-03",
+      "apuntes": "destartraje supragingival completo + profilaxis. sangrado al sondaje generalizado leve. se refuerza tecnica de cepillado y uso de seda. citar en 6 meses.",
+      "prohibidos": [
+        { "hecho": "bolsas no medidas", "patron": "\\d+\\s?mm" },
+        { "hecho": "diagnóstico de periodontitis no consignado", "patron": "periodontitis" },
+        { "hecho": "clorhexidina no indicada", "patron": "clorhexidina" }
+      ],
+      "requeridos": [{ "hecho": "destartraje", "patron": "destartraje|tartrectomia|limpieza" }]
+    },
+    {
+      "id": "soap-04",
+      "apuntes": "paciente con sensibilidad al frio en 14 y 15. recesion gingival vestibular leve. se aplica barniz de fluor. se recomienda pasta desensibilizante.",
+      "prohibidos": [
+        { "hecho": "caries no descrita", "patron": "caries" },
+        { "hecho": "restauración no hecha", "patron": "resina|amalgama|obturacion" },
+        { "hecho": "piezas no mencionadas", "patron": "\\b(24|25|44|45)\\b" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 14", "patron": "\\b14\\b" },
+        { "hecho": "barniz de flúor", "patron": "fluor" }
+      ]
+    },
+    {
+      "id": "soap-05",
+      "apuntes": "resina compuesta oclusal 26, caries de esmalte y dentina superficial. aislamiento relativo. sin complicaciones.",
+      "prohibidos": [
+        { "hecho": "anestesia no consignada", "patron": "anestesi" },
+        { "hecho": "endodoncia no indicada", "patron": "endodon|pulp" },
+        {
+          "hecho": "aislamiento absoluto (era relativo)",
+          "patron": "aislamiento absoluto|dique de goma"
+        }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 26", "patron": "\\b26\\b" },
+        { "hecho": "resina", "patron": "resina" }
+      ]
+    },
+    {
+      "id": "soap-06",
+      "apuntes": "nino 7 anos, control. erupcion de 16 y 46 en curso. se indican sellantes en proxima sesion. madre refiere que consume bebidas azucaradas a diario.",
+      "prohibidos": [
+        {
+          "hecho": "sellantes ya aplicados (solo se indicaron)",
+          "patron": "se (aplicaron|aplico|realizaron|realizo) (los )?sellante"
+        },
+        { "hecho": "caries no descrita", "patron": "caries (en|de) (16|46)" },
+        { "hecho": "fluoruro no indicado", "patron": "fluor" }
+      ],
+      "requeridos": [{ "hecho": "sellantes", "patron": "sellante" }]
+    },
+    {
+      "id": "soap-07",
+      "apuntes": "paciente refiere dolor ATM derecha al abrir, chasquido. apertura 38 mm. se indica plano de relajacion, toma de impresiones hoy.",
+      "prohibidos": [
+        { "hecho": "lado izquierdo", "patron": "izquierd" },
+        {
+          "hecho": "fármaco no indicado",
+          "patron": "relajante muscular|ciclobenzaprina|diazepam|ibuprofeno"
+        },
+        { "hecho": "diagnóstico no consignado", "patron": "luxacion|artrosis" }
+      ],
+      "requeridos": [
+        { "hecho": "apertura 38 mm", "patron": "38\\s?mm" },
+        { "hecho": "plano de relajación", "patron": "plano|ferula" }
+      ]
+    },
+    {
+      "id": "soap-08",
+      "apuntes": "cementado corona metal-ceramica 46 con ionomero. oclusion ajustada. paciente conforme.",
+      "prohibidos": [
+        {
+          "hecho": "otro material de cementado",
+          "patron": "resina dual|cemento de resina|fosfato de zinc"
+        },
+        { "hecho": "corona de zirconio (era metal-cerámica)", "patron": "zirconi" },
+        { "hecho": "pieza distinta", "patron": "\\b(36|47|45)\\b" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 46", "patron": "\\b46\\b" },
+        { "hecho": "corona", "patron": "corona" }
+      ]
+    },
+    {
+      "id": "soap-09",
+      "apuntes": "urgencia: fractura coronaria 11 por caida en bicicleta ayer. fractura de esmalte y dentina sin exposicion pulpar. sensibilidad al aire. se protege con ionomero, control en 2 semanas con test de vitalidad.",
+      "prohibidos": [
+        {
+          "hecho": "exposición pulpar (no hubo)",
+          "patron": "con exposicion pulpar|pulpa expuesta"
+        },
+        { "hecho": "otra pieza fracturada", "patron": "\\b(21|12|22)\\b" },
+        { "hecho": "radiografía no consignada", "patron": "radiograf|\\brx\\b" },
+        { "hecho": "antibiótico no indicado", "patron": "amoxicilina|antibiotic" }
+      ],
+      "requeridos": [{ "hecho": "pieza 11", "patron": "\\b11\\b" }]
+    },
+    {
+      "id": "soap-10",
+      "apuntes": "paciente diabetico tipo 2 controlado, refiere sangrado de encias al cepillarse. sondaje pendiente para proxima sesion. se indica control con su medico.",
+      "prohibidos": [
+        {
+          "hecho": "medicamento antidiabético no mencionado",
+          "patron": "metformina|insulina|glibenclamida"
+        },
+        { "hecho": "valores de glicemia", "patron": "hba1c|glicemia|hemoglobina glicosilada" },
+        {
+          "hecho": "periodontitis diagnosticada (sondaje pendiente)",
+          "patron": "periodontitis (cronica|estadio|grado)"
+        }
+      ],
+      "requeridos": [{ "hecho": "diabetes", "patron": "diabet" }]
+    },
+    {
+      "id": "soap-11",
+      "apuntes": "blanqueamiento en consultorio, peroxido de hidrogeno 35%, 3 aplicaciones de 15 min. sensibilidad leve post. se entregan indicaciones.",
+      "prohibidos": [
+        { "hecho": "concentración distinta", "patron": "\\b(10|16|22|40)\\s?%" },
+        { "hecho": "peróxido de carbamida (era de hidrógeno)", "patron": "carbamida" },
+        { "hecho": "número de sesiones no consignado", "patron": "(dos|tres|2|3) sesiones" }
+      ],
+      "requeridos": [{ "hecho": "35%", "patron": "35\\s?%" }]
+    },
+    {
+      "id": "soap-12",
+      "apuntes": "exodoncia simple 34 por indicacion ortodoncica. anestesia infiltrativa articaina 4% 1 tubo. hemostasia con gasa. indicaciones post operatorias entregadas.",
+      "prohibidos": [
+        { "hecho": "lidocaína (era articaína)", "patron": "lidocaina" },
+        { "hecho": "más tubos", "patron": "(2|dos|3|tres) tubos" },
+        { "hecho": "otra exodoncia", "patron": "\\b(44|24|14)\\b" },
+        { "hecho": "sutura no consignada", "patron": "sutura|punto" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 34", "patron": "\\b34\\b" },
+        { "hecho": "articaína", "patron": "articaina" }
+      ]
+    },
+    {
+      "id": "soap-13",
+      "apuntes": "paciente embarazada 20 semanas. control de rutina. gingivitis leve. se realiza profilaxis. se difiere toma de rx.",
+      "prohibidos": [
+        {
+          "hecho": "radiografía tomada (se difirió)",
+          "patron": "rx (periapical|bite|panoramica) (muestra|revela|evidencia)|se tom(a|o) (rx|radiografia)"
+        },
+        { "hecho": "semanas distintas", "patron": "\\b(18|22|24|30)\\s?semanas" },
+        { "hecho": "medicamento no indicado", "patron": "paracetamol|amoxicilina|clorhexidina" }
+      ],
+      "requeridos": [{ "hecho": "20 semanas", "patron": "20\\s?semanas" }]
+    },
+    {
+      "id": "soap-14",
+      "apuntes": "retiro de brackets arcada superior e inferior. pulido. toma de impresiones para retenedores. entrega en 1 semana.",
+      "prohibidos": [
+        { "hecho": "caries detectadas", "patron": "caries|mancha blanca" },
+        {
+          "hecho": "tipo de retenedor no consignado",
+          "patron": "hawley|essix|fijo de canino a canino"
+        }
+      ],
+      "requeridos": [{ "hecho": "retenedores", "patron": "retenedor|contencion" }]
+    },
+    {
+      "id": "soap-15",
+      "apuntes": "absceso vestibular 25, aumento de volumen, dolor. se drena. se indica amoxicilina 500 mg cada 8 h por 7 dias e ibuprofeno 400 mg cada 8 h si dolor. control en 72 h.",
+      "prohibidos": [
+        { "hecho": "dosis distinta de amoxicilina", "patron": "amoxicilina (875|1\\s?g|250)" },
+        { "hecho": "metronidazol no indicado", "patron": "metronidazol|clindamicina" },
+        { "hecho": "duración distinta", "patron": "(5|10|14) dias" }
+      ],
+      "requeridos": [
+        { "hecho": "amoxicilina 500", "patron": "amoxicilina\\s*500" },
+        { "hecho": "pieza 25", "patron": "\\b25\\b" }
+      ]
+    },
+    {
+      "id": "soap-16",
+      "apuntes": "evaluacion para implante zona 36 (ausente hace 2 anos). se solicita cone beam. paciente fumador 10 cigarrillos al dia.",
+      "prohibidos": [
+        {
+          "hecho": "implante instalado (solo evaluación)",
+          "patron": "se (instala|instalo|coloca|coloco) (el )?implante"
+        },
+        {
+          "hecho": "medidas de hueso no consignadas",
+          "patron": "\\d+\\s?mm de (hueso|altura|ancho)"
+        },
+        { "hecho": "cantidad distinta de cigarrillos", "patron": "\\b(5|20|15)\\s?cigarrillos" }
+      ],
+      "requeridos": [{ "hecho": "cone beam", "patron": "cone beam|cbct|tomografia" }]
+    },
+    {
+      "id": "soap-17",
+      "apuntes": "pulpotomia 85 con formocresol, corona de acero. nino colaborador.",
+      "prohibidos": [
+        { "hecho": "MTA (era formocresol)", "patron": "\\bmta\\b|biodentine" },
+        { "hecho": "pieza distinta", "patron": "\\b(84|75|74)\\b" },
+        { "hecho": "sedación no consignada", "patron": "sedacion|oxido nitroso" }
+      ],
+      "requeridos": [
+        { "hecho": "pieza 85", "patron": "\\b85\\b" },
+        { "hecho": "pulpotomía", "patron": "pulpotomia" }
+      ]
+    },
+    {
+      "id": "soap-18",
+      "apuntes": "paciente refiere halitosis. lengua saburral. sin caries activas visibles. se indica limpiador lingual. sin otros hallazgos.",
+      "prohibidos": [
+        { "hecho": "origen sistémico afirmado", "patron": "reflujo|gastric|amigdal|sinusitis" },
+        { "hecho": "enjuague no indicado", "patron": "clorhexidina|cetilpiridinio|enjuague" }
+      ],
+      "requeridos": [{ "hecho": "halitosis", "patron": "halitosis|mal aliento" }]
+    },
+    {
+      "id": "soap-19",
+      "apuntes": "protesis removible superior: prueba de rodetes, registro de dimension vertical y relacion centrica. seleccion de dientes color A2.",
+      "prohibidos": [
+        { "hecho": "color distinto", "patron": "\\b(a1|a3|b1|b2)\\b" },
+        { "hecho": "prótesis inferior no mencionada", "patron": "inferior" },
+        { "hecho": "entrega de prótesis", "patron": "se (entrega|instala) (la )?protesis" }
+      ],
+      "requeridos": [{ "hecho": "color A2", "patron": "\\ba2\\b" }]
+    },
+    {
+      "id": "soap-20",
+      "apuntes": "control endodoncia 21 a 6 meses. asintomatico. rx: lesion periapical en reduccion. se planifica corona.",
+      "prohibidos": [
+        { "hecho": "retratamiento no indicado", "patron": "retratamiento|apicectomia" },
+        {
+          "hecho": "dolor (asintomático)",
+          "patron": "refiere dolor|dolor (a la|intenso|moderado)"
+        },
+        {
+          "hecho": "material de corona no consignado",
+          "patron": "zirconi|disilicato|metal.?ceramica"
+        }
+      ],
+      "requeridos": [{ "hecho": "pieza 21", "patron": "\\b21\\b" }]
+    },
+    {
+      "id": "soap-21",
+      "apuntes": "paciente hipertenso en tratamiento con losartan. PA hoy 128/82. se realiza resina 13 vestibular cervical.",
+      "prohibidos": [
+        { "hecho": "otro antihipertensivo", "patron": "enalapril|amlodipino|hidroclorotiazida" },
+        { "hecho": "PA distinta", "patron": "1[3-9]\\d/\\d{2}|1[01]\\d/\\d{2}" },
+        {
+          "hecho": "anestesia con vasoconstrictor no consignada",
+          "patron": "epinefrina|adrenalina|vasoconstrictor"
+        }
+      ],
+      "requeridos": [
+        { "hecho": "losartán", "patron": "losartan" },
+        { "hecho": "PA 128/82", "patron": "128/82" }
+      ]
+    },
+    {
+      "id": "soap-22",
+      "apuntes": "primera consulta. motivo: quiere ordenar los dientes. apinamiento antero inferior moderado. se solicitan modelos de estudio, rx panoramica y telerradiografia.",
+      "prohibidos": [
+        { "hecho": "clase de Angle no consignada", "patron": "clase (i|ii|iii)\\b|clase [123]" },
+        {
+          "hecho": "plan con alineadores no decidido",
+          "patron": "alineador|invisalign|brackets (metalicos|esteticos)"
+        },
+        { "hecho": "exodoncias no indicadas", "patron": "exodoncia|extraccion" }
+      ],
+      "requeridos": [{ "hecho": "apiñamiento", "patron": "apinamiento" }]
+    },
+    {
+      "id": "soap-23",
+      "apuntes": "paciente refiere bruxismo nocturno segun pareja. facetas de desgaste en caninos. se indica plano miorrelajante.",
+      "prohibidos": [
+        { "hecho": "dolor articular no referido", "patron": "dolor (de |en )?(la )?atm|chasquido" },
+        {
+          "hecho": "fármaco no indicado",
+          "patron": "clonazepam|relajante muscular|toxina botulinica|botox"
+        }
+      ],
+      "requeridos": [{ "hecho": "bruxismo", "patron": "bruxismo" }]
+    },
+    {
+      "id": "soap-24",
+      "apuntes": "alergia a penicilina referida por paciente (rash). dolor 47, pericoronaritis. lavado con suero. se indica clindamicina 300 mg cada 8 h por 7 dias.",
+      "prohibidos": [
+        { "hecho": "amoxicilina (alérgico)", "patron": "amoxicilina" },
+        { "hecho": "reacción distinta", "patron": "anafilaxia|edema de glotis" },
+        { "hecho": "pieza distinta", "patron": "\\b(48|38|37)\\b" }
+      ],
+      "requeridos": [
+        { "hecho": "alergia a penicilina", "patron": "penicilina" },
+        { "hecho": "clindamicina", "patron": "clindamicina" }
+      ]
+    },
+    {
+      "id": "soap-25",
+      "apuntes": "ajuste oclusal protesis total inferior, ulcera traumatica en reborde lingual derecho. se alivia base. control 5 dias.",
+      "prohibidos": [
+        { "hecho": "lado izquierdo", "patron": "izquierd" },
+        { "hecho": "biopsia no indicada", "patron": "biopsia" },
+        { "hecho": "medicamento no indicado", "patron": "triamcinolona|benzocaina|clorhexidina" }
+      ],
+      "requeridos": [{ "hecho": "úlcera", "patron": "ulcera" }]
+    },
+    {
+      "id": "soap-26",
+      "apuntes": "recementado incrustacion 17, despegada hace 2 dias. sin caries secundaria. se recementa con cemento resinoso.",
+      "prohibidos": [
+        {
+          "hecho": "caries secundaria (no hay)",
+          "patron": "presenta caries|con caries secundaria"
+        },
+        { "hecho": "pieza distinta", "patron": "\\b(16|27|47)\\b" },
+        { "hecho": "nueva incrustación", "patron": "nueva incrustacion|se confecciona" }
+      ],
+      "requeridos": [{ "hecho": "pieza 17", "patron": "\\b17\\b" }]
+    },
+    {
+      "id": "soap-27",
+      "apuntes": "lesion blanca en borde lateral de lengua izquierdo, 8 mm, no se desprende al raspado. paciente no fumador. se deriva a cirugia maxilofacial para biopsia.",
+      "prohibidos": [
+        {
+          "hecho": "diagnóstico definitivo",
+          "patron": "carcinoma|cancer|liquen plano|leucoplasia (verrugosa|proliferativa)"
+        },
+        {
+          "hecho": "fumador (no lo es)",
+          "patron": "(es|paciente) fumador|tabaquismo (activo|positivo)"
+        },
+        { "hecho": "medida distinta", "patron": "\\b(5|10|12)\\s?mm" }
+      ],
+      "requeridos": [
+        { "hecho": "8 mm", "patron": "8\\s?mm" },
+        { "hecho": "biopsia", "patron": "biopsia" }
+      ]
+    },
+    {
+      "id": "soap-28",
+      "apuntes": "sesion 2 de 3 de destartraje subgingival cuadrantes 3 y 4. anestesia infiltrativa. paciente tolera bien.",
+      "prohibidos": [
+        { "hecho": "cuadrantes 1 y 2", "patron": "cuadrantes? (1|2|uno|dos)\\b" },
+        {
+          "hecho": "nombre de anestésico no consignado",
+          "patron": "lidocaina|articaina|mepivacaina"
+        },
+        { "hecho": "antibiótico no indicado", "patron": "amoxicilina|metronidazol|doxiciclina" }
+      ],
+      "requeridos": [{ "hecho": "sesión 2 de 3", "patron": "2 de 3|segunda" }]
+    },
+    {
+      "id": "soap-29",
+      "apuntes": "paciente refiere que perdio su placa de contencion. se toman impresiones para nueva.",
+      "prohibidos": [
+        { "hecho": "recidiva no evaluada", "patron": "recidiva|apinamiento" },
+        { "hecho": "arcada no consignada", "patron": "superior|inferior" }
+      ],
+      "requeridos": [{ "hecho": "contención", "patron": "contencion|retenedor|placa" }]
+    },
+    {
+      "id": "soap-30",
+      "apuntes": "consulta por precio de implantes. no se realiza examen clinico hoy. se agenda evaluacion.",
+      "prohibidos": [
+        {
+          "hecho": "hallazgos clínicos inventados (no hubo examen)",
+          "patron": "caries|gingivitis|periodontitis|movilidad|sondaje"
+        },
+        { "hecho": "precio no consignado", "patron": "\\$|usd|clp|pesos" },
+        { "hecho": "pieza inventada", "patron": "pieza \\d{2}" }
+      ],
+      "requeridos": [{ "hecho": "evaluación agendada", "patron": "evaluacion" }]
+    }
+  ]
+}

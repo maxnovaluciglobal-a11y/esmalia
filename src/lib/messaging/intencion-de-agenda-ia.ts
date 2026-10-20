@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import { gatewayChat, resolverProveedorIa } from "@/lib/ai-gateway.server";
+import { gatewayChat, limpiarJson, resolverProveedorIa } from "@/lib/ai-gateway.server";
+import { PROMPT_AGENDA, mensajeUsuarioAgenda } from "@/lib/ai/prompts";
 import type {
   FranjaDelDia,
   IntencionDeAgenda,
@@ -15,8 +16,8 @@ import type {
  * dependencia de red ahí contradiría lo que dice de sí mismo.
  *
  * Se activa solo si el interruptor `AI_ENABLED` vale "true" Y hay una
- * clave cargada (`resolverProveedorIa` devuelve null si falta cualquiera de
- * las dos). Hoy Patty está pausada (docs/IA.md): `interpretarConIA` devuelve
+ * clave cargada para el proveedor de `AI_PROVIDER_AGENDA`
+ * (`resolverProveedorIa("agenda")` devuelve null si falta cualquiera de las dos). Hoy Patty está pausada (docs/IA.md): `interpretarConIA` devuelve
  * `null` de inmediato, sin llamar a ningún modelo, y el webhook sigue con
  * las reglas y el aviso genérico. El texto del paciente pasa por
  * `redactarPii` en el gateway (teléfonos, emails, documentos). Cualquier error de red, de parseo o de forma inesperada también
@@ -49,19 +50,6 @@ function isoDeHoy(hoy: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-const SYSTEM_PROMPT = `Lees mensajes de WhatsApp de pacientes de una clínica dental, en español latinoamericano.
-Devuelve SOLO un JSON con esta forma exacta, sin texto ni explicación adicional:
-{"intencion": "agendar" | "reagendar" | "cancelar" | null, "fecha": "YYYY-MM-DD" | null, "franja": "manana" | "tarde" | null}
-
-Reglas:
-- "agendar": pide o quiere una hora/cita nueva.
-- "reagendar": quiere cambiar o mover una cita que ya tiene.
-- "cancelar": quiere cancelar su cita, o avisa que no va a poder ir.
-- Si el mensaje no tiene relación clara con agendar, mover o cancelar una cita — un saludo, una pregunta de precio, un "gracias" — devuelve intencion: null.
-- Si el mensaje mezcla dos intenciones contradictorias (ej. cancelar Y reagendar a la vez), devuelve intencion: null — no adivines cuál prevalece.
-- "fecha" solo si el mensaje la menciona sin ambigüedad. No inventes una fecha que no está en el texto.
-- Responde ÚNICAMENTE el JSON.`;
-
 /**
  * Intenta leer el mensaje con el modelo configurado. `null` si no hay
  * proveedor de IA, si el mensaje es demasiado largo, o si cualquier cosa
@@ -69,15 +57,19 @@ Reglas:
  */
 export async function interpretarConIA(texto: string, hoy: Date): Promise<LecturaDeAgenda | null> {
   if (!texto || texto.length > MAX_LARGO_IA) return null;
-  if (!resolverProveedorIa()) return null;
 
   try {
+    // Uso "agenda": proveedor en AI_PROVIDER_AGENDA (puede ser Vertex; lo
+    // clínico nunca pasa por acá). Una configuración inválida lanza y cae en
+    // el catch: el webhook sigue sin IA.
+    if (!resolverProveedorIa("agenda")) return null;
     const respuesta = await gatewayChat({
-      system: SYSTEM_PROMPT,
-      user: `Hoy es ${isoDeHoy(hoy)}. Mensaje del paciente: "${texto}"`,
+      uso: "agenda",
+      system: PROMPT_AGENDA,
+      user: mensajeUsuarioAgenda(isoDeHoy(hoy), texto),
       json: true,
     });
-    const parsed = RESPUESTA_IA_SCHEMA.safeParse(JSON.parse(respuesta));
+    const parsed = RESPUESTA_IA_SCHEMA.safeParse(JSON.parse(limpiarJson(respuesta)));
     if (!parsed.success || !parsed.data.intencion) return null;
 
     return {
