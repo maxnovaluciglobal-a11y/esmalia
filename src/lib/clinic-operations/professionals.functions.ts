@@ -168,6 +168,34 @@ export const getProfessionalSchedule = createServerFn({ method: "GET" })
     }));
   });
 
+/**
+ * Horario declarado de TODOS los profesionales de la clínica, en una sola
+ * consulta: la agenda lo usa para el arrastre (límites y colación) y para la
+ * ocupación por día de la semana. profesionalId → bloques; un profesional sin
+ * filas no aparece (= sin restricción declarada).
+ */
+export const listProfessionalSchedules = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<Record<string, ScheduleBlock[]>> => {
+    const { data: rows, error } = await context.supabase
+      .from("professional_schedules")
+      .select("professional_id, day_of_week, start_time, end_time")
+      .eq("clinic_id", data.clinicId)
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true });
+    if (error) throw new Error(mensajeDb(error, "No pudimos cargar los horarios de la clínica."));
+    const porProfesional: Record<string, ScheduleBlock[]> = {};
+    for (const r of rows ?? []) {
+      (porProfesional[r.professional_id] ??= []).push({
+        dayOfWeek: r.day_of_week,
+        startTime: r.start_time.slice(0, 5),
+        endTime: r.end_time.slice(0, 5),
+      });
+    }
+    return porProfesional;
+  });
+
 /** Reemplaza el horario completo del profesional (delete + insert) — más
  * simple y a prueba de duplicados que un diff incremental para una grilla
  * de 7 días que el usuario edita como un todo. */

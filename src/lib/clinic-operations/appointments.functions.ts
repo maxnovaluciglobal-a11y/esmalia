@@ -277,6 +277,27 @@ export type Solapamiento = { treatmentLabel: string; startsAt: string; endsAt: s
  * excluye la propia cita del choque de solapamiento (no puede "chocar
  * consigo misma" al reprogramarse) — de ahí `excludeAppointmentId`.
  */
+/**
+ * ¿La cita [inicio, fin] (en "HH:MM" de pared) entra entera en alguno de los
+ * bloques del día? Bloques que se tocan (09–13 y 13–18) cuentan como uno.
+ * Exportada para el test: es la regla de la colación.
+ */
+export function citaCabeEnBloques(
+  inicio: string,
+  fin: string,
+  bloques: { inicio: string; fin: string }[],
+): boolean {
+  const ordenados = [...bloques].sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const unidos: { inicio: string; fin: string }[] = [];
+  for (const b of ordenados) {
+    const ultimo = unidos[unidos.length - 1];
+    if (ultimo && b.inicio <= ultimo.fin) {
+      if (b.fin > ultimo.fin) ultimo.fin = b.fin;
+    } else unidos.push({ ...b });
+  }
+  return unidos.some((b) => inicio >= b.inicio && fin <= b.fin);
+}
+
 export async function validarHorarioYSolapamiento(
   supabase: SupabaseClient<Database>,
   params: {
@@ -322,18 +343,22 @@ export async function validarHorarioYSolapamiento(
 
   if (horarios && horarios.length > 0) {
     const dia = diaSemanaLocal(startsAt, timeZone);
-    const bloqueDia = horarios.find((h) => h.day_of_week === dia);
-    if (!bloqueDia) {
+    // Un día puede tener más de un bloque (mañana y tarde): entre los dos
+    // está la colación. Antes se miraba solo el primero y una cita de la
+    // tarde quedaba "fuera del horario" (arrastre de la agenda, PR 10).
+    const bloquesDia = horarios
+      .filter((h) => h.day_of_week === dia)
+      .map((h) => ({ inicio: h.start_time.slice(0, 5), fin: h.end_time.slice(0, 5) }))
+      .sort((a, b) => a.inicio.localeCompare(b.inicio));
+    if (bloquesDia.length === 0) {
       throw new Error(`El profesional no atiende los ${DIA_SEMANA_LABEL[dia]}.`);
     }
     const horaInicio = horaLocalHHMM(startsAt, timeZone);
     const horaFin = horaLocalHHMM(endsAt, timeZone);
-    const inicioOk = horaInicio >= bloqueDia.start_time.slice(0, 5);
-    const finOk = horaFin <= bloqueDia.end_time.slice(0, 5);
-    if (!inicioOk || !finOk) {
+    if (!citaCabeEnBloques(horaInicio, horaFin, bloquesDia)) {
       throw new Error(
         `Fuera del horario del profesional los ${DIA_SEMANA_LABEL[dia]} ` +
-          `(${bloqueDia.start_time.slice(0, 5)}–${bloqueDia.end_time.slice(0, 5)}).`,
+          `(${bloquesDia.map((b) => `${b.inicio}–${b.fin}`).join(" y ")}).`,
       );
     }
   }
@@ -500,6 +525,87 @@ export const updateAppointment = createServerFn({ method: "POST" })
       .eq("id", data.appointmentId)
       .eq("clinic_id", data.clinicId);
     if (error) throw new Error("No tienes permisos para editar esta cita.");
+    return { ok: true, solapamiento };
+  });
+
+/** Estados en los que una cita todavía se puede mover de hora o de profesional. */
+const ESTADOS_REPROGRAMABLES = new Set(["tentativa", "confirmada"]);
+
+/**
+ * Reprograma una cita desde el arrastre de la agenda (o "Mover a…"): solo
+ * cambia la hora y, si cambió de carril, el profesional. La duración, el
+ * tratamiento y el paciente no viajan: se leen de la fila.
+ *
+ * Pasa por `requireEscritura` (modo solo lectura, #85) y por las mismas
+ * validaciones que Nueva cita y el diálogo de edición
+ * (`validarHorarioYSolapamiento`). Es también lo que reproduce la cola sin
+ * conexión (kind `reprogramar-cita`) con el payload tal cual se capturó: si
+ * al sincronizar el horario ya no es válido, falla con el mensaje del
+ * horario y la cola lo deja en "fallido" para que alguien lo mire.
+ */
+export const moveAppointment = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        appointmentId: z.string().uuid(),
+        clinicId: z.string().uuid(),
+        professionalId: z.string().uuid(),
+        startsAt: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, "Fecha/hora inválida."),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true; solapamiento?: Solapamiento }> => {
+    const { supabase } = context;
+    const { data: cita, error: citaErr } = await supabase
+      .from("appointments")
+      .select("id, branch_id, starts_at, ends_at, status")
+      .eq("clinic_id", data.clinicId)
+      .eq("id", data.appointmentId)
+      .maybeSingle();
+    if (citaErr) throw new Error(mensajeDb(citaErr, "No pudimos leer la cita."));
+    if (!cita) throw new Error("La cita no existe o no es tuya.");
+    if (!ESTADOS_REPROGRAMABLES.has(cita.status)) {
+      throw new Error("Solo se mueven citas por confirmar o confirmadas.");
+    }
+
+    const { data: profesional, error: profErr } = await supabase
+      .from("professionals")
+      .select("id, branch_id")
+      .eq("clinic_id", data.clinicId)
+      .eq("id", data.professionalId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (profErr) throw new Error(mensajeDb(profErr, "No pudimos verificar el profesional."));
+    if (!profesional) throw new Error("El profesional no existe o no está activo.");
+
+    // Si el profesional destino tiene sucursal, la cita pasa a esa sucursal
+    // (cambio de carril entre sucursales); si no, se queda donde estaba.
+    const branchId = profesional.branch_id ?? cita.branch_id;
+    const duracionMin = Math.round(
+      (new Date(cita.ends_at).getTime() - new Date(cita.starts_at).getTime()) / 60_000,
+    );
+
+    const { startsAt, endsAt, solapamiento } = await validarHorarioYSolapamiento(supabase, {
+      clinicId: data.clinicId,
+      branchId,
+      professionalId: data.professionalId,
+      startsAtRaw: data.startsAt,
+      duracionMin,
+      excludeAppointmentId: data.appointmentId,
+    });
+
+    const { error } = await supabase
+      .from("appointments")
+      .update({
+        branch_id: branchId,
+        professional_id: data.professionalId,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+      })
+      .eq("id", data.appointmentId)
+      .eq("clinic_id", data.clinicId);
+    if (error) throw new Error("No tienes permisos para mover esta cita.");
     return { ok: true, solapamiento };
   });
 

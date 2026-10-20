@@ -23,6 +23,7 @@ vi.mock("idb-keyval", () => {
 });
 
 import {
+  agregarACola,
   conflictos,
   descartarConflicto,
   descartarFallido,
@@ -37,6 +38,7 @@ import {
   registrarConflicto,
   suscribirCola,
   contarIntento,
+  mismoPayload,
   type ItemCola,
 } from "@/lib/offline/offline-queue";
 
@@ -251,6 +253,75 @@ describe("offline-queue", () => {
       // Nada nuevo debería llegar tras desuscribirse.
       await new Promise((r) => setTimeout(r, 10));
       expect(recibidos.length).toBe(notificacionesPrevias);
+    });
+  });
+  describe("reprogramar-cita: fusión y vuelta al original (arrastre sin conexión, PR 10)", () => {
+    const original = {
+      appointmentId: "c1",
+      clinicId: "k",
+      professionalId: "p1",
+      startsAt: "2026-10-21T10:00",
+    };
+    const mov = (startsAt: string, professionalId = "p1", localId = crypto.randomUUID()) => ({
+      localId,
+      userId: "user-1",
+      kind: "reprogramar-cita" as const,
+      identidad: "c1",
+      payload: { ...original, startsAt, professionalId },
+      original: { ...original },
+      capturedAt: new Date().toISOString(),
+      resumen: "Cita movida",
+    });
+
+    it("dos movimientos de la misma cita se fusionan: queda el último destino y el original del primero", async () => {
+      await encolar(mov("2026-10-21T11:00", "p1", "a"));
+      // El segundo arrastre parte de la posición ya movida: su "original" sería 11:00.
+      await encolar({
+        ...mov("2026-10-21T12:00", "p2", "b"),
+        original: { ...original, startsAt: "2026-10-21T11:00" },
+      });
+
+      const cola = await leerCola();
+      expect(cola).toHaveLength(1);
+      expect(cola[0].payload).toMatchObject({ startsAt: "2026-10-21T12:00", professionalId: "p2" });
+      expect(cola[0].original).toEqual(original);
+    });
+
+    it("deshacer hasta la posición del servidor saca el movimiento de la cola", async () => {
+      await encolar(mov("2026-10-21T11:00"));
+      await encolar({
+        ...mov("2026-10-21T10:00"),
+        original: { ...original, startsAt: "2026-10-21T11:00" },
+      });
+      expect(await leerCola()).toEqual([]);
+    });
+
+    it("no fusiona con un movimiento ya fallido (ese queda para revisar)", async () => {
+      await encolar(mov("2026-10-21T11:00", "p1", "a"));
+      await marcarFallido("a", "Fuera del horario");
+      await encolar(mov("2026-10-21T12:00", "p1", "b"));
+      const cola = await leerCola();
+      expect(cola.map((i) => [i.localId, i.estado])).toEqual([
+        ["a", "fallido"],
+        ["b", "pendiente"],
+      ]);
+    });
+
+    it("agregarACola es pura: no muta la lista recibida", () => {
+      const antes: ItemCola[] = [];
+      const despues = agregarACola(antes, mov("2026-10-21T11:00"));
+      expect(antes).toEqual([]);
+      expect(despues).toHaveLength(1);
+    });
+
+    it("una captura nueva que no cambia nada no se encola", () => {
+      expect(agregarACola([], mov("2026-10-21T10:00"))).toEqual([]);
+    });
+
+    it("mismoPayload ignora el orden de las claves", () => {
+      expect(mismoPayload({ a: 1, b: "x" }, { b: "x", a: 1 })).toBe(true);
+      expect(mismoPayload({ a: 1 }, { a: 1, b: undefined })).toBe(true);
+      expect(mismoPayload({ a: 1 }, { a: 2 })).toBe(false);
     });
   });
 });

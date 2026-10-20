@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -8,9 +8,11 @@ import {
   ChevronRight,
   CircleAlert,
   Clock,
+  CloudOff,
   FileUp,
   Inbox,
   Loader2,
+  MoveRight,
   Pencil,
   Plus,
   Wallet,
@@ -21,7 +23,16 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
 import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
-import { AgendaGrid } from "@/components/agenda-grid";
+import { AgendaGrid, type ArrastreGrilla } from "@/components/agenda-grid";
+import { enfocarCita } from "@/hooks/use-arrastre-cita";
+import {
+  aplicarMovimientosPendientes,
+  esMovible,
+  horarioDelDia,
+  validarDestino,
+  type Destino,
+} from "@/components/agenda-arrastre";
+import { MoverCitaDialog } from "@/components/agenda-mover-a";
 import { CambiarEstadoMenu } from "@/components/cambiar-estado-cita-menu";
 import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones";
 import type { SemillaCita } from "@/components/agenda-hueco";
@@ -33,7 +44,16 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { HolidayNotice } from "@/components/holiday-notice";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { usePublicHolidays } from "@/hooks/use-public-holidays";
-import { useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { useColaOffline, useOfflineMutation } from "@/hooks/use-offline-mutation";
+import { useReprogramarCita } from "@/hooks/use-reprogramar-cita";
+import {
+  puedeSimularSinConexion,
+  simularSinConexion,
+  useConnectivity,
+} from "@/hooks/use-connectivity";
+import { useFlag } from "@/lib/flags";
+import { esCuentaDemo } from "@/lib/demo-cuenta";
+import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
 import {
   Dialog,
   DialogContent,
@@ -1275,7 +1295,25 @@ function AgendaPage() {
     enabled: Boolean(clinicId),
     queryFn: () => fetchAppointments({ data: { clinicId: clinicId! } }),
   });
-  const citas = useMemo(() => appointmentsRes?.items ?? [], [appointmentsRes]);
+
+  // PR 10 del plan A+: reprogramar arrastrando (flag `agenda-arrastre`).
+  // Con el flag apagado no se pide nada nuevo y la agenda queda como antes.
+  const flagArrastre = useFlag("agenda-arrastre", access.email);
+  const fetchHorarios = useServerFn(listProfessionalSchedules);
+  const { data: horarios } = useQuery({
+    queryKey: ["professional-schedules", clinicId],
+    enabled: Boolean(clinicId) && flagArrastre,
+    queryFn: () => fetchHorarios({ data: { clinicId: clinicId! } }),
+  });
+  const { pendientes: enColaOffline } = useColaOffline(access.userId);
+  // Los movimientos que esperan conexión se pintan en su destino: si no,
+  // la cita "volvería" a su hora vieja con cada refresco del cache.
+  const { citas, enCola } = useMemo(() => {
+    const items = appointmentsRes?.items ?? [];
+    return flagArrastre
+      ? aplicarMovimientosPendientes(items, enColaOffline)
+      : { citas: items, enCola: new Set<string>() };
+  }, [appointmentsRes, enColaOffline, flagArrastre]);
 
   // Reemplaza la tarjeta "Optimización IA" (siempre vacía, "Próximamente" —
   // auditoría de UI, 30-ago) por un dato real: citas de las próximas 48h que
@@ -1318,6 +1356,39 @@ function AgendaPage() {
     enabled: Boolean(clinicId),
     queryFn: () => fetchWaitlist({ data: { clinicId: clinicId! } }),
   });
+
+  const nombreProfesional = useCallback(
+    (id: string) => profesionales.find((p) => p.id === id)?.nombre ?? "el profesional",
+    [profesionales],
+  );
+  const reprogramar = useReprogramarCita({
+    clinicId,
+    userId: access.userId,
+    clinicName: access.clinic?.name,
+    nombreProfesional,
+  });
+  const validarMovimiento = useCallback(
+    (cita: Cita, destino: Destino) =>
+      validarDestino({
+        cita,
+        destino,
+        horario: horarioDelDia(horarios?.[destino.profesionalId], destino.fecha),
+        citasDelCarril: citas.filter(
+          (c) => c.fecha === destino.fecha && c.profesionalId === destino.profesionalId,
+        ),
+        nombreProfesional: nombreProfesional(destino.profesionalId),
+      }),
+    [horarios, citas, nombreProfesional],
+  );
+  const rechazarMovimiento = useCallback(
+    (mensaje: string) => {
+      reprogramar.avisar(mensaje);
+      toast.error(mensaje);
+    },
+    [reprogramar],
+  );
+  const [citaAMover, setCitaAMover] = useState<Cita | null>(null);
+  const puedeSimular = flagArrastre && puedeSimularSinConexion(esCuentaDemo(access.email));
 
   const fetchSolicitudes = useServerFn(listPendingAppointmentRequests);
   const declineFn = useServerFn(declineAppointmentRequest);
@@ -1435,6 +1506,24 @@ function AgendaPage() {
   return (
     <AppShell title="Agenda" access={access}>
       <div className="space-y-6">
+        {flagArrastre && (
+          <>
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {reprogramar.anuncio}
+            </p>
+            <MoverCitaDialog
+              cita={citaAMover}
+              profesionales={profesionales}
+              horarios={horarios}
+              validar={validarMovimiento}
+              onMover={(c, d) => {
+                void reprogramar.mover(c, d);
+                enfocarCita(c.id);
+              }}
+              onClose={() => setCitaAMover(null)}
+            />
+          </>
+        )}
         <div className="flex items-center justify-end gap-2">
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <ImportarCitasDialog clinicId={clinicId} />
@@ -1567,11 +1656,31 @@ function AgendaPage() {
                     ? "Cargando…"
                     : `${filtradas.length} cita${filtradas.length === 1 ? "" : "s"}`}
                 </p>
+                {puedeSimular && <SimularSinConexion enCola={enColaOffline.length} />}
               </div>
             </div>
 
+            {flagArrastre && (
+              <p className="text-xs text-muted-foreground">
+                Arrastra una cita para moverla. Con teclado:{" "}
+                <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">Alt</kbd>{" "}
+                + flechas.
+              </p>
+            )}
             {search.vista === "dia" && (
               <AgendaGrid
+                arrastre={
+                  flagArrastre
+                    ? ({
+                        habilitado: puedeGestionarAgenda,
+                        validar: validarMovimiento,
+                        onMover: (c, d) => void reprogramar.mover(c, d),
+                        onRechazo: rechazarMovimiento,
+                        enCola,
+                        horarios,
+                      } satisfies ArrastreGrilla)
+                    : undefined
+                }
                 citas={filtradas}
                 profesionales={columnas}
                 allergyAlerts={allergyAlerts}
@@ -1586,9 +1695,9 @@ function AgendaPage() {
                 renderAcciones={(c, p) => (
                   <>
                     {/* Mismos gates que el listado de abajo y que la ficha:
-                        cambiar estado con agenda:manage, cobrar con
-                        patients:manage (`puedeFacturar` de la ficha). El
-                        servidor repite ambos chequeos. */}
+                    cambiar estado con agenda:manage, cobrar con
+                    patients:manage (`puedeFacturar` de la ficha). El
+                    servidor repite ambos chequeos. */}
                     {clinicId && puedeGestionarAgenda && (
                       <CambiarEstadoMenu
                         clinicId={clinicId}
@@ -1629,6 +1738,19 @@ function AgendaPage() {
                           clinica: access.clinic.name,
                         }}
                       />
+                    )}
+                    {flagArrastre && puedeGestionarAgenda && esMovible(c) && (
+                      <BloqueoEscritura>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="justify-start"
+                          onClick={() => setCitaAMover(c)}
+                        >
+                          <MoveRight aria-hidden /> Mover a…
+                        </Button>
+                      </BloqueoEscritura>
                     )}
                   </>
                 )}
@@ -1922,5 +2044,30 @@ function AgendaPage() {
         />
       )}
     </AppShell>
+  );
+}
+
+/**
+ * "Simular sin conexión" (solo demo y desarrollo): fuerza el modo sin
+ * conexión para mostrar la cola en vivo. Al apagarlo, la cola se
+ * sincroniza sola si la red responde. Una clínica real no ve este control.
+ */
+function SimularSinConexion({ enCola }: { enCola: number }) {
+  const { simulado } = useConnectivity();
+  return (
+    <Button
+      type="button"
+      variant={simulado ? "default" : "outline"}
+      size="sm"
+      aria-pressed={Boolean(simulado)}
+      onClick={() => {
+        const activar = !simulado;
+        simularSinConexion(activar);
+        if (activar) toast("Sin conexión: la agenda sigue abierta. Lo que cambies queda en cola.");
+      }}
+    >
+      <CloudOff aria-hidden />
+      {simulado ? `Sin conexión · ${enCola} en cola` : "Simular sin conexión"}
+    </Button>
   );
 }

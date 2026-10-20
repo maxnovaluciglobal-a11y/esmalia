@@ -5,10 +5,11 @@ import {
   useState,
   type KeyboardEvent,
   type MouseEvent,
+  type PointerEvent,
   type ReactNode,
 } from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowUpRight, Flag } from "lucide-react";
+import { ArrowUpRight, CloudOff, Flag } from "lucide-react";
 
 import { AllergyAlertIcon } from "@/components/medical-history-card";
 import {
@@ -34,6 +35,23 @@ import { buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
 import { cn } from "@/lib/utils";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
+import {
+  colaciones,
+  destinoPorTeclado,
+  esMovible,
+  horarioDelDia,
+  type BloqueHorario,
+  type Carril,
+  type Destino,
+  type Veredicto,
+} from "@/components/agenda-arrastre";
+import {
+  enfocarCita,
+  ID_AYUDA_ARRASTRE,
+  useArrastreCita,
+  type Fantasma,
+} from "@/hooks/use-arrastre-cita";
 
 // El borde izquierdo identifica al profesional (color guardado en
 // /profesionales, ver AgendaGrid más abajo); acá solo queda fondo + texto
@@ -66,6 +84,23 @@ function useMinutosAhora(activo: boolean, timeZone: string | undefined): number 
 
 const claveHueco = (profesionalId: string, minutos: number) => `${profesionalId}:${minutos}`;
 
+/**
+ * Reprogramar desde la grilla (flag `agenda-arrastre`). Sin esta prop la
+ * grilla queda exactamente como antes: sin arrastre, sin Alt + flechas y
+ * sin la colación dibujada.
+ */
+export interface ArrastreGrilla {
+  /** false sin `agenda:manage` (en solo lectura la grilla lo apaga sola): se ve, pero no se mueve. */
+  habilitado: boolean;
+  validar: (cita: Cita, destino: Destino) => Veredicto;
+  onMover: (cita: Cita, destino: Destino) => void;
+  onRechazo: (mensaje: string) => void;
+  /** Citas con un movimiento esperando conexión. */
+  enCola: ReadonlySet<string>;
+  /** Horario declarado por profesional (colación y fuera de horario). */
+  horarios?: Record<string, BloqueHorario[]>;
+}
+
 export function AgendaGrid({
   compacta = false,
   citas,
@@ -76,6 +111,7 @@ export function AgendaGrid({
   zonaHoraria,
   onAgendarHueco,
   renderAcciones,
+  arrastre,
 }: {
   compacta?: boolean;
   citas: Cita[];
@@ -96,6 +132,7 @@ export function AgendaGrid({
    * WhatsApp). Quien llama decide qué ofrece según los permisos del rol; la
    * grilla siempre agrega "Ver ficha". */
   renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
+  arrastre?: ArrastreGrilla;
 }) {
   const { desde, hasta } = rangoDeGrilla(citas);
   const horas = (hasta - desde) / 60;
@@ -179,6 +216,42 @@ export function AgendaGrid({
     onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p }), e.currentTarget);
   }
 
+  // ── Arrastre (flag agenda-arrastre) ──
+  const refsCarril = useRef(new Map<string, HTMLDivElement>());
+  const carriles = useMemo<Carril[]>(
+    () => (fecha ? profesionales.map((p) => ({ fecha, profesionalId: p.id })) : []),
+    [fecha, profesionales],
+  );
+  // El modo solo lectura (#85) se lee acá adentro: la grilla vive dentro
+  // del AppShell, que es quien provee el contexto. El servidor repite el
+  // chequeo en `moveAppointment` (requireEscritura).
+  const soloLectura = useSoloLectura();
+  const puedeArrastrar = Boolean(arrastre?.habilitado && fecha && !soloLectura);
+  const soltar = (c: Cita, d: Destino) => {
+    arrastre?.onMover(c, d);
+    enfocarCita(c.id);
+  };
+  const { fantasma, alPresionar, clicDeArrastre } = useArrastreCita({
+    habilitado: puedeArrastrar,
+    carriles,
+    elementoDeCarril: (c) => refsCarril.current.get(c.profesionalId),
+    rango: { desde, hasta },
+    validar: (c, d) => arrastre!.validar(c, d),
+    onSoltar: soltar,
+    onRechazo: (m) => arrastre?.onRechazo(m),
+  });
+
+  function moverConTeclado(e: KeyboardEvent<HTMLButtonElement>, c: Cita) {
+    if (!puedeArrastrar || !arrastre || !e.altKey || !esMovible(c)) return;
+    const destino = destinoPorTeclado(c, e.key, carriles, { desde, hasta });
+    if (!e.key.startsWith("Arrow")) return;
+    e.preventDefault();
+    if (!destino) return;
+    const veredicto = arrastre.validar(c, destino);
+    if (veredicto.ok) soltar(c, destino);
+    else if (veredicto.motivo !== "sin-cambio") arrastre.onRechazo(veredicto.mensaje);
+  }
+
   const minutosAhora = useMinutosAhora(esHoy, zonaHoraria);
   const ahoraVisible = minutosAhora !== null && minutosAhora >= desde && minutosAhora <= hasta;
 
@@ -195,7 +268,13 @@ export function AgendaGrid({
     // celular cuatro profesionales en 390px dejaban columnas de ~70px, con el
     // nombre partido en cinco líneas (revisión en producción, 07-oct-2026).
     // La columna de horas queda fija a la izquierda.
-    <div className="card-clinical overflow-hidden">
+    <div className="card-clinical overflow-hidden [.agenda-arrastrando_&]:cursor-grabbing [.agenda-arrastrando_&]:select-none">
+      {puedeArrastrar && (
+        <p id={ID_AYUDA_ARRASTRE} className="sr-only">
+          Para mover la cita: arrástrala, o usa Alt más flechas arriba y abajo para cambiar la hora
+          y Alt más flechas a los lados para cambiar de profesional.
+        </p>
+      )}
       <div className="overflow-x-auto">
         <div
           className="grid border-b border-hairline bg-secondary/40"
@@ -235,7 +314,14 @@ export function AgendaGrid({
           </div>
 
           {profesionales.map((p, colIdx) => (
-            <div key={p.id} className="relative border-l border-hairline">
+            <div
+              key={p.id}
+              ref={(el) => {
+                if (el) refsCarril.current.set(p.id, el);
+                else refsCarril.current.delete(p.id);
+              }}
+              className="relative border-l border-hairline"
+            >
               {Array.from({ length: horas }).map((_, i) => (
                 <div
                   key={i}
@@ -243,6 +329,15 @@ export function AgendaGrid({
                   className="border-b border-hairline"
                 />
               ))}
+
+              {arrastre && fecha && (
+                <FranjasDeHorario
+                  bloques={arrastre.horarios?.[p.id]}
+                  fecha={fecha}
+                  desde={desde}
+                  hasta={hasta}
+                />
+              )}
 
               {(huecosPorProfesional.get(p.id) ?? []).map((m) => {
                 const clave = claveHueco(p.id, m);
@@ -280,8 +375,18 @@ export function AgendaGrid({
                   desde={desde}
                   allergies={allergyAlerts?.[c.pacienteId]}
                   renderAcciones={renderAcciones}
+                  arrastrable={puedeArrastrar && esMovible(c)}
+                  arrastrando={fantasma?.citaId === c.id}
+                  enCola={arrastre?.enCola.has(c.id) ?? false}
+                  onPointerDown={(e) => alPresionar(e, c)}
+                  clicDeArrastre={clicDeArrastre}
+                  onKeyDown={(e) => moverConTeclado(e, c)}
                 />
               ))}
+
+              {fantasma && fantasma.destino.profesionalId === p.id && (
+                <FantasmaCita fantasma={fantasma} desde={desde} />
+              )}
             </div>
           ))}
 
@@ -320,6 +425,12 @@ function BloqueCita({
   desde,
   allergies,
   renderAcciones,
+  arrastrable = false,
+  arrastrando = false,
+  enCola = false,
+  onPointerDown,
+  clicDeArrastre,
+  onKeyDown,
 }: {
   cita: Cita;
   profesional: Profesional;
@@ -327,6 +438,13 @@ function BloqueCita({
   desde: number;
   allergies: string[] | undefined;
   renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
+  arrastrable?: boolean;
+  arrastrando?: boolean;
+  /** Tiene un movimiento esperando conexión. */
+  enCola?: boolean;
+  onPointerDown?: (e: PointerEvent<HTMLButtonElement>) => void;
+  clicDeArrastre?: () => boolean;
+  onKeyDown?: (e: KeyboardEvent<HTMLButtonElement>) => void;
 }) {
   const corta = c.duracion < 30;
   return (
@@ -334,12 +452,23 @@ function BloqueCita({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={etiquetaBloqueCita(c)}
+          data-cita-id={c.id}
+          aria-label={enCola ? `${etiquetaBloqueCita(c)}. Cambio en cola` : etiquetaBloqueCita(c)}
+          aria-describedby={arrastrable ? ID_AYUDA_ARRASTRE : undefined}
+          onPointerDown={arrastrable ? onPointerDown : undefined}
+          onKeyDown={onKeyDown}
+          onClick={(e) => {
+            // Soltar un arrastre no abre el popover (Radix respeta defaultPrevented).
+            if (clicDeArrastre?.()) e.preventDefault();
+          }}
           className={cn(
             "@container absolute left-1.5 right-1.5 block overflow-hidden rounded-md border px-2 text-left leading-[1.15] transition-shadow hover:shadow-md focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=open]:z-10 data-[state=open]:shadow-md",
             corta ? "py-0" : "py-[3px]",
             estadoClases[c.estado],
             c.estado === "ausente" && "opacity-70",
+            arrastrable && "cursor-grab touch-manipulation",
+            arrastrando && "opacity-40 shadow-none",
+            enCola && "border-dashed",
           )}
           style={{
             top: (c.inicio - desde) * PIXELES_POR_MINUTO + 1,
@@ -370,6 +499,11 @@ function BloqueCita({
               {c.prioridad && c.duracion < 60 && (
                 <span className="rounded bg-card/70 p-0.5 text-warning">
                   <Flag className="size-3" role="img" aria-label="Prioridad" />
+                </span>
+              )}
+              {enCola && (
+                <span className="rounded bg-card/70 p-0.5">
+                  <CloudOff className="size-3" aria-hidden />
                 </span>
               )}
               {c.pacienteConfirmo && <PatientConfirmedBadge soloIcono />}
@@ -429,5 +563,90 @@ function BloqueCita({
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * Dónde caería la cita mientras se arrastra, con la hora destino visible
+ * antes de soltar. Si no se puede soltar ahí, lo dice (y en rojo, con
+ * borde punteado y texto: no solo color).
+ */
+function FantasmaCita({ fantasma: f, desde }: { fantasma: Fantasma; desde: number }) {
+  const ok = f.veredicto.ok || f.veredicto.motivo === "sin-cambio";
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        "pointer-events-none absolute left-1.5 right-1.5 z-30 overflow-hidden rounded-md border-2 border-dashed px-2 py-1 text-[11px] leading-tight shadow-lg",
+        ok
+          ? "border-brand-700 bg-brand/10 text-foreground"
+          : "border-destructive bg-destructive/10 text-destructive",
+      )}
+      style={{
+        top: (f.destino.inicio - desde) * PIXELES_POR_MINUTO + 1,
+        height: Math.max(f.duracion * PIXELES_POR_MINUTO - 3, 18),
+      }}
+    >
+      <span className="block font-semibold tabular-nums">
+        {horaDeMinutos(f.destino.inicio)}–{horaDeMinutos(f.destino.inicio + f.duracion)}
+      </span>
+      {!f.veredicto.ok && f.veredicto.motivo !== "sin-cambio" && (
+        <span className="line-clamp-2">{f.veredicto.mensaje}</span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Colación (entre dos tramos del día) y fuera de horario, dibujados en la
+ * columna del profesional. Solo con el flag de arrastre: así se ve antes de
+ * soltar por qué un destino no se puede.
+ */
+function FranjasDeHorario({
+  bloques,
+  fecha,
+  desde,
+  hasta,
+}: {
+  bloques: BloqueHorario[] | undefined;
+  fecha: string;
+  desde: number;
+  hasta: number;
+}) {
+  const horario = horarioDelDia(bloques, fecha);
+  if (!horario.declarado) return null;
+  const franjas: { inicio: number; fin: number; tipo: "fuera" | "colacion" }[] = [];
+  if (horario.tramos.length === 0) {
+    franjas.push({ inicio: desde, fin: hasta, tipo: "fuera" });
+  } else {
+    const primero = horario.tramos[0];
+    const ultimo = horario.tramos[horario.tramos.length - 1];
+    if (primero.inicio > desde) franjas.push({ inicio: desde, fin: primero.inicio, tipo: "fuera" });
+    for (const c of colaciones(horario)) franjas.push({ ...c, tipo: "colacion" });
+    if (ultimo.fin < hasta) franjas.push({ inicio: ultimo.fin, fin: hasta, tipo: "fuera" });
+  }
+  return (
+    <>
+      {franjas.map((f) => {
+        const top = (Math.max(f.inicio, desde) - desde) * PIXELES_POR_MINUTO;
+        const alto = (Math.min(f.fin, hasta) - Math.max(f.inicio, desde)) * PIXELES_POR_MINUTO;
+        if (alto <= 0) return null;
+        return (
+          <div
+            key={`${f.tipo}-${f.inicio}`}
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 grid place-items-center text-[11px] text-muted-foreground",
+              f.tipo === "colacion"
+                ? "bg-[repeating-linear-gradient(135deg,var(--color-border)_0_1px,transparent_1px_9px)]"
+                : "bg-secondary/50",
+            )}
+            style={{ top, height: alto }}
+          >
+            {f.tipo === "colacion" && alto >= 18 ? "Colación" : null}
+          </div>
+        );
+      })}
+    </>
   );
 }

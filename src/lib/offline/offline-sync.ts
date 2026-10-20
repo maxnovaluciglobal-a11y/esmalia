@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import {
   createAppointment,
+  moveAppointment,
   setAppointmentStatus,
 } from "@/lib/clinic-operations/appointments.functions";
 import { registerPayment } from "@/lib/finance/finance.functions";
@@ -33,6 +34,7 @@ const despachadores: Record<OperacionKind, (payload: never) => Promise<unknown>>
   "guardar-nota": (payload) => saveClinicalNote({ data: payload }),
   "marcar-odontograma": (payload) => setOdontogramMark({ data: payload }),
   "actualizar-anamnesis": (payload) => setMedicalHistory({ data: payload }),
+  "reprogramar-cita": (payload) => moveAppointment({ data: payload }),
 };
 
 /**
@@ -77,6 +79,7 @@ const invalidaciones: Record<OperacionKind, string[]> = {
   "guardar-nota": ["clinical-notes"],
   "marcar-odontograma": ["odontogram-marks", "odontogram-history"],
   "actualizar-anamnesis": ["medical-history"],
+  "reprogramar-cita": ["appointments"],
 };
 
 let sincronizando = false;
@@ -98,10 +101,10 @@ export async function sincronizarCola(queryClient: QueryClient, userId: string) 
   let conflictosNuevos = 0;
   let corte = false;
   const kindsTocados = new Set<OperacionKind>();
-  // Avisos SOLAPADO de `crear-cita` (ver appointments.functions.ts): la cita
-  // se sincronizó igual, esto solo junta el mensaje para mostrarlo al final —
-  // durante la sincronización en segundo plano no hay ningún diálogo abierto
-  // donde avisar en el momento.
+  // Avisos SOLAPADO de `crear-cita` y `reprogramar-cita` (ver
+  // appointments.functions.ts): la cita se sincronizó igual, esto solo junta
+  // el mensaje para mostrarlo al final — durante la sincronización en segundo
+  // plano no hay ningún diálogo abierto donde avisar en el momento.
   const avisos: string[] = [];
 
   try {
@@ -114,7 +117,7 @@ export async function sincronizarCola(queryClient: QueryClient, userId: string) 
           item.payload,
         );
         kindsTocados.add(item.kind);
-        if (item.kind === "crear-cita") {
+        if (item.kind === "crear-cita" || item.kind === "reprogramar-cita") {
           const solapamiento = (
             resultado as { solapamiento?: { treatmentLabel: string } } | undefined
           )?.solapamiento;
@@ -198,5 +201,7 @@ export function describirItem(item: ItemCola) {
       return "Marca de odontograma";
     case "actualizar-anamnesis":
       return "Antecedentes médicos";
+    case "reprogramar-cita":
+      return "Cita reprogramada";
   }
 }

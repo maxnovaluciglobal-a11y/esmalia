@@ -21,7 +21,8 @@ export type OperacionKind =
   | "cambiar-estado-cita"
   | "guardar-nota"
   | "marcar-odontograma"
-  | "actualizar-anamnesis";
+  | "actualizar-anamnesis"
+  | "reprogramar-cita";
 
 export type EstadoItem =
   /** Esperando conexión. */
@@ -74,7 +75,57 @@ export type ItemCola = {
    * y registrar-pago no lo usan, cada captura es un hecho distinto.
    */
   identidad?: string;
+  /**
+   * Cómo estaba la entidad en el servidor ANTES de la primera captura sin
+   * conexión, con la misma forma que `payload` (ej. la hora y el profesional
+   * de la cita antes del primer arrastre). Al fusionar capturas de la misma
+   * `identidad` se conserva el de la primera. Si una captura deja la entidad
+   * exactamente como estaba (deshacer, o arrastrar y devolver), la pendiente
+   * se descarta: no hay nada que sincronizar.
+   */
+  original?: Record<string, unknown>;
 };
+
+/** Igualdad de payloads planos (orden de claves irrelevante). */
+export function mismoPayload(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const claves = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const k of claves) {
+    if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) return false;
+  }
+  return true;
+}
+
+/**
+ * Suma una captura a la cola (lógica pura, sin IndexedDB): fusiona con la
+ * pendiente propia de la misma `identidad` y la descarta si vuelve al
+ * `original`. Ver los comentarios de `identidad` y `original` en `ItemCola`.
+ */
+export function agregarACola(
+  items: ItemCola[],
+  item: Omit<ItemCola, "intentos" | "estado">,
+): ItemCola[] {
+  const idx = item.identidad
+    ? items.findIndex(
+        (i) =>
+          i.userId === item.userId &&
+          i.kind === item.kind &&
+          i.estado === "pendiente" &&
+          i.identidad === item.identidad,
+      )
+    : -1;
+  const original = idx >= 0 ? (items[idx].original ?? item.original) : item.original;
+  const vuelveAlOriginal = original !== undefined && mismoPayload(item.payload, original);
+  if (idx >= 0) {
+    if (vuelveAlOriginal) return items.filter((_, i) => i !== idx);
+    const copia = [...items];
+    copia[idx] = { ...items[idx], ...item, original, intentos: 0, estado: "pendiente" };
+    return copia;
+  }
+  // Una captura nueva que no cambia nada (deshacer de algo ya sincronizado
+  // que vuelve al mismo valor) no tiene sentido encolarla.
+  if (vuelveAlOriginal) return items;
+  return [...items, { ...item, intentos: 0, estado: "pendiente" }];
+}
 
 function store() {
   return createStore(DB_NAME, STORE_NAME);
@@ -164,26 +215,12 @@ async function notificar() {
 /**
  * Si `item.identidad` coincide con una pendiente propia del mismo tipo, la
  * reemplaza en vez de acumular — ver el comentario de `identidad` en el tipo
- * `ItemCola`.
+ * `ItemCola` — y si la deja como estaba en el servidor (`original`), la saca.
  */
 export async function encolar(item: Omit<ItemCola, "intentos" | "estado">) {
   await conLockDeCola(async () => {
     const items = await leerColaInterna();
-    const idx = item.identidad
-      ? items.findIndex(
-          (i) =>
-            i.userId === item.userId &&
-            i.kind === item.kind &&
-            i.estado === "pendiente" &&
-            i.identidad === item.identidad,
-        )
-      : -1;
-    if (idx >= 0) {
-      items[idx] = { ...items[idx], ...item, intentos: 0, estado: "pendiente" };
-    } else {
-      items.push({ ...item, intentos: 0, estado: "pendiente" });
-    }
-    await escribirCola(items);
+    await escribirCola(agregarACola(items, item));
   });
   await notificar();
 }
