@@ -8,6 +8,8 @@ import {
   markNotificationsRead,
 } from "@/lib/messaging/notifications.functions";
 import { NOTIFICATION_KIND_LABELS, tiempoRelativo } from "@/lib/messaging/notifications";
+import { esLecturaDePatty } from "@/lib/messaging/aviso-de-agenda";
+import { PattyCara } from "@/components/patty-cara";
 
 /** Campana de notificaciones internas con actualización en tiempo real. */
 export function NotificationsBell({ userId }: { userId?: string | null }) {
@@ -113,7 +115,7 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
                 </p>
               )}
               {notificaciones.map((n) => {
-                const contenido = (
+                const texto = (
                   <>
                     <p className="text-xs font-medium">{n.title}</p>
                     {n.body && (
@@ -123,6 +125,19 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
                       {NOTIFICATION_KIND_LABELS[n.kind] ?? "Aviso"} · {tiempoRelativo(n.createdAt)}
                     </p>
                   </>
+                );
+                // Solicitud de agenda que leyó Patty: su cara al lado. Solo en
+                // ese tipo de aviso, para que un mensaje del paciente que
+                // empiece igual no se haga pasar por ella. El cuerpo ya la
+                // nombra ("Patty leyó: …"), así que la cara es decorativa.
+                const leyoPatty = n.kind === "appointment_request" && esLecturaDePatty(n.body);
+                const contenido = leyoPatty ? (
+                  <span className="flex items-start gap-2.5">
+                    <PattyCara px={28} decorativa className="mt-0.5" />
+                    <span className="min-w-0 flex-1">{texto}</span>
+                  </span>
+                ) : (
+                  texto
                 );
                 const clases = `block rounded-lg border p-2.5 text-left ${
                   n.readAt ? "border-hairline" : "border-brand/30 bg-brand/5"
