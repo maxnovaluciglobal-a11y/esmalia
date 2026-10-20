@@ -87,8 +87,6 @@ export function marcasYaPresupuestadas(quotes: readonly Quote[]): Set<string> {
 }
 
 export interface ContextoSugerencia {
-  /** Flag `ficha-sugerencia-presupuesto`. */
-  flag: boolean;
   /** `patients:manage`: el mismo permiso que el botón "Presupuestar" de G-1. */
   puedeFacturar: boolean;
   /** Modo solo lectura (BIL-01): no se ofrece lo que el servidor va a rechazar. */
@@ -107,12 +105,11 @@ export interface ContextoSugerencia {
 
 /**
  * ¿Se ofrece sumar esta marca al presupuesto? Solo un tratamiento "por
- * realizar", con permiso de facturar, fuera de solo lectura, con el flag y
- * si la marca (o la misma indicación que reemplaza) no está ya en un
+ * realizar", con permiso de facturar, fuera de solo lectura y si la marca (o la misma indicación que reemplaza) no está ya en un
  * presupuesto. Lo existente nunca sugiere nada.
  */
 export function debeSugerir(ctx: ContextoSugerencia): boolean {
-  if (!ctx.flag || !ctx.puedeFacturar || ctx.soloLectura) return false;
+  if (!ctx.puedeFacturar || ctx.soloLectura) return false;
   if (ctx.marca.status !== "planificado") return false;
   if (CONDITION_CATALOG[ctx.marca.condition]?.categoria !== "tratamiento") return false;
   if (ctx.yaPresupuestadas.has(ctx.marca.id)) return false;

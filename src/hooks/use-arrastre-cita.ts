@@ -13,7 +13,7 @@ import {
   type Carril,
   type Destino,
   type Veredicto,
-} from "@/components/agenda-arrastre";
+} from "@/components/agenda-movimiento";
 import { PIXELES_POR_MINUTO, type Cita } from "@/lib/clinic-operations/clinic-data";
 
 export const ID_AYUDA_ARRASTRE = "agenda-ayuda-arrastre";
@@ -218,7 +218,7 @@ function crearControlador(
  *   mueve antes, es scroll y no se toca nada.
  * - Shift encaja a 5 minutos en lugar de 15. Escape cancela.
  *
- * La lógica de encaje, límites y validación es pura (`agenda-arrastre.ts`);
+ * La lógica de encaje, límites y validación es pura (`agenda-movimiento.ts`);
  * acá solo se traduce el puntero a un `Destino`.
  */
 export function useArrastreCita(opciones: Opciones) {

@@ -185,7 +185,7 @@ export const openCashRegister = createServerFn({ method: "POST" })
  * snapshot. No se puede volver a abrir la misma fila — un turno nuevo abre
  * una caja nueva, la historia queda intacta.
  *
- * Arqueo v2 (flag `caja-arqueo-v2`, solo UI): el cliente puede mandar el
+ * Arqueo por denominación (PR 12 del rediseño A+): el cliente puede mandar el
  * conteo por billete y moneda. El servidor lo vuelve a sumar con su propia
  * tabla de la moneda de la caja y exige que coincida con lo declarado. Con
  * o sin conteo, si no cuadra el motivo es obligatorio (lo decide la

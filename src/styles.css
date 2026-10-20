@@ -447,7 +447,7 @@
   --petrol-foreground: #1a1714;
 }
 
-/* Sidebar en tinta (shell-v2): lleva `.dark` para que lo de adentro se lea
+/* Sidebar en tinta del shell: lleva `.dark` para que lo de adentro se lea
    sobre tinta, pero su fondo es la tinta del prototipo A+ (#15120F en claro,
    #0E0C0A en oscuro), no la que `.dark` hunde un paso. */
 .dark.tinta-de-pagina {
@@ -552,7 +552,7 @@
   border-radius: var(--radius-lg);
 }
 
-/* Sello "Cuadra" del arqueo de caja (flag caja-arqueo-v2). El componente
+/* Sello "Cuadra" del arqueo de caja. El componente
    solo pone estas clases si se puede animar (useMovimiento); el media query
    es la segunda red. Sin animación el sello queda quieto y visible. */
 @keyframes sello-cuadra {
@@ -581,7 +581,7 @@
   }
 }
 
-/* Panel lateral de la cita en la semana (flag agenda-v2): el contenido se
+/* Panel lateral de la cita en la semana: el contenido se
    revela de arriba hacia abajo al abrir o al cambiar de cita. El componente
    solo pone la clase si se puede animar (useMovimiento); el media query es
    la segunda red. Sin animación, el panel aparece entero de una vez. */

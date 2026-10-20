@@ -20,7 +20,7 @@ import {
   startsAtDe,
   validarDestino,
   type BloqueHorario,
-} from "@/components/agenda-arrastre";
+} from "@/components/agenda-movimiento";
 import { citaCabeEnBloques } from "@/lib/clinic-operations/appointments.functions";
 import { HORA_INICIO, PIXELES_POR_MINUTO, type Cita } from "@/lib/clinic-operations/clinic-data";
 

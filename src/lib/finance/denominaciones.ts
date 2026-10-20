@@ -1,6 +1,6 @@
 /**
  * Billetes y monedas por moneda, para el arqueo de caja por denominación
- * (PR 12 del rediseño A+, flag `caja-arqueo-v2`).
+ * (PR 12 del rediseño A+).
  *
  * Pura y sin red: la usan el componente de arqueo (para sumar mientras se
  * cuenta) y el servidor (para volver a sumar y no confiar en el total que

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { minutosDeHora, type BloqueHorario } from "@/components/agenda-arrastre";
+import { minutosDeHora, type BloqueHorario } from "@/components/agenda-movimiento";
 import {
   etiquetaOcupacion,
   fechaMasAntigua,

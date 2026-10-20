@@ -45,7 +45,7 @@ import {
   type Carril,
   type Destino,
   type Veredicto,
-} from "@/components/agenda-arrastre";
+} from "@/components/agenda-movimiento";
 import {
   enfocarCita,
   ID_AYUDA_ARRASTRE,
@@ -85,9 +85,8 @@ export function useMinutosAhora(activo: boolean, timeZone: string | undefined): 
 const claveHueco = (profesionalId: string, minutos: number) => `${profesionalId}:${minutos}`;
 
 /**
- * Reprogramar desde la grilla (flag `agenda-arrastre`). Sin esta prop la
- * grilla queda exactamente como antes: sin arrastre, sin Alt + flechas y
- * sin la colación dibujada.
+ * Reprogramar desde la grilla (PR 10 del rediseño A+): arrastre, Alt +
+ * flechas y la colación dibujada.
  */
 export interface ArrastreGrilla {
   /** false sin `agenda:manage` (en solo lectura la grilla lo apaga sola): se ve, pero no se mueve. */
@@ -132,7 +131,7 @@ export function AgendaGrid({
    * WhatsApp). Quien llama decide qué ofrece según los permisos del rol; la
    * grilla siempre agrega "Ver ficha". */
   renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
-  arrastre?: ArrastreGrilla;
+  arrastre: ArrastreGrilla;
 }) {
   const { desde, hasta } = rangoDeGrilla(citas);
   const horas = (hasta - desde) / 60;
@@ -216,7 +215,7 @@ export function AgendaGrid({
     onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p }), e.currentTarget);
   }
 
-  // ── Arrastre (flag agenda-arrastre) ──
+  // ── Arrastre ──
   const refsCarril = useRef(new Map<string, HTMLDivElement>());
   const carriles = useMemo<Carril[]>(
     () => (fecha ? profesionales.map((p) => ({ fecha, profesionalId: p.id })) : []),
@@ -226,9 +225,9 @@ export function AgendaGrid({
   // del AppShell, que es quien provee el contexto. El servidor repite el
   // chequeo en `moveAppointment` (requireEscritura).
   const soloLectura = useSoloLectura();
-  const puedeArrastrar = Boolean(arrastre?.habilitado && fecha && !soloLectura);
+  const puedeArrastrar = Boolean(arrastre.habilitado && fecha && !soloLectura);
   const soltar = (c: Cita, d: Destino) => {
-    arrastre?.onMover(c, d);
+    arrastre.onMover(c, d);
     enfocarCita(c.id);
   };
   const { fantasma, alPresionar, clicDeArrastre } = useArrastreCita({
@@ -236,13 +235,13 @@ export function AgendaGrid({
     carriles,
     elementoDeCarril: (c) => refsCarril.current.get(c.profesionalId),
     rango: { desde, hasta },
-    validar: (c, d) => arrastre!.validar(c, d),
+    validar: (c, d) => arrastre.validar(c, d),
     onSoltar: soltar,
-    onRechazo: (m) => arrastre?.onRechazo(m),
+    onRechazo: (m) => arrastre.onRechazo(m),
   });
 
   function moverConTeclado(e: KeyboardEvent<HTMLButtonElement>, c: Cita) {
-    if (!puedeArrastrar || !arrastre || !e.altKey || !esMovible(c)) return;
+    if (!puedeArrastrar || !e.altKey || !esMovible(c)) return;
     const destino = destinoPorTeclado(c, e.key, carriles, { desde, hasta });
     if (!e.key.startsWith("Arrow")) return;
     e.preventDefault();
@@ -330,7 +329,7 @@ export function AgendaGrid({
                 />
               ))}
 
-              {arrastre && fecha && (
+              {fecha && (
                 <FranjasDeHorario
                   bloques={arrastre.horarios?.[p.id]}
                   fecha={fecha}
@@ -377,7 +376,7 @@ export function AgendaGrid({
                   renderAcciones={renderAcciones}
                   arrastrable={puedeArrastrar && esMovible(c)}
                   arrastrando={fantasma?.citaId === c.id}
-                  enCola={arrastre?.enCola.has(c.id) ?? false}
+                  enCola={arrastre.enCola.has(c.id)}
                   onPointerDown={(e) => alPresionar(e, c)}
                   clicDeArrastre={clicDeArrastre}
                   onKeyDown={(e) => moverConTeclado(e, c)}
@@ -536,7 +535,7 @@ function BloqueCita({
 
 /**
  * Resumen de la cita con sus acciones: lo usa el popover de la grilla de día
- * y el panel lateral de la semana (flag `agenda-v2`).
+ * y el panel lateral de la semana.
  */
 export function DetalleCita({
   cita: c,
@@ -626,8 +625,8 @@ function FantasmaCita({ fantasma: f, desde }: { fantasma: Fantasma; desde: numbe
 
 /**
  * Colación (entre dos tramos del día) y fuera de horario, dibujados en la
- * columna del profesional. Solo con el flag de arrastre: así se ve antes de
- * soltar por qué un destino no se puede.
+ * columna del profesional: así se ve antes de soltar por qué un destino no
+ * se puede.
  */
 export function FranjasDeHorario({
   bloques,

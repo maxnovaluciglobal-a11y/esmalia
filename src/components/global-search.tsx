@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarPlus, CornerDownLeft, LockOpen, Search, UserRound } from "lucide-react";
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { hasPermission, type ClinicAccess } from "@/lib/access/access";
 import { ajustesVisibles, destinosVisibles } from "@/lib/access/navegacion";
 import { buscarPacientes } from "@/lib/patients/buscar-pacientes.functions";
-import { accionesRapidas } from "@/lib/shell-v2";
+import { accionesRapidas, hrefDeAccion, type AccionRapida } from "@/lib/shell";
 import { cn } from "@/lib/utils";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 
@@ -29,13 +29,9 @@ import { useSoloLectura } from "@/hooks/use-solo-lectura";
 export function GlobalSearch({
   access,
   atajo = false,
-  shellV2 = false,
   enBarraSuperior = false,
 }: {
   access: ClinicAccess;
-  /** Shell A+: disparador en pastilla con el atajo siempre visible y grupo
-   *  "Acciones" (Nueva cita, Abrir caja). Con el flag apagado, como antes. */
-  shellV2?: boolean;
   /** Instancia de la barra superior (tablet y celular). */
   enBarraSuperior?: boolean;
   /** Solo UNA instancia escucha ⌘K: el shell monta el buscador dos veces
@@ -47,6 +43,7 @@ export function GlobalSearch({
   const [q, setQ] = useState("");
   const [qDiferida, setQDiferida] = useState("");
   const navigate = useNavigate();
+  const ubicacion = useRouterState({ select: (st) => st.location });
   // El atajo se muestra según la plataforma. Arranca en "Ctrl K" (la mayoría
   // de las clínicas usa Windows) y se corrige en el cliente: leerlo durante el
   // render rompería la hidratación, porque en SSR no hay navigator.
@@ -97,7 +94,7 @@ export function GlobalSearch({
   // En solo lectura las acciones crean algo: no se ofrecen (el servidor
   // igual las rechazaría).
   const soloLectura = useSoloLectura();
-  const acciones = shellV2 && !soloLectura ? accionesRapidas(access.role, q) : [];
+  const acciones = !soloLectura ? accionesRapidas(access.role, q) : [];
 
   const clinicId = access.clinic?.id;
   const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
@@ -116,59 +113,42 @@ export function GlobalSearch({
   }
 
   /** Acción rápida: la ruta destino lee el pedido de la URL y abre su
-   *  diálogo (agenda con `?nueva=1`, caja con `?abrir=1`). */
-  function ejecutar(href: string) {
+   *  diálogo (agenda con `?nueva=1`, caja con `?abrir=1`). Si ya se está en
+   *  esa ruta, conserva su vista, fecha y filtros (`hrefDeAccion`). */
+  function ejecutar(accion: AccionRapida) {
     setAbierto(false);
     setQ("");
-    void navigate({ href });
+    void navigate({ href: hrefDeAccion(accion, ubicacion) });
   }
 
   return (
     <>
-      {shellV2 ? (
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          aria-label="Buscar paciente, página o acción"
-          aria-keyshortcuts="Meta+K Control+K"
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        aria-label="Buscar paciente, página o acción"
+        aria-keyshortcuts="Meta+K Control+K"
+        className={cn(
+          "flex h-9 items-center gap-2 rounded-full border text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+          enBarraSuperior
+            ? "w-9 justify-center border-border text-muted-foreground hover:border-brand/60 hover:text-foreground sm:w-full sm:justify-start sm:px-3"
+            : "w-full border-night-line bg-night-2 px-3 text-on-night-2 hover:text-on-night",
+        )}
+      >
+        <Search className="size-4 shrink-0" aria-hidden />
+        <span className={cn("flex-1 truncate text-left", enBarraSuperior && "hidden sm:inline")}>
+          Buscar…
+        </span>
+        <kbd
+          aria-hidden
           className={cn(
-            "flex h-9 items-center gap-2 rounded-full border text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-            enBarraSuperior
-              ? "w-9 justify-center border-border text-muted-foreground hover:border-brand/60 hover:text-foreground sm:w-full sm:justify-start sm:px-3"
-              : "w-full border-night-line bg-night-2 px-3 text-on-night-2 hover:text-on-night",
+            "rounded-sm border px-1.5 font-mono text-[11px] leading-5",
+            enBarraSuperior ? "hidden border-border md:inline" : "border-night-line",
           )}
         >
-          <Search className="size-4 shrink-0" aria-hidden />
-          <span className={cn("flex-1 truncate text-left", enBarraSuperior && "hidden sm:inline")}>
-            Buscar…
-          </span>
-          <kbd
-            aria-hidden
-            className={cn(
-              "rounded-sm border px-1.5 font-mono text-[11px] leading-5",
-              enBarraSuperior ? "hidden border-border md:inline" : "border-night-line",
-            )}
-          >
-            {esMac ? "⌘K" : "Ctrl K"}
-          </kbd>
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          aria-label="Buscar paciente o página"
-          className="flex h-9 w-9 items-center justify-center gap-2 rounded-md border border-border text-sm text-muted-foreground transition-colors hover:border-brand/60 hover:text-foreground sm:w-full sm:justify-start sm:px-3"
-        >
-          <Search className="size-4 shrink-0" aria-hidden />
-          <span className="hidden flex-1 truncate text-left sm:inline">Buscar paciente…</span>
-          <kbd
-            aria-hidden
-            className="hidden rounded-sm border border-border px-1.5 text-xs sm:inline"
-          >
-            {esMac ? "⌘K" : "Ctrl K"}
-          </kbd>
-        </button>
-      )}
+          {esMac ? "⌘K" : "Ctrl K"}
+        </kbd>
+      </button>
 
       <Dialog open={abierto} onOpenChange={setAbierto}>
         {/* En celular va arriba y no centrado: centrado, el teclado tapaba
@@ -215,11 +195,7 @@ export function GlobalSearch({
                   {acciones.map((a) => {
                     const Icono = a.id === "abrir-caja" ? LockOpen : CalendarPlus;
                     return (
-                      <CommandItem
-                        key={a.id}
-                        value={`accion-${a.id}`}
-                        onSelect={() => ejecutar(a.href)}
-                      >
+                      <CommandItem key={a.id} value={`accion-${a.id}`} onSelect={() => ejecutar(a)}>
                         <Icono className="text-muted-foreground" aria-hidden />
                         <span className="flex-1 truncate">{a.label}</span>
                         <span className="truncate text-xs text-muted-foreground">{a.detalle}</span>

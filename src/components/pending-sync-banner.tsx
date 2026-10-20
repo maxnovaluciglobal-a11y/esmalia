@@ -1,4 +1,4 @@
-import { AlertTriangle, CloudUpload, GitMerge } from "lucide-react";
+import { AlertTriangle, GitMerge } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useColaOffline } from "@/hooks/use-offline-mutation";
@@ -27,32 +27,22 @@ function loQueHayVigente(item: ItemCola): string {
 }
 
 /**
- * Trabajo capturado que todavía no llegó al servidor.
+ * Trabajo capturado que el servidor no aceptó y pide una decisión.
  *
- * Son dos avisos distintos a propósito:
+ * Los **pendientes** (se sincronizan solos) los cuenta la pastilla de
+ * conexión del shell; acá quedan dos avisos que sí requieren a una persona:
  *
- * - **Pendientes**: informativo. Se sincronizan solos, el equipo no tiene que
- *   hacer nada; sirve para que nadie se vaya de la clínica creyendo que todo
- *   está guardado cuando falta subir cobros.
+ * - **Conflictos**: alguien cambió lo mismo mientras tanto; hay que elegir
+ *   cuál versión vale.
  * - **Fallidos**: el servidor los rechazó por algo que reintentar no arregla.
- *   Requieren que una persona los mire. Un cobro que se pierde en silencio es
- *   peor que uno que nunca se registró, así que esto NO se auto-descarta.
+ *   Un cobro que se pierde en silencio es peor que uno que nunca se registró,
+ *   así que esto NO se auto-descarta.
  */
-export function PendingSyncBanner({
-  userId,
-  soloAccionables = false,
-}: {
-  userId: string | undefined;
-  /** Shell A+ (`shell-v2`): los pendientes ya los cuenta la pastilla de
-   *  conexión, así que acá quedan solo fallidos y conflictos. */
-  soloAccionables?: boolean;
-}) {
+export function PendingSyncBanner({ userId }: { userId: string | undefined }) {
   const queryClient = useQueryClient();
-  const cola = useColaOffline(userId);
-  const { fallidos, conflictos } = cola;
-  const pendientes = soloAccionables ? [] : cola.pendientes;
+  const { fallidos, conflictos } = useColaOffline(userId);
 
-  if (pendientes.length === 0 && fallidos.length === 0 && conflictos.length === 0) return null;
+  if (fallidos.length === 0 && conflictos.length === 0) return null;
 
   return (
     <>
@@ -95,21 +85,6 @@ export function PendingSyncBanner({
               </li>
             ))}
           </ul>
-        </div>
-      )}
-
-      {pendientes.length > 0 && (
-        <div
-          role="status"
-          className="flex items-center gap-2 border-b border-border bg-muted/40 px-5 py-2 text-sm sm:px-8"
-        >
-          <CloudUpload className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-          <span>
-            {pendientes.length === 1
-              ? "1 operación guardada en este equipo"
-              : `${pendientes.length} operaciones guardadas en este equipo`}
-            , esperando internet para sincronizar.
-          </span>
         </div>
       )}
 

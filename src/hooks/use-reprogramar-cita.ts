@@ -3,7 +3,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { fraseDeMovimiento, payloadDeMovimiento, type Destino } from "@/components/agenda-arrastre";
+import {
+  fraseDeMovimiento,
+  payloadDeMovimiento,
+  type Destino,
+} from "@/components/agenda-movimiento";
 import { horaDeMinutos } from "@/components/agenda-hueco";
 import { mostrarAvisoReprogramacion } from "@/components/aviso-reprogramacion";
 import { useConnectivity } from "@/hooks/use-connectivity";

@@ -44,9 +44,9 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
     <tr
       ref={ref}
       className={cn(
-        // Densidad tranquila (A+): solo dentro del shell con el flag
-        // `shell-v2`, que marca su raíz con `data-shell-v2`.
-        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted [[data-shell-v2]_&]:h-(--row-h)",
+        // Densidad tranquila (A+): solo dentro del shell de la app, que marca
+        // su raíz con `data-app-shell`.
+        "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted [[data-app-shell]_&]:h-(--row-h)",
         className,
       )}
       {...props}

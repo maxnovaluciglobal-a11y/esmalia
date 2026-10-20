@@ -82,6 +82,7 @@ export const doThing = createServerFn({ method: "POST" })
 
 ## UI
 
+- Rediseño A+ (plan del 19-oct-2026) encendido entero y sin flags desde el PR 13 (20-oct): shell en tinta con ⌘K y pastilla de conexión (`src/lib/shell.ts`), agenda con arrastre y semana por carriles, sugerencia odontograma → presupuesto y arqueo por denominación. No hay flags de UI; una variante nueva se prueba en rama, no detrás de un interruptor.
 - Ficha `/pacientes/:id` es el hub (KPIs → notas → odontograma → finanzas → mensajes → timeline).
 - Guards con `beforeLoad: requirePermission("perm")`; matriz en `src/lib/access.ts`. Simulación de rol disponible.
 - Diálogos: Radix Dialog + `useMutation` + `invalidateQueries` + `toast`.

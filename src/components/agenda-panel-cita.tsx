@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Panel lateral de la cita elegida en la semana (flag `agenda-v2`).
+ * Panel lateral de la cita elegida en la semana (PR 10b del plan A+).
  *
  * Es un cajón que se superpone y no achica la semana, sin capa que bloquee:
  * se puede seguir eligiendo otra cita con el panel abierto. En el celular
