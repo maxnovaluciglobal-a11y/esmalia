@@ -197,6 +197,11 @@ export interface QuoteItem {
   phasePosition: number;
   position: number;
   notes: string | null;
+  /**
+   * Marca del odontograma que originó la línea (PR 11b). `null` = cargada a
+   * mano. Sirve para no volver a sugerir una marca ya presupuestada.
+   */
+  odontogramMarkId: string | null;
 }
 
 export interface Quote {

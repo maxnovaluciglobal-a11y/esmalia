@@ -137,6 +137,12 @@ interface DraftItem {
   surface: ToothSurface | null;
   phaseLabel: string;
   notes: string;
+  /**
+   * Marca del odontograma de la que salió la línea (PR 11b). No se edita en
+   * el diálogo: solo viaja para que corregir el presupuesto no corte el
+   * vínculo (los ítems se reinsertan al guardar).
+   */
+  odontogramMarkId: string | null;
 }
 
 const emptyItem = (overrides: Partial<DraftItem> = {}): DraftItem => ({
@@ -150,6 +156,7 @@ const emptyItem = (overrides: Partial<DraftItem> = {}): DraftItem => ({
   surface: null,
   phaseLabel: "",
   notes: "",
+  odontogramMarkId: null,
   ...overrides,
 });
 
@@ -166,6 +173,7 @@ function draftToInput(it: DraftItem) {
     discountPct: it.discountMode === "pct" ? it.discount : null,
     phaseLabel: it.phaseLabel.trim() || null,
     notes: it.notes.trim() || undefined,
+    odontogramMarkId: it.odontogramMarkId ?? undefined,
   };
 }
 
@@ -182,6 +190,7 @@ function quoteItemToDraft(it: Quote["items"][number]): DraftItem {
     surface: it.surface,
     phaseLabel: it.phaseLabel ?? "",
     notes: it.notes ?? "",
+    odontogramMarkId: it.odontogramMarkId,
   };
 }
 
