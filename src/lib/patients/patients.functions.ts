@@ -15,6 +15,8 @@ import { vigilarCifradoDeDocumento } from "@/lib/patients/documento-cifrado.serv
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
 import { FILTROS_DE_ARCHIVO } from "@/lib/patients/archivo";
+import { CAMPOS_EDITABLES_DEL_PACIENTE } from "@/lib/patients/editar-paciente";
+import { actualizarPaciente } from "@/lib/patients/editar-paciente.server";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
@@ -702,66 +704,23 @@ export async function writePatientFields(
   return { error };
 }
 
+/**
+ * Editar los datos básicos de una ficha (diálogo "Editar datos"). La lógica
+ * vive en `actualizarPaciente` (editar-paciente.server.ts): permiso
+ * `patients:manage`, ficha de esta clínica, teléfono en E.164 y verificación
+ * de que el UPDATE realmente escribió.
+ */
 export const updatePatient = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
     z
-      .object({
-        clinicId: z.string().uuid(),
-        patientId: z.string().uuid(),
-        nombre: z.string().trim().min(1).max(200).optional(),
-        documento: z.string().trim().optional(),
-        telefono: z.string().trim().optional(),
-        email: z.string().trim().email().optional().or(z.literal("")),
-        sucursalId: z.string().uuid().optional(),
-        profesionalId: z.string().uuid().optional(),
-        etiquetas: z.array(z.string()).optional(),
-        estado: z.enum(["activo", "nuevo", "inactivo"]).optional(),
-      })
+      .object({ clinicId: z.string().uuid(), patientId: z.string().uuid() })
+      .merge(CAMPOS_EDITABLES_DEL_PACIENTE)
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { clinicId, patientId, ...rest } = data;
-
-    // Solo re-valida contra Numverify si el teléfono realmente cambió — no
-    // gastar cuota de nuevo en cada edición que no toca ese campo.
-    let phoneValid: boolean | null | undefined;
-    let nextPhone: string | null = null;
-    if (rest.telefono !== undefined) {
-      const [{ data: current }, pais] = await Promise.all([
-        supabase.from("patients").select("phone, phone_valid").eq("id", patientId).single(),
-        paisDeLaClinica(supabase, clinicId),
-      ]);
-      nextPhone = telefonoParaGuardar(rest.telefono, pais);
-      phoneValid =
-        current && nextPhone === current.phone
-          ? current.phone_valid
-          : await validatePhoneNumber(nextPhone);
-    }
-
-    const patch = {
-      ...(rest.nombre !== undefined && { full_name: rest.nombre }),
-      ...(rest.documento !== undefined && { document_id: rest.documento || null }),
-      ...(rest.telefono !== undefined && { phone: nextPhone, phone_valid: phoneValid }),
-      ...(rest.email !== undefined && { email: rest.email || null }),
-      ...(rest.sucursalId !== undefined && { branch_id: rest.sucursalId }),
-      ...(rest.profesionalId !== undefined && { primary_professional_id: rest.profesionalId }),
-      ...(rest.etiquetas !== undefined && { tags: rest.etiquetas }),
-      ...(rest.estado !== undefined && { status: UI_STATUS_TO_DB[rest.estado] }),
-    };
-
-    const { error } = await writePatientFields(supabase, clinicId, patientId, patch);
-    if (error) throw new Error("No tienes permisos para editar este paciente.");
-
-    // SEG-03: el trigger recifra (o limpia) el documento cuando cambia;
-    // acá solo se verifica, ver createPatient.
-    if (rest.documento !== undefined) {
-      await vigilarCifradoDeDocumento(supabase, [patientId], "edicion");
-    }
-
-    return { ok: true };
-  });
+  .handler(({ data, context }): Promise<{ ok: true }> =>
+    actualizarPaciente(context.supabase, context.userId, data),
+  );
 
 /**
  * Archiva o restaura una ficha (LEG-08 / CLI-05). Reemplaza al borrado: la
