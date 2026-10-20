@@ -39,23 +39,21 @@ const PLANS: Record<
   {
     label: string;
     blurb: string;
-    promoCents: number;
-    regularCents: number;
+    /** Precio de lista mensual en centavos de USD (el de Stripe). */
+    priceCents: number;
     priceEnvId: string | undefined;
   }
 > = {
   solo: {
     label: "Solo",
     blurb: "1 profesional / 1 sillón",
-    promoCents: 2900,
-    regularCents: 4900,
+    priceCents: 2900,
     priceEnvId: import.meta.env.VITE_STRIPE_PRICE_ID_SOLO_MONTHLY,
   },
   clinica: {
     label: "Clínica",
     blurb: "Hasta 3 profesionales / sillones",
-    promoCents: 6900,
-    regularCents: 9900,
+    priceCents: 6900,
     priceEnvId: import.meta.env.VITE_STRIPE_PRICE_ID_CLINIC_MONTHLY,
   },
 };
@@ -207,13 +205,13 @@ function BillingPage() {
               <p className="text-sm text-muted-foreground">
                 Esmalia {activePlanInfo?.label ?? "Clínica"} —{" "}
                 <span className="font-medium">
-                  {usd(activePlanInfo?.promoCents ?? PLANS.clinica.promoCents)} / mes
+                  {usd(activePlanInfo?.priceCents ?? PLANS.clinica.priceCents)} / mes
                 </span>{" "}
                 · prueba gratis de 14 días.
               </p>
               <p className="mt-1 text-xs text-muted-foreground/80">
                 {approxLocalPricesLabel(
-                  (activePlanInfo?.promoCents ?? PLANS.clinica.promoCents) / 100,
+                  (activePlanInfo?.priceCents ?? PLANS.clinica.priceCents) / 100,
                 )}{" "}
                 <span className="italic">(referencial, el cobro es en USD)</span>
               </p>
@@ -301,14 +299,8 @@ function BillingPage() {
                     </div>
                     <p className="text-xs text-muted-foreground">{info.blurb}</p>
                     <p className="mt-2 text-lg font-semibold">
-                      {usd(info.promoCents)}
-                      <span className="text-xs font-normal text-muted-foreground"> /mes</span>{" "}
-                      <span className="text-sm font-normal text-muted-foreground/70 line-through">
-                        {usd(info.regularCents)}
-                      </span>
-                    </p>
-                    <p className="text-xs font-medium text-brand-700">
-                      Precio de fundador — por tiempo limitado
+                      {usd(info.priceCents)}
+                      <span className="text-xs font-normal text-muted-foreground"> /mes</span>
                     </p>
                   </button>
                 ),
@@ -331,7 +323,7 @@ function BillingPage() {
                 ) : hasCustomer ? (
                   `Reactivar suscripción · Esmalia ${PLANS[plan].label}`
                 ) : (
-                  `Activar suscripción · ${usd(PLANS[plan].promoCents)}/mes`
+                  `Activar suscripción · ${usd(PLANS[plan].priceCents)}/mes`
                 )}
               </button>
             ) : null}
