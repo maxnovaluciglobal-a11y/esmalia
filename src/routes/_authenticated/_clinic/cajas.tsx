@@ -396,7 +396,7 @@ function CajasPage() {
                         className="flex w-full items-start gap-3 py-3 text-left"
                       >
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm tabular-nums">
+                          <span className="block text-sm cifra">
                             {fechaHora(r.openedAt, clinicTz)}
                             {r.closedAt && ` → ${fechaHora(r.closedAt, clinicTz)}`}
                           </span>
@@ -468,21 +468,19 @@ function CajasPage() {
                           <td className="py-3 pr-3">
                             <PastillaEstado estado={r.status} />
                           </td>
-                          <td className="py-3 pr-3 tabular-nums">
-                            {fechaHora(r.openedAt, clinicTz)}
-                          </td>
-                          <td className="py-3 pr-3 tabular-nums text-muted-foreground">
+                          <td className="py-3 pr-3 cifra">{fechaHora(r.openedAt, clinicTz)}</td>
+                          <td className="py-3 pr-3 cifra text-muted-foreground">
                             {fechaHora(r.closedAt, clinicTz)}
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">
+                          <td className="py-3 pr-3 text-right cifra">
                             {formatMoney(r.openingAmountCents, r.currency)}
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">
+                          <td className="py-3 pr-3 text-right cifra">
                             {r.expectedClosingCents !== null
                               ? formatMoney(r.expectedClosingCents, r.currency)
                               : "—"}
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums">
+                          <td className="py-3 pr-3 text-right cifra">
                             {r.declaredClosingCents !== null
                               ? formatMoney(r.declaredClosingCents, r.currency)
                               : "—"}
@@ -676,18 +674,16 @@ function TablaDesglose({
           {filas.map((b) => (
             <tr key={b.method}>
               <td className="py-3 pr-3">{etiquetaMetodo(b.method)}</td>
-              <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">{b.count}</td>
-              <td className="py-3 text-right tabular-nums">
-                {formatMoney(b.amountCents, currency)}
-              </td>
+              <td className="py-3 pr-3 text-right cifra text-muted-foreground">{b.count}</td>
+              <td className="py-3 text-right cifra">{formatMoney(b.amountCents, currency)}</td>
             </tr>
           ))}
         </tbody>
         <tfoot className="border-t border-border">
           <tr className="font-medium">
             <td className="py-3 pr-3">Total</td>
-            <td className="py-3 pr-3 text-right tabular-nums">{cantidad}</td>
-            <td className="py-3 text-right tabular-nums">{formatMoney(total, currency)}</td>
+            <td className="py-3 pr-3 text-right cifra">{cantidad}</td>
+            <td className="py-3 text-right cifra">{formatMoney(total, currency)}</td>
           </tr>
         </tfoot>
       </table>

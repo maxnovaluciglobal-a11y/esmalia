@@ -84,7 +84,12 @@ Unidad **x = alto de la "E"** del wordmark (≈ 86 % del alto total del logo; eq
 ## Tipografía
 
 - El **wordmark no es texto**: son trazados (paths) vectoriales, sin fuente embebida. Abre igual en cualquier programa y no depende de tener nada instalado.
-- La tipografía que acompaña a la marca es **Cormorant Garamond** (títulos, de 400 a 600) con **Lora** (cuerpo). Las dos son de licencia **SIL Open Font License 1.1** (OFL): uso libre, también comercial, en web, impresión y apps; se pueden embeber; no se pueden vender sueltas. En la web se sirven desde el propio sitio vía `@fontsource` (sin Google Fonts).
+- La tipografía que acompaña a la marca (A+, desde el 19-oct-2026):
+  - **Cormorant Garamond** para títulos y cifras grandes (de 400 a 600, con cifras alineadas `lnum`). La 500 itálica es el acento en ocre de los titulares.
+  - **Instrument Sans** (variable, de 400 a 700) para el texto y toda la interfaz. Reemplaza a Lora.
+  - **Geist Mono** (variable) solo para datos: horas de la agenda, montos en tablas, n.° de pieza FDI y fechas de versión. En el código es la utilidad `cifra` (`font-family` mono + `tabular-nums`) y se aplica a mano: una cifra dentro de una frase sigue en Instrument Sans. Reemplaza a "Esmalia Cifras" (Manrope en los dígitos por `unicode-range`).
+- Las tres son de licencia **SIL Open Font License 1.1** (OFL): uso libre, también comercial, en web, impresión y apps; se pueden embeber; no se pueden vender sueltas. En la web se sirven desde el propio sitio vía `@fontsource` / `@fontsource-variable` (sin Google Fonts; la CSP solo permite `font-src 'self'`). Lo vigila `tests/tipografia.test.ts`.
+- En los correos, la fuente web casi nunca carga y manda el respaldo: **Georgia** (decisión de Walter, 19-oct-2026). Los PDF (`jspdf`) siguen en Helvetica.
 - Cormorant no es la letra del logo: el wordmark es un serif de alto contraste dibujado aparte. No usar Cormorant para "imitar" el logo.
 
 ## Estado: provisorio

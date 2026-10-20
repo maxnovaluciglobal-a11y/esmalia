@@ -15,8 +15,10 @@ import { buttonVariants } from "@/components/ui/button";
 import appCss from "../styles.css?url";
 // Las dos caras que pinta el primer pantallazo (cuerpo y titular). Sin
 // precarga, el navegador las pedía recién al aplicar el CSS y el cambio de
-// fuente movía el layout (todo el CLS medido venía de ahí).
-import loraRegular from "@fontsource/lora/files/lora-latin-400-normal.woff2?url";
+// fuente movía el layout (todo el CLS medido venía de ahí). Instrument Sans
+// es variable: un solo archivo cubre de 400 a 700. Geist Mono (cifras) se
+// precarga en el layout de la clínica, que es donde se usa.
+import instrumentSans from "@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2?url";
 import cormorantRegular from "@fontsource/cormorant-garamond/files/cormorant-garamond-latin-400-normal.woff2?url";
 import { reportBoundaryError } from "../lib/error-reporting";
 import { SITE_URL, siteJsonLdScripts } from "@/lib/seo";
@@ -166,7 +168,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       {
         rel: "preload",
-        href: loraRegular,
+        href: instrumentSans,
         as: "font",
         type: "font/woff2",
         crossOrigin: "anonymous",

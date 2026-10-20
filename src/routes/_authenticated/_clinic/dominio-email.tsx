@@ -132,7 +132,7 @@ function DominioEmailPage() {
     <AppShell title="Autenticación del dominio" access={access}>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <header className="flex flex-col gap-2">
-          <h1 className="font-heading text-xl font-semibold text-foreground">
+          <h1 className="font-display text-xl font-semibold text-foreground">
             Asistente de SPF, DKIM y DMARC
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -157,7 +157,7 @@ function DominioEmailPage() {
             <Lock className="mt-0.5 size-5 shrink-0" aria-hidden />
           )}
           <div>
-            <h2 className="font-heading text-base font-semibold">
+            <h2 className="font-display text-base font-semibold">
               {puerta.permitido ? "Producción habilitada" : "Producción bloqueada"}
             </h2>
             <p className="text-sm opacity-90">{puerta.motivo}</p>
@@ -165,7 +165,7 @@ function DominioEmailPage() {
         </div>
 
         <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="font-heading text-base font-semibold">1. Verifica tu dominio</h2>
+          <h2 className="font-display text-base font-semibold">1. Verifica tu dominio</h2>
           <p className="text-sm text-muted-foreground">
             Consultamos los registros TXT publicados en DNS en este momento. La verificación caduca
             a las {VIGENCIA_HORAS} h para detectar cambios de DNS.
@@ -211,7 +211,7 @@ function DominioEmailPage() {
         {verificacion ? (
           <section className="rounded-xl border border-border bg-card">
             <header className="border-b border-border p-5">
-              <h2 className="font-heading text-base font-semibold">Resultado de la verificación</h2>
+              <h2 className="font-display text-base font-semibold">Resultado de la verificación</h2>
               <p className="text-sm text-muted-foreground">
                 {verificacion.domain} · selector {verificacion.dkimSelector} ·{" "}
                 {new Date(verificacion.checkedAt).toLocaleString("es-MX")} ·{" "}
@@ -272,7 +272,7 @@ function DominioEmailPage() {
 
         <section className="rounded-xl border border-border bg-card">
           <header className="border-b border-border p-5">
-            <h2 className="font-heading text-base font-semibold">2. Guía de configuración</h2>
+            <h2 className="font-display text-base font-semibold">2. Guía de configuración</h2>
             <p className="text-sm text-muted-foreground">
               Publica estos registros en el DNS de tu dominio antes de volver a verificar.
             </p>

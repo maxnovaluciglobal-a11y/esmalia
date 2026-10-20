@@ -222,7 +222,7 @@ export function AgendaGrid({
             gridTemplateColumns: `72px repeat(${profesionales.length}, minmax(9rem, 1fr))`,
           }}
         >
-          <div className="sticky left-0 z-20 flex flex-col bg-card pr-2 pt-1 text-right text-[11px] text-muted-foreground">
+          <div className="sticky left-0 z-20 flex flex-col bg-card pr-2 pt-1 cifra text-right text-[11px] text-muted-foreground">
             {Array.from({ length: horas }).map((_, i) => (
               <div
                 key={i}
@@ -291,7 +291,7 @@ export function AgendaGrid({
               className="pointer-events-none absolute inset-x-0 z-20 flex items-center"
               style={{ top: (minutosAhora - desde) * PIXELES_POR_MINUTO }}
             >
-              <span className="w-[72px] -translate-y-px pr-1 text-right text-[11px] font-semibold tabular-nums text-destructive">
+              <span className="w-[72px] -translate-y-px pr-1 text-right text-[11px] font-semibold cifra text-destructive">
                 {horaDeMinutos(minutosAhora)}
               </span>
               <span className="relative h-px flex-1 bg-destructive">
@@ -394,7 +394,7 @@ function BloqueCita({
             <span className="min-w-0 break-words">{c.paciente}</span>
             <AllergyAlertIcon allergies={allergies} />
           </p>
-          <p className="text-sm tabular-nums text-muted-foreground">
+          <p className="text-sm cifra text-muted-foreground">
             {rangoHorarioCita(c)} · {c.duracion} min
           </p>
         </div>

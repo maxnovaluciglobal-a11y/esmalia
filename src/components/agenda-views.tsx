@@ -76,7 +76,7 @@ export function AgendaWeek({
           className="relative grid"
           style={{ height: alto, gridTemplateColumns: `56px repeat(7, minmax(0, 1fr))` }}
         >
-          <div className="flex flex-col pr-1 pt-1 text-right text-[11px] text-muted-foreground">
+          <div className="flex flex-col pr-1 pt-1 cifra text-right text-[11px] text-muted-foreground">
             {Array.from({ length: horas }).map((_, i) => (
               <div
                 key={i}

@@ -192,7 +192,7 @@ function SandboxEmailPage() {
         <div className={cn("flex items-start gap-3 rounded-xl border p-5", tonoClases)}>
           <IconoResumen className="mt-0.5 size-5 shrink-0" />
           <div>
-            <h2 className="font-heading text-base font-semibold">{resumen.titulo}</h2>
+            <h2 className="font-display text-base font-semibold">{resumen.titulo}</h2>
             <p className="text-sm opacity-90">{resumen.detalle}</p>
           </div>
         </div>
@@ -201,7 +201,7 @@ function SandboxEmailPage() {
           <div className="flex gap-3">
             <FlaskConical className="mt-0.5 size-5 text-primary" />
             <div className="flex-1">
-              <h2 className="font-heading text-base font-semibold">Estado del entorno</h2>
+              <h2 className="font-display text-base font-semibold">Estado del entorno</h2>
               <p className="text-sm text-muted-foreground">
                 En sandbox ningún email puede llegar a un paciente o profesional real. Actívalo
                 durante toda la validación y pásalo a producción solo cuando la entregabilidad esté
@@ -323,7 +323,7 @@ function SandboxEmailPage() {
 
         <section className="rounded-xl border border-border bg-card">
           <header className="border-b border-border p-5">
-            <h2 className="font-heading text-base font-semibold">Reglas de sandbox</h2>
+            <h2 className="font-display text-base font-semibold">Reglas de sandbox</h2>
             <p className="text-sm text-muted-foreground">
               Define a dónde va cada email mientras el sandbox está activo.
             </p>
@@ -410,7 +410,7 @@ function SandboxEmailPage() {
         </section>
 
         <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="font-heading text-base font-semibold">Simulador de destinatario</h2>
+          <h2 className="font-display text-base font-semibold">Simulador de destinatario</h2>
           <p className="text-sm text-muted-foreground">
             Comprueba qué haría Esmalia con un destinatario concreto sin enviar nada.
           </p>

@@ -203,7 +203,7 @@ function BillingPage() {
           <div className="flex items-start gap-3">
             <CreditCard className="mt-0.5 size-5 text-primary" />
             <div className="flex-1">
-              <h2 className="font-heading text-base font-semibold">Plan actual</h2>
+              <h2 className="font-display text-base font-semibold">Plan actual</h2>
               <p className="text-sm text-muted-foreground">
                 Esmalia {activePlanInfo?.label ?? "Clínica"} —{" "}
                 <span className="font-medium">
@@ -274,7 +274,7 @@ function BillingPage() {
         </section>
 
         <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="font-heading text-base font-semibold">Acciones</h2>
+          <h2 className="font-display text-base font-semibold">Acciones</h2>
           <p className="text-sm text-muted-foreground">
             {hasCustomer
               ? "Gestiona método de pago, descarga facturas o cancela desde el portal seguro de Stripe."

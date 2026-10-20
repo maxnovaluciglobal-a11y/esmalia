@@ -353,7 +353,7 @@ function FinanzasPage() {
                             style={{ width: `${Math.max(2, (d.totalCents / maxDia) * 100)}%` }}
                           />
                         </span>
-                        <span className="text-right text-sm tabular-nums">
+                        <span className="text-right text-sm cifra">
                           {formatMoney(d.totalCents, currency)}
                         </span>
                       </li>
@@ -379,10 +379,10 @@ function FinanzasPage() {
                           <td className="py-3 pr-3">
                             {PAYMENT_METHOD_LABELS[m.method as PaymentMethod] ?? m.method}
                           </td>
-                          <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
+                          <td className="py-3 pr-3 text-right cifra text-muted-foreground">
                             {m.count}
                           </td>
-                          <td className="py-3 text-right tabular-nums">
+                          <td className="py-3 text-right cifra">
                             {formatMoney(m.totalCents, currency)}
                           </td>
                         </tr>
@@ -405,10 +405,10 @@ function FinanzasPage() {
                       {resumen.byProfessional.map((p) => (
                         <tr key={p.professionalId}>
                           <td className="py-3 pr-3">{p.professionalName}</td>
-                          <td className="py-3 pr-3 text-right tabular-nums text-muted-foreground">
+                          <td className="py-3 pr-3 text-right cifra text-muted-foreground">
                             {p.itemsCount}
                           </td>
-                          <td className="py-3 text-right tabular-nums">
+                          <td className="py-3 text-right cifra">
                             {formatMoney(p.totalCents, currency)}
                           </td>
                         </tr>
@@ -466,12 +466,12 @@ function FinanzasPage() {
                                     style={{ width: `${pct}%` }}
                                   />
                                 </span>
-                                <span className="w-10 text-right text-muted-foreground tabular-nums">
+                                <span className="w-10 text-right text-muted-foreground cifra">
                                   {pct}%
                                 </span>
                               </span>
                             </td>
-                            <td className="py-3 text-right tabular-nums">
+                            <td className="py-3 text-right cifra">
                               {formatMoney(c.totalCents, currency)}
                             </td>
                           </tr>

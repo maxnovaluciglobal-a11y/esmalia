@@ -6,7 +6,7 @@ Guía para Claude Code en este repositorio. Complementa `~/Documents/CLAUDE.md` 
 
 SaaS de gestión para clínicas dentales de LatAm (CL/MX/CO/PE/AR). Repo, carpeta, Vercel, Supabase y nombres internos (`ESMALIA_STAFF_EMAILS`, claves `esmalia:*` de `localStorage`, `demo@esmalia.com`, clave de Vault `esmalia_document_id_key`) usan el mismo nombre. Los identificadores anteriores se aceptan en un solo lugar, `src/lib/compat/nombres-anteriores.ts`, que se borra desde el 2026-11-12.
 
-- Sistema visual: tokens en `src/styles.css` (papel/tinta/ocre, modo oscuro), Cormorant (títulos) + Lora (texto) + Manrope solo en cifras. Logo: `docs/MARCA.md`. Brief de marca: `../../04 - Marca y Diseno/2026-10-09-prompt-identidad-esmalia-saas.md`.
+- Sistema visual: tokens en `src/styles.css` (papel/tinta/ocre, modo oscuro), Cormorant (títulos) + Instrument Sans (texto y UI) + Geist Mono solo en datos con la utilidad `cifra`. Logo: `docs/MARCA.md`. Brief de marca: `../../04 - Marca y Diseno/2026-10-09-prompt-identidad-esmalia-saas.md`.
 - Desacoplado de Lovable el 31-ago-2026 (`docs/DESACOPLE_LOVABLE.md`): Lovable no es editor ni fuente de nada.
 
 ## Ubicaciones y accesos

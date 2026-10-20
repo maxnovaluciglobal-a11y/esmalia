@@ -9,9 +9,9 @@ import { cn } from "@/lib/utils";
 // pantalla tenga un lugar donde el ojo cae primero. El contorno ocre queda
 // como variante `brand` (énfasis secundario); outline y secondary llevan el
 // borde de control (≥ 3:1). En táctil los botones crecen a 44px.
-// Tipografía: Lora 500 (la de cuerpo). Hasta el 08-oct era Cormorant 600 a
-// 15px, pero su altura x (0,386 em) da 5,8px a ese tamaño, un 23% menos que
-// Lora: Cormorant queda solo para títulos de 20px o más (dirección híbrida).
+// Tipografía: la de cuerpo (Instrument Sans 500 desde A+, 19-oct-2026). Hasta
+// el 08-oct era Cormorant 600 a 15px, pero su altura x (0,386 em) da 5,8px a
+// ese tamaño: Cormorant queda solo para títulos de 20px o más.
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border font-sans text-sm font-medium leading-none cursor-pointer transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-700 pointer-coarse:min-h-11 disabled:pointer-events-none disabled:opacity-45 disabled:cursor-not-allowed [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
