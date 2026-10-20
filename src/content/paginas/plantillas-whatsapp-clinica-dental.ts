@@ -319,6 +319,7 @@ export const pagina: PaginaContenido = {
     "/funciones/recordatorios-whatsapp",
     "/docs/whatsapp",
     "/para/clinica-dental",
+    "/plantillas/presupuesto-dental",
   ],
   enUnaLinea:
     "28 mensajes de WhatsApp para copiar: confirmación, recordatorio, reprogramación, lista de espera, presupuestos, post-tratamiento, cumpleaños, recall y cobranza.",

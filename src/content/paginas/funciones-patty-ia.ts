@@ -98,7 +98,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Hoy ninguno: con Patty en habilitación, Esmalia no envía nada a un proveedor de IA. Cuando vuelva, lo hará a un proveedor con contrato de tratamiento de datos, región definida y sin uso de los datos para entrenar modelos, y solo con lo que la tarea necesita: tus apuntes o la nota y el contexto breve del paciente, sin nombre, documento, teléfono ni email. Para leer un pedido de hora, el texto del mensaje y la fecha. En las notas, solo los roles clínicos podrán usar Patty: propietario, administración, doctores y asistentes. Más sobre el manejo de datos en [datos y seguridad](/docs/datos-y-seguridad).",
+            "Hoy ninguno: con Patty en habilitación, Esmalia no envía nada a un proveedor de IA. Cuando vuelva, lo hará a un proveedor con contrato de tratamiento de datos, región definida y sin uso de los datos para entrenar modelos, y solo con lo que la tarea necesita: tus apuntes o la nota y el contexto breve del paciente, sin nombre, documento, teléfono ni email. Para leer un pedido de hora, el texto del mensaje y la fecha. En las notas, solo los roles clínicos podrán usar Patty: propietario, administración, doctores y asistentes. Más sobre el manejo de datos en [datos y seguridad](/docs/datos-y-seguridad), y qué preguntarle a cualquier proveedor de IA en [IA en odontología](/guias/ia-en-odontologia).",
         },
       ],
     },
@@ -149,6 +149,7 @@ export const pagina: PaginaContenido = {
     "/funciones/ficha-clinica",
     "/funciones/recordatorios-whatsapp",
     "/funciones/odontograma",
+    "/guias/ia-en-odontologia",
   ],
   enUnaLinea:
     "Patty, la IA de Esmalia (en habilitación): redactará notas SOAP y resumirá la nota clínica. No firma ni decide.",

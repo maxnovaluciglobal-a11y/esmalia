@@ -6,7 +6,7 @@ import { canonicalHead } from "@/lib/seo";
 
 const TITULO = "Recursos para clínicas dentales | Esmalia";
 const DESCRIPCION =
-  "Guías, plantillas y herramientas gratis para clínicas dentales: inasistencias, mensajes de WhatsApp, rentabilidad y fugas de dinero.";
+  "Guías, plantillas y herramientas gratis para clínicas dentales: inasistencias, WhatsApp, presupuesto, inventario, rentabilidad y fugas de dinero.";
 
 // Herramientas que no son páginas de src/content (tienen su propia ruta).
 const HERRAMIENTAS: Enlace[] = [
