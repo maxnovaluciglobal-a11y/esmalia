@@ -11,6 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  */
 vi.mock("@/lib/clinic-operations/appointments.functions", () => ({
   createAppointment: vi.fn(),
+  moveAppointment: vi.fn(),
   setAppointmentStatus: vi.fn(),
 }));
 vi.mock("@/lib/finance/finance.functions", () => ({
@@ -26,6 +27,7 @@ vi.mock("@/lib/clinical/odontogram.functions", () => ({
 
 import {
   createAppointment,
+  moveAppointment,
   setAppointmentStatus,
 } from "@/lib/clinic-operations/appointments.functions";
 import { registerPayment } from "@/lib/finance/finance.functions";
@@ -76,6 +78,7 @@ describe("offline-sync", () => {
     __memoria.clear();
     vi.mocked(createAppointment).mockReset();
     vi.mocked(setAppointmentStatus).mockReset();
+    vi.mocked(moveAppointment).mockReset();
     vi.mocked(registerPayment).mockReset();
     vi.mocked(saveClinicalNote).mockReset();
     vi.mocked(restoreNoteVersion).mockReset();
@@ -267,6 +270,95 @@ describe("offline-sync", () => {
     });
   });
 
+  describe("reprogramar-cita (arrastre de la agenda, PR 10)", () => {
+    const mover = (startsAt: string, localId = crypto.randomUUID()) =>
+      itemBase({
+        localId,
+        kind: "reprogramar-cita",
+        identidad: "cita-7",
+        payload: {
+          appointmentId: "cita-7",
+          clinicId: "clinica-1",
+          professionalId: "prof-1",
+          startsAt,
+        },
+        original: {
+          appointmentId: "cita-7",
+          clinicId: "clinica-1",
+          professionalId: "prof-1",
+          startsAt: "2026-10-21T10:00",
+        },
+        resumen: "Martina Soto: cita movida",
+      });
+
+    it("dos movimientos sin conexión de la misma cita llegan como UNO solo, con el último destino", async () => {
+      vi.mocked(moveAppointment).mockResolvedValue({ ok: true });
+      await encolar(mover("2026-10-21T11:00", "primero"));
+      await encolar(mover("2026-10-21T12:30", "segundo"));
+      expect(await leerCola()).toHaveLength(1);
+
+      const resultado = await sincronizarCola(queryClientFake(), "user-1");
+
+      expect(moveAppointment).toHaveBeenCalledTimes(1);
+      expect(moveAppointment).toHaveBeenCalledWith({
+        data: {
+          appointmentId: "cita-7",
+          clinicId: "clinica-1",
+          professionalId: "prof-1",
+          startsAt: "2026-10-21T12:30",
+        },
+      });
+      expect(resultado.sincronizados).toBe(1);
+      expect(await leerCola()).toEqual([]);
+    });
+
+    it("si el horario ya no es válido al sincronizar, queda en 'fallido' con el motivo (y no corta la cola)", async () => {
+      vi.mocked(moveAppointment).mockRejectedValueOnce(
+        new Error("El profesional no atiende los domingos."),
+      );
+      vi.mocked(createAppointment).mockResolvedValueOnce({ id: "otra" });
+      await encolar(mover("2026-10-25T10:00", "mov"));
+      await encolar(itemBase({ localId: "nueva", kind: "crear-cita" }));
+
+      const resultado = await sincronizarCola(queryClientFake(), "user-1");
+
+      expect(resultado).toEqual({ sincronizados: 1, conflictos: 0, corte: false, avisos: [] });
+      const cola = await leerCola();
+      expect(cola).toHaveLength(1);
+      expect(cola[0]).toMatchObject({
+        localId: "mov",
+        estado: "fallido",
+        error: "El profesional no atiende los domingos.",
+      });
+    });
+
+    it("un corte de red al reprogramar deja el movimiento pendiente", async () => {
+      vi.mocked(moveAppointment).mockRejectedValueOnce(new TypeError("Failed to fetch"));
+      await encolar(mover("2026-10-21T11:00", "mov"));
+
+      const resultado = await sincronizarCola(queryClientFake(), "user-1");
+
+      expect(resultado.corte).toBe(true);
+      expect((await leerCola())[0].estado).toBe("pendiente");
+    });
+
+    it("avisa el solapamiento que devuelve el servidor y refresca la agenda", async () => {
+      vi.mocked(moveAppointment).mockResolvedValue({
+        ok: true,
+        solapamiento: { treatmentLabel: "Control", startsAt: "", endsAt: "" },
+      });
+      const qc = queryClientFake();
+      await encolar(mover("2026-10-21T11:00"));
+
+      const resultado = await sincronizarCola(qc, "user-1");
+
+      expect(resultado.avisos).toEqual([
+        'Martina Soto: cita movida: se solapa con "Control" del mismo profesional.',
+      ]);
+      expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["appointments"] });
+    });
+  });
+
   describe("describirItem", () => {
     it("da un texto legible por kind", () => {
       expect(describirItem(itemBase({ kind: "crear-cita" }) as ItemCola)).toBe("Cita nueva");
@@ -274,6 +366,9 @@ describe("offline-sync", () => {
         "Cobro registrado",
       );
       expect(describirItem(itemBase({ kind: "guardar-nota" }) as ItemCola)).toBe("Nota clínica");
+      expect(describirItem(itemBase({ kind: "reprogramar-cita" }) as ItemCola)).toBe(
+        "Cita reprogramada",
+      );
     });
   });
 });

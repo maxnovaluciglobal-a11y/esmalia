@@ -4,6 +4,12 @@ export type ConnectivityState = {
   online: boolean;
   /** Última vez que confirmamos alcance real al servidor. null = todavía nunca. */
   lastOnlineAt: number | null;
+  /**
+   * "Simular sin conexión" encendido (solo demo y desarrollo, ver
+   * `simularSinConexion`). La red real puede estar bien: la app se comporta
+   * como si no la hubiera, y todo lo que se escribe va a la cola.
+   */
+  simulado?: boolean;
 };
 
 /**
@@ -25,27 +31,38 @@ const INTERVAL_WHEN_OFFLINE_MS = 10_000;
 // Optimista al arrancar: en SSR no hay red que consultar, y asumir "caído"
 // pintaría el banner de sin conexión por un instante en cada carga.
 let state: ConnectivityState = { online: true, lastOnlineAt: null };
+let simulado = false;
 
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 let probing = false;
 
 function emit(next: ConnectivityState) {
-  if (next.online === state.online && next.lastOnlineAt === state.lastOnlineAt) return;
+  if (
+    next.online === state.online &&
+    next.lastOnlineAt === state.lastOnlineAt &&
+    Boolean(next.simulado) === Boolean(state.simulado)
+  )
+    return;
   state = next;
   for (const l of listeners) l();
 }
 
 function markOnline() {
+  if (simulado) return;
   emit({ online: true, lastOnlineAt: Date.now() });
 }
 
 function markOffline() {
-  emit({ online: false, lastOnlineAt: state.lastOnlineAt });
+  emit({ online: false, lastOnlineAt: state.lastOnlineAt, simulado });
 }
 
 async function probe() {
   if (probing) return;
+  if (simulado) {
+    markOffline();
+    return;
+  }
 
   // Si el sistema ya dice que no hay red, no gastamos un request en confirmarlo.
   if (typeof navigator !== "undefined" && navigator.onLine === false) {
@@ -120,6 +137,29 @@ const getServerSnapshot = () => SERVER_STATE;
 
 export function useConnectivity() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+/**
+ * "Simular sin conexión" de la demo (PR 10 del plan A+): fuerza el modo sin
+ * conexión aunque la red ande, para mostrar la cola en vivo. Quien lo ofrece
+ * decide si corresponde (solo `import.meta.env.DEV` o la cuenta demo, ver
+ * `puedeSimularSinConexion`); una clínica real no ve el control. Al
+ * apagarlo se prueba la red de verdad y, si responde, la cola se sincroniza
+ * sola (`useSincronizacionAutomatica`).
+ */
+export function simularSinConexion(activo: boolean) {
+  simulado = activo;
+  if (activo) {
+    markOffline();
+  } else {
+    emit({ online: state.online, lastOnlineAt: state.lastOnlineAt, simulado: false });
+    if (typeof window !== "undefined") void probe();
+  }
+}
+
+/** Solo en desarrollo y en la cuenta demo. */
+export function puedeSimularSinConexion(esDemo: boolean): boolean {
+  return import.meta.env.DEV === true || esDemo;
 }
 
 /** Motivo para los controles que quedan deshabilitados mientras no hay red. */
