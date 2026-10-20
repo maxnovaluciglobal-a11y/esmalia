@@ -29,10 +29,16 @@ import { registerServiceWorker } from "@/lib/offline/register-sw";
 import { Toaster } from "@/components/ui/sonner";
 import { debeDesviarANuevaClave, RUTA_NUEVA_CLAVE } from "@/lib/recuperar-clave";
 import { registrarVistaDePagina } from "@/lib/marketing/eventos";
+import { cuandoQuedeLibre, esRutaDeCargaDiferida } from "@/lib/marketing/carga-diferida";
 
 // Se ejecuta una sola vez al importar el módulo raíz. No-op (y sin descargar
-// @sentry/react) si no hay DSN — ver src/lib/sentry.ts.
-void initSentry();
+// @sentry/react) si no hay DSN — ver src/lib/sentry.ts. En la landing espera
+// a que la página termine de cargar (ver lib/marketing/carga-diferida.ts).
+if (typeof window !== "undefined" && esRutaDeCargaDiferida(window.location.pathname)) {
+  cuandoQuedeLibre(() => void initSentry());
+} else {
+  void initSentry();
+}
 // Idem: no-op en dev y si el navegador no soporta service workers.
 registerServiceWorker();
 
@@ -267,7 +273,17 @@ function RootComponent() {
     // corrige igual al resolver.
     let desuscribir: (() => void) | undefined;
 
-    void import("@/integrations/supabase/client").then(({ supabase }) => {
+    // En la landing el cliente se pide recién con la página ya cargada: quien
+    // llega ahí casi nunca tiene sesión, y supabase-js competía con el primer
+    // pintado (ver lib/marketing/carga-diferida.ts).
+    let cancelarEspera: (() => void) | undefined;
+    const cliente = esRutaDeCargaDiferida(window.location.pathname)
+      ? new Promise<void>((listo) => {
+          cancelarEspera = cuandoQuedeLibre(listo);
+        }).then(() => import("@/integrations/supabase/client"))
+      : import("@/integrations/supabase/client");
+
+    void cliente.then(({ supabase }) => {
       if (cancelled) return;
       void supabase.auth.getSession().then(({ data }) => bindCacheTo(data.session?.user.id));
 
@@ -301,6 +317,7 @@ function RootComponent() {
 
     return () => {
       cancelled = true;
+      cancelarEspera?.();
       detachCache?.();
       desuscribir?.();
     };
