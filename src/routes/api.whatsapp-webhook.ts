@@ -406,8 +406,8 @@ async function anotarSolicitudDeAgenda(
   const hoyClinica = hoyEnLaClinica(clinica?.timezone ?? "America/Santiago");
   // Reglas primero, siempre. El modelo solo entra en el 20% que las reglas
   // no pueden leer con confianza (`lectura === null`) — ver el encabezado de
-  // `intencion-de-agenda-ia.ts`. Sin GEMINI_API_KEY/OPENAI_API_KEY cargada,
-  // `interpretarConIA` devuelve null de inmediato y el comportamiento es
+  // `intencion-de-agenda-ia.ts`. Con Patty pausada (AI_ENABLED) o sin la clave
+  // del proveedor de AI_PROVIDER_AGENDA, `interpretarConIA` devuelve null de inmediato y el comportamiento es
   // idéntico al de antes de esta función existir.
   // La fuente viaja hasta el aviso: si leyó Patty (el modelo), el equipo lo
   // ve escrito. No cambia nada más: la lectura de la IA sigue el mismo

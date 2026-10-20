@@ -1,0 +1,339 @@
+{
+  "descripcion": "Mensaje de WhatsApp -> intención de agenda y fecha. Mensajes 100% inventados (sin nombres, teléfonos ni datos reales). 'ahora' fijo: martes 20-oct-2026 10:00 en America/Santiago. 'fecha' esperada null = el mensaje no da una fecha inequívoca y el modelo no debe inventarla.",
+  "ahora": "2026-10-20T10:00:00-03:00",
+  "zonaHoraria": "America/Santiago",
+  "casos": [
+    {
+      "id": "ag-01",
+      "mensaje": "Hola, quisiera pedir una hora para mañana en la tarde",
+      "intencion": "agendar",
+      "fecha": "2026-10-21",
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-02",
+      "mensaje": "buenas, necesito cancelar mi hora del jueves, me salió un viaje",
+      "intencion": "cancelar",
+      "fecha": "2026-10-22",
+      "franja": null
+    },
+    {
+      "id": "ag-03",
+      "mensaje": "Se puede cambiar mi cita al viernes en la mañana?",
+      "intencion": "reagendar",
+      "fecha": "2026-10-23",
+      "franja": "manana"
+    },
+    {
+      "id": "ag-04",
+      "mensaje": "Hola! cuánto cuesta una limpieza?",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-05",
+      "mensaje": "muchas gracias por la atención de hoy 🙌",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-06",
+      "mensaje": "quiero agendar una evaluación para el lunes",
+      "intencion": "agendar",
+      "fecha": "2026-10-26",
+      "franja": null
+    },
+    {
+      "id": "ag-07",
+      "mensaje": "no voy a poder ir mañana, disculpen",
+      "intencion": "cancelar",
+      "fecha": "2026-10-21",
+      "franja": null
+    },
+    {
+      "id": "ag-08",
+      "mensaje": "me pueden mover la hora para la próxima semana?",
+      "intencion": "reagendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-09",
+      "mensaje": "tienen hora para el 5 de noviembre?",
+      "intencion": "agendar",
+      "fecha": "2026-11-05",
+      "franja": null
+    },
+    {
+      "id": "ag-10",
+      "mensaje": "Hola, ¿atienden los sábados?",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-11",
+      "mensaje": "necesito hora urgente, se me quebró una muela",
+      "intencion": "agendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-12",
+      "mensaje": "cancelo la hora y quiero otra para el viernes",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-13",
+      "mensaje": "pasado mañana en la mañana me sirve para la limpieza",
+      "intencion": "agendar",
+      "fecha": "2026-10-22",
+      "franja": "manana"
+    },
+    { "id": "ag-14", "mensaje": "ok", "intencion": null, "fecha": null, "franja": null },
+    {
+      "id": "ag-15",
+      "mensaje": "mi hijo tiene control, lo podemos pasar para el miércoles en la tarde? ya no alcanzamos el que teníamos",
+      "intencion": "reagendar",
+      "fecha": "2026-10-21",
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-16",
+      "mensaje": "buenas tardes quisiera saber si aceptan isapre",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-17",
+      "mensaje": "Por favor anulen mi cita, ya me atendí en otro lado",
+      "intencion": "cancelar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-18",
+      "mensaje": "quiero sacar hora con la doctora para el 30 de octubre",
+      "intencion": "agendar",
+      "fecha": "2026-10-30",
+      "franja": null
+    },
+    {
+      "id": "ag-19",
+      "mensaje": "Hola me duele harto la muela, me pueden ver hoy?",
+      "intencion": "agendar",
+      "fecha": "2026-10-20",
+      "franja": null
+    },
+    {
+      "id": "ag-20",
+      "mensaje": "no puedo el jueves, ¿hay otro día?",
+      "intencion": "reagendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-21",
+      "mensaje": "dónde queda la clínica?",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-22",
+      "mensaje": "podría ser el lunes 2 de noviembre a primera hora?",
+      "intencion": "agendar",
+      "fecha": "2026-11-02",
+      "franja": "manana"
+    },
+    {
+      "id": "ag-23",
+      "mensaje": "ya no necesito la hora de mañana, gracias igual",
+      "intencion": "cancelar",
+      "fecha": "2026-10-21",
+      "franja": null
+    },
+    {
+      "id": "ag-24",
+      "mensaje": "quiero cambiar el día de mi tratamiento",
+      "intencion": "reagendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-25",
+      "mensaje": "me mandaron la receta? no la encuentro",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-26",
+      "mensaje": "Buenos días, quisiera una hora para blanqueamiento después de las 4 de la tarde cualquier día",
+      "intencion": "agendar",
+      "fecha": null,
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-27",
+      "mensaje": "el sábado puedo ir en la mañana si hay hora",
+      "intencion": "agendar",
+      "fecha": "2026-10-24",
+      "franja": "manana"
+    },
+    {
+      "id": "ag-28",
+      "mensaje": "Hola, no me va a dar el tiempo para llegar hoy, lo siento mucho",
+      "intencion": "cancelar",
+      "fecha": "2026-10-20",
+      "franja": null
+    },
+    { "id": "ag-29", "mensaje": "hola", "intencion": null, "fecha": null, "franja": null },
+    {
+      "id": "ag-30",
+      "mensaje": "quisiera adelantar mi control para mañana si se puede",
+      "intencion": "reagendar",
+      "fecha": "2026-10-21",
+      "franja": null
+    },
+    {
+      "id": "ag-31",
+      "mensaje": "se puede pagar en cuotas la ortodoncia?",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-32",
+      "mensaje": "necesito una hora para mi mamá, tiene 80 años, ojalá en la mañana",
+      "intencion": "agendar",
+      "fecha": null,
+      "franja": "manana"
+    },
+    {
+      "id": "ag-33",
+      "mensaje": "Me equivoqué de día, mi hora era el jueves y no el viernes, todo bien",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-34",
+      "mensaje": "quiero cancelar todas mis horas, me cambio de ciudad",
+      "intencion": "cancelar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-35",
+      "mensaje": "tienen algo para el viernes 23 en la tarde?",
+      "intencion": "agendar",
+      "fecha": "2026-10-23",
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-36",
+      "mensaje": "Confirmo mi hora de mañana",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-37",
+      "mensaje": "la hora del lunes la podemos pasar al martes de la otra semana?",
+      "intencion": "reagendar",
+      "fecha": "2026-10-27",
+      "franja": null
+    },
+    {
+      "id": "ag-38",
+      "mensaje": "estoy con fiebre, mejor no voy hoy",
+      "intencion": "cancelar",
+      "fecha": "2026-10-20",
+      "franja": null
+    },
+    {
+      "id": "ag-39",
+      "mensaje": "Quiero hora con el ortodoncista",
+      "intencion": "agendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-40",
+      "mensaje": "llegué tarde y no me atendieron, quiero reclamar",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-41",
+      "mensaje": "me podrían reprogramar para el 3 de noviembre en la tarde",
+      "intencion": "reagendar",
+      "fecha": "2026-11-03",
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-42",
+      "mensaje": "tengo hora el jueves pero no sé si puedo, les aviso",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-43",
+      "mensaje": "una hora para una tapadura por favor, el miércoles 28",
+      "intencion": "agendar",
+      "fecha": "2026-10-28",
+      "franja": null
+    },
+    {
+      "id": "ag-44",
+      "mensaje": "suspendan la cita de mañana por favor",
+      "intencion": "cancelar",
+      "fecha": "2026-10-21",
+      "franja": null
+    },
+    {
+      "id": "ag-45",
+      "mensaje": "¿cuál es el horario de atención?",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-46",
+      "mensaje": "hola quiero ir a control antes de fin de mes",
+      "intencion": "agendar",
+      "fecha": null,
+      "franja": null
+    },
+    {
+      "id": "ag-47",
+      "mensaje": "no voy a poder el lunes, pero el martes 27 sí puedo, se puede cambiar?",
+      "intencion": "reagendar",
+      "fecha": "2026-10-27",
+      "franja": null
+    },
+    { "id": "ag-48", "mensaje": "👍", "intencion": null, "fecha": null, "franja": null },
+    {
+      "id": "ag-49",
+      "mensaje": "hay hora mañana en la tarde para una urgencia? se me salió la corona",
+      "intencion": "agendar",
+      "fecha": "2026-10-21",
+      "franja": "tarde"
+    },
+    {
+      "id": "ag-50",
+      "mensaje": "mándenme el presupuesto y después vemos la hora",
+      "intencion": null,
+      "fecha": null,
+      "franja": null
+    }
+  ]
+}

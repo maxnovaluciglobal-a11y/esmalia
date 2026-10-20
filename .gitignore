@@ -58,3 +58,6 @@ supabase/.temp
 
 # Muestras de QA de los correos (scripts/email-muestras.mjs)
 .email-muestras/
+
+# Salidas de los evals de Patty (evals/run.mjs)
+evals/resultados/

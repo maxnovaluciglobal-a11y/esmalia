@@ -48,7 +48,7 @@ Estas cosas requieren decisión y firma de Walter antes de tocar código product
   - `SUPABASE_URL`
   - `SUPABASE_PUBLISHABLE_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY` (⚠️ solo en el env de producción, NO en preview)
-  - `GEMINI_API_KEY` u `OPENAI_API_KEY`
+  - IA (solo al reactivar a Patty, ver `docs/IA.md`): `AI_PROVIDER_CLINICO`, `AI_PROVIDER_AGENDA`, `ANTHROPIC_API_KEY` (o `GOOGLE_VERTEX_CREDENTIALS` para agenda) y, al final, `AI_ENABLED=true`
   - `SENTRY_DSN` (cuando se cree en 2.4)
   - `PUBLIC_APP_URL=https://esmalia.com`
 - [ ] Configurar branch protection: solo `main` deploya a producción; PRs deploy a preview.
