@@ -23,6 +23,10 @@ export const Route = createFileRoute("/v2")({
       },
       { name: "robots", content: "noindex" },
     ],
+    // La cara de titulares (Bricolage, ~21 KB) no se precarga: el LCP es el
+    // párrafo del hero (Instrument Sans) y una precarga más le compite el
+    // ancho de banda. El h1 no cambia de alto al llegar la fuente (líneas
+    // fijas con line-height propio), así que no hay CLS.
     links: [{ rel: "stylesheet", href: landingV2Css }],
     scripts: faqJsonLdScript(FAQ_CORTA.map((f) => ({ q: f.q, a: f.a }))),
   }),
