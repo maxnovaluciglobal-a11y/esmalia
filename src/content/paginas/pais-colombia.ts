@@ -72,7 +72,7 @@ export const pagina: PaginaContenido = {
             ["Clínica", "Hasta 3 profesionales", "US$69 al mes", "aprox. $213.000"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida", "Se cotiza"],
           ],
-          nota: "14 días gratis, sin tarjeta. Quienes entran en esta etapa conservan el precio de su plan mientras sean clientes.",
+          nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
         },
         {
           tipo: "p",

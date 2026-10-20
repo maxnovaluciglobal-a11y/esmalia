@@ -29,7 +29,7 @@ function Terminos() {
     <LegalPage
       label="Legal"
       title="Términos de servicio"
-      updated="Versión 3 · 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 4 · 20 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
     >
       <LegalNotice>
         Esmalia está en etapa de piloto: plan Solo a US$29/mes (1 profesional), plan Clínica a
@@ -42,9 +42,10 @@ function Terminos() {
         antes de cualquier cambio importante.
         <br />
         <br />
-        <strong>Qué cambió en la versión 3 (19 de octubre de 2026).</strong> Exportas los datos de
-        tu clínica desde la aplicación cuando quieras (secciones 6 y 10), Patty, el asistente de IA,
-        está pausado (sección 7) y las historias clínicas se archivan, no se borran (sección 10).
+        <strong>Qué cambió en la versión 4 (20 de octubre de 2026).</strong> El precio fundador es
+        un descuento del 50 % durante 12 meses y después rige el precio de lista, con aviso de 30
+        días (sección 6). Antes se describía como un precio que se conservaba mientras la
+        suscripción siguiera activa.
       </LegalNotice>
 
       <LegalH2>1. Qué es Esmalia</LegalH2>
@@ -154,9 +155,10 @@ function Terminos() {
         <LegalLi>
           <strong>Cambios de precio.</strong> Si cambiamos el precio de un plan, te avisamos por
           email con al menos 30 días de anticipación, y el nuevo precio rige desde el primer cobro
-          posterior a ese plazo. Si no estás de acuerdo, puedes cancelar antes de que rija. Las
-          clínicas con precio fundador conservan el precio de su plan mientras su suscripción siga
-          activa.
+          posterior a ese plazo. Si no estás de acuerdo, puedes cancelar antes de que rija. El
+          precio fundador es un descuento del 50 % sobre el precio del plan durante 12 meses;
+          después rige el precio de lista vigente, y te avisamos con 30 días de anticipación antes
+          del primer cobro a ese precio.
         </LegalLi>
         <LegalLi>
           <strong>Si un pago falla.</strong> Stripe reintenta el cobro de forma automática durante
@@ -279,6 +281,11 @@ function Terminos() {
         entiende que aceptas la nueva versión; si no estás de acuerdo, puedes cancelar.
       </LegalP>
       <LegalUl>
+        <LegalLi>
+          <strong>Versión 4 — 20 de octubre de 2026.</strong> Se redefine el precio fundador: pasa
+          de "se conserva mientras la suscripción siga activa" a un 50 % de descuento durante 12
+          meses y después el precio de lista, con aviso de 30 días (sección 6).
+        </LegalLi>
         <LegalLi>
           <strong>Versión 3 — 19 de octubre de 2026.</strong> La exportación de datos vuelve a estar
           en la aplicación, también al terminar la prueba gratis, y sigue disponible el pedido a

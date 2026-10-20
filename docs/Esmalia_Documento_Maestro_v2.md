@@ -91,7 +91,7 @@ Pasa los apuntes del profesional a una nota SOAP, pule la redacción, resume la 
 | Clínica | US$69/mes | Hasta 3 profesionales; suma comisiones, roles y portal de pacientes           |
 | Red     | A medida  | Varias sedes, por WhatsApp                                                    |
 
-14 días gratis sin tarjeta y cobro en USD vía Stripe. El "precio fundador" no tiene cupo ni fecha (MER-06). La propuesta para Chile (CLP, anual con 2 meses gratis, puesta en marcha pagada) está en la auditoría, `hallazgos/08`, y espera validación con 10 entrevistas.
+14 días gratis sin tarjeta y cobro en USD vía Stripe. El "precio fundador" (desde el 20-oct-2026) es 50 % de descuento durante 12 meses y después el precio de lista, avisado con 30 días (antes se prometía "de por vida"; MER-06). La propuesta para Chile (CLP, anual con 2 meses gratis, puesta en marcha pagada) está en la auditoría, `hallazgos/08`, y espera validación con 10 entrevistas.
 
 ## 6. Stack e infraestructura
 
