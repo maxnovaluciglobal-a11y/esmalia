@@ -586,6 +586,29 @@
   }
 }
 
+/* Panel lateral de la cita en la semana (flag agenda-v2): el contenido se
+   revela de arriba hacia abajo al abrir o al cambiar de cita. El componente
+   solo pone la clase si se puede animar (useMovimiento); el media query es
+   la segunda red. Sin animación, el panel aparece entero de una vez. */
+@keyframes agenda-revelar {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(8px);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: translateY(0);
+  }
+}
+
+@utility animate-agenda-revelar {
+  animation: agenda-revelar 0.45s var(--ease-out) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
 @keyframes sello-giro {
   to {
     transform: rotate(360deg);

@@ -67,7 +67,7 @@ const ALTO_HUECO = PASO_HUECO_MIN * PIXELES_POR_MINUTO;
  * vista no es hoy. Arranca en null y se calcula en el efecto: en SSR el reloj
  * del servidor no tiene por qué coincidir con el del navegador (hydration).
  */
-function useMinutosAhora(activo: boolean, timeZone: string | undefined): number | null {
+export function useMinutosAhora(activo: boolean, timeZone: string | undefined): number | null {
   const [minutos, setMinutos] = useState<number | null>(null);
   useEffect(() => {
     if (!activo) {
@@ -523,46 +523,73 @@ function BloqueCita({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" side="right" collisionPadding={16} className="w-72 space-y-4">
-        <div className="space-y-1">
-          <p className="flex items-start gap-1.5 font-display text-base font-semibold leading-tight">
-            <span className="min-w-0 break-words">{c.paciente}</span>
-            <AllergyAlertIcon allergies={allergies} />
-          </p>
-          <p className="text-sm cifra text-muted-foreground">
-            {rangoHorarioCita(c)} · {c.duracion} min
-          </p>
-        </div>
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
-          <dt className="text-muted-foreground">Tratamiento</dt>
-          <dd className="break-words">{c.tratamiento || "Sin tratamiento"}</dd>
-          <dt className="text-muted-foreground">Profesional</dt>
-          <dd className="flex items-center gap-1.5">
-            <span
-              aria-hidden="true"
-              className="size-2 shrink-0 rounded-full"
-              style={{ backgroundColor: p.color }}
-            />
-            <span className="truncate">{p.nombre}</span>
-          </dd>
-          <dt className="text-muted-foreground">Estado</dt>
-          <dd className="flex flex-wrap items-center gap-1.5">
-            <EstadoCitaPastilla cita={{ estado: c.estado }} />
-            {c.pacienteConfirmo && <PatientConfirmedBadge compacto />}
-          </dd>
-        </dl>
-        <div className="flex flex-col gap-2">
-          {renderAcciones?.(c, p)}
-          <Link
-            to="/pacientes/$pacienteId"
-            params={{ pacienteId: c.pacienteId }}
-            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "justify-between")}
-          >
-            Ver ficha
-            <ArrowUpRight aria-hidden />
-          </Link>
-        </div>
+        <DetalleCita
+          cita={c}
+          profesional={p}
+          allergies={allergies}
+          renderAcciones={renderAcciones}
+        />
       </PopoverContent>
     </Popover>
+  );
+}
+
+/**
+ * Resumen de la cita con sus acciones: lo usa el popover de la grilla de día
+ * y el panel lateral de la semana (flag `agenda-v2`).
+ */
+export function DetalleCita({
+  cita: c,
+  profesional: p,
+  allergies,
+  renderAcciones,
+}: {
+  cita: Cita;
+  profesional: Profesional;
+  allergies: string[] | undefined;
+  renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
+}) {
+  return (
+    <>
+      <div className="space-y-1">
+        <p className="flex items-start gap-1.5 font-display text-base font-semibold leading-tight">
+          <span className="min-w-0 break-words">{c.paciente}</span>
+          <AllergyAlertIcon allergies={allergies} />
+        </p>
+        <p className="text-sm cifra text-muted-foreground">
+          {rangoHorarioCita(c)} · {c.duracion} min
+        </p>
+      </div>
+      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+        <dt className="text-muted-foreground">Tratamiento</dt>
+        <dd className="break-words">{c.tratamiento || "Sin tratamiento"}</dd>
+        <dt className="text-muted-foreground">Profesional</dt>
+        <dd className="flex items-center gap-1.5">
+          <span
+            aria-hidden="true"
+            className="size-2 shrink-0 rounded-full"
+            style={{ backgroundColor: p.color }}
+          />
+          <span className="truncate">{p.nombre}</span>
+        </dd>
+        <dt className="text-muted-foreground">Estado</dt>
+        <dd className="flex flex-wrap items-center gap-1.5">
+          <EstadoCitaPastilla cita={{ estado: c.estado }} />
+          {c.pacienteConfirmo && <PatientConfirmedBadge compacto />}
+        </dd>
+      </dl>
+      <div className="flex flex-col gap-2">
+        {renderAcciones?.(c, p)}
+        <Link
+          to="/pacientes/$pacienteId"
+          params={{ pacienteId: c.pacienteId }}
+          className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "justify-between")}
+        >
+          Ver ficha
+          <ArrowUpRight aria-hidden />
+        </Link>
+      </div>
+    </>
   );
 }
 
@@ -602,7 +629,7 @@ function FantasmaCita({ fantasma: f, desde }: { fantasma: Fantasma; desde: numbe
  * columna del profesional. Solo con el flag de arrastre: así se ve antes de
  * soltar por qué un destino no se puede.
  */
-function FranjasDeHorario({
+export function FranjasDeHorario({
   bloques,
   fecha,
   desde,
