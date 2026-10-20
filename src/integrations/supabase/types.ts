@@ -3830,6 +3830,7 @@ export type Database = {
           id: string;
           name_snapshot: string;
           notes: string | null;
+          odontogram_mark_id: string | null;
           patient_cents: number | null;
           phase_label: string | null;
           phase_position: number;
@@ -3851,6 +3852,7 @@ export type Database = {
           id?: string;
           name_snapshot: string;
           notes?: string | null;
+          odontogram_mark_id?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -3872,6 +3874,7 @@ export type Database = {
           id?: string;
           name_snapshot?: string;
           notes?: string | null;
+          odontogram_mark_id?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -3890,6 +3893,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_items_odontogram_mark_id_fkey";
+            columns: ["odontogram_mark_id"];
+            isOneToOne: false;
+            referencedRelation: "odontogram_marks";
             referencedColumns: ["id"];
           },
           {
