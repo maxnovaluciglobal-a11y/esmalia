@@ -388,7 +388,7 @@ export function HeroDia() {
                     <span>Cada silla</span>
                   </span>{" "}
                   <span className="lv-ln">
-                    <span>vacía es plata</span>
+                    <span>vacía es dinero</span>
                   </span>{" "}
                   <span className="lv-ln">
                     <span>
