@@ -400,7 +400,7 @@ function QuoteItemsEditor({
               </button>
             </div>
 
-            <span className="ml-auto tabular-nums text-xs text-muted-foreground">
+            <span className="ml-auto cifra text-xs text-muted-foreground">
               {formatMoney(draftLineTotal(it), currency)}
             </span>
           </div>
@@ -497,7 +497,7 @@ function PiezaTag({ tooth, surface }: { tooth: number; surface: ToothSurface | n
       title={[comun ? `Diente ${tooth} (${comun})` : `Diente ${tooth}`, zona]
         .filter(Boolean)
         .join(" · ")}
-      className="shrink-0 rounded bg-secondary px-1.5 py-0.5 tabular-nums text-[11px] text-muted-foreground"
+      className="shrink-0 rounded bg-secondary px-1.5 py-0.5 cifra text-[11px] text-muted-foreground"
     >
       {tooth}
       {zona && <span className="ml-1 font-sans">{zona.slice(0, 3)}</span>}
@@ -675,9 +675,7 @@ function TotalesPresupuesto({
     <div className="space-y-1.5 border-t border-hairline pt-3 text-sm">
       <div className="flex items-center justify-end gap-3">
         <span className="text-muted-foreground">Subtotal</span>
-        <span className="w-32 text-right tabular-nums text-xs">
-          {formatMoney(subtotal, currency)}
-        </span>
+        <span className="w-32 text-right cifra text-xs">{formatMoney(subtotal, currency)}</span>
       </div>
       <div className="flex items-center justify-end gap-3">
         <label htmlFor="desc-comercial" className="text-muted-foreground">
@@ -695,7 +693,7 @@ function TotalesPresupuesto({
           />
           <span className="text-xs text-muted-foreground">%</span>
         </div>
-        <span className="w-32 text-right tabular-nums text-xs text-muted-foreground">
+        <span className="w-32 text-right cifra text-xs text-muted-foreground">
           {descuento > 0 ? `− ${formatMoney(descuento, currency)}` : "—"}
         </span>
       </div>
@@ -1313,7 +1311,7 @@ export function FinanceSection({
                                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                   {fase.label ?? SIN_FASE_LABEL}
                                 </span>
-                                <span className="tabular-nums text-xs text-muted-foreground">
+                                <span className="cifra text-xs text-muted-foreground">
                                   {formatMoney(fase.subtotalCents, plan.currency)}
                                 </span>
                               </div>
@@ -1339,7 +1337,7 @@ export function FinanceSection({
                                   {it.toothNumber && (
                                     <PiezaTag tooth={it.toothNumber} surface={it.surface} />
                                   )}
-                                  <span className="tabular-nums text-muted-foreground">
+                                  <span className="cifra text-muted-foreground">
                                     {it.patientCents !== null &&
                                     it.patientCents !== it.priceCents ? (
                                       <span
@@ -1453,7 +1451,7 @@ export function FinanceSection({
                                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                   {fase.label ?? SIN_FASE_LABEL}
                                 </span>
-                                <span className="tabular-nums text-xs text-muted-foreground">
+                                <span className="cifra text-xs text-muted-foreground">
                                   {formatMoney(fase.subtotalCents, quote.currency)}
                                 </span>
                               </div>
@@ -1473,14 +1471,14 @@ export function FinanceSection({
                                   <span className="text-muted-foreground">×{it.quantity}</span>
                                   {/* El descuento se muestra como se negoció:
                                       en % si así se cargó, en pesos si no. */}
-                                  <span className="tabular-nums text-muted-foreground">
+                                  <span className="cifra text-muted-foreground">
                                     {it.discountPct !== null
                                       ? `−${it.discountPct}%`
                                       : it.discountCents > 0
                                         ? `−${formatMoney(it.discountCents, quote.currency)}`
                                         : formatMoney(it.unitPriceCents, quote.currency)}
                                   </span>
-                                  <span className="tabular-nums font-medium">
+                                  <span className="cifra font-medium">
                                     {formatMoney(it.totalCents, quote.currency)}
                                   </span>
                                 </div>
@@ -1495,7 +1493,7 @@ export function FinanceSection({
                               {quote.commercialDiscountPct !== null &&
                                 ` (${quote.commercialDiscountPct}%)`}
                             </span>
-                            <span className="tabular-nums text-muted-foreground">
+                            <span className="cifra text-muted-foreground">
                               − {formatMoney(quote.discountCents, quote.currency)}
                             </span>
                           </div>
@@ -1509,13 +1507,13 @@ export function FinanceSection({
                               <span className="text-muted-foreground">
                                 Cubre {quote.agreementNameSnapshot ?? "el convenio"}
                               </span>
-                              <span className="tabular-nums text-muted-foreground">
+                              <span className="cifra text-muted-foreground">
                                 − {formatMoney(quote.coverageTotalCents, quote.currency)}
                               </span>
                             </div>
                             <div className="flex items-center justify-end gap-3">
                               <span className="font-medium">Paga el paciente</span>
-                              <span className="tabular-nums font-semibold">
+                              <span className="cifra font-semibold">
                                 {formatMoney(
                                   Math.max(0, quote.totalCents - quote.coverageTotalCents),
                                   quote.currency,

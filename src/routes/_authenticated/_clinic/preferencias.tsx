@@ -163,7 +163,7 @@ function BranchReviewLinksSection({ clinicId }: { clinicId: string }) {
       <header className="flex gap-3 border-b border-border p-5">
         <Star className="mt-0.5 size-5 shrink-0 text-primary" />
         <div>
-          <h2 className="font-heading text-base font-semibold">Link de reseña de Google</h2>
+          <h2 className="font-display text-base font-semibold">Link de reseña de Google</h2>
           <p className="text-sm text-muted-foreground">
             Se usa en el mensaje de pedido de reseña por WhatsApp para que el paciente pueda dejarla
             con un solo click. Sin link cargado, el mensaje sigue funcionando — solo pide buscar la
@@ -246,7 +246,7 @@ function PreferenciasPage() {
             <div className="flex gap-3">
               <Mail className="mt-0.5 size-5 text-primary" />
               <div>
-                <h2 className="font-heading text-base font-semibold">Avisos por email</h2>
+                <h2 className="font-display text-base font-semibold">Avisos por email</h2>
                 <p className="text-sm text-muted-foreground">
                   Recibe en tu correo los eventos del flujo de revisión clínica y el resumen semanal
                   de la clínica (si tu rol puede ver las finanzas).
@@ -267,7 +267,7 @@ function PreferenciasPage() {
             <div className="flex gap-3">
               <BellRing className="mt-0.5 size-5 text-primary" />
               <div>
-                <h2 className="font-heading text-base font-semibold">Avisos dentro de Esmalia</h2>
+                <h2 className="font-display text-base font-semibold">Avisos dentro de Esmalia</h2>
                 <p className="text-sm text-muted-foreground">
                   Campana de notificaciones en tiempo real dentro de la aplicación.
                 </p>
@@ -284,7 +284,7 @@ function PreferenciasPage() {
 
         <section className="rounded-xl border border-border bg-card">
           <header className="border-b border-border p-5">
-            <h2 className="font-heading text-base font-semibold">Emails por tipo de evento</h2>
+            <h2 className="font-display text-base font-semibold">Emails por tipo de evento</h2>
             <p className="text-sm text-muted-foreground">
               Ajusta cada aviso por separado. Si desactivas los emails generales, ninguno se envía.
             </p>
@@ -315,7 +315,7 @@ function PreferenciasPage() {
           <div className="flex gap-3">
             <MailX className="mt-0.5 size-5 text-destructive" />
             <div className="flex-1">
-              <h2 className="font-heading text-base font-semibold">Desuscripción total</h2>
+              <h2 className="font-display text-base font-semibold">Desuscripción total</h2>
               <p className="text-sm text-muted-foreground">
                 {desuscrito
                   ? "Estás desuscrito: Esmalia no te enviará emails de avisos ni el resumen semanal. Los avisos sobre la cuenta y los pagos siguen llegando, y los avisos clínicos seguirán visibles dentro de la aplicación."

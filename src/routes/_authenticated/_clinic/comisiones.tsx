@@ -293,13 +293,11 @@ function ComisionesPage() {
                             <span className="text-xs text-muted-foreground">Abierto</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {l.procedureCount}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
+                        <TableCell className="text-right cifra">{l.procedureCount}</TableCell>
+                        <TableCell className="text-right cifra">
                           {formatMoney(l.productionCents, currency)}
                         </TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums">
+                        <TableCell className="text-right font-semibold cifra">
                           {l.commissionCents === null
                             ? "—"
                             : formatMoney(l.commissionCents, currency)}

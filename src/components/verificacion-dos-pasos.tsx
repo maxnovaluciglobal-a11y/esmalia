@@ -186,7 +186,7 @@ export function VerificacionDosPasosCard() {
           <ShieldAlert className="mt-0.5 size-5 shrink-0 text-primary" />
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="font-heading text-base font-semibold">Verificación en dos pasos</h2>
+          <h2 className="font-display text-base font-semibold">Verificación en dos pasos</h2>
           <p className="text-sm text-muted-foreground">
             {
               "Además de tu contraseña, Esmalia te pide un código de 6 números de una app de autenticación. Si alguien consigue tu contraseña, igual no puede entrar a las fichas de tus pacientes."

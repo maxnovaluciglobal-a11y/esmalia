@@ -1,50 +1,54 @@
 /* Fuentes servidas desde el propio sitio (sin Google Fonts): una conexión
-   externa menos y una CSP más estrecha. Subconjunto latin: cubre el
-   español completo (tildes, ñ, ¿¡). */
+   externa menos y una CSP más estrecha (`font-src 'self'`). Subconjunto
+   latin: cubre el español completo (tildes, ñ, ¿¡). */
 @import "@fontsource/cormorant-garamond/latin-400.css";
 @import "@fontsource/cormorant-garamond/latin-500.css";
 @import "@fontsource/cormorant-garamond/latin-600.css";
 @import "@fontsource/cormorant-garamond/latin-400-italic.css";
-@import "@fontsource/lora/latin-400.css";
-@import "@fontsource/lora/latin-500.css";
-@import "@fontsource/lora/latin-600.css";
-@import "@fontsource/lora/latin-400-italic.css";
+@import "@fontsource/cormorant-garamond/latin-500-italic.css";
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
 
-/* Cifras en Manrope dentro de la app (decisión 09-oct-2026, comparación
-   Lora vs Manrope): solo los dígitos, $ % + y los dos puntos de las horas toman
-   Manrope por unicode-range; las letras siguen en Lora. Los montos, horas y
-   tablas se leen más limpios sin perder el carácter editorial. Va como
-   familia aparte, no como "Manrope", para que ningún componente la use para
-   texto por accidente. */
+/* Texto y UI: Instrument Sans variable (eje wght 400–700). Datos: Geist Mono
+   variable, solo con la utilidad `cifra` (horas de la grilla, montos de
+   tabla, n.° de pieza, versiones). Se declaran a mano y no con el CSS de
+   fontsource porque ese trae también latin-ext y el nombre "… Variable";
+   así queda un solo archivo por cara y el nombre de familia limpio
+   (A+, 19-oct-2026: reemplaza a la serif de texto y a la familia aparte
+   que ponía los dígitos de la app en otra fuente por unicode-range). */
 @font-face {
-  font-family: "Esmalia Cifras";
+  font-family: "Instrument Sans";
   font-style: normal;
-  font-weight: 400;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("../node_modules/@fontsource/manrope/files/manrope-latin-400-normal.woff2")
-    format("woff2");
-  unicode-range: U+0024-0025, U+002B, U+0030-003A;
+  src: url("../node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Esmalia Cifras";
-  font-style: normal;
-  font-weight: 500;
+  font-family: "Instrument Sans";
+  font-style: italic;
+  font-weight: 400 700;
   font-display: swap;
-  src: url("../node_modules/@fontsource/manrope/files/manrope-latin-500-normal.woff2")
-    format("woff2");
-  unicode-range: U+0024-0025, U+002B, U+0030-003A;
+  src: url("../node_modules/@fontsource-variable/instrument-sans/files/instrument-sans-latin-wght-italic.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: "Esmalia Cifras";
+  font-family: "Geist Mono";
   font-style: normal;
-  font-weight: 600;
+  font-weight: 100 900;
   font-display: swap;
-  src: url("../node_modules/@fontsource/manrope/files/manrope-latin-600-normal.woff2")
-    format("woff2");
-  unicode-range: U+0024-0025, U+002B, U+0030-003A;
+  src: url("../node_modules/@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 @custom-variant dark (&:is(.dark *));
@@ -55,8 +59,10 @@
  * la app: papel cálido, tinta casi negra y un acento ocre que vive en trazos,
  * filetes e íconos, nunca como relleno grande.
  *
- * Tipografía: Cormorant Garamond (títulos; máx. 600, display a 400) + Lora
- * (cuerpo). Las cifras van con `tabular-nums`.
+ * Tipografía (A+, 19-oct-2026): Cormorant Garamond para títulos y cifras
+ * grandes (máx. 600, display a 400), Instrument Sans para el texto y toda la
+ * UI, y Geist Mono solo para datos con la utilidad `cifra`. Las cifras en
+ * texto corrido van con `tabular-nums` (Instrument Sans trae `tnum`).
  *
  * Nombres: la rampa del acento se expone como `brand-100..900` y no como
  * `accent-*`, porque shadcn ya usa `accent` para el fondo de hover y
@@ -67,6 +73,8 @@
 @theme inline {
   --font-sans: var(--font-body);
   --font-display: var(--font-heading);
+  /* `font-mono` (bloques de código, ids, fechas de versión) = Geist Mono. */
+  --font-mono: var(--font-data);
 
   --radius-sm: 2px;
   --radius-md: 4px;
@@ -191,7 +199,8 @@
 :root {
   --radius: 4px;
   --font-heading: "Cormorant Garamond", ui-serif, Georgia, serif;
-  --font-body: "Lora", ui-serif, Georgia, serif;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-data: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --space-1: 4.6px;
   --space-2: 9.2px;
@@ -487,12 +496,13 @@
   }
 }
 
-/* Solo en la app: la landing y las páginas públicas no tienen el shell.
-   `:has` sobre :root y no una clase en el shell porque los diálogos y
-   popovers (Radix) se montan en un portal fuera de él. */
-:root:has([data-app-shell]) {
-  --font-body: "Esmalia Cifras", "Lora", ui-serif, Georgia, serif;
-  --font-sans: var(--font-body);
+/* Cifras de datos: horas de la grilla, montos de tabla, n.° de pieza FDI y
+   versiones. Se aplica a mano: una mono en medio de una frase ("3 pacientes")
+   se lee rara, así que el texto corrido sigue en Instrument Sans. */
+@utility cifra {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 /* Kicker: la única etiqueta en mayúsculas del sistema (fecha, sección). */

@@ -676,7 +676,7 @@ function Dashboard() {
                           params={{ pacienteId: c.pacienteId }}
                           className="flex min-h-12 items-center gap-2.5 py-2"
                         >
-                          <span className="w-11 shrink-0 text-[13.5px] tabular-nums text-muted-foreground">
+                          <span className="w-11 shrink-0 text-[13.5px] cifra text-muted-foreground">
                             {horaDeCita(c.inicio)}
                           </span>
                           <span className="min-w-0 flex-1 leading-snug">
@@ -732,7 +732,7 @@ function Dashboard() {
                         const profesional = nombreProfesional.get(c.profesionalId) ?? "—";
                         return (
                           <tr key={c.id} data-cita className="align-middle leading-5">
-                            <td className="py-2 pr-3 tabular-nums text-muted-foreground">
+                            <td className="py-2 pr-3 cifra text-muted-foreground">
                               {horaDeCita(c.inicio)}
                             </td>
                             {/* Paciente y tratamiento comparten celda: el
@@ -766,7 +766,7 @@ function Dashboard() {
                             {veFinanzas && (
                               <td
                                 className={cn(
-                                  "truncate py-2 text-right tabular-nums",
+                                  "truncate py-2 text-right cifra",
                                   saldo !== undefined && saldo > 0 && "text-warning",
                                 )}
                               >

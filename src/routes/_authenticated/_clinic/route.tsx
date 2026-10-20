@@ -14,8 +14,22 @@ import { ensureOfflineCacheHydrated } from "@/lib/offline/offline-cache";
 import { AppShell } from "@/components/app-shell";
 import { reportBoundaryError } from "@/lib/error-reporting";
 import { captureException } from "@/lib/sentry";
+// Geist Mono (utilidad `cifra`): solo la usa la app, así que se precarga acá
+// y no en la raíz, para no sumarle un archivo a la landing.
+import geistMono from "@fontsource-variable/geist-mono/files/geist-mono-latin-wght-normal.woff2?url";
 
 export const Route = createFileRoute("/_authenticated/_clinic")({
+  head: () => ({
+    links: [
+      {
+        rel: "preload",
+        href: geistMono,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
+      },
+    ],
+  }),
   beforeLoad: async ({ context }): Promise<{ access: ClinicAccess }> => {
     const { queryClient, user } = context;
 

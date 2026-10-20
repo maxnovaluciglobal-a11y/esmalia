@@ -214,7 +214,7 @@ function ToothCell({
     <span className="flex flex-col items-center">
       <span
         className={cn(
-          "tabular-nums text-[11px] text-muted-foreground",
+          "cifra text-[11px] text-muted-foreground",
           seleccionado && "font-semibold text-brand-700",
         )}
         title={nombreComun ? `${tooth} · ${nombreComun}` : undefined}
@@ -422,7 +422,7 @@ function TablaOdontograma({
         <tbody className="divide-y divide-hairline">
           {filas.map(({ tooth, marcas }) => (
             <tr key={tooth}>
-              <th scope="row" className="py-2 pr-3 tabular-nums font-medium">
+              <th scope="row" className="py-2 pr-3 cifra font-medium">
                 {tooth}
               </th>
               <td className="py-2 pr-3 text-muted-foreground">{toothCommonName(tooth) ?? "—"}</td>
@@ -943,7 +943,7 @@ export function Odontogram({
             >
               <div className="flex items-center gap-2">
                 <Muestra marca={h} />
-                <span className="tabular-nums">{h.toothNumber}</span>
+                <span className="cifra">{h.toothNumber}</span>
                 {toothCommonName(h.toothNumber) && (
                   <span className="text-muted-foreground">{toothCommonName(h.toothNumber)}</span>
                 )}
@@ -1023,7 +1023,7 @@ export function OdontogramResumen({
               key={p.tooth}
               className="inline-flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1 text-xs"
             >
-              <span className="font-semibold tabular-nums">{p.tooth}</span>
+              <span className="font-semibold cifra">{p.tooth}</span>
               {p.condiciones.map((c) => (
                 <span
                   key={`${c.condition}-${c.status}`}

@@ -26,7 +26,9 @@ export const COLORES = {
 } as const;
 
 const FUENTE_TITULO = "'Cormorant Garamond', Cormorant, Georgia, 'Times New Roman', serif";
-const FUENTE_TEXTO = "Lora, Georgia, 'Times New Roman', serif";
+// En los correos la fuente web casi nunca carga: manda el respaldo. Walter
+// eligió mantener Georgia (19-oct-2026), así que el correo sigue siendo serif.
+const FUENTE_TEXTO = "'Instrument Sans', Georgia, 'Times New Roman', serif";
 
 export const WORDMARK_PATH = "/brand/esmalia-wordmark-email.png";
 /** Tamaño de presentación; el PNG está al doble para pantallas retina. */

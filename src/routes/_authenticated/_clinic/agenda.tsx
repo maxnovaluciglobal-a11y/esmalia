@@ -1671,7 +1671,7 @@ function AgendaPage() {
                         params={{ pacienteId: c.pacienteId }}
                         className="grid gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:grid-cols-[auto_2fr_1.5fr_1fr] sm:items-center sm:gap-4"
                       >
-                        <span className="tabular-nums text-xs text-muted-foreground">
+                        <span className="cifra text-xs text-muted-foreground">
                           {horaDeCita(c.inicio)}
                         </span>
                         <div className="min-w-0">

@@ -22,7 +22,7 @@
  *  - Todo lo demás (server functions, Supabase, otros orígenes) → NO se toca.
  */
 
-const VERSION = "esmalia-v1";
+const VERSION = "esmalia-v2";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const SHELL_KEY = "/__esmalia_shell__";
