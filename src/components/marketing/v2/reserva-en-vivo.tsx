@@ -182,14 +182,18 @@ export function ReservaEnVivo() {
                         key={`${s}-${p}`}
                         type="button"
                         aria-pressed={elegida}
-                        aria-label={`${hora(s)} con ${PROFESIONALES[p].nombre}`}
                         onClick={() => {
                           setEleccion([s, p]);
                           setListo(null);
                         }}
                       >
                         {hora(s)}
-                        {pro < 0 && <small>{PROFESIONALES[p].corto}</small>}
+                        {pro < 0 && (
+                          <small>
+                            <span className="sr-only">con </span>
+                            {PROFESIONALES[p].corto}
+                          </small>
+                        )}
                       </button>
                     );
                   })
