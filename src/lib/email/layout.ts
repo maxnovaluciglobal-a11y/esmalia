@@ -14,10 +14,10 @@
 
 /** Paleta de Esmalia (tokens de `src/styles.css`, modo claro). */
 export const COLORES = {
-  papel: "#f3f2f2",
-  tarjeta: "#fbfaf8",
-  tinta: "#201f1d",
-  tenue: "#5f5c59",
+  papel: "#f4f2ee",
+  tarjeta: "#fcfbf9",
+  tinta: "#15120f",
+  tenue: "#5b554f",
   borde: "#dcd9d5",
   ocre: "#7d5411",
   ocreSuave: "#fff3e4",
