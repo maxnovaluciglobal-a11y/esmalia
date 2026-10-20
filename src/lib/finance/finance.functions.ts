@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { mensajeDb } from "@/lib/db-errors";
+import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import { TOOTH_SURFACES } from "@/lib/clinical/odontogram";
 import { filaYaCreada } from "@/lib/idempotency";
@@ -319,7 +319,9 @@ export const importProcedures = createServerFn({ method: "POST" })
 const QUOTE_COLUMNS =
   "id, number, status, currency, subtotal_cents, discount_cents, commercial_discount_pct, total_cents, agreement_id, agreement_name_snapshot, coverage_total_cents, notes, valid_until, sent_at, accepted_at, rejected_at, accepted_by_name, created_at";
 const QUOTE_ITEM_COLUMNS =
-  "id, quote_id, procedure_id, name_snapshot, tooth_number, surface, quantity, unit_price_cents, discount_cents, discount_pct, total_cents, coverage_cents, patient_cents, phase_label, phase_position, position, notes";
+  "id, quote_id, procedure_id, name_snapshot, tooth_number, surface, quantity, unit_price_cents, discount_cents, discount_pct, total_cents, coverage_cents, patient_cents, phase_label, phase_position, position, notes, odontogram_mark_id";
+/** Sin `odontogram_mark_id`: la base antes de la migración 20261020010000. */
+const QUOTE_ITEM_COLUMNS_LEGACY = QUOTE_ITEM_COLUMNS.replace(", odontogram_mark_id", "");
 
 type QuoteRow = {
   id: string;
@@ -359,6 +361,8 @@ type QuoteItemRow = {
   phase_position: number;
   position: number;
   notes: string | null;
+  /** Ausente antes de aplicar la migración 20261020010000. */
+  odontogram_mark_id?: string | null;
 };
 
 function mapQuoteItem(row: QuoteItemRow): QuoteItem {
@@ -379,6 +383,7 @@ function mapQuoteItem(row: QuoteItemRow): QuoteItem {
     phasePosition: row.phase_position,
     position: row.position,
     notes: row.notes,
+    odontogramMarkId: row.odontogram_mark_id ?? null,
   };
 }
 
@@ -427,21 +432,28 @@ export const listQuotes = createServerFn({ method: "GET" })
     const quotes = (quoteRows ?? []) as QuoteRow[];
     if (!quotes.length) return [];
 
-    const { data: itemRows, error: itemsError } = await supabase
-      .from("quote_items")
-      .select(QUOTE_ITEM_COLUMNS)
-      .in(
-        "quote_id",
-        quotes.map((q) => q.id),
-      )
-      .order("phase_position", { ascending: true })
-      .order("position", { ascending: true });
+    const leerItems = (columnas: string) =>
+      supabase
+        .from("quote_items")
+        .select(columnas)
+        .in(
+          "quote_id",
+          quotes.map((q) => q.id),
+        )
+        .order("phase_position", { ascending: true })
+        .order("position", { ascending: true });
+    let { data: itemRows, error: itemsError } = await leerItems(QUOTE_ITEM_COLUMNS);
+    // Base sin la migración 20261020010000: se lee sin el vínculo y cada ítem
+    // queda sin marca (lo que era). El deploy no rompe la pestaña de finanzas.
+    if (itemsError && isUndefinedColumnError(itemsError)) {
+      ({ data: itemRows, error: itemsError } = await leerItems(QUOTE_ITEM_COLUMNS_LEGACY));
+    }
 
     if (itemsError)
       throw new Error(mensajeDb(itemsError, "No pudimos cargar los ítems de los presupuestos."));
 
     const itemsByQuote = new Map<string, QuoteItem[]>();
-    for (const it of (itemRows ?? []) as QuoteItemRow[]) {
+    for (const it of (itemRows ?? []) as unknown as QuoteItemRow[]) {
       const arr = itemsByQuote.get(it.quote_id) ?? [];
       arr.push(mapQuoteItem(it));
       itemsByQuote.set(it.quote_id, arr);
@@ -462,6 +474,12 @@ const QuoteItemInput = z.object({
   phaseLabel: z.string().trim().max(60).nullish(),
   phasePosition: z.number().int().min(0).max(999).default(0),
   notes: z.string().trim().max(300).optional(),
+  /**
+   * Marca del odontograma de la que salió la línea (PR 11b). Viaja en la
+   * edición para no perder el vínculo al reinsertar los ítems; la base
+   * exige que sea del mismo paciente y clínica.
+   */
+  odontogramMarkId: z.string().uuid().nullish(),
 });
 
 type QuoteItemDraft = z.infer<typeof QuoteItemInput>;
@@ -626,6 +644,9 @@ function quoteItemRow(
     phase_position: item.phasePosition,
     position: item.position,
     notes: item.notes || null,
+    // Solo si viene: así un insert sin vínculo no nombra la columna y sigue
+    // andando en una base sin la migración 20261020010000.
+    ...(item.odontogramMarkId ? { odontogram_mark_id: item.odontogramMarkId } : {}),
   };
 }
 
@@ -690,6 +711,34 @@ async function cargarCoberturaDelPaciente(
   return { agreementId: paciente.agreement_id, agreementName: convenio.name, cobertura };
 }
 
+/**
+ * Correlativo atómico via RPC SECURITY DEFINER (regla 8). Reset por año en
+ * tz de la clínica (evita que un quote creado a las 22:00 del 31-dic en
+ * Chile lleve el año siguiente porque el server está en UTC).
+ */
+async function siguienteNumeroDePresupuesto(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+): Promise<string> {
+  const { data: clinic } = await supabase
+    .from("clinics")
+    .select("timezone")
+    .eq("id", clinicId)
+    .maybeSingle();
+  const tz = clinic?.timezone || "America/Santiago";
+  const year = Number(
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric" }).format(new Date()),
+  );
+
+  const { data: nextValue, error: rpcErr } = await supabase.rpc("next_clinic_counter", {
+    p_clinic_id: clinicId,
+    p_kind: "quote",
+    p_year: year,
+  });
+  if (rpcErr) throw new Error("No pudimos generar el número de presupuesto. " + rpcErr.message);
+  return `P-${year}-${String(nextValue as number).padStart(4, "0")}`;
+}
+
 export const createQuote = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
@@ -710,26 +759,7 @@ export const createQuote = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ id: string; number: string }> => {
     const { supabase } = context;
 
-    // Correlativo atómico via RPC SECURITY DEFINER. Reset por año en tz de
-    // la clínica (evita que un quote creado a las 22:00 del 31-dic en Chile
-    // lleve el año siguiente porque el server está en UTC).
-    const { data: clinic } = await supabase
-      .from("clinics")
-      .select("timezone")
-      .eq("id", data.clinicId)
-      .maybeSingle();
-    const tz = clinic?.timezone || "America/Santiago";
-    const year = Number(
-      new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric" }).format(new Date()),
-    );
-
-    const { data: nextValue, error: rpcErr } = await supabase.rpc("next_clinic_counter", {
-      p_clinic_id: data.clinicId,
-      p_kind: "quote",
-      p_year: year,
-    });
-    if (rpcErr) throw new Error("No pudimos generar el número de presupuesto. " + rpcErr.message);
-    const nextNumber = `P-${year}-${String(nextValue as number).padStart(4, "0")}`;
+    const nextNumber = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
 
     const convenio = await cargarCoberturaDelPaciente(supabase, data.clinicId, data.patientId);
     const totals = computeQuoteTotals(
@@ -857,6 +887,382 @@ export const updateQuote = createServerFn({ method: "POST" })
     if (updErr) throw new Error("No pudimos guardar el presupuesto. " + updErr.message);
 
     return { ok: true };
+  });
+
+// ─── SUGERENCIA "POR REALIZAR → PRESUPUESTO" (PR 11 del rediseño A+) ─────
+
+/** Estados en los que una marca vinculada cuenta como "ya presupuestada". */
+const ESTADOS_QUE_RETIENEN_LA_MARCA = ["draft", "sent", "accepted", "converted"] as const;
+
+/** Lo que el recálculo necesita del presupuesto. */
+type PresupuestoParaRecalcular = {
+  id: string;
+  patient_id: string;
+  commercial_discount_pct: number | null;
+  discount_cents: number;
+};
+
+type ItemParaRecalcular = QuoteItemDraft & { id: string; nuevo: boolean };
+
+/** Ítem guardado → borrador del cálculo, sin perder nada de lo que tenía. */
+function filaABorrador(row: QuoteItemRow): ItemParaRecalcular {
+  return {
+    id: row.id,
+    nuevo: false,
+    procedureId: row.procedure_id ?? undefined,
+    nameSnapshot: row.name_snapshot,
+    toothNumber: row.tooth_number ?? undefined,
+    surface: (row.surface ?? undefined) as QuoteItemDraft["surface"],
+    quantity: row.quantity,
+    unitPriceCents: row.unit_price_cents,
+    discountCents: row.discount_cents,
+    discountPct: row.discount_pct === null ? null : Number(row.discount_pct),
+    phaseLabel: row.phase_label,
+    phasePosition: row.phase_position,
+    notes: row.notes ?? undefined,
+    odontogramMarkId: row.odontogram_mark_id ?? null,
+  };
+}
+
+/** `patients:manage`: el mismo permiso que muestra la sugerencia (regla 15). */
+async function exigirPermisoDePresupuestar(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  userId: string,
+) {
+  const { data: membership } = await supabase
+    .from("clinic_members")
+    .select("role")
+    .eq("clinic_id", clinicId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const puede = membership?.role
+    ? permissionsForRole(membership.role as ClinicRole).includes("patients:manage")
+    : false;
+  if (!puede) throw new Error("No tienes permisos para presupuestar.");
+}
+
+/**
+ * Recalcula y guarda los ítems de un presupuesto en borrador sin borrar y
+ * reinsertar (a diferencia de `updateQuote`): los ítems que ya estaban
+ * conservan su id, así el "Deshacer" de la sugerencia borra exactamente el
+ * que se creó. Mismo cálculo que crear y editar (`computeQuoteTotals`): el
+ * descuento comercial se vuelve a prorratear y la cobertura del convenio se
+ * reparte sobre las líneas nuevas.
+ */
+async function guardarItemsRecalculados(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  quote: PresupuestoParaRecalcular,
+  items: ItemParaRecalcular[],
+): Promise<{ totalCents: number }> {
+  const convenio = await cargarCoberturaDelPaciente(supabase, clinicId, quote.patient_id);
+  const pct = quote.commercial_discount_pct === null ? null : Number(quote.commercial_discount_pct);
+  const totals = computeQuoteTotals(
+    items,
+    pct === null ? quote.discount_cents : 0,
+    pct,
+    convenio.cobertura,
+  );
+
+  for (const [i, resuelto] of totals.items.entries()) {
+    const { id, nuevo } = items[i];
+    const fila = quoteItemRow(resuelto, clinicId, quote.id);
+    if (nuevo) {
+      const { error } = await supabase.from("quote_items").insert({ id, ...fila });
+      if (error) throw new Error(mensajeDb(error, "No pudimos sumar el ítem al presupuesto."));
+    } else {
+      const { clinic_id: _c, quote_id: _q, ...cambios } = fila;
+      const { error } = await supabase
+        .from("quote_items")
+        .update(cambios)
+        .eq("id", id)
+        .eq("clinic_id", clinicId);
+      if (error) throw new Error(mensajeDb(error, "No pudimos recalcular el presupuesto."));
+    }
+  }
+
+  const { error: updErr } = await supabase
+    .from("quotes")
+    .update({
+      subtotal_cents: totals.subtotal,
+      discount_cents: totals.discountCents,
+      commercial_discount_pct: totals.commercialDiscountPct,
+      total_cents: totals.total,
+      agreement_id: convenio.agreementId,
+      agreement_name_snapshot: convenio.agreementName,
+      coverage_total_cents: totals.coverageTotalCents,
+    })
+    .eq("id", quote.id)
+    .eq("clinic_id", clinicId);
+  if (updErr) throw new Error(mensajeDb(updErr, "No pudimos guardar el total del presupuesto."));
+
+  return { totalCents: totals.total };
+}
+
+async function itemsDelPresupuesto(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  quoteId: string,
+): Promise<QuoteItemRow[]> {
+  const { data, error } = await supabase
+    .from("quote_items")
+    .select(QUOTE_ITEM_COLUMNS)
+    .eq("clinic_id", clinicId)
+    .eq("quote_id", quoteId)
+    .order("phase_position", { ascending: true })
+    .order("position", { ascending: true });
+  if (error) throw new Error(mensajeDb(error, "No pudimos leer los ítems del presupuesto."));
+  return (data ?? []) as unknown as QuoteItemRow[];
+}
+
+export type ResultadoSugerencia = {
+  quoteId: string;
+  quoteNumber: string;
+  itemId: string;
+  /** El presupuesto se creó para esta marca: deshacer lo borra si queda vacío. */
+  presupuestoCreado: boolean;
+  phaseLabel: string;
+  nameSnapshot: string;
+  unitPriceCents: number;
+  /** Total del presupuesto después de sumar el ítem. */
+  quoteTotalCents: number;
+};
+
+/**
+ * Suma una marca "por realizar" del odontograma al presupuesto en borrador
+ * del paciente (o crea uno), en la fase elegida y con el precio del arancel.
+ *
+ * Todo se valida acá aunque la ficha ya lo haya filtrado (regla 15): permiso
+ * de presupuestar, que la marca sea del paciente, esté vigente y por
+ * realizar, que no esté ya en un presupuesto (PR 11b) y que la prestación
+ * siga activa. El precio sale del arancel, no del cliente. La marca solo se
+ * lee (regla 9): el vínculo vive en `quote_items.odontogram_mark_id`.
+ */
+export const sumarMarcaAlPresupuesto = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        patientId: z.string().uuid(),
+        markId: z.string().uuid(),
+        procedureId: z.string().uuid(),
+        phaseLabel: z.string().trim().min(1, "Elige una fase.").max(60),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<ResultadoSugerencia> => {
+    const { supabase, userId } = context;
+    await exigirPermisoDePresupuestar(supabase, data.clinicId, userId);
+
+    const { data: marca, error: mErr } = await supabase
+      .from("odontogram_marks")
+      .select("id, patient_id, tooth_number, surface, condition, status, superseded_at")
+      .eq("id", data.markId)
+      .eq("clinic_id", data.clinicId)
+      .maybeSingle();
+    if (mErr) throw new Error(mensajeDb(mErr, "No pudimos leer la marca del odontograma."));
+    if (!marca || marca.patient_id !== data.patientId) {
+      throw new Error("No encontramos esa marca en el odontograma del paciente.");
+    }
+    if (marca.superseded_at) {
+      throw new Error(
+        "Esa marca ya cambió en el odontograma. Ábrela de nuevo para presupuestarla.",
+      );
+    }
+    if (marca.status !== "planificado") {
+      throw new Error("Solo se suma al presupuesto lo que está por realizar.");
+    }
+
+    // ¿Ya está en un presupuesto que cuenta? (no sugerir dos veces, PR 11b).
+    // También la misma indicación que esta marca reemplazó: volver a guardar
+    // "endodoncia por realizar" en la 36 crea una marca nueva, pero el
+    // tratamiento ya estaba presupuestado.
+    const { data: predecesoras } = await supabase
+      .from("odontogram_marks")
+      .select("id")
+      .eq("clinic_id", data.clinicId)
+      .eq("superseded_by", data.markId)
+      .eq("condition", marca.condition);
+    const marcasARevisar = [data.markId, ...(predecesoras ?? []).map((m) => m.id)];
+    const { data: vinculos, error: vErr } = await supabase
+      .from("quote_items")
+      .select("quote_id")
+      .eq("clinic_id", data.clinicId)
+      .in("odontogram_mark_id", marcasARevisar);
+    if (vErr)
+      throw new Error(mensajeDb(vErr, "No pudimos revisar si la marca ya está presupuestada."));
+    if (vinculos?.length) {
+      const { data: conVinculo } = await supabase
+        .from("quotes")
+        .select("status")
+        .eq("clinic_id", data.clinicId)
+        .in(
+          "id",
+          vinculos.map((v) => v.quote_id),
+        );
+      const vigente = (conVinculo ?? []).some((q) =>
+        (ESTADOS_QUE_RETIENEN_LA_MARCA as readonly string[]).includes(q.status),
+      );
+      if (vigente) throw new Error("Esta marca ya está en un presupuesto.");
+    }
+
+    const { data: proc, error: pErr } = await supabase
+      .from("procedures")
+      .select("id, name, default_price_cents, is_active")
+      .eq("id", data.procedureId)
+      .eq("clinic_id", data.clinicId)
+      .maybeSingle();
+    if (pErr) throw new Error(mensajeDb(pErr, "No pudimos leer el arancel."));
+    if (!proc?.is_active) throw new Error("Esa prestación ya no está activa en el arancel.");
+
+    // Presupuesto en borrador más reciente; uno enviado no se toca (ya lo vio
+    // el paciente). Sin borrador se crea uno, con su correlativo (regla 8).
+    const { data: borradores, error: bErr } = await supabase
+      .from("quotes")
+      .select("id, number, patient_id, commercial_discount_pct, discount_cents")
+      .eq("clinic_id", data.clinicId)
+      .eq("patient_id", data.patientId)
+      .eq("status", "draft")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (bErr) throw new Error(mensajeDb(bErr, "No pudimos leer los presupuestos del paciente."));
+
+    let quote = borradores?.[0] ?? null;
+    let presupuestoCreado = false;
+    if (!quote) {
+      const number = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
+      const { data: nuevo, error: qErr } = await supabase
+        .from("quotes")
+        .insert({ clinic_id: data.clinicId, patient_id: data.patientId, number })
+        .select("id, number, patient_id, commercial_discount_pct, discount_cents")
+        .single();
+      if (qErr) throw new Error(mensajeDb(qErr, "No pudimos crear el presupuesto."));
+      quote = nuevo;
+      presupuestoCreado = true;
+    }
+
+    try {
+      const existentes = (await itemsDelPresupuesto(supabase, data.clinicId, quote.id)).map(
+        filaABorrador,
+      );
+      // La fase conserva su orden si ya existe; una nueva va al final.
+      const misma = existentes.find((it) => (it.phaseLabel ?? "") === data.phaseLabel);
+      const phasePosition = misma
+        ? misma.phasePosition
+        : existentes.length
+          ? Math.max(...existentes.map((it) => it.phasePosition)) + 1
+          : 0;
+
+      const itemId = crypto.randomUUID();
+      const nuevo: ItemParaRecalcular = {
+        id: itemId,
+        nuevo: true,
+        procedureId: proc.id,
+        nameSnapshot: proc.name,
+        toothNumber: marca.tooth_number,
+        // Pieza completa = sin superficie, igual que el botón "Presupuestar" (G-1).
+        surface:
+          marca.surface === "whole" ? undefined : (marca.surface as QuoteItemDraft["surface"]),
+        quantity: 1,
+        unitPriceCents: proc.default_price_cents,
+        discountCents: 0,
+        discountPct: null,
+        phaseLabel: data.phaseLabel,
+        phasePosition,
+        odontogramMarkId: data.markId,
+      };
+
+      const { totalCents } = await guardarItemsRecalculados(supabase, data.clinicId, quote, [
+        ...existentes,
+        nuevo,
+      ]);
+
+      return {
+        quoteId: quote.id,
+        quoteNumber: quote.number,
+        itemId,
+        presupuestoCreado,
+        phaseLabel: data.phaseLabel,
+        nameSnapshot: proc.name,
+        unitPriceCents: proc.default_price_cents,
+        quoteTotalCents: totalCents,
+      };
+    } catch (error) {
+      // Rollback best-effort, como `createQuote`: un presupuesto creado acá
+      // y que quedó sin ítems no sirve. El CASCADE arrastra lo que alcanzó a
+      // insertarse.
+      if (presupuestoCreado) {
+        await supabase.from("quotes").delete().eq("id", quote.id).eq("clinic_id", data.clinicId);
+      }
+      throw error;
+    }
+  });
+
+/**
+ * "Deshacer" de la sugerencia: borra el ítem recién sumado y recalcula el
+ * resto. Solo en borrador y solo un ítem que salió del odontograma (tiene
+ * vínculo): no es una forma alternativa de editar presupuestos. Si el
+ * presupuesto se creó para esa marca y queda vacío, se borra también.
+ */
+export const quitarItemSugerido = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        quoteId: z.string().uuid(),
+        itemId: z.string().uuid(),
+        borrarPresupuestoVacio: z.boolean().default(false),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ presupuestoBorrado: boolean }> => {
+    const { supabase, userId } = context;
+    await exigirPermisoDePresupuestar(supabase, data.clinicId, userId);
+
+    const { data: quote, error: qErr } = await supabase
+      .from("quotes")
+      .select("id, status, patient_id, commercial_discount_pct, discount_cents")
+      .eq("id", data.quoteId)
+      .eq("clinic_id", data.clinicId)
+      .maybeSingle();
+    if (qErr) throw new Error(mensajeDb(qErr, "No pudimos leer el presupuesto."));
+    if (!quote) throw new Error("No encontramos ese presupuesto.");
+    if (quote.status !== "draft") {
+      throw new Error("El presupuesto ya no está en borrador: corrígelo desde Finanzas.");
+    }
+
+    const items = await itemsDelPresupuesto(supabase, data.clinicId, data.quoteId);
+    const item = items.find((it) => it.id === data.itemId);
+    if (!item) return { presupuestoBorrado: false }; // ya no está: nada que deshacer
+    if (!item.odontogram_mark_id) {
+      throw new Error("Ese ítem no salió del odontograma: quítalo desde Finanzas.");
+    }
+
+    const { error: dErr } = await supabase
+      .from("quote_items")
+      .delete()
+      .eq("id", data.itemId)
+      .eq("quote_id", data.quoteId)
+      .eq("clinic_id", data.clinicId);
+    if (dErr) throw new Error(mensajeDb(dErr, "No pudimos quitar el ítem del presupuesto."));
+
+    const resto = items.filter((it) => it.id !== data.itemId);
+    if (!resto.length && data.borrarPresupuestoVacio) {
+      const { error } = await supabase
+        .from("quotes")
+        .delete()
+        .eq("id", data.quoteId)
+        .eq("clinic_id", data.clinicId)
+        .eq("status", "draft");
+      if (error) throw new Error(mensajeDb(error, "No pudimos borrar el presupuesto vacío."));
+      return { presupuestoBorrado: true };
+    }
+
+    await guardarItemsRecalculados(supabase, data.clinicId, quote, resto.map(filaABorrador));
+    return { presupuestoBorrado: false };
   });
 
 /**
