@@ -36,6 +36,7 @@ import {
   type Subscription,
   type SubscriptionStatus,
 } from "@/lib/billing";
+import { hace, type Semaforo } from "@/lib/admin/salud-clinica";
 import { mensajeDeError } from "@/lib/mensaje-error";
 
 export const Route = createFileRoute("/_authenticated/admin/clinicas")({
@@ -212,6 +213,35 @@ function EstadoSuscripcion({ row }: { row: ClinicaStaffRow }) {
   );
 }
 
+const SEMAFORO_TONO: Record<Semaforo, { clase: string; texto: string }> = {
+  verde: { clase: "bg-success-soft text-success", texto: "Va bien" },
+  amarillo: { clase: "bg-warning-soft text-warning", texto: "Atención" },
+  rojo: { clase: "bg-destructive/10 text-destructive", texto: "En riesgo" },
+  nueva: { clase: "bg-secondary text-muted-foreground", texto: "Recién llegada" },
+};
+
+/** Semáforo de salud (CS-09) con las cifras que lo explican: si pasa a rojo,
+ *  Walter le escribe por WhatsApp en menos de 24 h. */
+function Salud({ row }: { row: ClinicaStaffRow }) {
+  const { semaforo, citas7d, pacientes, usuariosActivos7d, ultimoLoginDueno } = row.salud;
+  const tono = SEMAFORO_TONO[semaforo];
+  return (
+    <div className="space-y-1">
+      <span
+        className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium ${tono.clase}`}
+      >
+        {tono.texto}
+      </span>
+      <p className="text-xs text-muted-foreground">
+        {citas7d} {citas7d === 1 ? "cita" : "citas"} en 7 d · {pacientes}{" "}
+        {pacientes === 1 ? "paciente" : "pacientes"} · {usuariosActivos7d}{" "}
+        {usuariosActivos7d === 1 ? "usuario activo" : "usuarios activos"}
+      </p>
+      <p className="text-xs text-muted-foreground">Dueño entró: {hace(ultimoLoginDueno)}</p>
+    </div>
+  );
+}
+
 const OPCIONES_EXTENSION = [30, 60, 90] as const;
 
 /** Extiende la prueba N días a partir de hoy. Pide confirmación porque deja
@@ -294,7 +324,7 @@ function AdminClinicasPage() {
 
   return (
     <div className="min-h-dvh bg-surface px-4 py-10 sm:py-12">
-      <div className="mx-auto w-full max-w-5xl">
+      <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <EsmaliaLogo variant="icon" size={36} />
@@ -324,12 +354,13 @@ function AdminClinicasPage() {
         ) : (
           <section className="card-clinical overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[48rem] text-sm">
+              <table className="w-full min-w-[60rem] text-sm">
                 <thead>
                   <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">Clínica</th>
                     <th className="px-3 py-2 text-left font-medium">Alta</th>
                     <th className="px-3 py-2 text-left font-medium">Suscripción</th>
+                    <th className="px-3 py-2 text-left font-medium">Salud</th>
                     <th className="px-3 py-2 text-left font-medium">Activación</th>
                     <th className="px-3 py-2 text-left font-medium">Llamada de puesta en marcha</th>
                     <th className="px-3 py-2 text-right font-medium">Acciones</th>
@@ -346,6 +377,9 @@ function AdminClinicasPage() {
                         <EstadoSuscripcion row={row} />
                       </td>
                       <td className="px-3 py-2">
+                        <Salud row={row} />
+                      </td>
+                      <td className="px-3 py-2">
                         <Activacion row={row} />
                       </td>
                       <td className="whitespace-nowrap px-3 py-2 text-muted-foreground">
@@ -353,6 +387,12 @@ function AdminClinicasPage() {
                           <span className="inline-flex items-center gap-1.5">
                             <PhoneCall className="size-3.5 text-success" />
                             {formatFechaHora(row.onboardingCallAt)}
+                          </span>
+                        ) : row.horasLlamadaPendiente !== null ? (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-warning-soft px-1.5 py-0.5 text-[11px] font-medium text-warning">
+                            Sin llamada hace {Math.floor(row.horasLlamadaPendiente / 24)}{" "}
+                            {Math.floor(row.horasLlamadaPendiente / 24) === 1 ? "día" : "días"}:
+                            escríbele
                           </span>
                         ) : (
                           "—"
