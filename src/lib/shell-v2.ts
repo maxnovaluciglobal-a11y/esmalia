@@ -52,7 +52,13 @@ export type AccionRapida = {
   label: string;
   detalle: string;
   to: string;
+  /** Destino con el pedido en la URL: la ruta lo lee, abre su diálogo y lo
+   *  borra (ver `interpretarNuevaCita` y `decidirAbrirCaja`). */
+  href: string;
 };
+
+/** Valor del parámetro que pide abrir un diálogo sin nada precargado. */
+export const PEDIDO_ABRIR = "1";
 
 const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] })[] = [
   {
@@ -60,6 +66,7 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     label: "Nueva cita",
     detalle: "En la agenda",
     to: "/agenda",
+    href: `/agenda?nueva=${PEDIDO_ABRIR}`,
     permiso: "agenda:manage",
   },
   {
@@ -67,6 +74,7 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     label: "Abrir caja",
     detalle: "Caja del día",
     to: "/cajas",
+    href: `/cajas?abrir=${PEDIDO_ABRIR}`,
     permiso: "cash:manage",
   },
 ];
@@ -81,4 +89,57 @@ export function accionesRapidas(role: ClinicAccess["role"], termino = ""): Accio
   return ACCIONES.filter((a) => hasPermission(role, a.permiso))
     .filter((a) => !t || a.label.toLowerCase().includes(t))
     .map(({ permiso: _permiso, ...a }) => a);
+}
+
+/**
+ * `/agenda?nueva=…`: con `1` abre "Nueva cita" vacía (acción del ⌘K); con
+ * cualquier otro valor lo toma como id de paciente (botón "Agendar" de la
+ * ficha). Un id de paciente es un uuid, así que nunca choca con `1`.
+ */
+export function interpretarNuevaCita(nueva: string | undefined): {
+  abrir: boolean;
+  pacienteId: string | null;
+} {
+  const v = (nueva ?? "").trim();
+  if (!v) return { abrir: false, pacienteId: null };
+  if (v === PEDIDO_ABRIR) return { abrir: true, pacienteId: null };
+  return { abrir: true, pacienteId: v };
+}
+
+/**
+ * `nueva` de `/agenda` tal como llega de `validateSearch`. El parser de
+ * búsqueda de TanStack lee `?nueva=1` como el NÚMERO 1 (parsea JSON), así
+ * que se acepta número o texto; cualquier otra cosa se descarta.
+ */
+export function leerNuevaCita(valor: unknown): string | undefined {
+  if (typeof valor === "number" && Number.isFinite(valor)) return String(valor);
+  if (typeof valor !== "string") return undefined;
+  const v = valor.trim();
+  return v || undefined;
+}
+
+/** `abrir` de `/cajas`: solo `1` (número o texto) cuenta como pedido. */
+export function leerPedidoAbrirCaja(valor: unknown): typeof PEDIDO_ABRIR | undefined {
+  if (typeof valor !== "string" && typeof valor !== "number") return undefined;
+  return String(valor).trim() === PEDIDO_ABRIR ? PEDIDO_ABRIR : undefined;
+}
+
+export type DecisionAbrirCaja = "nada" | "esperar" | "abrir" | "ya-abierta" | "descartar";
+
+/**
+ * Qué hace `/cajas` con `?abrir=1`. Espera a saber si ya hay un turno
+ * abierto; si lo hay, no abre un segundo diálogo (el servidor igual lo
+ * rechazaría) y avisa. Con error de carga solo descarta el pedido. En todos
+ * los casos menos "nada" y "esperar" la ruta borra el parámetro.
+ */
+export function decidirAbrirCaja(estado: {
+  pedido: boolean;
+  cargando: boolean;
+  conError: boolean;
+  cajaAbierta: boolean;
+}): DecisionAbrirCaja {
+  if (!estado.pedido) return "nada";
+  if (estado.cargando) return "esperar";
+  if (estado.conError) return "descartar";
+  return estado.cajaAbierta ? "ya-abierta" : "abrir";
 }

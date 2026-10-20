@@ -312,6 +312,13 @@
   --night-2: #1f1b17;
   --night-3: #2a2520;
   --night-line: rgb(241 236 228 / 0.13);
+  /* La tinta del tema de la PÁGINA, fijada en la raíz: un elemento con
+     `.dark` propio (el sidebar en tinta) redefine --night con el paso
+     hundido del modo oscuro, y con esto recupera la de la página. Se
+     resuelve en <html>, así que en modo oscuro también vale el paso hundido. */
+  --night-pagina: var(--night);
+  --night-2-pagina: var(--night-2);
+  --night-3-pagina: var(--night-3);
   /* Texto sobre night: 15,9:1 y 7,7:1 (6,2:1 sobre night-3). */
   --on-night: #f1ece4;
   --on-night-2: #ada59a;
@@ -438,6 +445,15 @@
   /* 6,8:1 sobre la tarjeta; tinta sobre petróleo 7,3:1. */
   --petrol: #5fb3b8;
   --petrol-foreground: #1a1714;
+}
+
+/* Sidebar en tinta (shell-v2): lleva `.dark` para que lo de adentro se lea
+   sobre tinta, pero su fondo es la tinta del prototipo A+ (#15120F en claro,
+   #0E0C0A en oscuro), no la que `.dark` hunde un paso. */
+.dark.tinta-de-pagina {
+  --night: var(--night-pagina);
+  --night-2: var(--night-2-pagina);
+  --night-3: var(--night-3-pagina);
 }
 
 @layer base {

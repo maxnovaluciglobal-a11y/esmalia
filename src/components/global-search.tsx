@@ -18,6 +18,7 @@ import { ajustesVisibles, destinosVisibles } from "@/lib/access/navegacion";
 import { buscarPacientes } from "@/lib/patients/buscar-pacientes.functions";
 import { accionesRapidas } from "@/lib/shell-v2";
 import { cn } from "@/lib/utils";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
 
 /**
  * Búsqueda ⌘K. Reemplaza a la versión deshabilitada que leía los arrays MOCK
@@ -93,7 +94,10 @@ export function GlobalSearch({
   const paginasFiltradas = termino
     ? paginas.filter((p) => p.label.toLowerCase().includes(termino))
     : paginas.slice(0, 8);
-  const acciones = shellV2 ? accionesRapidas(access.role, q) : [];
+  // En solo lectura las acciones crean algo: no se ofrecen (el servidor
+  // igual las rechazaría).
+  const soloLectura = useSoloLectura();
+  const acciones = shellV2 && !soloLectura ? accionesRapidas(access.role, q) : [];
 
   const clinicId = access.clinic?.id;
   const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
@@ -109,6 +113,14 @@ export function GlobalSearch({
     setAbierto(false);
     setQ("");
     void navigate({ to });
+  }
+
+  /** Acción rápida: la ruta destino lee el pedido de la URL y abre su
+   *  diálogo (agenda con `?nueva=1`, caja con `?abrir=1`). */
+  function ejecutar(href: string) {
+    setAbierto(false);
+    setQ("");
+    void navigate({ href });
   }
 
   return (
@@ -203,7 +215,11 @@ export function GlobalSearch({
                   {acciones.map((a) => {
                     const Icono = a.id === "abrir-caja" ? LockOpen : CalendarPlus;
                     return (
-                      <CommandItem key={a.id} value={`accion-${a.id}`} onSelect={() => ir(a.to)}>
+                      <CommandItem
+                        key={a.id}
+                        value={`accion-${a.id}`}
+                        onSelect={() => ejecutar(a.href)}
+                      >
                         <Icono className="text-muted-foreground" aria-hidden />
                         <span className="flex-1 truncate">{a.label}</span>
                         <span className="truncate text-xs text-muted-foreground">{a.detalle}</span>
