@@ -2022,3 +2022,816 @@
   color: var(--brand-on-night);
   margin-right: 20px;
 }
+
+/* ── Arco de 32 piezas (PR 7) ────────────────────────────── */
+.lv-arc-sec {
+  border-top: 1px solid var(--lv-line);
+}
+.lv-arc-track {
+  position: relative;
+}
+.lv-arc-stage {
+  position: relative;
+  padding: clamp(70px, 8vw, 110px) 0;
+}
+.lv-arc-stage.is-sticky {
+  position: sticky;
+  top: 0;
+  height: min(100svh, 900px);
+  padding: 0;
+  display: grid;
+  align-items: center;
+}
+.lv-arc-in {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .lv-arc-in {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-arc-leg {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin-top: 22px;
+  font: 600 14px var(--lv-sans);
+}
+.lv-arc-leg i {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+.lv-arc-leg i.ex {
+  background: var(--lv-clin-ex);
+}
+.lv-arc-leg i.pl {
+  background: color-mix(in srgb, var(--lv-clin-pl) 12%, transparent);
+  border: 2px solid var(--lv-clin-pl);
+}
+.lv-why {
+  margin-top: 16px;
+  font: 400 15px/1.55 var(--lv-sans);
+  color: var(--lv-ink-2);
+  max-width: 46ch;
+  padding-top: 14px;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-why b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.lv-arc-svg {
+  width: 100%;
+  height: auto;
+  max-height: min(78svh, 700px);
+  overflow: visible;
+}
+.lv-arc-svg .tb {
+  fill: var(--card);
+  stroke: var(--lv-ink-2);
+  stroke-width: 1.6;
+  transition:
+    fill 0.5s,
+    stroke 0.5s;
+}
+.lv-arc-svg .scat .tb {
+  stroke: var(--lv-ocre-display);
+}
+.lv-arc-svg .tn {
+  font: 500 11px var(--lv-mono);
+  fill: var(--lv-ink-3);
+  text-anchor: middle;
+}
+.lv-arc-svg .mid-l {
+  stroke: var(--lv-line-2);
+  stroke-dasharray: 4 5;
+}
+
+/* ── Acordeón con el molar (PR 7) ────────────────────────── */
+.lv-tooth-sec {
+  padding: clamp(70px, 9vw, 130px) 0;
+  background: var(--lv-paper-2);
+  border-top: 1px solid var(--lv-line);
+  overflow: clip;
+}
+.lv-ts-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(24px, 3vw, 48px);
+  align-items: start;
+}
+.lv-ts-title {
+  position: sticky;
+  top: 40px;
+}
+.lv-ts-title .lv-lead {
+  margin-top: 18px;
+}
+@media (max-width: 1020px) {
+  .lv-ts-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lv-ts-title {
+    grid-column: 1 / -1;
+    position: static;
+  }
+}
+@media (max-width: 680px) {
+  .lv-ts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-fig {
+  position: relative;
+  aspect-ratio: 400 / 500;
+  max-width: 470px;
+  margin: 0 auto;
+  width: 100%;
+}
+.lv-fig .tilt {
+  position: absolute;
+  inset: 0;
+  transform: perspective(900px) rotateY(-8deg) rotateX(3deg);
+}
+.lv2[data-mov="on"] .lv-fig .tilt {
+  animation: lv-tilt 9s var(--ease-io) infinite;
+}
+@keyframes lv-tilt {
+  0%,
+  100% {
+    transform: perspective(900px) rotateY(-14deg) rotateX(4deg);
+  }
+  50% {
+    transform: perspective(900px) rotateY(14deg) rotateX(-2deg);
+  }
+}
+.lv-fig svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.lv-fig .ov {
+  opacity: 0;
+  transition: opacity 0.5s var(--ease-out);
+}
+.lv-fig[data-mod="agenda"] .ov-agenda,
+.lv-fig[data-mod="ficha"] .ov-ficha,
+.lv-fig[data-mod="caja"] .ov-caja,
+.lv-fig[data-mod="patty"] .ov-patty {
+  opacity: 1;
+}
+.lv-fig .ring {
+  stroke: var(--lv-ocre-display);
+  stroke-width: 2;
+  fill: none;
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 1200;
+  transition: stroke-dashoffset 1.4s var(--ease-out);
+}
+.lv-fig[data-mod="agenda"] .ring {
+  stroke-dashoffset: 0;
+}
+.lv-fig .fillpay {
+  transition: transform 1.2s var(--ease-out);
+  transform: translateY(500px);
+}
+.lv-fig[data-mod="caja"] .fillpay {
+  transform: translateY(205px);
+}
+.lv-tag {
+  position: absolute;
+  background: var(--card);
+  border: 1px solid var(--lv-line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 600 13px/1.3 var(--lv-sans);
+  box-shadow: 0 10px 30px -12px rgb(21 18 15 / 0.35);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(8px);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.6s var(--ease-out),
+    visibility 0.45s;
+  max-width: 230px;
+}
+.lv-tag small {
+  display: block;
+  font: 500 12px/1.35 var(--lv-sans);
+  color: var(--lv-ink-2);
+  margin-top: 3px;
+}
+.lv-tag .lv-st {
+  margin-top: 7px;
+}
+.lv-fig[data-mod="agenda"] .t-agenda,
+.lv-fig[data-mod="ficha"] .t-ficha,
+.lv-fig[data-mod="caja"] .t-caja,
+.lv-fig[data-mod="patty"] .t-patty {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.lv-tag.t-patty {
+  border-color: var(--ai);
+  background: var(--ai-soft);
+}
+.lv-tag.t-patty b {
+  color: var(--ai);
+}
+.lv-st-pl {
+  color: var(--lv-clin-pl);
+  background: color-mix(in srgb, var(--lv-clin-pl) 10%, var(--card));
+  border-style: dashed;
+}
+@media (max-width: 680px) {
+  .lv-fig .lv-tag {
+    max-width: 200px;
+  }
+  .lv-fig .t-ficha,
+  .lv-fig .t-patty {
+    right: 0 !important;
+  }
+  .lv-fig .t-agenda,
+  .lv-fig .t-caja {
+    left: 0 !important;
+  }
+}
+.lv-pbar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--lv-line);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.lv-pbar i {
+  display: block;
+  height: 100%;
+  width: 50%;
+  background: var(--brand);
+}
+.lv-acc {
+  border-top: 1px solid var(--lv-line-2);
+}
+.lv-acc-i {
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-acc-i h3 {
+  margin: 0;
+}
+.lv-acc-b {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 22px 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--foreground);
+}
+.lv-acc-b .nm {
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(30px, 2.8vw, 42px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+.lv-acc-b .nm.patty {
+  color: var(--ai);
+}
+.lv-acc-b .pl {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid var(--lv-line-2);
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.5s var(--ease-out),
+    background-color 0.3s,
+    color 0.3s;
+}
+.lv-acc-b .pl svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  fill: none;
+}
+.lv-acc-b[aria-expanded="true"] .pl {
+  transform: rotate(45deg);
+  background: var(--foreground);
+  color: var(--background);
+  border-color: var(--foreground);
+}
+.lv-acc-p {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.55s var(--ease-out);
+}
+.lv-acc-p > div {
+  overflow: hidden;
+}
+.lv-acc-i.open .lv-acc-p {
+  grid-template-rows: 1fr;
+}
+.lv-acc-p p {
+  color: var(--lv-ink-2);
+  padding-bottom: 10px;
+  max-width: 46ch;
+}
+.lv-acc-p ul {
+  margin: 6px 0 24px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.lv-acc-p li {
+  font: 500 12.5px var(--lv-sans);
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--lv-line-2);
+}
+.lv-acc-p .no {
+  font-size: 13.5px;
+  color: var(--lv-ink-3);
+  padding-bottom: 22px;
+}
+.lv-acc-p .no b {
+  color: var(--lv-ink-2);
+  font-weight: 600;
+}
+.lv-timer {
+  height: 2px;
+  background: var(--lv-line);
+  margin: -1px 0 0;
+  overflow: hidden;
+}
+.lv-timer i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--brand);
+}
+.lv2[data-mov="on"] .lv-acc-i.open .lv-timer i.run {
+  animation: lv-tim 6s linear forwards;
+}
+@keyframes lv-tim {
+  to {
+    width: 100%;
+  }
+}
+
+/* ── Patty propone, tú decides (PR 7) ────────────────────── */
+.lv-pt-sec {
+  padding: clamp(80px, 9vw, 130px) 0;
+  background: var(--ai-soft);
+  border-top: 1px solid var(--lv-line);
+}
+.lv-pt-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(28px, 4vw, 64px);
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .lv-pt-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-pt-sec .lv-h-sec em {
+  color: var(--ai);
+}
+.lv-pt-av {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 18px;
+}
+.lv-pt-copy .lv-lead {
+  margin-top: 18px;
+}
+.lv-pt-rules {
+  list-style: none;
+  margin: 22px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  max-width: 52ch;
+}
+.lv-pt-rules li {
+  padding-left: 26px;
+  position: relative;
+  color: var(--lv-ink-2);
+  font-size: 15.5px;
+}
+.lv-pt-rules li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 7px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  background: var(--ai);
+}
+.lv-pt-rules b {
+  color: var(--foreground);
+}
+.lv-pt-card {
+  background: var(--card);
+  border: 1px solid var(--lv-line-2);
+  border-radius: var(--lv-r-l);
+  padding: 22px;
+  box-shadow: 0 24px 50px -34px rgb(60 30 100 / 0.5);
+}
+.lv-pt-card-h {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font: 500 14px var(--lv-sans);
+  color: var(--lv-ink-2);
+  flex-wrap: wrap;
+}
+.lv-pt-card-h > span:first-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.lv-pt-card-h svg {
+  width: 26px;
+  height: 26px;
+}
+.lv-pt-card-h b {
+  color: var(--ai);
+}
+.lv-pt-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.lv-pt-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 0;
+  font: 500 15px var(--lv-sans);
+  color: var(--lv-ink-3);
+  border-bottom: 1px solid var(--lv-line);
+}
+.lv-pt-list li i {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--lv-line-2);
+  flex: none;
+  display: grid;
+  place-items: center;
+}
+.lv-pt-list li.run,
+.lv-pt-list li.done {
+  color: var(--foreground);
+}
+.lv-pt-list li.run i {
+  border-color: var(--ai);
+  border-style: solid;
+  border-top-color: transparent;
+}
+.lv2[data-mov="on"] .lv-pt-list li.run i {
+  animation: lv-spin 0.8s linear infinite;
+}
+.lv-pt-list li.done i {
+  background: var(--ai);
+  border-color: var(--ai);
+  border-style: solid;
+}
+.lv-pt-list li.done i::after {
+  content: "";
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+@keyframes lv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.lv-pt-draft {
+  margin-top: 16px;
+  border: 1px dashed var(--ai);
+  border-radius: 12px;
+  padding: 14px 16px;
+  background: var(--ai-soft);
+  transition:
+    opacity 0.4s,
+    transform 0.5s var(--ease-out);
+}
+.lv-pt-draft.wait {
+  /* Sin bajar la opacidad: el texto tiene que seguir llegando a AA. */
+  border-style: dotted;
+  transform: translateY(6px);
+}
+.lv-pt-draft .lbl {
+  font: 600 12px var(--lv-sans);
+  color: var(--ai);
+}
+.lv-pt-draft dl {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 6px 8px;
+  margin: 8px 0 0;
+}
+.lv-pt-draft dt {
+  font-family: var(--lv-serif);
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ai);
+}
+.lv-pt-draft dd {
+  margin: 0;
+  font-size: 14.5px;
+}
+.lv-pt-acts {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.lv-pt-acts .lv-btn {
+  background: var(--ai);
+  color: var(--ai-foreground);
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.lv-pt-acts .lv-btn.lv-btn-line {
+  background: transparent;
+  color: var(--ai);
+  border-color: var(--ai);
+}
+.lv-pt-foot {
+  margin-top: 10px;
+  font: 500 12.5px var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+
+/* ── Todavía no hacemos (PR 7) ───────────────────────────── */
+.lv-ny {
+  padding: clamp(70px, 8vw, 110px) 0;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-ny-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.3fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .lv-ny-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.lv-ny .lv-lead {
+  margin-top: 16px;
+}
+.lv-ny-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--foreground);
+}
+.lv-ny-list li {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-ny-list svg {
+  width: 26px;
+  height: 26px;
+  stroke: var(--lv-ocre-display);
+  fill: none;
+  stroke-width: 1.6;
+  margin-top: 2px;
+}
+.lv-ny-list b {
+  display: block;
+  font-family: var(--lv-serif);
+  font-weight: 500;
+  font-size: clamp(26px, 2.4vw, 34px);
+  line-height: 1.05;
+  text-decoration: line-through;
+  text-decoration-color: var(--brand);
+  text-decoration-thickness: 2px;
+}
+.lv-ny-list span {
+  display: block;
+  margin-top: 6px;
+  color: var(--lv-ink-2);
+  max-width: 56ch;
+}
+
+/* ── Testimonios reservados (PR 7) ───────────────────────── */
+.lv-tst {
+  padding: 0 0 clamp(80px, 10vw, 140px);
+}
+.lv-tst-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 40px 0 0;
+  padding: 0;
+  list-style: none;
+  align-items: start;
+}
+.lv-tst-grid li:nth-child(2) {
+  margin-top: 72px;
+}
+.lv-tst-grid li:nth-child(3) {
+  margin-top: 28px;
+}
+@media (max-width: 820px) {
+  .lv-tst-grid {
+    grid-template-columns: 1fr;
+  }
+  .lv-tst-grid li {
+    margin-top: 0 !important;
+  }
+}
+.lv-ph {
+  border: 1.5px dashed var(--lv-line-2);
+  border-radius: var(--lv-r-l);
+  padding: 26px;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: var(--lv-ink-2);
+}
+.lv-ph p {
+  font-family: var(--lv-serif);
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--lv-ink-3);
+}
+.lv-ph span {
+  margin-top: auto;
+  font: 500 12.5px var(--lv-mono);
+}
+
+/* ── FAQ corta (PR 7) ────────────────────────────────────── */
+.lv-faq {
+  padding: clamp(70px, 9vw, 120px) 0;
+  border-top: 1px solid var(--lv-line);
+}
+.lv-faq-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 40px;
+}
+@media (max-width: 820px) {
+  .lv-faq-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.lv-faq details {
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.lv-faq details:first-child {
+  border-top: 1px solid var(--lv-line-2);
+}
+.lv-faq summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 0;
+  font: 600 17px/1.35 var(--lv-sans);
+}
+.lv-faq summary::-webkit-details-marker {
+  display: none;
+}
+.lv-faq summary::after {
+  content: "";
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  border-right: 1.6px solid currentColor;
+  border-bottom: 1.6px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.4s var(--ease-out);
+}
+.lv-faq details[open] summary::after {
+  transform: rotate(-135deg);
+}
+.lv-faq details p {
+  padding: 0 0 22px;
+  color: var(--lv-ink-2);
+  max-width: 64ch;
+}
+.lv-faq-mas {
+  margin-top: 20px;
+  font: 500 14px var(--lv-sans);
+}
+
+/* ── Patty, chip flotante (PR 7) ─────────────────────────── */
+.lv-patty-chip {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 8px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--lv-line-2);
+  box-shadow: 0 18px 40px -18px rgb(21 18 15 / 0.45);
+  max-width: min(380px, calc(100% - 36px));
+}
+.lv2[data-mov="on"] .lv-patty-chip {
+  animation: lv-chipin 0.9s 1.4s var(--ease-out) both;
+}
+@keyframes lv-chipin {
+  from {
+    transform: translateY(30px);
+  }
+}
+.lv-patty-chip .txt {
+  font: 500 13px/1.3 var(--lv-sans);
+  color: var(--lv-ink-2);
+  text-decoration: none;
+}
+.lv-patty-chip .txt:hover span {
+  text-decoration: underline;
+}
+.lv-patty-chip .txt b {
+  color: var(--ai);
+  font-weight: 600;
+}
+.lv-patty-chip .x {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: var(--lv-ink-2);
+  flex: none;
+}
+.lv-patty-chip .x:hover {
+  background: var(--lv-paper-2);
+  color: var(--foreground);
+}
+.lv-patty-chip .x svg {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.lv-pav {
+  width: 40px;
+  height: 40px;
+  flex: none;
+}
+.lv2[data-mov="on"] .lv-pav .eye {
+  animation: lv-blink 5.5s infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+@keyframes lv-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@media (max-width: 560px) {
+  .lv-patty-chip .txt span {
+    display: none;
+  }
+}
