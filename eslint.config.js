@@ -7,7 +7,14 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   {
-    ignores: ["dist", ".output", ".vinxi", ".vercel", ".claude", "docs/design_handoff_rediseno"],
+    ignores: [
+      "dist",
+      ".output",
+      ".vinxi",
+      ".vercel",
+      ".claude",
+      "docs/archivo/design_handoff_rediseno",
+    ],
   },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

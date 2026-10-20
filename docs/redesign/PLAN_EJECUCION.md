@@ -1,6 +1,6 @@
 # Rediseño Esmalia — plan de ejecución
 
-Fuente: `docs/design_handoff_rediseno/` (README + lienzo `esmalia-rediseno.dc.html`, paneles 1a–1f).
+Fuente: `docs/archivo/design_handoff_rediseno/` (README + lienzo `esmalia-rediseno.dc.html`, paneles 1a–1f).
 Progreso vivo y punto de retome: [`PROGRESO.md`](./PROGRESO.md).
 
 ## Cómo se ejecuta

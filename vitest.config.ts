@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     // Espeja el alias "@/*" -> "src/*" de tsconfig.json (vite-tanstack-config
-    // lo agrega en la app real vía tsConfigPaths, pero acá vitest no carga
+    // lo resuelve en la app real vía `resolve.tsconfigPaths`, pero acá vitest no carga
     // ese preset). Sin esto, cualquier test que importe algo de src/lib con
     // el alias falla en resolución de módulos.
     alias: { "@": path.resolve(__dirname, "./src") },

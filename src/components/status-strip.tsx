@@ -5,11 +5,8 @@ import { DemoBanner } from "@/components/demo-banner";
 import { PendingSyncBanner } from "@/components/pending-sync-banner";
 import { RoleSimulationBar } from "@/components/role-simulation-bar";
 import { TrialBanner } from "@/components/trial-banner";
-import {
-  AvisoMfaRecomendado,
-  useAvisoMfaPospuesto,
-  useEstadoMfa,
-} from "@/components/verificacion-dos-pasos";
+import { AvisoMfaRecomendado } from "@/components/verificacion-dos-pasos";
+import { useAvisoMfaPospuesto, useEstadoMfa } from "@/hooks/use-estado-mfa";
 import { useColaOffline } from "@/hooks/use-offline-mutation";
 import type { ClinicAccess } from "@/lib/access/access";
 import { debeMostrarAvisoMfa } from "@/lib/auth/mfa";

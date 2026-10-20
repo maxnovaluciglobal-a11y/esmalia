@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { cargarPagina, headDePagina, VistaPagina } from "@/lib/marketing/ruta-contenido";
+import { VistaPagina } from "@/components/marketing/vista-pagina";
+import { cargarPagina, headDePagina } from "@/lib/marketing/ruta-contenido";
 
 // Contenido en src/content/paginas/pais-colombia.ts.
 export const Route = createFileRoute("/software-dental-colombia")({

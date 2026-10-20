@@ -17,7 +17,8 @@ import { horaDeMinutos, rangoDeGrilla } from "@/components/agenda-hueco";
 import { claseBloque, tonoDeEstadoCita } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
 import { horarioDelDia, type BloqueHorario } from "@/components/agenda-movimiento";
-import { FranjasDeHorario, useMinutosAhora } from "@/components/agenda-grid";
+import { FranjasDeHorario } from "@/components/agenda-grid";
+import { useMinutosAhora } from "@/hooks/use-minutos-ahora";
 import {
   etiquetaOcupacion,
   ocupacionDeLaSemana,
