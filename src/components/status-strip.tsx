@@ -35,7 +35,15 @@ import { getMySubscription } from "@/lib/billing.functions";
  * resolver un conflicto) y sus acciones siguen intactos. Mismo queryKey de
  * suscripción que `TrialBanner` y el dashboard: comparten caché.
  */
-export function StatusStrip({ access }: { access: ClinicAccess }) {
+export function StatusStrip({
+  access,
+  shellV2 = false,
+}: {
+  access: ClinicAccess;
+  /** Con el shell A+ la red y los pendientes van en la pastilla de conexión:
+   *  acá solo llegan los fallidos y conflictos, que piden una decisión. */
+  shellV2?: boolean;
+}) {
   const { online } = useConnectivity();
   const { pendientes, fallidos, conflictos } = useColaOffline(access.userId);
   const clinicId = access.clinic?.id;
@@ -63,8 +71,13 @@ export function StatusStrip({ access }: { access: ClinicAccess }) {
     });
 
   if (esDemo) return <DemoBanner />;
-  if (!online) return <OfflineBanner />;
-  if (pendientes.length + fallidos.length + conflictos.length > 0) {
+  if (shellV2) {
+    if (fallidos.length + conflictos.length > 0) {
+      return <PendingSyncBanner userId={access.userId} soloAccionables />;
+    }
+  } else if (!online) {
+    return <OfflineBanner />;
+  } else if (pendientes.length + fallidos.length + conflictos.length > 0) {
     return <PendingSyncBanner userId={access.userId} />;
   }
   // Solo lectura (BIL-01) antes que la simulación y el aviso de MFA: explica

@@ -38,9 +38,19 @@ function loQueHayVigente(item: ItemCola): string {
  *   Requieren que una persona los mire. Un cobro que se pierde en silencio es
  *   peor que uno que nunca se registró, así que esto NO se auto-descarta.
  */
-export function PendingSyncBanner({ userId }: { userId: string | undefined }) {
+export function PendingSyncBanner({
+  userId,
+  soloAccionables = false,
+}: {
+  userId: string | undefined;
+  /** Shell A+ (`shell-v2`): los pendientes ya los cuenta la pastilla de
+   *  conexión, así que acá quedan solo fallidos y conflictos. */
+  soloAccionables?: boolean;
+}) {
   const queryClient = useQueryClient();
-  const { pendientes, fallidos, conflictos } = useColaOffline(userId);
+  const cola = useColaOffline(userId);
+  const { fallidos, conflictos } = cola;
+  const pendientes = soloAccionables ? [] : cola.pendientes;
 
   if (pendientes.length === 0 && fallidos.length === 0 && conflictos.length === 0) return null;
 

@@ -8,6 +8,7 @@ import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { ClinicSwitcher } from "@/components/clinic-switcher";
 import { GlobalSearch } from "@/components/global-search";
 import { NotificationsBell } from "@/components/notifications-bell";
+import { PastillaConexion } from "@/components/pastilla-conexion";
 import { SoloLecturaProvider } from "@/components/solo-lectura";
 import { StatusStrip } from "@/components/status-strip";
 import { getSupabase } from "@/integrations/supabase/lazy";
@@ -26,6 +27,8 @@ import {
   esRutaDeAjustes,
   pestanaActiva,
 } from "@/lib/access/navegacion";
+import { useFlag } from "@/lib/flags";
+import { propsItemNav } from "@/lib/shell-v2";
 import { cn } from "@/lib/utils";
 
 /**
@@ -210,6 +213,9 @@ export function AppShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [signingOut, setSigningOut] = useState(false);
+  // Shell A+ (PR 4): sidebar en tinta, ⌘K visible y densidad tranquila.
+  // Apagado = el shell de siempre, sin un solo cambio.
+  const shellV2 = useFlag("shell-v2", access.email);
 
   // Una sola vez para toda la app: si cada pantalla lo montara, varias
   // sincronizaciones competirían por la misma cola.
@@ -305,14 +311,27 @@ export function AppShell({
   }
 
   return (
-    <div data-app-shell className="flex min-h-dvh w-full bg-background text-foreground">
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
+    <div
+      data-app-shell
+      data-shell-v2={shellV2 ? "" : undefined}
+      className="flex min-h-dvh w-full bg-background text-foreground"
+    >
+      <aside
+        className={cn(
+          "sticky top-0 hidden h-dvh w-60 shrink-0 flex-col lg:flex",
+          // `dark` en el aside: los tokens de adentro (logo, selector de
+          // clínica, foco) se leen sobre tinta aunque la página esté en claro.
+          shellV2
+            ? "dark border-r border-night-line bg-night text-on-night"
+            : "border-r border-border bg-sidebar",
+        )}
+      >
         <div className="space-y-4 px-5 pt-6 pb-4">
           <Link to="/dashboard" className="flex items-center py-1">
             <EsmaliaLogo size={28} />
           </Link>
           <ClinicSwitcher access={access} />
-          <GlobalSearch access={access} atajo />
+          <GlobalSearch access={access} atajo shellV2={shellV2} />
         </div>
 
         <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3">
@@ -322,25 +341,28 @@ export function AppShell({
               const badge = badgePorDestino[id] ?? 0;
               return (
                 <li key={id}>
-                  <Link
-                    to={pestanas[0].to}
-                    aria-current={activo ? "page" : undefined}
-                    className={cn(
-                      "flex items-center gap-3 rounded-md border px-3 py-2 text-[15px] transition-colors",
-                      activo
-                        ? "border-brand/50 text-brand-800"
-                        : "border-transparent text-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
-                    )}
-                  >
+                  <Link to={pestanas[0].to} {...propsItemNav(activo, shellV2)}>
                     <Icon
-                      className={cn("size-4", activo ? "text-brand-700" : "text-muted-foreground")}
+                      className={cn(
+                        "size-4",
+                        shellV2
+                          ? activo
+                            ? "text-brand-on-night"
+                            : "text-on-night-2"
+                          : activo
+                            ? "text-brand-700"
+                            : "text-muted-foreground",
+                      )}
                     />
                     <span>{label}</span>
                     {badge > 0 && (
                       <>
                         <span
                           aria-hidden
-                          className="ml-auto min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                          className={cn(
+                            "ml-auto min-w-5 rounded-sm px-1 text-center text-[11px] leading-5 tabular-nums",
+                            shellV2 ? "bg-brand-on-night text-night" : "bg-brand-700 text-white",
+                          )}
                         >
                           {badge > 9 ? "9+" : badge}
                         </span>
@@ -354,27 +376,44 @@ export function AppShell({
           </ul>
         </nav>
 
-        <div className="space-y-0.5 border-t border-border px-3 py-3">
-          <Link
-            to="/ajustes"
-            aria-current={enAjustes ? "page" : undefined}
-            className={cn(
-              "flex items-center gap-3 rounded-md border px-3 py-2 text-[15px] transition-colors",
-              enAjustes
-                ? "border-brand/50 text-brand-800"
-                : "border-transparent text-foreground/80 hover:bg-sidebar-accent hover:text-foreground",
-            )}
-          >
+        {shellV2 && (
+          <div className="px-5 pt-3">
+            <PastillaConexion userId={access.userId} className="bg-night-2" />
+          </div>
+        )}
+
+        <div
+          className={cn(
+            "space-y-0.5 border-t px-3 py-3",
+            shellV2 ? "mt-3 border-night-line" : "border-border",
+          )}
+        >
+          <Link to="/ajustes" {...propsItemNav(enAjustes, shellV2)}>
             <Settings
-              className={cn("size-4", enAjustes ? "text-brand-700" : "text-muted-foreground")}
+              className={cn(
+                "size-4",
+                shellV2
+                  ? enAjustes
+                    ? "text-brand-on-night"
+                    : "text-on-night-2"
+                  : enAjustes
+                    ? "text-brand-700"
+                    : "text-muted-foreground",
+              )}
             />
             Ajustes
           </Link>
           <AyudaMenu
             clinicName={access.clinic?.name}
-            className="flex w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-[15px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            className={
+              shellV2
+                ? propsItemNav(false, true).className
+                : "flex w-full items-center gap-3 rounded-md border border-transparent px-3 py-2 text-left text-[15px] text-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            }
           >
-            <LifeBuoy className="size-4 text-muted-foreground" />
+            <LifeBuoy
+              className={cn("size-4", shellV2 ? "text-on-night-2" : "text-muted-foreground")}
+            />
             Ayuda
           </AyudaMenu>
         </div>
@@ -387,8 +426,13 @@ export function AppShell({
         >
           <h1 className="truncate font-display text-xl font-semibold">{title}</h1>
           <div className="flex items-center gap-3">
-            <div className="sm:w-56 lg:hidden">
-              <GlobalSearch access={access} />
+            {shellV2 && (
+              <div className="hidden sm:block lg:hidden">
+                <PastillaConexion userId={access.userId} />
+              </div>
+            )}
+            <div className={cn("sm:w-56 lg:hidden", shellV2 && "md:w-64")}>
+              <GlobalSearch access={access} shellV2={shellV2} enBarraSuperior />
             </div>
             <NotificationsBell userId={access.userId} />
             <div className="hidden md:block">
@@ -429,7 +473,13 @@ export function AppShell({
           </div>
         </header>
 
-        <StatusStrip access={access} />
+        {shellV2 && (
+          <div className="px-5 pt-3 empty:hidden sm:hidden">
+            <PastillaConexion userId={access.userId} soloSiHayAlgo />
+          </div>
+        )}
+
+        <StatusStrip access={access} shellV2={shellV2} />
 
         <nav
           aria-label="Principal"
