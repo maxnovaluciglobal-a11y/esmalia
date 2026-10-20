@@ -100,7 +100,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "US$29 al mes para un profesional, cobrados en dólares por Stripe. Incluye agenda y ficha clínica, recordatorios por WhatsApp, caja y presupuestos, importación de pacientes por planilla y soporte directo con el equipo que lo construye. Quienes entran en esta etapa conservan el precio mientras sean clientes.",
+            "US$29 al mes para un profesional, cobrados en dólares por Stripe. Incluye agenda y ficha clínica, recordatorios por WhatsApp, caja y presupuestos, importación de pacientes por planilla y soporte directo con el equipo que lo construye. Las clínicas fundadoras pagan la mitad del precio durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
         },
         {
           tipo: "p",

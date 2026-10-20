@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { registrarEvento } from "@/lib/marketing/eventos";
+import { PRECIO_FUNDADOR_EXPLICACION } from "@/lib/marketing/precio-fundador";
 import { canonicalHead, faqJsonLdScript } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +57,7 @@ const preguntas: { q: string; a: string }[] = [
   },
   {
     q: "¿Qué es el precio fundador?",
-    a: "Quienes entran en esta etapa conservan el precio de su plan mientras sean clientes.",
+    a: PRECIO_FUNDADOR_EXPLICACION,
   },
 ];
 
@@ -89,7 +90,7 @@ function PaginaPrecios() {
 
       <main id="main-content">
         <section className="mx-auto max-w-6xl px-6 pt-14 pb-16 sm:pt-20">
-          {/* El H1 nombra el producto y el precio; "Precio fundador, de por vida"
+          {/* El H1 nombra el producto y el precio; el precio fundador
               queda como H2 dentro de PreciosPlanes. */}
           <h1 className="kicker mb-4">Precios de Esmalia, software dental desde US$29/mes</h1>
           <PreciosPlanes encabezado="h2" lugar="pagina-precios" />

@@ -20,6 +20,10 @@ import { detectarPaisVisitante, monedaPorPais } from "@/lib/marketing/pais-visit
 import { setPlanIntent, type PlanIntent } from "@/lib/marketing/plan-intent";
 import { MONEDAS_PRECIO, precioEnMoneda, type MonedaPrecio } from "@/lib/pricing-display";
 import { cn } from "@/lib/utils";
+import {
+  PRECIO_FUNDADOR_EXPLICACION,
+  PRECIO_FUNDADOR_TITULO,
+} from "@/lib/marketing/precio-fundador";
 
 type Plan = {
   id: "solo" | "clinica" | "red";
@@ -94,11 +98,10 @@ export function PreciosPlanes({
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <Titulo className="font-display text-4xl font-normal leading-tight sm:text-5xl">
-            Precio fundador, de por vida.
+            {PRECIO_FUNDADOR_TITULO}
           </Titulo>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            14 días gratis y sin tarjeta. Quienes entran en esta etapa conservan este precio
-            mientras sean clientes.
+            14 días gratis y sin tarjeta. {PRECIO_FUNDADOR_EXPLICACION}
           </p>
         </div>
         <div
