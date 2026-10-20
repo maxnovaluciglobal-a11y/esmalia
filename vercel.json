@@ -85,6 +85,11 @@
   ],
   "redirects": [
     {
+      "source": "/v2",
+      "destination": "/",
+      "permanent": true
+    },
+    {
       "source": "/",
       "has": [
         {

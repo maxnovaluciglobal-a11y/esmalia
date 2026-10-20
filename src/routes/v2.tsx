@@ -1,34 +1,12 @@
 // src/routes/v2.tsx
 //
-// Landing A+ en construcción (plan del 19-oct-2026, PRs 5 a 8). Vive en /v2
-// hasta que se revise en producción; el PR 8 la pasa a "/" y deja /v2 con
-// un 308. Mientras tanto: `noindex`, fuera del sitemap y del footer, y "/"
-// sin cambios.
-import { createFileRoute } from "@tanstack/react-router";
-
-import { faqJsonLdScript } from "@/lib/seo";
-
-import { LandingV2 } from "@/components/marketing/v2/landing-v2";
-import { FAQ_CORTA } from "@/components/marketing/v2/faq-corta-datos";
-import landingV2Css from "@/components/marketing/v2/landing-v2.css?url";
+// La landing A+ se armó en /v2 y el PR 8 (20-oct-2026) la pasó a "/".
+// Redirección permanente 308: vercel.json la resuelve antes de llegar a la
+// app; esta ruta cubre la navegación del lado del cliente.
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/v2")({
-  head: () => ({
-    meta: [
-      { title: "Software para clínicas dentales en Latinoamérica | Esmalia" },
-      {
-        name: "description",
-        content:
-          "Agenda por profesional, ficha con odontograma, caja del día y recordatorios por WhatsApp que envía tu equipo con un toque. 14 días gratis, sin tarjeta.",
-      },
-      { name: "robots", content: "noindex" },
-    ],
-    // La cara de titulares (Bricolage, ~21 KB) no se precarga: el LCP es el
-    // párrafo del hero (Instrument Sans) y una precarga más le compite el
-    // ancho de banda. El h1 no cambia de alto al llegar la fuente (líneas
-    // fijas con line-height propio), así que no hay CLS.
-    links: [{ rel: "stylesheet", href: landingV2Css }],
-    scripts: faqJsonLdScript(FAQ_CORTA.map((f) => ({ q: f.q, a: f.a }))),
-  }),
-  component: LandingV2,
+  beforeLoad: () => {
+    throw redirect({ to: "/", statusCode: 308 });
+  },
 });
