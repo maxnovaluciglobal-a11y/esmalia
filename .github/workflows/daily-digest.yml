@@ -1,7 +1,8 @@
 name: Resumen diario (disparo horario)
 
-# Reemplaza el cron horario de vercel.json: el plan Hobby de Vercel solo
-# permite crons diarios y rechazaba todos los deploys de Esmalia (oct-2026).
+# Disparo de respaldo. El principal es Vercel Cron (vercel.json, minuto 37),
+# disponible desde que el team pasó a Pro (19-oct-2026); antes, con Hobby,
+# este workflow era el único disparo horario. Quedan separados por 30 min.
 # El endpoint corre cada hora y filtra por la hora local de cada clínica;
 # es idempotente (no repite el resumen del día), así que un reintento o
 # un disparo manual no duplica avisos.

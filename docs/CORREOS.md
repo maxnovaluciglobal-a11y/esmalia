@@ -44,7 +44,7 @@ Nada de esto lanza hacia quien llama: el onboarding y el webhook de Stripe nunca
 
 **Ventana de envío: 8:00 a 20:59 hora de la clínica** (`esVentanaDeCorreos`). Antes era 8:00-11:59, pero el disparo de GitHub Actions es poco fiable (3 a 7 corridas por día entre el 11 y el 18-oct) y el lunes 12 ninguna cayó en la ventana de ningún país: no salió ni el reporte semanal ni un aviso de fin de prueba (hallazgo CS-03). Como cada envío es idempotente, abrir la ventana no puede duplicar correos, solo evita perderlos. El resumen diario sigue con 8:00-11:59.
 
-`.github/workflows/lifecycle-emails.yml` llama cada hora (minuto 17) a `GET /api/lifecycle-emails` con `Authorization: Bearer $CRON_SECRET`, igual que el resumen diario. Tope de 200 clínicas y 150 correos por corrida. La respuesta y el log (`[lifecycle-emails] revisadas=… enviados=…`) dejan rastro aunque no se envíe nada.
+Vercel Cron llama cada hora (minuto 47, `vercel.json`) a `GET /api/lifecycle-emails` con `Authorization: Bearer $CRON_SECRET`; `.github/workflows/lifecycle-emails.yml` repite la llamada de respaldo en el minuto 17. Lo mismo para el resumen diario (minutos 37 y 7). Con el team en Pro (19-oct-2026) el disparo de Vercel es el principal y el de GitHub queda por si falla; como todo es idempotente, el doble disparo no duplica correos. Tope de 200 clínicas y 150 correos por corrida. La respuesta y el log (`[lifecycle-emails] revisadas=… enviados=…`) dejan rastro aunque no se envíe nada.
 
 ## Ver cómo se ven (muestras de QA)
 

@@ -1,6 +1,7 @@
 name: Correos de ciclo de vida (disparo horario)
 
-# Mismo patrón que daily-digest.yml: Vercel Hobby solo permite crons diarios.
+# Disparo de respaldo, como daily-digest.yml: el principal es Vercel Cron
+# (vercel.json, minuto 47), con el team en Pro desde el 19-oct-2026.
 # El endpoint corre cada hora, actúa solo en la ventana local de 8:00 a 20:59
 # de cada clínica (GitHub no garantiza la hora: ver docs/CORREOS.md) (aviso de fin de prueba; reporte semanal los lunes) y es
 # idempotente (tabla lifecycle_emails), así que un reintento o un disparo

@@ -95,20 +95,20 @@ Pasa los apuntes del profesional a una nota SOAP, pule la redacción, resume la 
 
 ## 6. Stack e infraestructura
 
-| Capa                           | Qué                                                                                                        | Nota                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Aplicación                     | TanStack Start (SSR) + React 19 + Vite 8 + TypeScript + Tailwind 4 + shadcn/ui                             | Server functions con middleware de auth y validación Zod                     |
-| Base, auth y archivos          | Supabase (Postgres, Auth, Storage, Realtime), proyecto `esmalia-prod` en `sa-east-1` (São Paulo), plan Pro | Org compartida con otros 2 proyectos de la empresa. Sin PITR                 |
-| Hosting                        | Vercel, funciones en `gru1` (São Paulo)                                                                    | **Plan Hobby, que prohíbe el uso comercial** (OPS-01). Decisión D5 pendiente |
-| DNS, dominio y correo entrante | Cloudflare (registrar, DNS, Email Routing)                                                                 | `esmalia.com` vence el 09-oct-2027                                           |
-| Correo saliente                | Resend (plan gratis), SPF, DKIM y DMARC `p=none`                                                           |                                                                              |
-| Pagos                          | Stripe, cuenta propia de Esmalia                                                                           | Checkout alojado (SAQ A)                                                     |
-| Errores y monitoreo            | Sentry (plan gratis), monitor de `/api/health` cada 1 min                                                  | Alerta por correo a una sola persona                                         |
-| Backups                        | GitHub Actions → JSON cifrado con `age` → Backblaze B2, diario, más el snapshot diario de Supabase         | Bucket compartido, sin Object Lock                                           |
-| Tareas programadas             | GitHub Actions (backup, resumen diario y correos de ciclo de vida)                                         | Los disparos horarios corren 3 a 7 veces por día (OPS-02)                    |
-| IA                             | Gateway propio: Gemini, con OpenAI como alternativa                                                        | Ver la advertencia de Patty                                                  |
-| Validación de teléfonos        | Numverify por HTTPS (#66)                                                                                  | Todavía no figura en el DPA                                                  |
-| WhatsApp                       | `wa.me` manual. Meta Cloud API con Embedded Signup v4 construida, sin activar                              | Token por clínica cifrado (AES-256-GCM)                                      |
+| Capa                           | Qué                                                                                                        | Nota                                                         |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Aplicación                     | TanStack Start (SSR) + React 19 + Vite 8 + TypeScript + Tailwind 4 + shadcn/ui                             | Server functions con middleware de auth y validación Zod     |
+| Base, auth y archivos          | Supabase (Postgres, Auth, Storage, Realtime), proyecto `esmalia-prod` en `sa-east-1` (São Paulo), plan Pro | Org compartida con otros 2 proyectos de la empresa. Sin PITR |
+| Hosting                        | Vercel, funciones en `gru1` (São Paulo)                                                                    | **Plan Pro** desde el 19-oct-2026 (OPS-01 y D5 resueltos)    |
+| DNS, dominio y correo entrante | Cloudflare (registrar, DNS, Email Routing)                                                                 | `esmalia.com` vence el 09-oct-2027                           |
+| Correo saliente                | Resend (plan gratis), SPF, DKIM y DMARC `p=none`                                                           |                                                              |
+| Pagos                          | Stripe, cuenta propia de Esmalia                                                                           | Checkout alojado (SAQ A)                                     |
+| Errores y monitoreo            | Sentry (plan gratis), monitor de `/api/health` cada 1 min                                                  | Alerta por correo a una sola persona                         |
+| Backups                        | GitHub Actions → JSON cifrado con `age` → Backblaze B2, diario, más el snapshot diario de Supabase         | Bucket compartido, sin Object Lock                           |
+| Tareas programadas             | GitHub Actions (backup, resumen diario y correos de ciclo de vida)                                         | Los disparos horarios corren 3 a 7 veces por día (OPS-02)    |
+| IA                             | Gateway propio: Gemini, con OpenAI como alternativa                                                        | Ver la advertencia de Patty                                  |
+| Validación de teléfonos        | Numverify por HTTPS (#66)                                                                                  | Todavía no figura en el DPA                                  |
+| WhatsApp                       | `wa.me` manual. Meta Cloud API con Embedded Signup v4 construida, sin activar                              | Token por clínica cifrado (AES-256-GCM)                      |
 
 Costo directo estimado: **~US$16-26 por mes** (US$36-46 con Vercel Pro). El costo marginal por clínica es casi cero hasta unas 50 clínicas. El detalle de presupuesto y P&L vive fuera del repo, en `02 - Finanzas/`.
 
