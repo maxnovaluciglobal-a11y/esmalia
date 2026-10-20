@@ -4,7 +4,6 @@
 // del editor, así que acá no hacen falta. Ver docs/DESACOPLE_LOVABLE.md.
 import { defineConfig, loadEnv, type PluginOption } from "vite";
 import tailwindcss from "@tailwindcss/vite";
-import tsConfigPaths from "vite-tsconfig-paths";
 import viteReact from "@vitejs/plugin-react";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 
@@ -31,8 +30,6 @@ export default defineConfig(async ({ command, mode }) => {
   }
 
   plugins.push(tailwindcss());
-  plugins.push(tsConfigPaths({ projects: ["./tsconfig.json"] }));
-
   plugins.push(
     tanstackStart({
       // security-review 01-sep: acá había un `client: { files: ["**/server/**"] }`
@@ -102,6 +99,8 @@ export default defineConfig(async ({ command, mode }) => {
     },
     css: { transformer: "lightningcss" as const },
     resolve: {
+      // Vite 8 resolves tsconfig `paths` natively (replaces vite-tsconfig-paths).
+      tsconfigPaths: true,
       alias: { "@": `${process.cwd()}/src` },
       dedupe: [
         "react",

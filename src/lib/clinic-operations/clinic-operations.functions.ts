@@ -79,29 +79,6 @@ export const createLab = createServerFn({ method: "POST" })
     return { id: inserted.id };
   });
 
-export const setLabActive = createServerFn({ method: "POST" })
-  .middleware([requireEscritura])
-  .validator((input: unknown) =>
-    z
-      .object({ clinicId: z.string().uuid(), labId: z.string().uuid(), isActive: z.boolean() })
-      .parse(input),
-  )
-  .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { error } = await context.supabase
-      .from("labs")
-      .update({ is_active: data.isActive })
-      .eq("id", data.labId)
-      .eq("clinic_id", data.clinicId);
-    if (error)
-      throw new Error(
-        mensajeDb(
-          error,
-          "No pudimos guardar. Revisa los datos y vuelve a intentarlo; si sigue igual, puede que tu rol no pueda configurar laboratorios.",
-        ),
-      );
-    return { ok: true };
-  });
-
 const LAB_ORDER_COLUMNS =
   "id, lab_id, lab_name_snapshot, patient_id, treatment_item_id, professional_id, description, tooth_numbers, status, sent_on, due_on, received_on, cost_cents, currency, notes";
 
@@ -311,40 +288,6 @@ export const listWarehouses = createServerFn({ method: "GET" })
       isActive: r.is_active,
       position: r.position,
     }));
-  });
-
-export const createWarehouse = createServerFn({ method: "POST" })
-  .middleware([requireEscritura])
-  .validator((input: unknown) =>
-    z
-      .object({
-        clinicId: z.string().uuid(),
-        name: z.string().trim().min(1, "El nombre de la bodega es obligatorio."),
-        branchId: z.string().uuid().nullish(),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }): Promise<{ id: string }> => {
-    const { data: inserted, error } = await context.supabase
-      .from("warehouses")
-      .insert({
-        clinic_id: data.clinicId,
-        name: data.name,
-        branch_id: data.branchId ?? null,
-        position: 99,
-      })
-      .select("id")
-      .single();
-    if (error) {
-      if (error.code === "23505") throw new Error(`Ya existe una bodega llamada "${data.name}".`);
-      throw new Error(
-        mensajeDb(
-          error,
-          "No pudimos guardar. Revisa los datos y vuelve a intentarlo; si sigue igual, puede que tu rol no pueda configurar bodegas.",
-        ),
-      );
-    }
-    return { id: inserted.id };
   });
 
 /** Saldo de cada ítem por bodega, para el selector del inventario. */

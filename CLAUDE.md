@@ -70,7 +70,7 @@ Producción con cobro en USD por Stripe (`/precios`: Solo US$29, Clínica US$69)
 // src/lib/*.functions.ts
 export const doThing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth]) // JWT + context.supabase con RLS del usuario
-  .inputValidator((input: unknown) => Schema.parse(input))
+  .validator((input: unknown) => Schema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
   });

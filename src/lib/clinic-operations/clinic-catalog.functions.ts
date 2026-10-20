@@ -55,7 +55,7 @@ export const listBranchesForReviewLinks = createServerFn({ method: "GET" })
   );
 
 /** Actualiza el link de reseña de Google de una sucursal. RLS
- * (`branches_write`) ya exige `can_manage_clinic`; `clinicId` en el `.eq()`
+ * (`branches_update`) ya exige `can_manage_clinic`; `clinicId` en el `.eq()`
  * es cinturón de defensa en profundidad, no la fuente de la autorización. */
 export const updateBranchGoogleReviewUrl = createServerFn({ method: "POST" })
   .middleware([requireEscritura])

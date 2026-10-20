@@ -49,6 +49,8 @@ import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
 import { ArchivarFichaButton } from "@/components/archivar-ficha";
+import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
+import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
 import { ExportarFichaPaciente } from "@/components/exportar-ficha-paciente";
 import { puedeExportarPaciente } from "@/lib/exportacion/exportacion-clinica";
 import { unirSinRepetir } from "@/lib/patients/fusion";
@@ -488,6 +490,15 @@ function PacienteDetalle() {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
+              {/* Datos de contacto e identificación: owner/admin/dentist/reception,
+                  igual que la policy patients_update_front_desk. */}
+              {clinicId && puedeEditarPaciente(access.role) && (
+                <EditarPacienteDialog
+                  clinicId={clinicId}
+                  country={access.clinic?.country ?? null}
+                  paciente={paciente}
+                />
+              )}
               {clinicId && hasPermission(access.role, "settings:manage") && (
                 <ArchivarFichaButton
                   clinicId={clinicId}

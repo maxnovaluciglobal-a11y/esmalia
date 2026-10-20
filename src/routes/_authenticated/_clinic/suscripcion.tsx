@@ -176,8 +176,8 @@ function BillingPage() {
   // Vuelta de Stripe (`success_url` = /suscripcion?checkout=success). El
   // servidor sólo lo cuenta si la suscripción que escribe el webhook ya
   // existe; después se limpia el parámetro para no contarlo de nuevo al
-  // recargar. TODO(medicion): el evento autoritativo es el webhook de Stripe
-  // (otro PR está cambiando billing; ver docs/MEDICION.md).
+  // recargar. El evento autoritativo lo registra el webhook de Stripe
+  // (`medirSuscripcionActivada` en api.stripe.webhook.ts; ver docs/MEDICION.md).
   const retornoRegistrado = useRef(false);
   useEffect(() => {
     if (retornoRegistrado.current) return;

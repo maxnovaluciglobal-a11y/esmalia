@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { cargarPagina, headDePagina, VistaPagina } from "@/lib/marketing/ruta-contenido";
+import { VistaPagina } from "@/components/marketing/vista-pagina";
+import { cargarPagina, headDePagina } from "@/lib/marketing/ruta-contenido";
 
 // Páginas de src/content/paginas/ con path "/plantillas/<slug>".
 export const Route = createFileRoute("/plantillas/$slug")({

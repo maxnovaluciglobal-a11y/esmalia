@@ -8,7 +8,7 @@ que genera un servidor Node autónomo en `.output/server/index.mjs`.
 ## 1. Requisitos de la VPS
 
 - 2 vCPU / 2 GB RAM mínimo (4 GB recomendado para builds en el propio servidor)
-- Docker + Docker Compose, **o** Node.js 22+ y Bun 1.x
+- Docker + Docker Compose, **o** Node.js 24 (el mismo que usa Vercel) con npm
 - Un dominio apuntando a la IP y un reverse proxy con TLS (Caddy, Nginx o Traefik)
 
 ---
@@ -55,9 +55,9 @@ docker compose up -d --build
 ## 4. Despliegue sin Docker
 
 ```bash
-bun install --frozen-lockfile
+npm ci
 export NITRO_PRESET=node-server
-bun run build
+npm run build
 
 # arranque
 NODE_ENV=production PORT=3000 HOST=0.0.0.0 node .output/server/index.mjs
