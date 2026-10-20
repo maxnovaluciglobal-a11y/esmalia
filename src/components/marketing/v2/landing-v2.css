@@ -542,6 +542,10 @@
 .lv-co-ex .lv-co-tag {
   background: var(--lv-clin-ex);
 }
+/* El número de pieza va en el color de la convención sobre blanco. */
+.lv-co-ex .lv-co-n {
+  color: var(--lv-clin-ex);
+}
 .lv-co-pl {
   top: 44%;
   right: -2%;
@@ -550,6 +554,9 @@
 }
 .lv-co-pl .lv-co-tag {
   background: var(--lv-clin-pl);
+}
+.lv-co-pl .lv-co-n {
+  color: var(--lv-clin-pl);
 }
 @media (prefers-reduced-motion: no-preference) {
   .lv-co {
