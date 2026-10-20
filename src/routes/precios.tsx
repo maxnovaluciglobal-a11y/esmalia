@@ -115,7 +115,7 @@ function PaginaPrecios() {
             </Accordion>
             <p className="mt-8 text-sm text-muted-foreground">
               ¿Otra duda?{" "}
-              <Link to="/faq" className="text-brand-700 underline-offset-4 hover:underline">
+              <Link to="/faq" className="text-brand-700 underline underline-offset-4">
                 Revisa las preguntas frecuentes
               </Link>{" "}
               o entra a la demo y mira la clínica por dentro.
