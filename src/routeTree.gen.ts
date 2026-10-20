@@ -33,6 +33,7 @@ import { Route as SoftwareDentalLatamRouteImport } from './routes/software-denta
 import { Route as SoftwareDentalMexicoRouteImport } from './routes/software-dental-mexico'
 import { Route as SoftwareDentalPeruRouteImport } from './routes/software-dental-peru'
 import { Route as TerminosRouteImport } from './routes/terminos'
+import { Route as V2RouteImport } from './routes/v2'
 import { Route as AuthenticatedClinicRouteRouteImport } from './routes/_authenticated/_clinic/route'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSinAccesoRouteImport } from './routes/_authenticated/sin-acceso'
@@ -227,6 +228,11 @@ const SoftwareDentalPeruRoute = SoftwareDentalPeruRouteImport.update({
 const TerminosRoute = TerminosRouteImport.update({
   id: '/terminos',
   path: '/terminos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const V2Route = V2RouteImport.update({
+  id: '/v2',
+  path: '/v2',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedClinicRouteRoute =
@@ -669,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/v2': typeof V2Route
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
   '/alternativas/$slug': typeof AlternativasSlugRoute
@@ -766,6 +773,7 @@ export interface FileRoutesByTo {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/v2': typeof V2Route
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
   '/alternativas/$slug': typeof AlternativasSlugRoute
@@ -867,6 +875,7 @@ export interface FileRoutesById {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/v2': typeof V2Route
   '/_authenticated/_clinic': typeof AuthenticatedClinicRouteRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/sin-acceso': typeof AuthenticatedSinAccesoRoute
@@ -969,6 +978,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/v2'
     | '/onboarding'
     | '/sin-acceso'
     | '/alternativas/$slug'
@@ -1066,6 +1076,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/v2'
     | '/onboarding'
     | '/sin-acceso'
     | '/alternativas/$slug'
@@ -1166,6 +1177,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/v2'
     | '/_authenticated/_clinic'
     | '/_authenticated/onboarding'
     | '/_authenticated/sin-acceso'
@@ -1268,6 +1280,7 @@ export interface RootRouteChildren {
   SoftwareDentalMexicoRoute: typeof SoftwareDentalMexicoRoute
   SoftwareDentalPeruRoute: typeof SoftwareDentalPeruRoute
   TerminosRoute: typeof TerminosRoute
+  V2Route: typeof V2Route
   AlternativasSlugRoute: typeof AlternativasSlugRoute
   ApiDailyDigestRoute: typeof ApiDailyDigestRoute
   ApiDemoResetRoute: typeof ApiDemoResetRoute
@@ -1460,6 +1473,13 @@ declare module '@tanstack/react-router' {
       path: '/terminos'
       fullPath: '/terminos'
       preLoaderRoute: typeof TerminosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/v2': {
+      id: '/v2'
+      path: '/v2'
+      fullPath: '/v2'
+      preLoaderRoute: typeof V2RouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_clinic': {
@@ -2176,6 +2196,7 @@ const rootRouteChildren: RootRouteChildren = {
   SoftwareDentalMexicoRoute: SoftwareDentalMexicoRoute,
   SoftwareDentalPeruRoute: SoftwareDentalPeruRoute,
   TerminosRoute: TerminosRoute,
+  V2Route: V2Route,
   AlternativasSlugRoute: AlternativasSlugRoute,
   ApiDailyDigestRoute: ApiDailyDigestRoute,
   ApiDemoResetRoute: ApiDemoResetRoute,
