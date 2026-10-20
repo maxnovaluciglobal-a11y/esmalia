@@ -16,6 +16,7 @@ import { AcordeonMolar } from "./acordeon-molar";
 import { Arco32 } from "./arco-32";
 import { BentoFlujo } from "./bento-flujo";
 import { Cifras } from "./cifras";
+import { CONDICIONES } from "./condiciones";
 import { CtaFinal } from "./cta-final";
 import { EncabezadoV2, type EnlaceSeccion } from "./encabezado";
 import { HeroDia } from "./hero-dia";
@@ -26,6 +27,7 @@ import { PreciosV2 } from "./precios-v2";
 import { ReservaEnVivo } from "./reserva-en-vivo";
 import { FaqCorta, TestimoniosReservados, TodaviaNo } from "./secciones-finales";
 import { TimelinePrueba } from "./timeline-prueba";
+import { WordmarkGigante } from "./wordmark-gigante";
 
 const SECCIONES: readonly EnlaceSeccion[] = [
   { label: "Reserva online", href: "#reserva" },
@@ -34,21 +36,6 @@ const SECCIONES: readonly EnlaceSeccion[] = [
   { label: "Precios", href: "#precios" },
   { label: "Preguntas", href: "#preguntas" },
 ];
-
-const CONDICIONES = [
-  "caries",
-  "obturación",
-  "endodoncia",
-  "corona",
-  "implante",
-  "sellante",
-  "fractura",
-  "extracción indicada",
-  "prótesis fija",
-  "pieza ausente",
-  "lesión cervical",
-  "restauración desadaptada",
-] as const;
 
 export function LandingV2() {
   const { animar } = useMovimiento();
@@ -80,7 +67,14 @@ export function LandingV2() {
         <FaqCorta />
         <CtaFinal />
       </main>
-      <SiteFooter />
+      {/* Pie sobre noche (draft C): las mismas columnas del sitio, con los
+          tokens del modo oscuro, y el wordmark gigante cortado abajo. */}
+      <div className="lv-foot dark">
+        <SiteFooter />
+        <div className="lv-foot-big" aria-hidden="true">
+          <WordmarkGigante />
+        </div>
+      </div>
       <PattyChip />
     </div>
   );

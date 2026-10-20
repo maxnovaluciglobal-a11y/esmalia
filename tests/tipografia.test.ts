@@ -86,3 +86,39 @@ describe("tipografía A+", () => {
     expect(conClase.map(relativo)).toEqual([]);
   });
 });
+
+// Titulares de la landing /v2 en Bricolage (draft "C sobre /v2", 20-oct-2026).
+// Solo en /v2: ni styles.css (la app y "/") ni otra página la cargan.
+describe("titulares de /v2 en Bricolage", () => {
+  const LANDING = readFileSync(path.join(SRC, "components/marketing/v2/landing-v2.css"), "utf8");
+  const INSTANCIA = "assets/fuentes/bricolage-grotesque-latin-display.woff2";
+
+  it("la @font-face apunta a la instancia local generada desde fontsource", () => {
+    const urls = [...LANDING.matchAll(/url\("([^"]+)"\)/g)].map((m) => m[1]);
+    expect(urls).toEqual([`../../../${INSTANCIA}`]);
+    expect(statSync(path.join(SRC, INSTANCIA)).size).toBeLessThan(30_000);
+    const pkg = JSON.parse(readFileSync(path.join(RAIZ, "package.json"), "utf8")) as {
+      devDependencies?: Record<string, string>;
+    };
+    expect(Object.keys(pkg.devDependencies ?? {})).toContain(
+      "@fontsource-variable/bricolage-grotesque",
+    );
+  });
+
+  it("no se filtra a la app ni al resto del sitio", () => {
+    expect(STYLES).not.toMatch(/Bricolage/);
+    const fuera = archivos(SRC, /\.(tsx?|css)$/).filter(
+      (ruta) =>
+        !ruta.includes(`${path.sep}marketing${path.sep}v2${path.sep}`) &&
+        relativo(ruta) !== path.join("src", "routes", "v2.tsx") &&
+        /Bricolage/.test(readFileSync(ruta, "utf8")),
+    );
+    expect(fuera.map(relativo)).toEqual([]);
+  });
+
+  it("los titulares de /v2 no caen a Cormorant si falta la cara", () => {
+    const display = LANDING.match(/--lv-display:\s*([^;]+);/)?.[1] ?? "";
+    expect(display).toMatch(/^"Bricolage Grotesque"/);
+    expect(display).not.toMatch(/Cormorant|font-heading|(?<!sans-)serif/);
+  });
+});

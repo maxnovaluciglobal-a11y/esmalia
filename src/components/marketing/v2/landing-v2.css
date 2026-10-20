@@ -12,6 +12,24 @@
  * llega con `data-mov="off"`: todo se ve en su estado final.
  */
 
+/* Titulares grandes de la landing (h1, h2 de sección y cifras grandes):
+   Bricolage Grotesque condensada, solo en /v2 (draft "C sobre /v2",
+   20-oct-2026). Es una instancia fija (opsz 96, wdth 75, wght 800,
+   subconjunto latin) sacada de @fontsource-variable/bricolage-grotesque con
+   scripts/fuentes/instanciar-bricolage.sh: ~21 KB en vez de ~78 KB del
+   archivo variable. Los títulos de tarjetas, el cuerpo y la UI de ejemplo
+   siguen con las fuentes del sistema (Cormorant / Instrument Sans). */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../../../assets/fuentes/bricolage-grotesque-latin-display.woff2") format("woff2");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 .lv2 {
   /* Tokens propios de la landing (los compartidos salen de styles.css). */
   --lv-paper-2: #eae6df;
@@ -28,11 +46,15 @@
   /* Convención clínica del odontograma (COLORES_SIMBOLOGIA en
      lib/clinical/odontograma-reglas.ts): azul = existente, rojo = por
      realizar. Nunca cobalto. Sobre tinta, los mismos tonos aclarados. */
+  /* Bloque ocre del cierre (draft C): el mismo en claro y en oscuro. */
+  --lv-ocre-block: #b68235;
   --lv-clin-ex: #1f5fbf;
   --lv-clin-pl: #c62828;
   --lv-clin-ex-n: #86adeb;
   --lv-clin-pl-n: #ef8a84;
   --lv-serif: var(--font-heading);
+  /* Sin Cormorant de respaldo: si la cara no está, cae a la sans del texto. */
+  --lv-display: "Bricolage Grotesque", var(--font-body), ui-sans-serif, system-ui, sans-serif;
   --lv-sans: var(--font-body);
   --lv-mono: var(--font-data, var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace));
   --lv-r-l: var(--radius-panel, 14px);
@@ -60,6 +82,39 @@
 .lv2 p {
   text-wrap: pretty;
 }
+
+/* Bricolage: solo titulares grandes y cifras grandes. Una sola cara (800),
+   sin itálica: los <em> se marcan con color, no se inclinan. */
+.lv2 .lv-hh,
+.lv2 .lv-h-sec,
+.lv2 #calculadora h2,
+.lv2 #seguridad-titulo,
+.lv2 .lv-stat .n,
+.lv2 .lv-plan .pr b,
+.lv2 .lv-tlh-days span,
+.lv2 .lv-wm {
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-style: normal;
+  font-synthesis: none;
+}
+.lv2 .lv-hh em,
+.lv2 .lv-h-sec em,
+.lv2 .lv-stat .n small {
+  font-style: normal;
+}
+.lv2 #calculadora h2,
+.lv2 #seguridad-titulo {
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+}
+.lv2 .lv-tlh-days span {
+  font-size: clamp(14px, 1.6vw, 22px);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--on-night);
+}
 .lv2 .lv-on-night :focus-visible,
 .lv2 .lv-on-night:focus-visible {
   outline-color: var(--brand-on-night);
@@ -81,11 +136,11 @@
 }
 
 .lv-h-sec {
-  font-family: var(--lv-serif);
-  font-weight: 500;
-  font-size: clamp(40px, 5.4vw, 80px);
-  line-height: 0.98;
-  letter-spacing: -0.02em;
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-size: clamp(44px, 6vw, 96px);
+  line-height: 0.9;
+  letter-spacing: -0.03em;
   text-wrap: balance;
 }
 .lv-h-sec em {
@@ -300,7 +355,10 @@
   }
 }
 
-/* ── Hero: tarjeta "Hoy" que se expande con el scroll ────── */
+/* ── Hero: titular, molar flotando y tarjeta "Hoy" ───────────
+   Draft "C sobre /v2" (20-oct-2026). El molar llega en SVG (es lo que se
+   pinta primero); el canvas 3D lo reemplaza solo si se carga (`is-3d`). La
+   tarjeta "Hoy" sigue siendo el origen de la ventana que se expande. */
 .lv-hero-track {
   position: relative;
 }
@@ -309,59 +367,47 @@
   min-height: min(100svh, 940px);
   overflow: hidden;
   display: grid;
-  grid-template-rows: 1fr auto;
-  padding: 12px 0 28px;
+  align-items: center;
+  padding: 12px 0 clamp(64px, 9vw, 150px);
 }
 .lv-hero-stage.is-sticky {
   position: sticky;
   top: 0;
   height: min(100svh, 940px);
 }
+/* Sin z-index propio: la tarjeta "Hoy" (z 4) tiene que quedar por encima de
+   la ventana que se expande (z 3), igual que antes. */
 .lv-hero-head {
-  align-self: center;
+  position: relative;
   width: min(1320px, 100% - 48px);
   margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 4vw, 56px);
 }
 .lv-kicker {
   display: block;
   margin-bottom: 18px;
-  text-align: center;
   font: 600 12px/1.3 var(--lv-sans);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--lv-ocre-ink);
 }
-.lv-hero-rowwrap {
-  position: relative;
-}
-.lv-hero-row {
-  display: grid;
-  grid-template-columns: 1fr minmax(300px, 380px) 1fr;
-  align-items: center;
-  gap: 36px;
-  font-family: var(--lv-serif);
-  font-weight: 500;
-  font-size: clamp(46px, 6.6vw, 104px);
-  line-height: 0.92;
-  letter-spacing: -0.025em;
-}
 .lv-hh {
-  display: flex;
-  flex-direction: column;
+  display: block;
+  font-size: clamp(52px, 8.2vw, 128px);
+  line-height: 0.88;
+  letter-spacing: -0.03em;
 }
-.lv-hh-l {
-  align-items: flex-end;
-  text-align: right;
-}
-.lv-hh-r {
-  align-items: flex-start;
+.lv-hh em {
   color: var(--lv-ocre-display);
-  font-style: italic;
 }
 .lv-ln {
   display: block;
   overflow: clip;
-  padding-bottom: 0.08em;
+  padding-bottom: 0.06em;
+  white-space: nowrap;
 }
 .lv-ln > span {
   display: inline-block;
@@ -372,14 +418,11 @@
   .lv-ln > span {
     animation: lv-rise 0.9s var(--ease-out) both;
   }
-  .lv-hh-l .lv-ln:nth-child(2) > span {
+  .lv-ln:nth-child(2) > span {
     animation-delay: 0.06s;
   }
-  .lv-hh-r .lv-ln:nth-child(1) > span {
-    animation-delay: 0.16s;
-  }
-  .lv-hh-r .lv-ln:nth-child(2) > span {
-    animation-delay: 0.22s;
+  .lv-ln:nth-child(3) > span {
+    animation-delay: 0.12s;
   }
 }
 @keyframes lv-rise {
@@ -390,26 +433,208 @@
     transform: none;
   }
 }
-.lv-hero-slot {
-  display: block;
-  height: 300px;
+
+/* Columna del molar */
+.lv-molar-col {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  aspect-ratio: 1 / 1.02;
+  justify-self: center;
 }
-.lv-hero-over {
+.lv-molar {
+  position: absolute;
+  inset: 0 0 14% 10%;
+}
+.lv-molar-svg {
+  position: absolute;
+  left: 18%;
+  top: 6%;
+  width: 64%;
+  height: 84%;
+  overflow: visible;
+  transition: opacity 0.5s var(--ease-out);
+}
+.lv-molar-svg path {
+  fill: #fbf8f3;
+  stroke: #15120f;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.lv-molar-gl {
+  position: absolute;
+  inset: -8%;
+  width: 116%;
+  height: 116%;
+  opacity: 0;
+  transition: opacity 0.6s var(--ease-out);
+}
+.lv-molar.is-3d .lv-molar-gl {
+  opacity: 1;
+}
+.lv-molar.is-3d .lv-molar-svg {
+  opacity: 0;
+}
+.lv-molar-shadow {
+  position: absolute;
+  left: 30%;
+  right: 30%;
+  bottom: 0;
+  height: 7%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(21 18 15 / 0.3), transparent);
+}
+.lv2[data-mov="on"] .lv-molar-svg {
+  animation: lv-bob 5s ease-in-out infinite;
+}
+.lv2[data-mov="on"] .lv-molar-shadow {
+  animation: lv-shad 5s ease-in-out infinite;
+}
+@keyframes lv-bob {
+  50% {
+    transform: translateY(-14px);
+  }
+}
+@keyframes lv-shad {
+  50% {
+    transform: scaleX(0.82);
+    opacity: 0.7;
+  }
+}
+
+/* Rótulos de la pieza 36: azul = existente, rojo = por realizar. */
+.lv-co {
+  position: absolute;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font: 600 12.5px/1.2 var(--lv-sans);
+}
+.lv-co-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  color: #fff;
+  box-shadow: 0 12px 28px -14px rgb(21 18 15 / 0.6);
+  white-space: nowrap;
+}
+.lv-co-n {
+  font: 500 11px var(--lv-mono);
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #fff;
+}
+.lv-co-rule {
+  width: 40px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.8;
+}
+.lv-co-ex {
+  top: 12%;
+  left: -2%;
+  color: var(--lv-clin-ex);
+}
+.lv-co-ex .lv-co-tag {
+  background: var(--lv-clin-ex);
+}
+/* El número de pieza va en el color de la convención sobre blanco. */
+.lv-co-ex .lv-co-n {
+  color: var(--lv-clin-ex);
+}
+.lv-co-pl {
+  top: 44%;
+  right: -2%;
+  flex-direction: row-reverse;
+  color: var(--lv-clin-pl);
+}
+.lv-co-pl .lv-co-tag {
+  background: var(--lv-clin-pl);
+}
+.lv-co-pl .lv-co-n {
+  color: var(--lv-clin-pl);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lv-co {
+    animation: lv-pop 0.7s var(--ease-out) 0.5s both;
+  }
+  .lv-co-pl {
+    animation-delay: 0.65s;
+  }
+}
+@keyframes lv-pop {
+  from {
+    transform: scale(0.8) translateY(8px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* Logo gigante que sube desde abajo del hero (decorativo). */
+.lv-giant {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 300px;
-  display: grid;
-  grid-template-columns: 1fr minmax(300px, 380px) 1fr;
-  gap: 36px;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
   pointer-events: none;
-  z-index: 4;
+  line-height: 0;
+}
+.lv-giant .lv-wm {
+  font-size: clamp(120px, 22vw, 340px);
+  color: var(--brand);
+  --lv-wm-dot: var(--lv-ocre-ink);
+  transform: translateY(40%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .lv-giant .lv-wm {
+    animation: lv-giant 1.2s var(--ease-out) 0.2s both;
+  }
+}
+@keyframes lv-giant {
+  from {
+    transform: translateY(80%);
+  }
+}
+
+/* Wordmark en texto (hero y pie): la i sin punto y un molar en su lugar. */
+.lv-wm {
+  display: inline-flex;
+  align-items: flex-end;
+  line-height: 0.8;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+}
+.lv-wm-i {
+  position: relative;
+  display: inline-block;
+}
+.lv-wm-stem {
+  display: inline-block;
+  clip-path: inset(0.2em -0.1em -0.2em -0.1em);
+}
+.lv-wm-dot {
+  position: absolute;
+  left: 50%;
+  top: -0.12em;
+  width: 0.36em;
+  height: 0.36em;
+  transform: translateX(-50%);
+  fill: var(--lv-wm-dot, var(--brand));
 }
 .lv-hoy {
-  grid-column: 2;
-  position: relative;
-  pointer-events: auto;
+  position: absolute;
+  left: -4%;
+  bottom: 0;
+  width: min(330px, 70%);
+  z-index: 4;
   background: var(--night);
   color: var(--on-night);
   border-radius: 18px;
@@ -499,17 +724,11 @@
 }
 
 .lv-hero-foot {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 24px;
-  width: min(1320px, 100% - 48px);
-  margin-inline: auto;
   position: relative;
-  z-index: 1;
+  margin-top: 26px;
 }
 .lv-hero-foot .lv-lead {
-  max-width: 48ch;
+  max-width: 44ch;
 }
 .lv-ctas {
   display: flex;
@@ -523,6 +742,7 @@
   color: var(--lv-ink-3);
 }
 .lv-cue {
+  margin-top: 22px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -570,12 +790,15 @@
   color: var(--on-night);
   opacity: 0;
   visibility: hidden;
-  display: flex;
+  /* Cerrado no se dibuja (display: none): así sus fuentes (las caras de
+     Cormorant de la agenda) no se piden en la primera carga. */
+  display: none;
   flex-direction: column;
   gap: 22px;
   z-index: 5;
 }
 .lv-dia.vis {
+  display: flex;
   visibility: visible;
   pointer-events: auto;
 }
@@ -824,42 +1047,46 @@
 @media (max-width: 820px) {
   .lv-hero-stage {
     padding-top: 4px;
+    padding-bottom: clamp(56px, 20vw, 120px);
   }
-  .lv-kicker {
-    text-align: left;
-  }
-  .lv-hero-row {
+  .lv-hero-head {
     grid-template-columns: 1fr;
-    gap: 14px;
-    font-size: clamp(44px, 13vw, 64px);
+    gap: 12px;
   }
-  .lv-hh-l {
-    align-items: flex-start;
-    text-align: left;
+  .lv-hh {
+    font-size: clamp(46px, 13.4vw, 76px);
   }
-  .lv-hh-r {
-    align-items: flex-end;
-    text-align: right;
+  .lv-molar-col {
+    max-width: 440px;
+    aspect-ratio: auto;
+    display: flex;
+    flex-direction: column;
   }
-  .lv-hero-slot {
-    height: 236px;
-    order: 3;
-  }
-  .lv-hero-over {
-    height: 236px;
-    grid-template-columns: 1fr;
+  .lv-molar {
+    position: relative;
+    inset: auto;
+    height: min(78vw, 340px);
   }
   .lv-hoy {
-    grid-column: 1;
-    padding: 18px;
+    position: relative;
+    left: auto;
+    bottom: auto;
+    width: min(340px, 100%);
+    margin-top: -24px;
+    padding: 16px;
   }
   .lv-hoy .lv-big {
-    font-size: 46px;
+    font-size: 42px;
   }
-  .lv-hero-foot {
-    flex-direction: column;
-    align-items: flex-start;
-    margin-top: 22px;
+  .lv-co-ex {
+    left: 0;
+    top: 2%;
+  }
+  .lv-co-pl {
+    right: 0;
+  }
+  .lv-co-rule {
+    width: 14px;
   }
   .lv-cue {
     display: none;
@@ -1279,24 +1506,83 @@
   }
 }
 
-/* ── CTA final ───────────────────────────────────────────── */
+/* ── CTA final (draft C): bloque ocre + molar en halftone ─── */
 .lv-end {
-  padding: clamp(70px, 9vw, 120px) 0 0;
   overflow: hidden;
 }
-.lv-end-in {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 32px;
-  align-items: end;
+.lv-end-ocre {
+  position: relative;
+  overflow: hidden;
+  background: var(--lv-ocre-block);
+  color: #15120f;
+  min-height: 640px;
+  display: flex;
+  align-items: center;
+  padding: clamp(80px, 9vw, 120px) 0;
 }
-@media (max-width: 820px) {
-  .lv-end-in {
-    grid-template-columns: 1fr;
+.lv-halftone {
+  position: absolute;
+  right: -3%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(54vw, 680px);
+  height: min(54vw, 680px);
+}
+.lv-end-in {
+  position: relative;
+  z-index: 1;
+}
+.lv-end-ocre .lv-h-sec {
+  font-size: clamp(62px, 8.6vw, 140px);
+  max-width: 10ch;
+  color: #15120f;
+}
+.lv-end-ocre .lv-h-sec em {
+  color: #15120f;
+}
+.lv-end-ocre .lv-lead {
+  margin-top: 22px;
+  max-width: 36ch;
+  font-size: clamp(17px, 1.4vw, 19px);
+  font-weight: 500;
+  color: #2e2010;
+}
+.lv-end-ocre .lv-ctas {
+  margin-top: 30px;
+}
+.lv-end-ocre .lv-btn-ink,
+.lv-end-ocre .lv-btn-ink:hover {
+  background: #15120f;
+  color: #f1ece4;
+}
+.lv-end-ocre .lv-btn-line {
+  color: #15120f;
+  border-color: #15120f;
+  box-shadow: inset 0 0 0 1px #15120f;
+}
+.lv-end-ocre .lv-btn-line:hover {
+  background: #15120f;
+  color: #f1ece4;
+}
+.lv-end-ocre :focus-visible {
+  outline-color: #15120f;
+}
+@media (max-width: 760px) {
+  .lv-end-ocre {
+    min-height: 0;
+    padding: 80px 0 300px;
+  }
+  .lv-halftone {
+    right: auto;
+    left: 50%;
+    top: auto;
+    bottom: -40px;
+    transform: translateX(-50%);
+    width: 400px;
+    height: 400px;
   }
 }
 .lv-big-marq {
-  margin-top: clamp(50px, 7vw, 90px);
   border-top: 1px solid var(--night-line);
 }
 .lv-big-marq .lv-marq span {
@@ -1613,6 +1899,44 @@
 /* ── Bento en tinta (PR 6) ───────────────────────────────── */
 .lv-bento-sec {
   padding: clamp(80px, 10vw, 140px) 0;
+  overflow: clip;
+}
+/* Sonrisa con las condiciones (encabezado de la sección, draft C). */
+.lv-smile {
+  margin: calc(-1 * clamp(40px, 6vw, 100px)) 0 clamp(8px, 2vw, 24px);
+  pointer-events: none;
+}
+.lv-smile svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.lv-smile text {
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-synthesis: none;
+  font-size: 56px;
+  letter-spacing: -0.01em;
+}
+.lv-smile tspan.a {
+  fill: var(--on-night);
+}
+.lv-smile tspan.b {
+  fill: var(--brand-on-night);
+}
+.lv-smile .lip {
+  fill: none;
+  stroke: var(--night-line);
+  stroke-width: 2;
+  stroke-dasharray: 2 10;
+  stroke-linecap: round;
+}
+@media (max-width: 760px) {
+  .lv-smile svg {
+    width: 220%;
+    margin-left: -60%;
+  }
 }
 .lv-bento {
   display: grid;
@@ -2072,8 +2396,61 @@
   background: var(--lv-clin-ex);
 }
 .lv-arc-leg i.pl {
-  background: color-mix(in srgb, var(--lv-clin-pl) 12%, transparent);
-  border: 2px solid var(--lv-clin-pl);
+  background: var(--lv-clin-pl);
+}
+.lv-arc-leg i.x {
+  background:
+    linear-gradient(45deg, transparent 43%, var(--lv-clin-ex) 43% 57%, transparent 57%),
+    linear-gradient(-45deg, transparent 43%, var(--lv-clin-ex) 43% 57%, transparent 57%);
+}
+/* Pasos: sin efecto (servidor, sin movimiento) se leen los tres en lista;
+   en modo sticky se apilan y se ve uno por vez, según el scroll. */
+.lv-arc-steps {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.lv-arc-steps li {
+  max-width: 42ch;
+  font-size: clamp(16px, 1.4vw, 19px);
+  line-height: 1.45;
+  color: var(--lv-ink-2);
+}
+.lv-arc-steps b {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.lv-arc-bars {
+  display: none;
+  gap: 6px;
+  margin-top: 20px;
+}
+.lv-arc-bars i {
+  width: 34px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--lv-line-2);
+  transition: background-color 0.3s;
+}
+.lv-arc-bars i.on {
+  background: var(--foreground);
+}
+.lv-arc-stage.is-sticky .lv-arc-bars {
+  display: flex;
+}
+.lv-arc-stage.is-sticky .lv-arc-steps li {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.45s var(--ease-out),
+    transform 0.45s var(--ease-out);
+}
+.lv-arc-stage.is-sticky .lv-arc-steps li.on {
+  opacity: 1;
+  transform: none;
 }
 .lv-why {
   margin-top: 16px;
@@ -2095,14 +2472,57 @@
 }
 .lv-arc-svg .tb {
   fill: var(--card);
-  stroke: var(--lv-ink-2);
-  stroke-width: 1.6;
+  stroke: var(--foreground);
+  stroke-width: 2;
+  stroke-linejoin: round;
   transition:
     fill 0.5s,
     stroke 0.5s;
 }
-.lv-arc-svg .scat .tb {
-  stroke: var(--lv-ocre-display);
+/* Dispersas: en colores (sin azul ni rojo, que son de la convención). */
+.lv-arc-svg .scat.c0 .tb {
+  fill: var(--brand);
+}
+.lv-arc-svg .scat.c1 .tb {
+  fill: var(--petrol);
+}
+.lv-arc-svg .scat.c2 .tb {
+  fill: var(--brand-300);
+}
+.lv-arc-svg .scat.c3 .tb {
+  fill: var(--lv-paper-2);
+}
+.lv-arc-svg .scat.c4 .tb {
+  fill: var(--night-3);
+}
+.lv-arc-svg .aus:not(.scat) .tb {
+  fill: transparent;
+  stroke-dasharray: 4 4;
+}
+.lv-arc-svg .cnd.ex {
+  fill: var(--lv-clin-ex);
+  stroke: var(--foreground);
+  stroke-width: 1.6;
+}
+.lv-arc-svg .cnd.pl {
+  fill: var(--lv-clin-pl);
+  stroke: var(--foreground);
+  stroke-width: 1.6;
+}
+.lv-arc-svg .cnd.x {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.lv-arc-svg .cnd.x.ausente {
+  stroke: var(--lv-clin-ex);
+}
+.lv-arc-svg .cnd.x.plx {
+  stroke: var(--lv-clin-pl);
+}
+.lv-arc-svg .cnd,
+.lv-arc-svg .tn {
+  transition: opacity 0.4s;
 }
 .lv-arc-svg .tn {
   font: 500 11px var(--lv-mono);
@@ -2121,31 +2541,32 @@
   border-top: 1px solid var(--lv-line);
   overflow: clip;
 }
+.lv-ts-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 32px;
+  align-items: end;
+  margin-bottom: clamp(36px, 5vw, 56px);
+}
 .lv-ts-grid {
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr) minmax(0, 1fr);
-  gap: clamp(24px, 3vw, 48px);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: clamp(24px, 4vw, 64px);
   align-items: start;
 }
-.lv-ts-title {
+.lv-ts-grid .lv-fig {
   position: sticky;
   top: 40px;
 }
-.lv-ts-title .lv-lead {
-  margin-top: 18px;
-}
-@media (max-width: 1020px) {
-  .lv-ts-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .lv-ts-title {
-    grid-column: 1 / -1;
-    position: static;
-  }
-}
-@media (max-width: 680px) {
+@media (max-width: 820px) {
+  .lv-ts-head,
   .lv-ts-grid {
     grid-template-columns: 1fr;
+  }
+  .lv-ts-grid .lv-fig {
+    position: relative;
+    top: auto;
+    max-width: 340px;
   }
 }
 .lv-fig {
@@ -2277,120 +2698,176 @@
   width: 50%;
   background: var(--brand);
 }
-.lv-acc {
-  border-top: 1px solid var(--lv-line-2);
+/* Filas con barrido ocre (las `.frow` del draft C). El ocre entra de
+   izquierda a derecha en la fila abierta (y al pasar el mouse en las de
+   abajo); sin movimiento, cambia de una. */
+.lv-rows {
+  border-top: 2px solid var(--foreground);
 }
-.lv-acc-i {
+.lv-row,
+.lv-frow {
+  position: relative;
+  isolation: isolate;
   border-bottom: 1px solid var(--lv-line-2);
 }
-.lv-acc-i h3 {
+.lv-row::before,
+.lv-frow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--brand);
+  clip-path: inset(0 100% 0 0);
+}
+.lv2[data-mov="on"] .lv-row::before,
+.lv2[data-mov="on"] .lv-frow::before {
+  transition: clip-path 0.55s var(--ease-out);
+}
+.lv-row.open::before,
+.lv-frow:hover::before,
+.lv-frow:focus-within::before {
+  clip-path: inset(0);
+}
+.lv-row.open,
+.lv-frow:hover {
+  color: #15120f;
+  --lv-ink-2: #2e2010;
+  --lv-ink-3: #2e2010;
+}
+.lv-row h3 {
   margin: 0;
 }
-.lv-acc-b {
+.lv-row-b {
   width: 100%;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 16px;
-  padding: 22px 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 20px;
+  padding: 20px 12px 14px;
   background: none;
   border: 0;
   text-align: left;
   cursor: pointer;
-  color: var(--foreground);
+  color: inherit;
 }
-.lv-acc-b .nm {
-  font-family: var(--lv-serif);
-  font-weight: 500;
-  font-size: clamp(30px, 2.8vw, 42px);
-  line-height: 1;
-  letter-spacing: -0.01em;
+.lv-row-b:focus-visible {
+  outline-offset: -3px;
 }
-.lv-acc-b .nm.patty {
-  color: var(--ai);
+.lv-row-b .nm,
+.lv-frow h3 {
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-synthesis: none;
+  font-size: clamp(32px, 3.4vw, 52px);
+  line-height: 0.92;
+  letter-spacing: -0.025em;
 }
-.lv-acc-b .pl {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid var(--lv-line-2);
-  display: grid;
-  place-items: center;
-  transition:
-    transform 0.5s var(--ease-out),
-    background-color 0.3s,
-    color 0.3s;
+.lv-row-b .sm {
+  font: 500 13px var(--lv-mono);
+  color: var(--lv-ink-2);
 }
-.lv-acc-b .pl svg {
-  width: 14px;
-  height: 14px;
-  stroke: currentColor;
-  stroke-width: 1.8;
-  fill: none;
+.lv-row.open .lv-row-b .sm {
+  visibility: hidden;
 }
-.lv-acc-b[aria-expanded="true"] .pl {
-  transform: rotate(45deg);
-  background: var(--foreground);
-  color: var(--background);
-  border-color: var(--foreground);
-}
-.lv-acc-p {
+.lv-row-p {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.55s var(--ease-out);
 }
-.lv-acc-p > div {
+.lv2[data-mov="on"] .lv-row-p {
+  transition: grid-template-rows 0.5s var(--ease-out);
+}
+.lv-row-p > div {
   overflow: hidden;
+  padding: 0 12px;
 }
-.lv-acc-i.open .lv-acc-p {
+.lv-row.open .lv-row-p {
   grid-template-rows: 1fr;
 }
-.lv-acc-p p {
-  color: var(--lv-ink-2);
-  padding-bottom: 10px;
-  max-width: 46ch;
+.lv-row-p > div > :last-child {
+  margin-bottom: 20px;
 }
-.lv-acc-p ul {
-  margin: 6px 0 24px;
-  padding: 0;
+.lv-row-p p {
+  max-width: 52ch;
+  color: var(--lv-ink-2);
+  margin: 0 0 6px;
+}
+.lv-row-p .lv-rw-t {
+  font-weight: 600;
+  color: inherit;
+}
+.lv-row-p .lv-st {
+  margin: 4px 6px 8px 0;
+}
+.lv-row-p .no {
+  font-size: 13.5px;
+}
+.lv-row-p .no b {
+  font-weight: 600;
+}
+.lv-row .lv-pbar {
+  max-width: 320px;
+  background: color-mix(in srgb, var(--foreground) 14%, transparent);
+}
+.lv-row.open .lv-pbar i {
+  background: #15120f;
+}
+.lv-st-ex {
+  color: var(--lv-clin-ex);
+  background: color-mix(in srgb, var(--lv-clin-ex) 10%, var(--card));
+}
+.lv-frows {
   list-style: none;
+  margin: clamp(48px, 6vw, 80px) 0 0;
+  padding: 0;
+  border-top: 2px solid var(--foreground);
+}
+.lv-frow {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr) minmax(0, 0.8fr);
+  gap: 24px;
+  align-items: baseline;
+  padding: 20px 12px;
+}
+.lv-frow h3 {
+  margin: 0;
+  font-size: clamp(28px, 2.9vw, 42px);
+}
+.lv-frow .fd p {
+  color: var(--lv-ink-2);
+  max-width: 52ch;
+}
+.lv-frow .fd .no {
+  margin-top: 6px;
+  font-size: 13.5px;
+}
+.lv-frow .fd .no b {
+  font-weight: 600;
+}
+.lv-frow .ch {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-end;
 }
-.lv-acc-p li {
+.lv-frow .ch li {
   font: 500 12.5px var(--lv-sans);
   padding: 5px 10px;
   border-radius: 999px;
   border: 1px solid var(--lv-line-2);
+  background: var(--card);
+  color: var(--foreground);
 }
-.lv-acc-p .no {
-  font-size: 13.5px;
-  color: var(--lv-ink-3);
-  padding-bottom: 22px;
-}
-.lv-acc-p .no b {
-  color: var(--lv-ink-2);
-  font-weight: 600;
-}
-.lv-timer {
-  height: 2px;
-  background: var(--lv-line);
-  margin: -1px 0 0;
-  overflow: hidden;
-}
-.lv-timer i {
-  display: block;
-  height: 100%;
-  width: 0;
-  background: var(--brand);
-}
-.lv2[data-mov="on"] .lv-acc-i.open .lv-timer i.run {
-  animation: lv-tim 6s linear forwards;
-}
-@keyframes lv-tim {
-  to {
-    width: 100%;
+@media (max-width: 760px) {
+  .lv-frow {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .lv-frow .ch {
+    justify-content: flex-start;
   }
 }
 
@@ -2836,6 +3313,34 @@
   }
 }
 
+/* ── Pie sobre noche con el wordmark gigante (draft C) ────── */
+.lv-foot {
+  background: var(--night);
+  color: var(--on-night);
+  overflow: hidden;
+}
+.lv-foot > footer {
+  border-top: 0;
+}
+/* Los tokens --color-* de Tailwind se resuelven en :root: en el pie se
+   fijan los colores sobre noche a mano. */
+.lv-foot .kicker {
+  color: var(--brand-on-night);
+}
+.lv-foot-big {
+  display: flex;
+  justify-content: center;
+  line-height: 0;
+  margin-top: 12px;
+  pointer-events: none;
+}
+.lv-foot-big .lv-wm {
+  font-size: clamp(120px, 26vw, 390px);
+  color: var(--lv-ocre-block);
+  --lv-wm-dot: var(--on-night);
+  transform: translateY(30%);
+}
+
 /* ── Rendimiento: secciones fuera de pantalla ────────────────
    Todo lo que está debajo del hero se pinta recién cuando se acerca al
    viewport (`content-visibility: auto`). El navegador se ahorra estilo,
@@ -2846,7 +3351,7 @@
    altura real una vez pintada, así no salta al volver. */
 @supports (content-visibility: auto) {
   .lv2 main > :not(.lv-hero),
-  .lv2 > footer {
+  .lv2 > .lv-foot {
     content-visibility: auto;
     contain-intrinsic-size: auto 900px;
   }

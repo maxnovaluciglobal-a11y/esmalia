@@ -11,6 +11,7 @@ import { PattyMark } from "@/components/patty";
 import { useMovimiento } from "@/hooks/use-movimiento";
 
 import { PausarMovimiento } from "./pausar-movimiento";
+import { SonrisaCondiciones } from "./sonrisa-condiciones";
 
 const PASOS_FLUJO = 6;
 
@@ -88,6 +89,7 @@ export function BentoFlujo() {
 
   return (
     <section className="lv-bento-sec lv-on-night" id="producto" aria-labelledby="lv-bento-h">
+      <SonrisaCondiciones />
       <div className="lv-wrap">
         <div className="lv-sec-head">
           <h2 className="lv-h-sec" id="lv-bento-h">
