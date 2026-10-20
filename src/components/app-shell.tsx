@@ -359,7 +359,10 @@ export function AppShell({
                       <>
                         <span
                           aria-hidden
-                          className="ml-auto min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                          className={cn(
+                            "ml-auto min-w-5 rounded-sm px-1 text-center text-[11px] leading-5 tabular-nums",
+                            shellV2 ? "bg-brand-on-night text-night" : "bg-brand-700 text-white",
+                          )}
                         >
                           {badge > 9 ? "9+" : badge}
                         </span>
@@ -375,10 +378,7 @@ export function AppShell({
 
         {shellV2 && (
           <div className="px-5 pt-3">
-            <PastillaConexion
-              userId={access.userId}
-              className="border-night-line bg-night-2 text-on-night-2"
-            />
+            <PastillaConexion userId={access.userId} className="bg-night-2" />
           </div>
         )}
 
