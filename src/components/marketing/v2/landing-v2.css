@@ -2543,7 +2543,8 @@
     transform 0.5s var(--ease-out);
 }
 .lv-pt-draft.wait {
-  opacity: 0.45;
+  /* Sin bajar la opacidad: el texto tiene que seguir llegando a AA. */
+  border-style: dotted;
   transform: translateY(6px);
 }
 .lv-pt-draft .lbl {
