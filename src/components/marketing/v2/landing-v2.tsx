@@ -12,16 +12,19 @@ import { FranjaSeguridad } from "@/components/marketing/franja-seguridad";
 import { SiteFooter } from "@/components/site-chrome";
 import { useMovimiento } from "@/hooks/use-movimiento";
 
+import { BentoFlujo } from "./bento-flujo";
 import { Cifras } from "./cifras";
 import { CtaFinal } from "./cta-final";
 import { EncabezadoV2, type EnlaceSeccion } from "./encabezado";
 import { HeroDia } from "./hero-dia";
 import { Marquee } from "./marquee";
 import { PreciosV2 } from "./precios-v2";
+import { ReservaEnVivo } from "./reserva-en-vivo";
 import { TimelinePrueba } from "./timeline-prueba";
 
 const SECCIONES: readonly EnlaceSeccion[] = [
-  { label: "Cifras", href: "#cifras" },
+  { label: "Reserva online", href: "#reserva" },
+  { label: "Producto", href: "#producto" },
   { label: "Calculadora", href: "#calculadora" },
   { label: "Cómo funciona", href: "#como" },
   { label: "Precios", href: "#precios" },
@@ -50,7 +53,9 @@ export function LandingV2() {
       <EncabezadoV2 secciones={SECCIONES} />
       <main id="main-content">
         <HeroDia />
+        <ReservaEnVivo />
         <Marquee palabras={CONDICIONES} direccion={1.1} className="lv-band" />
+        <BentoFlujo />
         <div id="cifras" className="scroll-mt-4">
           <Cifras />
         </div>
