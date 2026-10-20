@@ -3114,6 +3114,7 @@ export type Database = {
           clinic_id: string;
           closed_at: string | null;
           closed_by: string | null;
+          closing_denominations: Json | null;
           closing_notes: string | null;
           created_at: string;
           currency: string;
@@ -3133,6 +3134,7 @@ export type Database = {
           clinic_id: string;
           closed_at?: string | null;
           closed_by?: string | null;
+          closing_denominations?: Json | null;
           closing_notes?: string | null;
           created_at?: string;
           currency?: string;
@@ -3152,6 +3154,7 @@ export type Database = {
           clinic_id?: string;
           closed_at?: string | null;
           closed_by?: string | null;
+          closing_denominations?: Json | null;
           closing_notes?: string | null;
           created_at?: string;
           currency?: string;

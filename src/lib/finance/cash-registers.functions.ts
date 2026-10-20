@@ -3,15 +3,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { mensajeDb } from "@/lib/db-errors";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import {
   diferenciaDeArqueo,
   esperadoEnCaja,
+  MENSAJE_MOTIVO_OBLIGATORIO,
+  motivoFaltante,
   type CashRegister,
   type CashRegisterMethodBreakdown,
 } from "@/lib/finance/cash-registers";
+import {
+  leerDetalle,
+  validarConteo,
+  type DetalleDenominaciones,
+} from "@/lib/finance/denominaciones";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const SIN_PERMISOS_CAJA = "No tienes permisos para operar la caja.";
@@ -56,6 +63,7 @@ type CashRegisterRow = {
   closed_by: string | null;
   closed_at: string | null;
   closing_notes: string | null;
+  closing_denominations: unknown;
 };
 
 function mapCashRegister(row: CashRegisterRow): CashRegister {
@@ -75,6 +83,7 @@ function mapCashRegister(row: CashRegisterRow): CashRegister {
     closedById: row.closed_by,
     closedAt: row.closed_at,
     closingNotes: row.closing_notes,
+    closingDenominations: leerDetalle(row.closing_denominations),
   };
 }
 
@@ -82,7 +91,7 @@ function mapCashRegister(row: CashRegisterRow): CashRegister {
 // retorno a partir del literal exacto de la cadena. Concatenar rompe esa
 // inferencia y cada `.select()` cae a un tipo genérico de error.
 const CASH_REGISTER_COLUMNS =
-  "id, clinic_id, branch_id, status, currency, opening_amount_cents, opened_by, opened_at, opening_notes, expected_closing_cents, declared_closing_cents, difference_cents, closed_by, closed_at, closing_notes";
+  "id, clinic_id, branch_id, status, currency, opening_amount_cents, opened_by, opened_at, opening_notes, expected_closing_cents, declared_closing_cents, difference_cents, closed_by, closed_at, closing_notes, closing_denominations";
 
 /** Caja abierta ahora mismo para la clínica/sucursal, o `null` si no hay ninguna. */
 export const getOpenCashRegister = createServerFn({ method: "GET" })
@@ -174,6 +183,12 @@ export const openCashRegister = createServerFn({ method: "POST" })
  * sesión), lo compara contra lo declarado por el cajero y guarda ambos como
  * snapshot. No se puede volver a abrir la misma fila — un turno nuevo abre
  * una caja nueva, la historia queda intacta.
+ *
+ * Arqueo v2 (flag `caja-arqueo-v2`, solo UI): el cliente puede mandar el
+ * conteo por billete y moneda. El servidor lo vuelve a sumar con su propia
+ * tabla de la moneda de la caja y exige que coincida con lo declarado. Con
+ * o sin conteo, si no cuadra el motivo es obligatorio (lo decide la
+ * diferencia que calcula el servidor, no la de la pantalla).
  */
 export const closeCashRegister = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
@@ -184,6 +199,16 @@ export const closeCashRegister = createServerFn({ method: "POST" })
         clinicId: z.string().uuid(),
         declaredClosingCents: z.number().int().min(0, "El monto contado no puede ser negativo."),
         notes: z.string().trim().max(500).optional(),
+        denominations: z
+          .array(
+            z.object({
+              valorCents: z.number().int().positive(),
+              tipo: z.enum(["billete", "moneda"]),
+              cantidad: z.number().int().min(0),
+            }),
+          )
+          .max(40)
+          .optional(),
       })
       .parse(input),
   )
@@ -192,13 +217,25 @@ export const closeCashRegister = createServerFn({ method: "POST" })
 
     const { data: register, error: fetchError } = await context.supabase
       .from("cash_registers")
-      .select("id, status, opening_amount_cents")
+      .select("id, status, opening_amount_cents, currency")
       .eq("id", data.id)
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
     if (fetchError) throw new Error(mensajeDb(fetchError, "No pudimos leer la caja."));
     if (!register) throw new Error("Esa caja no existe.");
     if (register.status === "closed") throw new Error("Esa caja ya está cerrada.");
+
+    // El conteo se valida contra la moneda de la caja (la fijó la base al
+    // abrir, regla 14), nunca contra una moneda que mande el cliente.
+    let detalle: DetalleDenominaciones | null = null;
+    if (data.denominations) {
+      const resultado = validarConteo(data.denominations, register.currency);
+      if (!resultado.ok) throw new Error(resultado.error);
+      if (resultado.detalle.totalCents !== data.declaredClosingCents) {
+        throw new Error("El total no coincide con el conteo por billete. Vuelve a contar.");
+      }
+      detalle = resultado.detalle;
+    }
 
     const { data: cobros, error: cobrosError } = await context.supabase
       .from("payments")
@@ -214,6 +251,8 @@ export const closeCashRegister = createServerFn({ method: "POST" })
     const expectedCents = esperadoEnCaja(register.opening_amount_cents, cobradoCents);
     const differenceCents = diferenciaDeArqueo(data.declaredClosingCents, expectedCents);
 
+    if (motivoFaltante(differenceCents, data.notes)) throw new Error(MENSAJE_MOTIVO_OBLIGATORIO);
+
     const { error: updateError } = await context.supabase
       .from("cash_registers")
       .update({
@@ -224,9 +263,12 @@ export const closeCashRegister = createServerFn({ method: "POST" })
         closed_by: context.userId,
         closed_at: new Date().toISOString(),
         closing_notes: data.notes || null,
+        closing_denominations: detalle as unknown as Json | null,
       })
       .eq("id", data.id)
-      .eq("clinic_id", data.clinicId);
+      .eq("clinic_id", data.clinicId)
+      // Dos personas cerrando a la vez: solo gana la primera.
+      .eq("status", "open");
     if (updateError) throw new Error(mensajeDb(updateError, "No pudimos cerrar la caja."));
 
     return { differenceCents };

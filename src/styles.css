@@ -545,3 +545,48 @@
     animation: none;
   }
 }
+
+/* Sello "Cuadra" del arqueo de caja (flag caja-arqueo-v2). El componente
+   solo pone estas clases si se puede animar (useMovimiento); el media query
+   es la segunda red. Sin animación el sello queda quieto y visible. */
+@keyframes sello-cuadra {
+  from {
+    opacity: 0;
+    scale: 1.8;
+    rotate: -30deg;
+  }
+  60% {
+    opacity: 1;
+    scale: 0.92;
+    rotate: -12deg;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+    rotate: -12deg;
+  }
+}
+
+@utility animate-sello-cuadra {
+  animation: sello-cuadra 0.7s var(--ease-out) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes sello-giro {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@utility animate-sello-giro {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sello-giro 18s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
