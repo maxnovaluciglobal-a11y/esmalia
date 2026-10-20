@@ -6,6 +6,10 @@ import { Loader2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import {
+  ArqueoDenominaciones,
+  type CierreArqueo,
+} from "@/components/finance/arqueo-denominaciones";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { KpisEnFilete, type KpiFilete } from "@/components/kpis-en-filete";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -19,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/money-input";
+import { BloqueoEscritura } from "@/components/solo-lectura";
 import { requirePermission } from "@/lib/access/route-guards";
 import { formatoFechaLarga, hoyISO } from "@/lib/clinic-operations/clinic-data";
 import {
@@ -33,6 +38,7 @@ import {
   type CashRegister,
   type CashRegisterMethodBreakdown,
 } from "@/lib/finance/cash-registers";
+import type { DetalleDenominaciones } from "@/lib/finance/denominaciones";
 import {
   closeCashRegister,
   getCashRegisterBreakdown,
@@ -40,6 +46,7 @@ import {
   listCashRegisters,
   openCashRegister,
 } from "@/lib/finance/cash-registers.functions";
+import { useFlag } from "@/lib/flags";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
 
@@ -83,6 +90,13 @@ function lecturaDiferencia(diff: number, currency: string): { texto: string; ton
   return { texto: `Faltan ${formatMoney(-diff, currency)}`, tono: "danger" };
 }
 
+/** Texto del anillo del sello: "LUNES 19" (día de la clínica, no del navegador). */
+function etiquetaDelDia(hoy: string): string {
+  const fecha = new Date(`${hoy}T12:00:00Z`);
+  const dia = new Intl.DateTimeFormat("es-CL", { weekday: "long", timeZone: "UTC" }).format(fecha);
+  return `${dia} ${Number(hoy.slice(8, 10))}`.toUpperCase();
+}
+
 function CajasPage() {
   const fid = useId();
   const { access } = Route.useRouteContext();
@@ -90,6 +104,7 @@ function CajasPage() {
   const clinicTz = access.clinic?.timezone;
   const currency = access.clinic?.currency ?? "CLP";
   const queryClient = useQueryClient();
+  const arqueoV2 = useFlag("caja-arqueo-v2", access.email);
 
   const fetchOpen = useServerFn(getOpenCashRegister);
   const fetchHistory = useServerFn(listCashRegisters);
@@ -175,13 +190,12 @@ function CajasPage() {
   const [closingNotes, setClosingNotes] = useState("");
 
   const closeMutation = useMutation({
-    mutationFn: () =>
+    mutationFn: (cierre: CierreArqueo) =>
       closeFn({
         data: {
           id: openRegister!.id,
           clinicId: clinicId!,
-          declaredClosingCents: declaredAmount ?? 0,
-          notes: closingNotes.trim() || undefined,
+          ...cierre,
         },
       }),
     onSuccess: ({ differenceCents }) => {
@@ -297,7 +311,19 @@ function CajasPage() {
           </div>
           {!loadingOpen && !openConError && (
             <div className="flex flex-wrap gap-2">
-              {openRegister ? (
+              {openRegister && arqueoV2 ? (
+                <BloqueoEscritura>
+                  <Button
+                    onClick={() => {
+                      const arqueo = document.getElementById("arqueo");
+                      arqueo?.scrollIntoView({ block: "start" });
+                      arqueo?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+                    }}
+                  >
+                    <Lock aria-hidden /> Cerrar caja (arqueo)
+                  </Button>
+                </BloqueoEscritura>
+              ) : openRegister ? (
                 <Button onClick={() => setCloseDialogOpen(true)}>
                   <Lock aria-hidden /> Cerrar caja (arqueo)
                 </Button>
@@ -321,39 +347,65 @@ function CajasPage() {
         )}
 
         {openRegister && (
-          <section aria-labelledby="caja-turno" className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="caja-turno" className="font-display text-2xl font-semibold">
-                Cobros del turno
-              </h2>
-              {openRegister.openingNotes && (
-                <p className="text-sm text-muted-foreground">
-                  Nota de apertura: {openRegister.openingNotes}
-                </p>
-              )}
-            </div>
-            {cobrosConError ? (
-              <ErrorDeCarga
-                mensaje="No pudimos cargar los cobros de este turno."
-                onReintentar={() => void reintentarCobros()}
-                reintentando={recargandoCobros}
-              />
-            ) : loadingCobros ? (
-              <p className="border-y border-border py-8 text-sm text-muted-foreground">
-                Cargando cobros…
-              </p>
-            ) : (cobrosTurno ?? []).length === 0 ? (
-              <div className="border-y border-border py-6">
-                <p className="text-sm font-medium">Todavía no hay cobros en este turno.</p>
-                <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-                  Los pagos que registres desde la ficha del paciente, en Presupuestos y pagos, se
-                  suman acá mientras la caja esté abierta.
-                </p>
-              </div>
-            ) : (
-              <TablaDesglose filas={cobrosTurno ?? []} currency={currency} />
+          <div
+            className={cn(
+              arqueoV2 && "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]",
             )}
-          </section>
+          >
+            <section aria-labelledby="caja-turno" className="space-y-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 id="caja-turno" className="font-display text-2xl font-semibold">
+                  Cobros del turno
+                </h2>
+                {openRegister.openingNotes && (
+                  <p className="text-sm text-muted-foreground">
+                    Nota de apertura: {openRegister.openingNotes}
+                  </p>
+                )}
+              </div>
+              {cobrosConError ? (
+                <ErrorDeCarga
+                  mensaje="No pudimos cargar los cobros de este turno."
+                  onReintentar={() => void reintentarCobros()}
+                  reintentando={recargandoCobros}
+                />
+              ) : loadingCobros ? (
+                <p className="border-y border-border py-8 text-sm text-muted-foreground">
+                  Cargando cobros…
+                </p>
+              ) : (cobrosTurno ?? []).length === 0 ? (
+                <div className="border-y border-border py-6">
+                  <p className="text-sm font-medium">Todavía no hay cobros en este turno.</p>
+                  <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                    Los pagos que registres desde la ficha del paciente, en Presupuestos y pagos, se
+                    suman acá mientras la caja esté abierta.
+                  </p>
+                </div>
+              ) : (
+                <TablaDesglose filas={cobrosTurno ?? []} currency={currency} />
+              )}
+            </section>
+            {arqueoV2 && (
+              <ArqueoDenominaciones
+                // Cambiar de caja (otro turno) arranca el conteo de cero.
+                key={openRegister.id}
+                currency={openRegister.currency}
+                expectedCents={
+                  loadingCobros || cobrosConError
+                    ? null
+                    : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
+                }
+                expectedNota={
+                  cobrosConError
+                    ? "Sin datos"
+                    : `Apertura ${formatMoney(openRegister.openingAmountCents, openRegister.currency)} + ${cantidadCobros} ${cantidadCobros === 1 ? "cobro" : "cobros"}`
+                }
+                etiquetaSello={etiquetaDelDia(hoy)}
+                enviando={closeMutation.isPending}
+                onCerrar={(cierre) => closeMutation.mutate(cierre)}
+              />
+            )}
+          </div>
         )}
 
         <section aria-labelledby="caja-historial" className="space-y-3">
@@ -575,7 +627,7 @@ function CajasPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`${fid}-notas-cierre`}>Notas (opcional)</Label>
+                <Label htmlFor={`${fid}-notas-cierre`}>Notas (obligatorias si no cuadra)</Label>
                 <textarea
                   id={`${fid}-notas-cierre`}
                   className={INPUT}
@@ -588,7 +640,12 @@ function CajasPage() {
             </div>
             <DialogFooter>
               <Button
-                onClick={() => closeMutation.mutate()}
+                onClick={() =>
+                  closeMutation.mutate({
+                    declaredClosingCents: declaredAmount ?? 0,
+                    notes: closingNotes.trim() || undefined,
+                  })
+                }
                 disabled={closeMutation.isPending || declaredAmount === null}
               >
                 {closeMutation.isPending && <Loader2 className="animate-spin" aria-hidden />}
@@ -627,10 +684,46 @@ function CajasPage() {
                 currency={selectedForBreakdown?.currency ?? currency}
               />
             )}
+            {selectedForBreakdown?.closingDenominations && (
+              <DetalleArqueo detalle={selectedForBreakdown.closingDenominations} />
+            )}
           </DialogContent>
         </Dialog>
       </div>
     </AppShell>
+  );
+}
+
+/** Conteo por billete y moneda guardado en el cierre (solo filas con piezas). */
+function DetalleArqueo({ detalle }: { detalle: DetalleDenominaciones }) {
+  const filas = detalle.filas.filter((f) => f.cantidad > 0);
+  return (
+    <div className="space-y-2">
+      <h3 className="text-sm font-medium">Conteo del cierre por billete y moneda</h3>
+      {filas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">El cajón se contó vacío.</p>
+      ) : (
+        <ul className="divide-y divide-hairline border-y border-border text-sm">
+          {filas.map((f) => (
+            <li key={`${f.tipo}:${f.valorCents}`} className="flex justify-between gap-3 py-2">
+              <span className="tabular-nums">
+                {f.cantidad} × {formatMoney(f.valorCents, detalle.currency)}{" "}
+                <span className="text-muted-foreground">{f.tipo}</span>
+              </span>
+              <span className="tabular-nums">
+                {formatMoney(f.valorCents * f.cantidad, detalle.currency)}
+              </span>
+            </li>
+          ))}
+          <li className="flex justify-between gap-3 py-2 font-medium">
+            <span>Total contado</span>
+            <span className="tabular-nums">
+              {formatMoney(detalle.totalCents, detalle.currency)}
+            </span>
+          </li>
+        </ul>
+      )}
+    </div>
   );
 }
 

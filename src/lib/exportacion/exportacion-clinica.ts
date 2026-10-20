@@ -528,7 +528,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     tabla: "cash_registers",
     archivo: "cajas.csv",
     descripcion:
-      "Aperturas y cierres de caja con montos esperados, declarados y diferencias del arqueo.",
+      "Aperturas y cierres de caja con montos esperados, declarados y diferencias del arqueo. closing_denominations trae el conteo por billete y moneda (JSON) cuando se contó así.",
     columnas: [
       "id",
       "branch_id",
@@ -544,6 +544,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "declared_closing_cents",
       "difference_cents",
       "closing_notes",
+      "closing_denominations",
       "created_at",
       "updated_at",
     ],
