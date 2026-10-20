@@ -25,14 +25,24 @@ interface Props {
   onDeshacer: () => void;
 }
 
+// Avisos ya cerrados: el blur que sigue al clic en un botón no tiene que
+// volver a mostrarlos.
+const cerrados = new Set<string | number>();
+
+function cerrar(id: string | number) {
+  cerrados.add(id);
+  toast.dismiss(id);
+}
+
 function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props) {
   // Sonner pausa el tiempo con el mouse encima; con el foco adentro lo
   // pausamos acá (teclado y lector de pantalla). Al salir, vuelve a correr.
-  const congelar = () => mostrar({ id, frase, enCola, whatsapp, onDeshacer }, Infinity);
+  const congelar = () => {
+    if (!cerrados.has(id)) mostrar({ id, frase, enCola, whatsapp, onDeshacer }, Infinity);
+  };
   const soltar = (e: FocusEvent<HTMLDivElement>) => {
-    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-      mostrar({ id, frase, enCola, whatsapp, onDeshacer }, DURACION_AVISO_MS);
-    }
+    if (cerrados.has(id) || e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    mostrar({ id, frase, enCola, whatsapp, onDeshacer }, DURACION_AVISO_MS);
   };
   return (
     <div
@@ -40,7 +50,7 @@ function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props)
       aria-label="Cita movida"
       onFocus={congelar}
       onBlur={soltar}
-      className="w-[min(92vw,380px)] rounded-lg border border-hairline bg-popover p-4 text-sm text-popover-foreground shadow-lg"
+      className="w-[var(--width,356px)] max-w-[calc(100vw-2rem)] rounded-lg border border-hairline bg-popover p-4 text-sm text-popover-foreground shadow-lg"
     >
       <p className="font-medium">{frase}</p>
       {enCola ? (
@@ -62,11 +72,11 @@ function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props)
             appointmentId={whatsapp.appointmentId}
             templateKind="appointment_rescheduled"
             variables={whatsapp.variables}
-            onSent={() => toast.dismiss(id)}
+            onSent={() => cerrar(id)}
           />
         )}
         {!enCola && (
-          <Button type="button" variant="outline" size="sm" onClick={() => toast.dismiss(id)}>
+          <Button type="button" variant="outline" size="sm" onClick={() => cerrar(id)}>
             No avisar
           </Button>
         )}
@@ -75,7 +85,7 @@ function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props)
           variant="ghost"
           size="sm"
           onClick={() => {
-            toast.dismiss(id);
+            cerrar(id);
             onDeshacer();
           }}
         >
@@ -87,9 +97,14 @@ function AvisoReprogramacion({ id, frase, enCola, whatsapp, onDeshacer }: Props)
 }
 
 function mostrar(props: Omit<Props, "id"> & { id?: string | number }, duration: number) {
-  return toast.custom((id) => <AvisoReprogramacion {...props} id={props.id ?? id} />, {
-    id: props.id,
+  // El id lo ponemos nosotros: con `toast.custom` sin id, el que recibe el
+  // render y el que guarda sonner no coinciden, y "cerrar" no cerraba nada.
+  const id = props.id ?? `aviso-reprogramacion-${crypto.randomUUID()}`;
+  return toast.custom(() => <AvisoReprogramacion {...props} id={id} />, {
+    id,
     duration,
+    onDismiss: (t) => cerrados.add(t.id),
+    onAutoClose: (t) => cerrados.add(t.id),
   });
 }
 

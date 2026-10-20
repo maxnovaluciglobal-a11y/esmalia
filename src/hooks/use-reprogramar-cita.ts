@@ -111,6 +111,10 @@ export function useReprogramarCita({
       };
 
       if (!online) {
+        // Se pinta ya: guardar en IndexedDB puede tardar, y la cita no
+        // puede "quedarse quieta" mientras tanto. Después la sostiene
+        // `aplicarMovimientosPendientes` desde la cola.
+        pintar(cita.id, destino);
         await encolarMovimiento();
         return;
       }
