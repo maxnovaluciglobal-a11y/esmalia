@@ -36,7 +36,8 @@ import { MoverCitaDialog } from "@/components/agenda-mover-a";
 import { CambiarEstadoMenu } from "@/components/cambiar-estado-cita-menu";
 import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones";
 import type { SemillaCita } from "@/components/agenda-hueco";
-import { AgendaMonth, AgendaWeek } from "@/components/agenda-views";
+import { AgendaMonth, AgendaSemanaCarriles, AgendaWeek } from "@/components/agenda-views";
+import { fechaMasAntigua } from "@/components/agenda-ocupacion";
 import { AllergyAlertBanner, AllergyAlertIcon } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
 import { addDaysISO, addMonthsISO, rangoDeVista } from "@/lib/clinic-operations/agenda-fechas";
@@ -74,6 +75,7 @@ import {
   hoyISO,
   type Cita,
   type EstadoCita,
+  type Profesional,
 } from "@/lib/clinic-operations/clinic-data";
 
 import { listBranches, listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
@@ -1299,10 +1301,13 @@ function AgendaPage() {
   // PR 10 del plan A+: reprogramar arrastrando (flag `agenda-arrastre`).
   // Con el flag apagado no se pide nada nuevo y la agenda queda como antes.
   const flagArrastre = useFlag("agenda-arrastre", access.email);
+  // PR 10b: semana por carriles con ocupación por día y panel lateral
+  // (flag `agenda-v2`). También necesita el horario declarado.
+  const flagAgendaV2 = useFlag("agenda-v2", access.email);
   const fetchHorarios = useServerFn(listProfessionalSchedules);
   const { data: horarios } = useQuery({
     queryKey: ["professional-schedules", clinicId],
-    enabled: Boolean(clinicId) && flagArrastre,
+    enabled: Boolean(clinicId) && (flagArrastre || flagAgendaV2),
     queryFn: () => fetchHorarios({ data: { clinicId: clinicId! } }),
   });
   const { pendientes: enColaOffline } = useColaOffline(access.userId);
@@ -1478,6 +1483,17 @@ function AgendaPage() {
     [profesionales, search.sucursal, search.profesional],
   );
 
+  // Ocupación (agenda-v2): solo los filtros que cambian qué sillones se miden
+  // (sucursal y profesional, vía `columnas`). La búsqueda y el estado no
+  // cambian lo que está ocupado.
+  const citasParaOcupacion = useMemo(
+    () =>
+      flagAgendaV2 && search.vista === "semana"
+        ? citas.filter((c) => c.fecha >= rangoDesde && c.fecha <= rangoHasta)
+        : [],
+    [flagAgendaV2, search.vista, citas, rangoDesde, rangoHasta],
+  );
+
   const ordenadas = useMemo(
     () => [...filtradas].sort((a, b) => a.fecha.localeCompare(b.fecha) || a.inicio - b.inicio),
     [filtradas],
@@ -1502,6 +1518,68 @@ function AgendaPage() {
   const activos =
     [search.q, search.sucursal, search.profesional, search.estado].filter(Boolean).length +
     (fecha !== hoy ? 1 : 0);
+
+  // Acciones de una cita: las comparten el popover de la grilla de día y el
+  // panel lateral de la semana (flag `agenda-v2`).
+  const accionesDeCita = (c: Cita, p: Profesional) => (
+    <>
+      {/* Mismos gates que el listado de abajo y que la ficha:
+        cambiar estado con agenda:manage, cobrar con
+        patients:manage (`puedeFacturar` de la ficha). El
+        servidor repite ambos chequeos. */}
+      {clinicId && puedeGestionarAgenda && (
+        <CambiarEstadoMenu
+          clinicId={clinicId}
+          userId={access.userId}
+          appointmentId={c.id}
+          estadoActual={c.estado}
+          puedeConfirmar={puedeConfirmarCita(access, c.profesionalId)}
+          variante="boton"
+        />
+      )}
+      {puedeCobrar && (
+        <Link
+          to="/pacientes/$pacienteId"
+          params={{ pacienteId: c.pacienteId }}
+          search={{ cobrar: 1 }}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
+        >
+          <Wallet aria-hidden /> Cobrar
+        </Link>
+      )}
+      {clinicId && access.clinic?.name && (
+        <WhatsAppButton
+          variant="full"
+          label="Recordatorio por WhatsApp"
+          className="h-8 justify-start text-sm"
+          clinicId={clinicId}
+          patientId={c.pacienteId}
+          appointmentId={c.id}
+          templateKind="appointment_reminder"
+          variables={{
+            tratamiento: c.tratamiento,
+            fecha_larga: formatoFechaLarga(c.fecha),
+            hora: horaDeCita(c.inicio),
+            profesional: p.nombre,
+            clinica: access.clinic.name,
+          }}
+        />
+      )}
+      {flagArrastre && puedeGestionarAgenda && esMovible(c) && (
+        <BloqueoEscritura>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="justify-start"
+            onClick={() => setCitaAMover(c)}
+          >
+            <MoveRight aria-hidden /> Mover a…
+          </Button>
+        </BloqueoEscritura>
+      )}
+    </>
+  );
 
   return (
     <AppShell title="Agenda" access={access}>
@@ -1692,73 +1770,31 @@ function AgendaPage() {
                     ? (semilla, origen) => setSemillaHueco({ ...semilla, origen })
                     : undefined
                 }
-                renderAcciones={(c, p) => (
-                  <>
-                    {/* Mismos gates que el listado de abajo y que la ficha:
-                    cambiar estado con agenda:manage, cobrar con
-                    patients:manage (`puedeFacturar` de la ficha). El
-                    servidor repite ambos chequeos. */}
-                    {clinicId && puedeGestionarAgenda && (
-                      <CambiarEstadoMenu
-                        clinicId={clinicId}
-                        userId={access.userId}
-                        appointmentId={c.id}
-                        estadoActual={c.estado}
-                        puedeConfirmar={puedeConfirmarCita(access, c.profesionalId)}
-                        variante="boton"
-                      />
-                    )}
-                    {puedeCobrar && (
-                      <Link
-                        to="/pacientes/$pacienteId"
-                        params={{ pacienteId: c.pacienteId }}
-                        search={{ cobrar: 1 }}
-                        className={cn(
-                          buttonVariants({ variant: "outline", size: "sm" }),
-                          "justify-start",
-                        )}
-                      >
-                        <Wallet aria-hidden /> Cobrar
-                      </Link>
-                    )}
-                    {clinicId && access.clinic?.name && (
-                      <WhatsAppButton
-                        variant="full"
-                        label="Recordatorio por WhatsApp"
-                        className="h-8 justify-start text-sm"
-                        clinicId={clinicId}
-                        patientId={c.pacienteId}
-                        appointmentId={c.id}
-                        templateKind="appointment_reminder"
-                        variables={{
-                          tratamiento: c.tratamiento,
-                          fecha_larga: formatoFechaLarga(c.fecha),
-                          hora: horaDeCita(c.inicio),
-                          profesional: p.nombre,
-                          clinica: access.clinic.name,
-                        }}
-                      />
-                    )}
-                    {flagArrastre && puedeGestionarAgenda && esMovible(c) && (
-                      <BloqueoEscritura>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="justify-start"
-                          onClick={() => setCitaAMover(c)}
-                        >
-                          <MoveRight aria-hidden /> Mover a…
-                        </Button>
-                      </BloqueoEscritura>
-                    )}
-                  </>
-                )}
+                renderAcciones={accionesDeCita}
               />
             )}
-            {search.vista === "semana" && (
-              <AgendaWeek citas={filtradas} fecha={fecha} hoy={hoy} profesionales={profesionales} />
-            )}
+            {search.vista === "semana" &&
+              (flagAgendaV2 ? (
+                <AgendaSemanaCarriles
+                  citas={filtradas}
+                  citasOcupacion={citasParaOcupacion}
+                  fecha={fecha}
+                  hoy={hoy}
+                  profesionales={columnas}
+                  horarios={horarios}
+                  zonaHoraria={access.clinic?.timezone}
+                  datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
+                  allergyAlerts={allergyAlerts}
+                  renderAcciones={accionesDeCita}
+                />
+              ) : (
+                <AgendaWeek
+                  citas={filtradas}
+                  fecha={fecha}
+                  hoy={hoy}
+                  profesionales={profesionales}
+                />
+              ))}
             {search.vista === "mes" && (
               <AgendaMonth
                 citas={filtradas}
