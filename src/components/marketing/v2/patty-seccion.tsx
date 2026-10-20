@@ -41,7 +41,7 @@ export function PattySeccion() {
     <section className="lv-pt-sec" id="patty" aria-labelledby="lv-pt-h">
       <div className="lv-wrap lv-pt-grid">
         <div className="lv-pt-copy">
-          <PattyCara className="lv-pt-av" />
+          <PattyCara className="lv-pt-av" px={88} />
           <h2 className="lv-h-sec" id="lv-pt-h">
             Patty propone. <em>Tú decides.</em>
           </h2>
@@ -66,7 +66,7 @@ export function PattySeccion() {
         <div className="lv-pt-card">
           <div className="lv-pt-card-h">
             <span>
-              <PattyCara />
+              <PattyCara px={26} />
               <span>
                 <b>Patty</b> · nota de hoy, paciente 7F2A
               </span>
