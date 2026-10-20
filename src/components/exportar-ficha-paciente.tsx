@@ -22,10 +22,9 @@ import {
   iniciarExportacionPaciente,
   leerTablaExportacionPaciente,
 } from "@/lib/exportacion/exportacion-clinica.functions";
-import {
-  generarExportacionPaciente,
-  type AvanceExportacion,
-} from "@/lib/exportacion/generar-exportacion";
+// Solo el tipo: el generador (ZIP, PDF de la ficha, CSV) se carga recién al
+// confirmar la exportación, no con la ficha del paciente.
+import type { AvanceExportacion } from "@/lib/exportacion/generar-exportacion";
 
 interface Props {
   clinicId: string;
@@ -65,6 +64,7 @@ export function ExportarFichaPaciente({
   async function exportar() {
     setAvance({ etapa: "registrando", detalle: "Registrando la exportación", hecho: 0, total: 1 });
     try {
+      const { generarExportacionPaciente } = await import("@/lib/exportacion/generar-exportacion");
       const { zip } = await generarExportacionPaciente(
         {
           iniciar: (args) => iniciar({ data: args }),

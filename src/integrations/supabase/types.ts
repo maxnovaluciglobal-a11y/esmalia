@@ -4671,6 +4671,21 @@ export type Database = {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
       };
+      clinical_note_versions_meta: {
+        Args: { p_clinic_id: string; p_note_ids: string[] };
+        Returns: {
+          ai_action: string | null;
+          ai_assisted: boolean;
+          author_id: string;
+          created_at: string;
+          id: string;
+          matches_note: boolean;
+          note_id: string;
+          preview: string;
+          title: string;
+          version: number;
+        }[];
+      };
       extender_prueba_de_la_clinica: {
         Args: {
           p_actor_email: string;
@@ -4746,6 +4761,14 @@ export type Database = {
       next_clinic_counter: {
         Args: { p_clinic_id: string; p_kind: string; p_year: number };
         Returns: number;
+      };
+      outreach_patient_visits: {
+        Args: { p_clinic_id: string };
+        Returns: { has_future: boolean; last_visit_at: string; patient_id: string }[];
+      };
+      patient_balances: {
+        Args: { p_clinic_id: string; p_patient_ids?: string[] };
+        Returns: { billed_cents: number; paid_cents: number; patient_id: string }[];
       };
       registrar_evento_de_nota: {
         Args: {

@@ -11,7 +11,8 @@ import { createNotification } from "@/lib/messaging/notifications.functions";
 import type { Database } from "@/integrations/supabase/types";
 
 type SupabaseCtx = SupabaseClient<Database>;
-import { versionVigente } from "@/lib/clinical/clinical-notes";
+import { versionVigenteSegunCoincidencia } from "@/lib/clinical/clinical-notes";
+import { leerTodasLasPaginas } from "@/lib/paginacion";
 import type {
   ClinicalEntityKind,
   ClinicalNote,
@@ -19,6 +20,7 @@ import type {
   ClinicalNoteEntity,
   ClinicalNoteReview,
   ClinicalNoteVersion,
+  ClinicalNoteVersionMeta,
   NoteReviewAction,
   NoteReviewStatus,
   NoteStatus,
@@ -59,7 +61,7 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       context,
     }): Promise<{
       notes: ClinicalNote[];
-      versions: ClinicalNoteVersion[];
+      versions: ClinicalNoteVersionMeta[];
       audit: ClinicalNoteAuditEntry[];
       entities: ClinicalNoteEntity[];
       reviews: ClinicalNoteReview[];
@@ -126,20 +128,31 @@ export const getPatientNotes = createServerFn({ method: "GET" })
 
       const notes = notesRes.data ?? [];
       const noteIds = notes.map((n) => n.id);
+      // Auditoría de rendimiento (20-oct-2026): antes `select("*")` de todas
+      // las versiones de todas las notas del paciente, contenido completo
+      // incluido, en cada visita a la ficha, y con los ids en un `.in()` de
+      // la URL. Ahora la RPC `clinical_note_versions_meta` (SECURITY INVOKER,
+      // misma RLS) devuelve solo metadatos + un extracto, recibe los ids en
+      // el cuerpo del POST y ya compara cada versión con la nota para saber
+      // cuál es la vigente. El contenido se pide al abrir el comparador.
       const versionsRes = noteIds.length
-        ? await supabase
-            .from("clinical_note_versions")
-            .select("*")
-            .eq("clinic_id", data.clinicId)
-            .in("note_id", noteIds)
-            .order("created_at", { ascending: false })
-        : { data: [], error: null };
+        ? await leerTodasLasPaginas((desde, hasta) =>
+            supabase
+              .rpc("clinical_note_versions_meta", {
+                p_clinic_id: data.clinicId,
+                p_note_ids: noteIds,
+              })
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: true })
+              .range(desde, hasta),
+          )
+        : { filas: [], error: null };
       if (versionsRes.error)
         throw new Error(
           mensajeDb(versionsRes.error, "No pudimos cargar las versiones de las notas clínicas."),
         );
 
-      const versions = versionsRes.data ?? [];
+      const versions = versionsRes.filas;
       const audit = auditRes.data ?? [];
       const entities = entitiesRes.data ?? [];
       const reviews = reviewsRes.data ?? [];
@@ -158,8 +171,10 @@ export const getPatientNotes = createServerFn({ method: "GET" })
 
       const versionesPorNota = new Map<string, number>();
       for (const n of notes) {
-        const propias = versions.filter((v) => v.note_id === n.id);
-        versionesPorNota.set(n.id, versionVigente(n, propias));
+        const propias = versions
+          .filter((v) => v.note_id === n.id)
+          .map((v) => ({ version: v.version, coincide: v.matches_note }));
+        versionesPorNota.set(n.id, versionVigenteSegunCoincidencia(propias));
       }
 
       await lectura;
@@ -195,8 +210,7 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           noteId: v.note_id,
           version: v.version,
           title: v.title,
-          content: v.content,
-          summary: v.summary,
+          preview: v.preview,
           aiAssisted: v.ai_assisted,
           aiAction: v.ai_action,
           authorId: v.author_id,
@@ -244,6 +258,52 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       };
     },
   );
+
+/**
+ * Contenido completo de las versiones de UNA nota, para el comparador. Se
+ * pide recién cuando alguien lo abre: `getPatientNotes` solo trae metadatos.
+ * Misma RLS que cualquier lectura de `clinical_note_versions` (solo roles
+ * clínicos), más el filtro por clínica de siempre.
+ */
+export const getNoteVersionContents = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ clinicId: z.string().uuid(), noteId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<ClinicalNoteVersion[]> => {
+    const { supabase } = context;
+    const { filas, error } = await leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .from("clinical_note_versions")
+        .select(
+          "id, note_id, version, title, content, summary, ai_assisted, ai_action, author_id, created_at",
+        )
+        .eq("clinic_id", data.clinicId)
+        .eq("note_id", data.noteId)
+        .order("version", { ascending: true })
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    );
+    if (error)
+      throw new Error(mensajeDb(error, "No pudimos cargar las versiones de la nota clínica."));
+    const nombres = await nombresPorUsuario(
+      supabase,
+      filas.map((v) => v.author_id),
+    );
+    return filas.map((v) => ({
+      id: v.id,
+      noteId: v.note_id,
+      version: v.version,
+      title: v.title,
+      content: v.content,
+      summary: v.summary,
+      aiAssisted: v.ai_assisted,
+      aiAction: v.ai_action,
+      authorId: v.author_id,
+      authorName: nombres.get(v.author_id) ?? null,
+      createdAt: v.created_at,
+    }));
+  });
 
 /** Devuelve el número de versión vigente de una nota. */
 async function versionActual(supabase: SupabaseCtx, noteId: string): Promise<number | null> {

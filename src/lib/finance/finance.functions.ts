@@ -9,6 +9,7 @@ import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import { TOOTH_SURFACES } from "@/lib/clinical/odontogram";
 import { filaYaCreada } from "@/lib/idempotency";
+import { leerTodasLasPaginas } from "@/lib/paginacion";
 import {
   applyTreatmentItemSupplyConsumption,
   reverseTreatmentItemSupplyConsumption,
@@ -262,10 +263,16 @@ export const importProcedures = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ creadas: number; actualizadas: number }> => {
     const { supabase } = context;
 
-    const { data: existentes, error: readErr } = await supabase
-      .from("procedures")
-      .select("id, code, name")
-      .eq("clinic_id", data.clinicId);
+    // De a páginas: con más de 1000 prestaciones (`max_rows`), las que
+    // quedaban afuera se volvían a crear como duplicadas.
+    const { filas: existentes, error: readErr } = await leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .from("procedures")
+        .select("id, code, name")
+        .eq("clinic_id", data.clinicId)
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    );
     if (readErr)
       throw new Error(mensajeDb(readErr, "No pudimos leer el arancel actual de la clínica."));
 
@@ -301,12 +308,19 @@ export const importProcedures = createServerFn({ method: "POST" })
           ),
         );
     }
-    for (const { id, row } of cambios) {
-      const { error } = await supabase
-        .from("procedures")
-        .update(row)
-        .eq("id", id)
-        .eq("clinic_id", data.clinicId);
+    // Una sola sentencia para todas las actualizaciones (antes, hasta 1000
+    // UPDATE de a uno): `upsert` por `id` sobre filas que ya existen solo
+    // actualiza las columnas que se mandan, y es atómico — o se actualizan
+    // todas o ninguna. Si dos filas de la planilla apuntan a la misma
+    // prestación gana la última, como en el bucle de antes (y Postgres no
+    // acepta dos veces la misma fila en un upsert). `clinic_id` va en la fila:
+    // la RLS lo exige y nunca cambia, porque el id ya es de esta clínica.
+    const ultimaPorId = new Map(cambios.map(({ id, row }) => [id, row]));
+    if (ultimaPorId.size) {
+      const { error } = await supabase.from("procedures").upsert(
+        [...ultimaPorId].map(([id, row]) => ({ id, clinic_id: data.clinicId, ...row })),
+        { onConflict: "id" },
+      );
       if (error) throw new Error("No pudimos actualizar una prestación. " + error.message);
     }
 
@@ -964,20 +978,28 @@ async function guardarItemsRecalculados(
     convenio.cobertura,
   );
 
-  for (const [i, resuelto] of totals.items.entries()) {
-    const { id, nuevo } = items[i];
-    const fila = quoteItemRow(resuelto, clinicId, quote.id);
-    if (nuevo) {
-      const { error } = await supabase.from("quote_items").insert({ id, ...fila });
-      if (error) throw new Error(mensajeDb(error, "No pudimos sumar el ítem al presupuesto."));
-    } else {
-      const { clinic_id: _c, quote_id: _q, ...cambios } = fila;
-      const { error } = await supabase
-        .from("quote_items")
-        .update(cambios)
-        .eq("id", id)
-        .eq("clinic_id", clinicId);
-      if (error) throw new Error(mensajeDb(error, "No pudimos recalcular el presupuesto."));
+  // Una sola sentencia para todos los ítems (antes, un INSERT o UPDATE por
+  // ítem): `upsert` por `id` inserta los nuevos y actualiza los existentes
+  // conservando su id, de forma atómica. `clinic_id` y `quote_id` no cambian
+  // para un ítem existente (son los de este presupuesto). Si algún ítem trae
+  // `odontogram_mark_id`, el resto lo manda en null: es el valor que ya
+  // tenían, porque `filaABorrador` conserva el vínculo de cada ítem guardado.
+  const filas = totals.items.map((resuelto, i) => ({
+    id: items[i].id,
+    ...quoteItemRow(resuelto, clinicId, quote.id),
+  }));
+  if (filas.length) {
+    const { error } = await supabase.from("quote_items").upsert(filas, { onConflict: "id" });
+    if (error) {
+      const hayNuevos = items.some((it) => it.nuevo);
+      throw new Error(
+        mensajeDb(
+          error,
+          hayNuevos
+            ? "No pudimos sumar el ítem al presupuesto."
+            : "No pudimos recalcular el presupuesto.",
+        ),
+      );
     }
   }
 

@@ -12,6 +12,7 @@ import {
   type SupplyMovementRecord,
 } from "@/lib/clinic-operations/procedure-supply-consumption";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import { mapConLimite } from "@/lib/paginacion";
 
 export type ProcedureSupply = {
   itemId: string;
@@ -204,8 +205,12 @@ export async function applyTreatmentItemSupplyConsumption(
     );
   const yieldByItem = new Map((items ?? []).map((i) => [i.id, i.yield_pct ?? 100]));
 
-  let skippedCount = 0;
-  for (const supply of supplies) {
+  // En paralelo (hasta 4 a la vez) y no uno por uno: cada insumo es un
+  // movimiento independiente — la receta no repite insumo (UNIQUE
+  // procedure_id + item_id), así que no compiten por el mismo saldo. Sigue
+  // siendo un INSERT por insumo y no uno solo en lote a propósito: si a un
+  // insumo no le alcanza el stock, se omite ese y no todo el consumo.
+  const resultados = await mapConLimite(supplies, 4, async (supply) => {
     const override = params.overrides?.[supply.item_id];
     const quantity =
       override ?? applyYield(supply.quantity, yieldByItem.get(supply.item_id) ?? 100);
@@ -217,22 +222,24 @@ export async function applyTreatmentItemSupplyConsumption(
       reason: "Consumo automático por procedimiento",
       treatment_item_id: params.treatmentItemId,
     });
-    if (insertError) {
-      // 23514 = check_violation: la clínica no tenía ese insumo en ninguna
-      // bodega. El movimiento no manda warehouse_id, así que el trigger lo
-      // descuenta de las bodegas con saldo en orden de posición y solo
-      // rechaza cuando no alcanza el total — no cuando falta en una bodega
-      // puntual. Se omite ese insumo, no todo el consumo: mismo criterio que
-      // registerInventoryMovement usa para el mensaje al usuario, pero acá no
-      // hay usuario esperando en un diálogo, el tratamiento se completa igual.
-      if (insertError.code === "23514") {
-        skippedCount += 1;
-        continue;
-      }
-      throw new Error(
-        mensajeDb(insertError, "No pudimos descontar los insumos del procedimiento."),
-      );
+    return insertError;
+  });
+
+  let skippedCount = 0;
+  for (const insertError of resultados) {
+    if (!insertError) continue;
+    // 23514 = check_violation: la clínica no tenía ese insumo en ninguna
+    // bodega. El movimiento no manda warehouse_id, así que el trigger lo
+    // descuenta de las bodegas con saldo en orden de posición y solo
+    // rechaza cuando no alcanza el total — no cuando falta en una bodega
+    // puntual. Se omite ese insumo, no todo el consumo: mismo criterio que
+    // registerInventoryMovement usa para el mensaje al usuario, pero acá no
+    // hay usuario esperando en un diálogo, el tratamiento se completa igual.
+    if (insertError.code === "23514") {
+      skippedCount += 1;
+      continue;
     }
+    throw new Error(mensajeDb(insertError, "No pudimos descontar los insumos del procedimiento."));
   }
   return { skippedCount };
 }

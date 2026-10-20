@@ -11,6 +11,7 @@ import {
 } from "@/lib/clinic-operations/clinic-data";
 import { registrarLecturaDeFicha } from "@/lib/clinical/lecturas-ficha.server";
 import { mensajeDb } from "@/lib/db-errors";
+import { leerTodasLasPaginas } from "@/lib/paginacion";
 import { vigilarCifradoDeDocumento } from "@/lib/patients/documento-cifrado.server";
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
@@ -156,6 +157,10 @@ const PATIENT_COLUMNS =
  * ese filtro a la RPC también; con el volumen actual no se justifica).
  * `truncated` le avisa a la UI que hay más pacientes de los que se trajeron,
  * en vez de fallar en silencio (ver auditoría de arquitectura 2026-08-15).
+ *
+ * Se lee de a páginas de 1000 con `.range()`: una sola consulta con
+ * `.limit(5000)` volvía con 1000 filas (el `max_rows` de PostgREST) y
+ * `truncated` nunca se encendía (auditoría de rendimiento, 20-oct-2026).
  */
 const PATIENTS_ROW_LIMIT = 5_000;
 
@@ -181,23 +186,43 @@ export const listPatients = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<{ items: Paciente[]; truncated: boolean }> => {
     const { supabase } = context;
 
-    let consulta = supabase.from("patients").select(PATIENT_COLUMNS).eq("clinic_id", data.clinicId);
-    if (data.archivo === "activas") consulta = consulta.is("archived_at", null);
-    else if (data.archivo === "archivadas") consulta = consulta.not("archived_at", "is", null);
+    // Una consulta nueva por página: los builders de supabase-js acumulan
+    // parámetros si se reusan.
+    const consultaPacientes = () => {
+      const consulta = supabase
+        .from("patients")
+        .select(PATIENT_COLUMNS)
+        .eq("clinic_id", data.clinicId);
+      if (data.archivo === "activas") return consulta.is("archived_at", null);
+      if (data.archivo === "archivadas") return consulta.not("archived_at", "is", null);
+      return consulta;
+    };
 
-    const [{ data: rows, error }, { data: apptRows, error: apptError }] = await Promise.all([
-      consulta.order("full_name", { ascending: true }).limit(PATIENTS_ROW_LIMIT),
-      supabase.rpc("list_patients_with_last_and_next_appointment", {
-        p_clinic_id: data.clinicId,
-      }),
-    ]);
+    // Orden estable entre páginas: dos pacientes pueden llamarse igual.
+    const [{ filas: rows, truncado: truncated, error }, { filas: apptRows, error: apptError }] =
+      await Promise.all([
+        leerTodasLasPaginas(
+          (desde, hasta) =>
+            consultaPacientes()
+              .order("full_name", { ascending: true })
+              .order("id", { ascending: true })
+              .range(desde, hasta),
+          { tope: PATIENTS_ROW_LIMIT },
+        ),
+        // Una fila por paciente de la clínica: también pasa de 1000.
+        leerTodasLasPaginas((desde, hasta) =>
+          supabase
+            .rpc("list_patients_with_last_and_next_appointment", { p_clinic_id: data.clinicId })
+            .order("patient_id", { ascending: true })
+            .range(desde, hasta),
+        ),
+      ]);
 
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar la lista de pacientes."));
     if (apptError)
       throw new Error(
         mensajeDb(apptError, "No pudimos cargar la información de citas de los pacientes."),
       );
-    const truncated = (rows ?? []).length >= PATIENTS_ROW_LIMIT;
 
     type ApptSummary = {
       patient_id: string;
@@ -205,10 +230,10 @@ export const listPatients = createServerFn({ method: "GET" })
       next_appointment_at: string | null;
     };
     const summaryByPatient = new Map<string, ApptSummary>(
-      (apptRows ?? []).map((r) => [(r as ApptSummary).patient_id, r as ApptSummary]),
+      apptRows.map((r) => [(r as ApptSummary).patient_id, r as ApptSummary]),
     );
 
-    const items = (rows ?? []).map((row) => {
+    const items = rows.map((row) => {
       const s = summaryByPatient.get(row.id);
       return mapPatientRow(row as PatientRow, {
         ultimaVisita: s?.last_appointment_at
@@ -224,64 +249,52 @@ export const listPatients = createServerFn({ method: "GET" })
   });
 
 /**
- * Auditoría de código 01-sep-2026: esta regla (total facturado en
- * treatment_items —lo que le toca al paciente cuando hay convenio—,
- * excluyendo planes cancelled, menos total pagado en
- * payments) estaba reimplementada por separado acá y en
- * `listPendingOutreach` (messaging.functions.ts) — confirmado que hoy
- * coinciden exactamente (mismos filtros) antes de unificar, no había bug
- * activo, pero cualquier cambio futuro a la regla tenía que acordarse de
- * tocar los dos lugares. Sin `patientId` trae la clínica entera agrupada
- * por paciente (para el aviso de payment_due); con `patientId` la acota a
- * uno solo.
+ * Saldo por paciente: total facturado en treatment_items (lo que le toca al
+ * paciente cuando hay convenio, `patient_cents ?? price_cents`), excluyendo
+ * planes cancelled, y total pagado en payments no reversados. Es la única
+ * fuente del saldo: la ficha, la agenda, la morosidad y el aviso de
+ * payment_due la usan (auditoría de código 01-sep-2026: estaba duplicada).
+ *
+ * La suma la hace Postgres (RPC `patient_balances`, SECURITY INVOKER, así que
+ * la RLS de cada tabla se aplica igual). Antes se traían las filas crudas y
+ * se sumaban acá, sin orden ni límite: PostgREST corta en `max_rows` (1000),
+ * así que con volumen real el saldo salía mal en silencio y el outreach de
+ * "saldo" podía escribirle a quien ya pagó (auditoría de rendimiento,
+ * 20-oct-2026). El resultado es una fila por paciente, que también se lee de
+ * a páginas por si la clínica tiene más de 1000 pacientes con movimiento.
+ *
+ * Sin `patientIds` trae la clínica entera; con ellos, solo esos pacientes.
  */
 export async function fetchPatientBalances(
   supabase: SupabaseClient<Database>,
   clinicId: string,
-  patientId?: string,
+  patientIds?: string | readonly string[],
 ): Promise<Map<string, { billedCents: number; paidCents: number }>> {
-  let billedQuery = supabase
-    .from("treatment_items")
-    // `patient_cents` viene del reparto con el convenio (Tanda B): cuando hay
-    // convenio, lo que el paciente debe NO es el precio de la línea. Se traen
-    // las dos y abajo se prefiere `patient_cents` cuando no es NULL.
-    .select("price_cents, patient_cents, treatment_plans!inner(patient_id, clinic_id, status)")
-    .eq("clinic_id", clinicId)
-    .neq("treatment_plans.status", "cancelled");
-  let paidQuery = supabase
-    .from("payments")
-    .select("patient_id, amount_cents")
-    .eq("clinic_id", clinicId)
-    // Un pago reversado no pagó nada: si se sumara, el saldo del paciente
-    // quedaría más bajo de lo real (o hasta a favor) por un cobro deshecho.
-    .is("reversed_at", null);
-  if (patientId) {
-    billedQuery = billedQuery.eq("treatment_plans.patient_id", patientId);
-    paidQuery = paidQuery.eq("patient_id", patientId);
-  }
-
-  const [{ data: billedRows, error: billedErr }, { data: paidRows, error: paidErr }] =
-    await Promise.all([billedQuery, paidQuery]);
-  if (billedErr)
-    throw new Error(mensajeDb(billedErr, "No pudimos calcular el saldo del paciente."));
-  if (paidErr) throw new Error(mensajeDb(paidErr, "No pudimos calcular el saldo del paciente."));
-
+  const ids =
+    patientIds === undefined
+      ? undefined
+      : typeof patientIds === "string"
+        ? [patientIds]
+        : [...patientIds];
   const byPatient = new Map<string, { billedCents: number; paidCents: number }>();
-  for (const r of billedRows ?? []) {
-    const pid = (r as unknown as { treatment_plans: { patient_id: string } }).treatment_plans
-      .patient_id;
-    const cur = byPatient.get(pid) ?? { billedCents: 0, paidCents: 0 };
-    const fila = r as { price_cents: number; patient_cents: number | null };
-    // `?? price_cents` y no `|| price_cents`: un `patient_cents` de 0 es un
-    // valor real (el convenio cubre el 100 %) y tiene que quedar en cero, no
-    // caer al precio de lista y hacerle deber al paciente algo que no debe.
-    cur.billedCents += fila.patient_cents ?? fila.price_cents ?? 0;
-    byPatient.set(pid, cur);
-  }
-  for (const r of paidRows ?? []) {
-    const cur = byPatient.get(r.patient_id) ?? { billedCents: 0, paidCents: 0 };
-    cur.paidCents += r.amount_cents ?? 0;
-    byPatient.set(r.patient_id, cur);
+  if (ids && ids.length === 0) return byPatient;
+
+  const { filas, error } = await leerTodasLasPaginas((desde, hasta) =>
+    supabase
+      .rpc(
+        "patient_balances",
+        ids ? { p_clinic_id: clinicId, p_patient_ids: ids } : { p_clinic_id: clinicId },
+      )
+      .order("patient_id", { ascending: true })
+      .range(desde, hasta),
+  );
+  if (error) throw new Error(mensajeDb(error, "No pudimos calcular el saldo del paciente."));
+
+  for (const r of filas) {
+    byPatient.set(r.patient_id, {
+      billedCents: Number(r.billed_cents ?? 0),
+      paidCents: Number(r.paid_cents ?? 0),
+    });
   }
   return byPatient;
 }

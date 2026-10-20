@@ -105,6 +105,15 @@ export const getRouter = async () => {
           void queryClient.invalidateQueries({ queryKey: ["my-subscription"] });
         }
       },
+      // Con `staleTime` de 60 s (abajo), un dato cacheado se mostraría sin
+      // recargar al volver a una pantalla dentro de ese minuto. Toda escritura
+      // que sale bien marca TODO el caché como viejo, sin recargar nada en el
+      // momento (`refetchType: "none"`): cada pantalla recarga lo suyo al
+      // montarse, igual que con el `staleTime: 0` de antes. Lo que se ve en
+      // pantalla lo sigue refrescando el `invalidateQueries` de cada mutación.
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ refetchType: "none" });
+      },
     }),
     defaultOptions: {
       queries: {
@@ -113,6 +122,12 @@ export const getRouter = async () => {
         // en cache y recién ahí intenta la red: es lo que permite que la
         // clínica siga viendo la agenda durante un corte.
         networkMode: "offlineFirst",
+        // Auditoría de rendimiento (20-oct-2026): con el default (0) cada
+        // vuelta a la pestaña relanzaba TODAS las consultas montadas, incluido
+        // el badge de recordatorios (nueve consultas sobre la clínica entera).
+        // Un minuto alcanza para no repetir lecturas al cambiar de ventana;
+        // las escrituras siguen invalidando (ver `mutationCache` arriba).
+        staleTime: 60_000,
         // El default de 5 min descartaría de memoria justo lo que acabamos de
         // guardar en disco. Tiene que durar al menos lo mismo que el cache
         // persistido, o al volver de un corte largo no queda nada que mostrar.

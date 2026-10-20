@@ -14,9 +14,23 @@ export function versionVigente(
   nota: { title: string; content: string },
   versionesDeLaNota: { version: number; title: string; content: string }[],
 ): number {
-  const vigentes = versionesDeLaNota.filter(
-    (v) => v.content === nota.content && v.title === nota.title,
+  return versionVigenteSegunCoincidencia(
+    versionesDeLaNota.map((v) => ({
+      version: v.version,
+      coincide: v.content === nota.content && v.title === nota.title,
+    })),
   );
+}
+
+/**
+ * La misma regla que `versionVigente`, cuando la comparación de título y
+ * contenido ya la hizo la base (RPC `clinical_note_versions_meta`, columna
+ * `matches_note`) y no hace falta traer el contenido de cada versión.
+ */
+export function versionVigenteSegunCoincidencia(
+  versionesDeLaNota: { version: number; coincide: boolean }[],
+): number {
+  const vigentes = versionesDeLaNota.filter((v) => v.coincide);
   const candidatas = vigentes.length ? vigentes : versionesDeLaNota;
   return candidatas.reduce((max, v) => Math.max(max, v.version), 0) || 1;
 }
@@ -83,6 +97,27 @@ export const REVIEW_ACTION_LABELS: Record<NoteReviewAction, string> = {
   cancelled: "Canceló la solicitud",
 };
 
+/**
+ * Una versión en el historial de la ficha, sin el contenido completo: con
+ * muchas notas y versiones, traerlo todo en cada visita a la ficha era la
+ * lectura más pesada de la pantalla. `preview` son los primeros caracteres
+ * (la lista muestra dos líneas); el contenido se pide al abrir el comparador
+ * (`getNoteVersionContents`).
+ */
+export interface ClinicalNoteVersionMeta {
+  id: string;
+  noteId: string;
+  version: number;
+  title: string;
+  preview: string;
+  aiAssisted: boolean;
+  aiAction: string | null;
+  authorId: string;
+  authorName: string | null;
+  createdAt: string;
+}
+
+/** Una versión con su contenido completo (comparador de versiones). */
 export interface ClinicalNoteVersion {
   id: string;
   noteId: string;

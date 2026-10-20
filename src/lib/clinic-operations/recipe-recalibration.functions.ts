@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { suggestRecipeRecalibration } from "@/lib/clinic-operations/recipe-recalibration";
 import { mensajeDb } from "@/lib/db-errors";
+import { mapConLimite } from "@/lib/paginacion";
 
 export interface RecipeRecalibrationSuggestion {
   itemId: string;
@@ -76,55 +77,60 @@ export const listRecipeRecalibrationSuggestions = createServerFn({ method: "GET"
     );
     if (unambiguousItemIds.length === 0) return { suggestions: [] };
 
-    const suggestions: RecipeRecalibrationSuggestion[] = [];
-    for (const itemId of unambiguousItemIds) {
-      const { data: counts, error: countsError } = await context.supabase
-        .from("inventory_counts")
-        .select("difference, counted_quantity, theoretical_quantity, counted_at")
-        .eq("clinic_id", data.clinicId)
-        .eq("item_id", itemId)
-        .is("warehouse_id", null)
-        .order("counted_at", { ascending: false })
-        .limit(MIN_COUNTS_FOR_SUGGESTION);
-      // Pre-migración (tabla todavía no existe) o pocos conteos: sin
-      // sugerencia posible todavía, no es un error.
-      if (countsError || !counts || counts.length < MIN_COUNTS_FOR_SUGGESTION) continue;
+    // Un insumo no depende de otro: hasta 4 en paralelo en vez de dos
+    // consultas en serie por insumo. El orden del resultado se conserva.
+    const porInsumo = await mapConLimite(
+      unambiguousItemIds,
+      4,
+      async (itemId): Promise<RecipeRecalibrationSuggestion | null> => {
+        const { data: counts, error: countsError } = await context.supabase
+          .from("inventory_counts")
+          .select("difference, counted_quantity, theoretical_quantity, counted_at")
+          .eq("clinic_id", data.clinicId)
+          .eq("item_id", itemId)
+          .is("warehouse_id", null)
+          .order("counted_at", { ascending: false })
+          .limit(MIN_COUNTS_FOR_SUGGESTION);
+        // Pre-migración (tabla todavía no existe) o pocos conteos: sin
+        // sugerencia posible todavía, no es un error.
+        if (countsError || !counts || counts.length < MIN_COUNTS_FOR_SUGGESTION) return null;
 
-      const oldest = counts[counts.length - 1].counted_at;
-      const newest = counts[0].counted_at;
-      const { count: completionsInWindow, error: completionsError } = await context.supabase
-        .from("treatment_items")
-        .select("id", { count: "exact", head: true })
-        .eq("clinic_id", data.clinicId)
-        .eq("procedure_id", data.procedureId)
-        .eq("status", "completed")
-        .gte("completed_at", oldest)
-        .lte("completed_at", newest);
-      if (completionsError) continue;
+        const oldest = counts[counts.length - 1].counted_at;
+        const newest = counts[0].counted_at;
+        const { count: completionsInWindow, error: completionsError } = await context.supabase
+          .from("treatment_items")
+          .select("id", { count: "exact", head: true })
+          .eq("clinic_id", data.clinicId)
+          .eq("procedure_id", data.procedureId)
+          .eq("status", "completed")
+          .gte("completed_at", oldest)
+          .lte("completed_at", newest);
+        if (completionsError) return null;
 
-      const recipeRow = recipe.find((r) => r.item_id === itemId);
-      const item = items.find((i) => i.id === itemId);
-      if (!recipeRow || !item) continue;
+        const recipeRow = recipe.find((r) => r.item_id === itemId);
+        const item = items.find((i) => i.id === itemId);
+        if (!recipeRow || !item) return null;
 
-      const suggestion = suggestRecipeRecalibration({
-        // Ver la nota en inventory-counts.functions.ts: columna generada, nullable
-        // por catálogo pero nunca null de verdad.
-        recentDifferences: counts.map(
-          (c) => c.difference ?? c.counted_quantity - c.theoretical_quantity,
-        ),
-        currentRecipeQuantity: recipeRow.quantity,
-        completionsInWindow: completionsInWindow ?? 0,
-      });
-      if (suggestion.kind === "suggest") {
-        suggestions.push({
+        const suggestion = suggestRecipeRecalibration({
+          // Ver la nota en inventory-counts.functions.ts: columna generada, nullable
+          // por catálogo pero nunca null de verdad.
+          recentDifferences: counts.map(
+            (c) => c.difference ?? c.counted_quantity - c.theoretical_quantity,
+          ),
+          currentRecipeQuantity: recipeRow.quantity,
+          completionsInWindow: completionsInWindow ?? 0,
+        });
+        if (suggestion.kind !== "suggest") return null;
+        return {
           itemId,
           itemName: item.name,
           unit: item.unit,
           currentQuantity: recipeRow.quantity,
           suggestedQuantity: suggestion.suggestedQuantity,
-        });
-      }
-    }
+        };
+      },
+    );
+    const suggestions = porInsumo.filter((s): s is RecipeRecalibrationSuggestion => s !== null);
 
     return { suggestions };
   });
