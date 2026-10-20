@@ -74,7 +74,7 @@ export const listBranchesDetailed = createServerFn({ method: "GET" })
 /** Alta de sucursal fuera del onboarding inicial — misma forma que el paso
  * "Sucursal y boxes" del wizard, reusada acá para que una clínica que crece
  * pueda agregar una sede sin tocar la base de datos a mano. RLS
- * (branches_write / operatories_write) ya exige can_manage_clinic. */
+ * (branches_insert / operatories_insert) ya exige can_manage_clinic. */
 export const createBranch = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
