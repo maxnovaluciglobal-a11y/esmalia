@@ -43,6 +43,10 @@ const preguntas: { q: string; a: string }[] = [
     a: "Solo (US$29/mes, 1 profesional): agenda, ficha clínica, recordatorios por WhatsApp, caja, presupuestos e importación de pacientes por planilla. Clínica (US$69/mes, hasta 3 profesionales): todo lo de Solo, más comisiones, roles y portal de pacientes. Red (varias sedes): a medida, con multisede, inventario, reportes por sede y migración acompañada.",
   },
   {
+    q: "¿Puedo probar Esmalia sin dejar mi sistema actual?",
+    a: "Sí, y es lo que recomendamos: usa los dos en paralelo la primera semana y deja el anterior cuando todo coincida. Puedes traer tus pacientes y tus citas futuras desde una planilla CSV (hasta 2.000 filas por carga, con plantillas descargables). El historial clínico y los odontogramas no se importan: se siguen llenando en Esmalia a medida que atiendes. Tienes la guía paso a paso en esmalia.com/docs/migrar-desde-otro-sistema.",
+  },
+  {
     q: "¿En qué moneda me cobran?",
     a: "En dólares (USD), a través de Stripe. El precio en tu moneda que ves en esta página es una referencia aproximada: el monto final lo define el tipo de cambio de tu banco o tarjeta.",
   },
