@@ -4,8 +4,9 @@ import { TOPE_CLINICAS_POR_CORRIDA } from "@/lib/messaging/digest-diario";
 import { cronAutorizado } from "@/lib/cron-auth.server";
 
 /**
- * Correos programados a la clínica: aviso de fin de prueba (T-3 y T-0) y el
- * reporte "Tu semana en la clínica" de los lunes. Lo dispara cada hora Vercel
+ * Correos programados a la clínica: aviso de llamada de puesta en marcha
+ * pendiente (una vez, 24 h después del alta), aviso de fin de prueba (T-3 y
+ * T-0) y el reporte "Tu semana en la clínica" de los lunes. Lo dispara cada hora Vercel
  * Cron (vercel.json, minuto 47) y, de respaldo,
  * `.github/workflows/lifecycle-emails.yml` (minuto 17), los dos con
  * `CRON_SECRET`.

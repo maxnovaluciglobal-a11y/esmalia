@@ -8,6 +8,7 @@
  * Lo testea `tests/correos-ciclo-de-vida.test.ts` sin levantar Postgres.
  */
 
+import { horasConLlamadaPendiente } from "@/lib/admin/salud-clinica";
 import { horaLocal } from "@/lib/messaging/digest-diario";
 
 export const LIFECYCLE_KINDS = [
@@ -17,6 +18,7 @@ export const LIFECYCLE_KINDS = [
   "subscription_active",
   "payment_failed",
   "weekly_report",
+  "onboarding_call_pending",
 ] as const;
 export type LifecycleKind = (typeof LIFECYCLE_KINDS)[number];
 
@@ -31,6 +33,9 @@ export const ES_TRANSACCIONAL: Record<LifecycleKind, boolean> = {
   subscription_active: true,
   payment_failed: true,
   weekly_report: false,
+  // Un solo aviso por destinatario, sobre algo del servicio que contrató
+  // (qué falta para activar tres funciones): sin baja, como la bienvenida.
+  onboarding_call_pending: true,
 };
 
 /** Reintentos máximos de un envío que falló (columna `attempts`). */
@@ -169,6 +174,45 @@ export function avisoDeTrialQueCorresponde(
  */
 export function claveFinDePruebaStripe(subscriptionId: string, trialEndIso: string): string {
   return `stripe:${subscriptionId}:${trialEndIso.slice(0, 10)}`;
+}
+
+// ─── Llamada de puesta en marcha pendiente ───────────────────────────────
+
+/**
+ * Edad máxima de la clínica (en días desde el alta) para recibir el aviso de
+ * llamada pendiente. Al desplegar, las clínicas creadas hace más de una
+ * semana no reciben un correo que llega tarde: el aviso es para quien recién
+ * empieza.
+ */
+export const DIAS_MAX_AVISO_LLAMADA = 7;
+
+export interface InsumosAvisoLlamada {
+  createdAt: string;
+  onboardingCallAt: string | null;
+  /** `subscriptions.status`; `null` si la clínica no tiene fila. */
+  subscriptionStatus: string | null;
+  isDemo: boolean;
+}
+
+/**
+ * ¿Le toca a la clínica el aviso "tu llamada de puesta en marcha sigue
+ * pendiente"? Reusa la regla de `/admin/clinicas` (`horasConLlamadaPendiente`:
+ * 24 h desde el alta, sin llamada, sin suscripción) y además exige:
+ *  - estar en prueba (`trialing`): solo ahí la llamada destraba algo
+ *    (`requiereLlamadaOSuscripcion` en billing.ts), y el correo dice eso;
+ *    sin fila de suscripción es una piloto anterior al trigger y no se toca;
+ *  - no ser la demo;
+ *  - tener menos de `DIAS_MAX_AVISO_LLAMADA` días de alta.
+ * La ventana horaria y el interruptor los aplica el cron, como al resto.
+ */
+export function correspondeAvisoLlamada(d: InsumosAvisoLlamada, ahora: Date): boolean {
+  if (d.isDemo) return false;
+  if (d.subscriptionStatus !== "trialing") return false;
+  const horas = horasConLlamadaPendiente(
+    { createdAt: d.createdAt, onboardingCallAt: d.onboardingCallAt, suscrita: false },
+    ahora,
+  );
+  return horas !== null && horas < DIAS_MAX_AVISO_LLAMADA * 24;
 }
 
 // ─── Reporte semanal ─────────────────────────────────────────────────────

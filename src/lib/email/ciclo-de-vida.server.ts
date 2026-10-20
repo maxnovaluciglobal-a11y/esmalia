@@ -29,6 +29,7 @@ import {
   TIMEZONE_POR_DEFECTO,
   avisoDeTrialQueCorresponde,
   claveFinDePruebaStripe,
+  correspondeAvisoLlamada,
   contarPresupuestosSinSeguimiento,
   esLunesLocal,
   esVentanaDeCorreos,
@@ -44,6 +45,7 @@ import {
   correoBienvenida,
   correoFinDePrueba,
   correoFinDePruebaStripe,
+  correoLlamadaPendiente,
   correoPagoFallido,
   correoSemana,
   correoSuscripcionActiva,
@@ -362,7 +364,7 @@ export async function enviarPagoFallido(input: {
   }
 }
 
-// ─── Cron: b. fin de prueba y e. reporte semanal ─────────────────────────
+// ─── Cron: a2. llamada pendiente, b. fin de prueba y e. reporte semanal ──
 
 export interface ResumenCorrida {
   habilitado: boolean;
@@ -400,7 +402,7 @@ export async function correrCorreosProgramados(
   };
   const { data: clinicas, error } = await admin
     .from("clinics")
-    .select("id, name, timezone, currency, is_demo")
+    .select("id, name, timezone, currency, is_demo, created_at, onboarding_call_at")
     .eq("is_demo", false)
     .limit(topeClinicas);
   if (error) throw new Error(`no se pudieron listar las clínicas: ${error.message}`);
@@ -414,6 +416,7 @@ export async function correrCorreosProgramados(
     if (!esVentanaDeCorreos(ahora, tz)) continue;
     resumen.clinicasRevisadas += 1;
     try {
+      for (const r of await avisoDeLlamadaPendiente(admin, c, ahora)) contar(resumen, r);
       for (const r of await avisoDeFinDePrueba(admin, c, ahora)) contar(resumen, r);
       if (esLunesLocal(ahora, tz)) {
         for (const r of await reporteSemanal(admin, c, ahora)) contar(resumen, r);
@@ -424,6 +427,84 @@ export async function correrCorreosProgramados(
     }
   }
   return resumen;
+}
+
+/**
+ * Una vez por destinatario (`period_key = 'once'`), a dueños y
+ * administradores, cuando `correspondeAvisoLlamada` lo dice: 24 h desde el
+ * alta, en prueba, sin llamada y con menos de `DIAS_MAX_AVISO_LLAMADA` días.
+ */
+async function avisoDeLlamadaPendiente(
+  admin: ClienteAdmin,
+  c: ClinicaBasica & { created_at: string; onboarding_call_at: string | null },
+  ahora: Date,
+): Promise<ResultadoEnvio[]> {
+  // Filtro barato antes de consultar nada: sin llamada y dentro del plazo
+  // (el estado de la suscripción se mira después).
+  const candidata = correspondeAvisoLlamada(
+    {
+      createdAt: c.created_at,
+      onboardingCallAt: c.onboarding_call_at,
+      subscriptionStatus: "trialing",
+      isDemo: c.is_demo,
+    },
+    ahora,
+  );
+  if (!candidata) return [];
+
+  const { data: sub } = await admin
+    .from("subscriptions")
+    .select("status")
+    .eq("clinic_id", c.id)
+    .maybeSingle();
+  const corresponde = correspondeAvisoLlamada(
+    {
+      createdAt: c.created_at,
+      onboardingCallAt: c.onboarding_call_at,
+      subscriptionStatus: sub?.status ?? null,
+      isDemo: c.is_demo,
+    },
+    ahora,
+  );
+  if (!corresponde) return [];
+
+  const lista = await destinatarios(admin, c.id, ROLES_REPORTE);
+  if (lista.length === 0) return [];
+
+  // Las corridas siguientes de la semana no reintentan a quien ya lo recibió
+  // (el UNIQUE igual lo impediría, pero así no suma "omitidos" cada hora).
+  const { data: yaSalieron } = await admin
+    .from("lifecycle_emails")
+    .select("recipient")
+    .eq("clinic_id", c.id)
+    .eq("kind", "onboarding_call_pending")
+    .eq("period_key", "once")
+    .in("status", ["sent", "pending", "skipped"]);
+  const listos = new Set((yaSalieron ?? []).map((f) => f.recipient));
+
+  const resultados: ResultadoEnvio[] = [];
+  for (const d of lista) {
+    if (listos.has(d.email)) continue;
+    const correo = correoLlamadaPendiente({
+      appUrl: SITE_URL,
+      clinicName: c.name,
+      nombre: d.nombre,
+    });
+    resultados.push(
+      await sendClinicEmail(
+        {
+          clinicId: c.id,
+          kind: "onboarding_call_pending",
+          periodKey: "once",
+          to: d.email,
+          userId: d.userId,
+          ...correo,
+        },
+        admin,
+      ),
+    );
+  }
+  return resultados;
 }
 
 async function avisoDeFinDePrueba(

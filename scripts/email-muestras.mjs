@@ -69,6 +69,11 @@ try {
       finDePrueba: "2026-10-23",
       diasDePrueba: 14,
     }),
+    "1b-llamada-pendiente": t.correoLlamadaPendiente({
+      appUrl,
+      clinicName: "Clínica Dental Sonrisa",
+      nombre: "Patricia Morales",
+    }),
     "2a-fin-de-prueba-t3": t.correoFinDePrueba({
       appUrl,
       clinicName: "Clínica Dental Sonrisa",
