@@ -94,7 +94,7 @@ export const listProcedureSupplies = createServerFn({ method: "GET" })
 
 /** Reemplaza la receta completa de un procedimiento (borra + inserta de
  * nuevo — son pocas líneas de configuración, no eventos históricos). RLS
- * (`procedure_supplies_write_managers`) ya exige owner/admin/dentist. */
+ * (`procedure_supplies_{insert,delete}_managers`) ya exige owner/admin/dentist. */
 export const setProcedureSupplies = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
