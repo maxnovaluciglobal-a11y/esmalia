@@ -536,27 +536,6 @@
   border-radius: var(--radius-lg);
 }
 
-/* Único momento de motion de la landing: el panel "Hoy" del hero entra
-   desde un estado ya casi visible. */
-@keyframes landing-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@utility animate-landing-rise {
-  animation: landing-rise 0.7s var(--ease-out) both;
-
-  @media (prefers-reduced-motion: reduce) {
-    animation: none;
-  }
-}
-
 /* Sello "Cuadra" del arqueo de caja (flag caja-arqueo-v2). El componente
    solo pone estas clases si se puede animar (useMovimiento); el media query
    es la segunda red. Sin animación el sello queda quieto y visible. */

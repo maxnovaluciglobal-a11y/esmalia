@@ -8,9 +8,9 @@
 // de cargar y el navegador queda libre.
 //
 // Solo las rutas de esta lista: la app y el resto del sitio siguen igual.
-// Cuando el PR 8 pase la landing a "/", agregar "/" acá.
+// La landing vive en "/" desde el PR 8 (20-oct-2026); /v2 redirige con 308.
 
-const RUTAS_CARGA_DIFERIDA: ReadonlySet<string> = new Set(["/v2"]);
+const RUTAS_CARGA_DIFERIDA: ReadonlySet<string> = new Set(["/"]);
 
 /** true si en esta ruta lo no esencial se carga después del primer pintado. */
 export function esRutaDeCargaDiferida(pathname: string): boolean {

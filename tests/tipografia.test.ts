@@ -87,9 +87,9 @@ describe("tipografía A+", () => {
   });
 });
 
-// Titulares de la landing /v2 en Bricolage (draft "C sobre /v2", 20-oct-2026).
-// Solo en /v2: ni styles.css (la app y "/") ni otra página la cargan.
-describe("titulares de /v2 en Bricolage", () => {
+// Titulares de la landing en Bricolage (draft "C sobre /v2", 20-oct-2026; en "/" desde el PR 8).
+// Solo en la landing: ni styles.css (la app) ni otra página la cargan.
+describe("titulares de la landing en Bricolage", () => {
   const LANDING = readFileSync(path.join(SRC, "components/marketing/v2/landing-v2.css"), "utf8");
   const INSTANCIA = "assets/fuentes/bricolage-grotesque-latin-display.woff2";
 
@@ -110,13 +110,13 @@ describe("titulares de /v2 en Bricolage", () => {
     const fuera = archivos(SRC, /\.(tsx?|css)$/).filter(
       (ruta) =>
         !ruta.includes(`${path.sep}marketing${path.sep}v2${path.sep}`) &&
-        relativo(ruta) !== path.join("src", "routes", "v2.tsx") &&
+        relativo(ruta) !== path.join("src", "routes", "index.tsx") &&
         /Bricolage/.test(readFileSync(ruta, "utf8")),
     );
     expect(fuera.map(relativo)).toEqual([]);
   });
 
-  it("los titulares de /v2 no caen a Cormorant si falta la cara", () => {
+  it("los titulares de la landing no caen a Cormorant si falta la cara", () => {
     const display = LANDING.match(/--lv-display:\s*([^;]+);/)?.[1] ?? "";
     expect(display).toMatch(/^"Bricolage Grotesque"/);
     expect(display).not.toMatch(/Cormorant|font-heading|(?<!sans-)serif/);
