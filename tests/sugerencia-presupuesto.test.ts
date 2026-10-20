@@ -135,19 +135,14 @@ describe("procedimientoSugerido: condición → prestación del arancel", () => 
 
 describe("debeSugerir", () => {
   const base: ContextoSugerencia = {
-    flag: true,
     puedeFacturar: true,
     soloLectura: false,
     marca: { id: "m1", condition: "endodoncia", status: "planificado" },
     yaPresupuestadas: new Set(),
   };
 
-  it("un tratamiento por realizar, con permiso y flag, se sugiere", () => {
+  it("un tratamiento por realizar, con permiso, se sugiere", () => {
     expect(debeSugerir(base)).toBe(true);
-  });
-
-  it("con el flag apagado no se sugiere (sigue el botón Presupuestar)", () => {
-    expect(debeSugerir({ ...base, flag: false })).toBe(false);
   });
 
   it("sin permiso de facturar no hay sugerencia", () => {

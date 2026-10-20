@@ -30,7 +30,7 @@ export interface CashRegister {
   closedAt: string | null;
   closingNotes: string | null;
   /**
-   * Conteo por billete y moneda del cierre (arqueo v2). `null` si se ingresó
+   * Conteo por billete y moneda del cierre. `null` si se ingresó
    * solo el total o si la caja se cerró antes de que existiera el conteo.
    */
   closingDenominations: DetalleDenominaciones | null;
@@ -113,7 +113,7 @@ export const MENSAJE_MOTIVO_OBLIGATORIO =
 /**
  * Si la caja no cuadra, el cierre tiene que decir por qué. Lo valida el
  * servidor con la diferencia que calcula él (no la que muestra la pantalla),
- * así que vale con el flag del arqueo encendido o apagado.
+ * así que vale con o sin conteo por denominación.
  */
 export function motivoFaltante(differenceCents: number, notes: string | null | undefined): boolean {
   if (differenceCents === 0) return false;

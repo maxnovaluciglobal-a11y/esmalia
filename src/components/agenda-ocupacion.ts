@@ -1,8 +1,8 @@
-import { horarioDelDia, type BloqueHorario, type Tramo } from "@/components/agenda-arrastre";
+import { horarioDelDia, type BloqueHorario, type Tramo } from "@/components/agenda-movimiento";
 import type { Cita } from "@/lib/clinic-operations/clinic-data";
 
 /**
- * Ocupación por día de la vista semana (PR 10b del plan A+, flag `agenda-v2`).
+ * Ocupación por día de la vista semana (PR 10b del plan A+).
  *
  * Lógica pura, sin huso ni reloj: todo en minutos desde HORA_INICIO, en hora
  * de pared de la sucursal (la misma unidad que `Cita.inicio`).

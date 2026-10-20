@@ -59,7 +59,7 @@ function veredicto(
 }
 
 /**
- * Arqueo de caja por billete y moneda (flag `caja-arqueo-v2`).
+ * Arqueo de caja por billete y moneda (PR 12 del rediseño A+).
  *
  * Cuenta el cajón por denominación, suma sola, compara contra lo esperado y,
  * si no cuadra, pide el motivo (el servidor lo vuelve a exigir con su propia

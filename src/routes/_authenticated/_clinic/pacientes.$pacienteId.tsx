@@ -68,7 +68,6 @@ import {
   type PestanaFicha,
 } from "@/components/ficha-busqueda";
 import { BloqueoEscritura, SegunSoloLectura } from "@/components/solo-lectura";
-import { useFlag } from "@/lib/flags";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/$pacienteId")({
   validateSearch: validarBusquedaFicha,
@@ -344,13 +343,10 @@ function PacienteDetalle() {
   }, [search.cobrar, puedeFacturar, navigate]);
 
   // PR 11 (A+): al guardar una marca "por realizar", el odontograma ofrece
-  // sumarla al presupuesto en borrador. Detrás del flag; apagado, queda solo
-  // el botón "Presupuestar" de G-1.
-  const flagSugerencia = useFlag("ficha-sugerencia-presupuesto", access.email);
-  const sugerenciaPresupuesto =
-    flagSugerencia && puedeFacturar
-      ? { currency, onVerPresupuesto: () => setPestana("finanzas") }
-      : undefined;
+  // sumarla al presupuesto en borrador (además del botón "Presupuestar" de G-1).
+  const sugerenciaPresupuesto = puedeFacturar
+    ? { currency, onVerPresupuesto: () => setPestana("finanzas") }
+    : undefined;
 
   const presupuestarPieza = puedeFacturar
     ? (pieza: Omit<PiezaSeed, "nonce">) => {

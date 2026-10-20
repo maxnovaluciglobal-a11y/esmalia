@@ -47,8 +47,7 @@ import {
   listCashRegisters,
   openCashRegister,
 } from "@/lib/finance/cash-registers.functions";
-import { useFlag } from "@/lib/flags";
-import { decidirAbrirCaja, leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell-v2";
+import { decidirAbrirCaja, leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
 
@@ -114,7 +113,6 @@ function CajasPage() {
   const clinicTz = access.clinic?.timezone;
   const currency = access.clinic?.currency ?? "CLP";
   const queryClient = useQueryClient();
-  const arqueoV2 = useFlag("caja-arqueo-v2", access.email);
 
   const fetchOpen = useServerFn(getOpenCashRegister);
   const fetchHistory = useServerFn(listCashRegisters);
@@ -212,10 +210,6 @@ function CajasPage() {
     void navigate({ search: (prev) => ({ ...prev, abrir: undefined }), replace: true });
   }, [decisionAbrir, navigate]);
 
-  const [closeDialogOpen, setCloseDialogOpen] = useState(false);
-  const [declaredAmount, setDeclaredAmount] = useState<number | null>(0);
-  const [closingNotes, setClosingNotes] = useState("");
-
   const closeMutation = useMutation({
     mutationFn: (cierre: CierreArqueo) =>
       closeFn({
@@ -233,9 +227,6 @@ function CajasPage() {
       } else {
         toast.warning(`Caja cerrada. Faltan ${formatMoney(-differenceCents, currency)}.`);
       }
-      setCloseDialogOpen(false);
-      setDeclaredAmount(0);
-      setClosingNotes("");
       queryClient.invalidateQueries({ queryKey: openQueryKey });
       queryClient.invalidateQueries({ queryKey: historyQueryKey });
     },
@@ -343,7 +334,7 @@ function CajasPage() {
           </div>
           {!loadingOpen && !openConError && (
             <div className="flex flex-wrap gap-2">
-              {openRegister && arqueoV2 ? (
+              {openRegister ? (
                 <BloqueoEscritura>
                   <Button
                     onClick={() => {
@@ -355,10 +346,6 @@ function CajasPage() {
                     <Lock aria-hidden /> Cerrar caja (arqueo)
                   </Button>
                 </BloqueoEscritura>
-              ) : openRegister ? (
-                <Button onClick={() => setCloseDialogOpen(true)}>
-                  <Lock aria-hidden /> Cerrar caja (arqueo)
-                </Button>
               ) : (
                 <Button onClick={() => setOpenDialogOpen(true)}>
                   <LockOpen aria-hidden /> Abrir caja
@@ -379,11 +366,7 @@ function CajasPage() {
         )}
 
         {openRegister && (
-          <div
-            className={cn(
-              arqueoV2 && "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]",
-            )}
-          >
+          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
             <section aria-labelledby="caja-turno" className="space-y-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 id="caja-turno" className="font-display text-2xl font-semibold">
@@ -417,30 +400,28 @@ function CajasPage() {
                 <TablaDesglose filas={cobrosTurno ?? []} currency={currency} />
               )}
             </section>
-            {arqueoV2 && (
-              <ArqueoDenominaciones
-                // Cambiar de caja (otro turno) arranca el conteo de cero.
-                key={openRegister.id}
-                currency={openRegister.currency}
-                expectedCents={
-                  loadingCobros || cobrosConError
-                    ? null
-                    : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
-                }
-                expectedNota={
-                  cobrosConError
-                    ? "Sin datos"
-                    : notaEsperado(
-                        openRegister.openingAmountCents,
-                        cantidadCobros,
-                        openRegister.currency,
-                      )
-                }
-                etiquetaSello={etiquetaDelDia(hoy)}
-                enviando={closeMutation.isPending}
-                onCerrar={(cierre) => closeMutation.mutate(cierre)}
-              />
-            )}
+            <ArqueoDenominaciones
+              // Cambiar de caja (otro turno) arranca el conteo de cero.
+              key={openRegister.id}
+              currency={openRegister.currency}
+              expectedCents={
+                loadingCobros || cobrosConError
+                  ? null
+                  : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
+              }
+              expectedNota={
+                cobrosConError
+                  ? "Sin datos"
+                  : notaEsperado(
+                      openRegister.openingAmountCents,
+                      cantidadCobros,
+                      openRegister.currency,
+                    )
+              }
+              etiquetaSello={etiquetaDelDia(hoy)}
+              enviando={closeMutation.isPending}
+              onCerrar={(cierre) => closeMutation.mutate(cierre)}
+            />
           </div>
         )}
 
@@ -636,55 +617,6 @@ function CajasPage() {
               >
                 {openMutation.isPending && <Loader2 className="animate-spin" aria-hidden />}
                 Abrir
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={closeDialogOpen} onOpenChange={setCloseDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Cerrar caja</DialogTitle>
-              <DialogDescription>
-                Cuenta lo que hay en caja y anota el total. El sistema calcula solo la diferencia
-                contra lo esperado (apertura + cobros en efectivo del turno; tarjetas y
-                transferencias van aparte, a conciliar con el banco).
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor={`${fid}-contado`}>Monto contado</Label>
-                <MoneyInput
-                  id={`${fid}-contado`}
-                  valueCents={declaredAmount}
-                  onValueChange={setDeclaredAmount}
-                  currency={currency}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor={`${fid}-notas-cierre`}>Notas (obligatorias si no cuadra)</Label>
-                <textarea
-                  id={`${fid}-notas-cierre`}
-                  className={INPUT}
-                  rows={3}
-                  value={closingNotes}
-                  onChange={(e) => setClosingNotes(e.target.value)}
-                  placeholder="Ej: faltante por vuelto mal dado en la mañana"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                onClick={() =>
-                  closeMutation.mutate({
-                    declaredClosingCents: declaredAmount ?? 0,
-                    notes: closingNotes.trim() || undefined,
-                  })
-                }
-                disabled={closeMutation.isPending || declaredAmount === null}
-              >
-                {closeMutation.isPending && <Loader2 className="animate-spin" aria-hidden />}
-                Confirmar cierre
               </Button>
             </DialogFooter>
           </DialogContent>

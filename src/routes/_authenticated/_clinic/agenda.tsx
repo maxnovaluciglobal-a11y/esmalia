@@ -31,12 +31,12 @@ import {
   horarioDelDia,
   validarDestino,
   type Destino,
-} from "@/components/agenda-arrastre";
+} from "@/components/agenda-movimiento";
 import { MoverCitaDialog } from "@/components/agenda-mover-a";
 import { CambiarEstadoMenu } from "@/components/cambiar-estado-cita-menu";
 import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones";
 import type { SemillaCita } from "@/components/agenda-hueco";
-import { AgendaMonth, AgendaSemanaCarriles, AgendaWeek } from "@/components/agenda-views";
+import { AgendaMonth, AgendaSemanaCarriles } from "@/components/agenda-views";
 import { fechaMasAntigua } from "@/components/agenda-ocupacion";
 import { AllergyAlertBanner, AllergyAlertIcon } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
@@ -52,8 +52,7 @@ import {
   simularSinConexion,
   useConnectivity,
 } from "@/hooks/use-connectivity";
-import { useFlag } from "@/lib/flags";
-import { interpretarNuevaCita, leerNuevaCita } from "@/lib/shell-v2";
+import { interpretarNuevaCita, leerNuevaCita } from "@/lib/shell";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
 import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
 import {
@@ -1301,27 +1300,21 @@ function AgendaPage() {
     queryFn: () => fetchAppointments({ data: { clinicId: clinicId! } }),
   });
 
-  // PR 10 del plan A+: reprogramar arrastrando (flag `agenda-arrastre`).
-  // Con el flag apagado no se pide nada nuevo y la agenda queda como antes.
-  const flagArrastre = useFlag("agenda-arrastre", access.email);
-  // PR 10b: semana por carriles con ocupación por día y panel lateral
-  // (flag `agenda-v2`). También necesita el horario declarado.
-  const flagAgendaV2 = useFlag("agenda-v2", access.email);
+  // Horario declarado por profesional: lo usan el arrastre (PR 10 del plan
+  // A+) y la semana por carriles con ocupación por día (PR 10b).
   const fetchHorarios = useServerFn(listProfessionalSchedules);
   const { data: horarios } = useQuery({
     queryKey: ["professional-schedules", clinicId],
-    enabled: Boolean(clinicId) && (flagArrastre || flagAgendaV2),
+    enabled: Boolean(clinicId),
     queryFn: () => fetchHorarios({ data: { clinicId: clinicId! } }),
   });
   const { pendientes: enColaOffline } = useColaOffline(access.userId);
   // Los movimientos que esperan conexión se pintan en su destino: si no,
   // la cita "volvería" a su hora vieja con cada refresco del cache.
-  const { citas, enCola } = useMemo(() => {
-    const items = appointmentsRes?.items ?? [];
-    return flagArrastre
-      ? aplicarMovimientosPendientes(items, enColaOffline)
-      : { citas: items, enCola: new Set<string>() };
-  }, [appointmentsRes, enColaOffline, flagArrastre]);
+  const { citas, enCola } = useMemo(
+    () => aplicarMovimientosPendientes(appointmentsRes?.items ?? [], enColaOffline),
+    [appointmentsRes, enColaOffline],
+  );
 
   // Reemplaza la tarjeta "Optimización IA" (siempre vacía, "Próximamente" —
   // auditoría de UI, 30-ago) por un dato real: citas de las próximas 48h que
@@ -1396,7 +1389,7 @@ function AgendaPage() {
     [reprogramar],
   );
   const [citaAMover, setCitaAMover] = useState<Cita | null>(null);
-  const puedeSimular = flagArrastre && puedeSimularSinConexion(esCuentaDemo(access.email));
+  const puedeSimular = puedeSimularSinConexion(esCuentaDemo(access.email));
 
   const fetchSolicitudes = useServerFn(listPendingAppointmentRequests);
   const declineFn = useServerFn(declineAppointmentRequest);
@@ -1486,15 +1479,15 @@ function AgendaPage() {
     [profesionales, search.sucursal, search.profesional],
   );
 
-  // Ocupación (agenda-v2): solo los filtros que cambian qué sillones se miden
+  // Ocupación de la semana: solo los filtros que cambian qué sillones se miden
   // (sucursal y profesional, vía `columnas`). La búsqueda y el estado no
   // cambian lo que está ocupado.
   const citasParaOcupacion = useMemo(
     () =>
-      flagAgendaV2 && search.vista === "semana"
+      search.vista === "semana"
         ? citas.filter((c) => c.fecha >= rangoDesde && c.fecha <= rangoHasta)
         : [],
-    [flagAgendaV2, search.vista, citas, rangoDesde, rangoHasta],
+    [search.vista, citas, rangoDesde, rangoHasta],
   );
 
   const ordenadas = useMemo(
@@ -1523,7 +1516,7 @@ function AgendaPage() {
     (fecha !== hoy ? 1 : 0);
 
   // Acciones de una cita: las comparten el popover de la grilla de día y el
-  // panel lateral de la semana (flag `agenda-v2`).
+  // panel lateral de la semana.
   const accionesDeCita = (c: Cita, p: Profesional) => (
     <>
       {/* Mismos gates que el listado de abajo y que la ficha:
@@ -1568,7 +1561,7 @@ function AgendaPage() {
           }}
         />
       )}
-      {flagArrastre && puedeGestionarAgenda && esMovible(c) && (
+      {puedeGestionarAgenda && esMovible(c) && (
         <BloqueoEscritura>
           <Button
             type="button"
@@ -1587,24 +1580,20 @@ function AgendaPage() {
   return (
     <AppShell title="Agenda" access={access}>
       <div className="space-y-6">
-        {flagArrastre && (
-          <>
-            <p className="sr-only" aria-live="polite" aria-atomic="true">
-              {reprogramar.anuncio}
-            </p>
-            <MoverCitaDialog
-              cita={citaAMover}
-              profesionales={profesionales}
-              horarios={horarios}
-              validar={validarMovimiento}
-              onMover={(c, d) => {
-                void reprogramar.mover(c, d);
-                enfocarCita(c.id);
-              }}
-              onClose={() => setCitaAMover(null)}
-            />
-          </>
-        )}
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {reprogramar.anuncio}
+        </p>
+        <MoverCitaDialog
+          cita={citaAMover}
+          profesionales={profesionales}
+          horarios={horarios}
+          validar={validarMovimiento}
+          onMover={(c, d) => {
+            void reprogramar.mover(c, d);
+            enfocarCita(c.id);
+          }}
+          onClose={() => setCitaAMover(null)}
+        />
         <div className="flex items-center justify-end gap-2">
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <ImportarCitasDialog clinicId={clinicId} />
@@ -1745,26 +1734,22 @@ function AgendaPage() {
               </div>
             </div>
 
-            {flagArrastre && (
-              <p className="text-xs text-muted-foreground">
-                Arrastra una cita para moverla. Con teclado:{" "}
-                <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">Alt</kbd>{" "}
-                + flechas.
-              </p>
-            )}
+            <p className="text-xs text-muted-foreground">
+              Arrastra una cita para moverla. Con teclado:{" "}
+              <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">Alt</kbd> +
+              flechas.
+            </p>
             {search.vista === "dia" && (
               <AgendaGrid
                 arrastre={
-                  flagArrastre
-                    ? ({
-                        habilitado: puedeGestionarAgenda,
-                        validar: validarMovimiento,
-                        onMover: (c, d) => void reprogramar.mover(c, d),
-                        onRechazo: rechazarMovimiento,
-                        enCola,
-                        horarios,
-                      } satisfies ArrastreGrilla)
-                    : undefined
+                  {
+                    habilitado: puedeGestionarAgenda,
+                    validar: validarMovimiento,
+                    onMover: (c, d) => void reprogramar.mover(c, d),
+                    onRechazo: rechazarMovimiento,
+                    enCola,
+                    horarios,
+                  } satisfies ArrastreGrilla
                 }
                 citas={filtradas}
                 profesionales={columnas}
@@ -1780,28 +1765,20 @@ function AgendaPage() {
                 renderAcciones={accionesDeCita}
               />
             )}
-            {search.vista === "semana" &&
-              (flagAgendaV2 ? (
-                <AgendaSemanaCarriles
-                  citas={filtradas}
-                  citasOcupacion={citasParaOcupacion}
-                  fecha={fecha}
-                  hoy={hoy}
-                  profesionales={columnas}
-                  horarios={horarios}
-                  zonaHoraria={access.clinic?.timezone}
-                  datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
-                  allergyAlerts={allergyAlerts}
-                  renderAcciones={accionesDeCita}
-                />
-              ) : (
-                <AgendaWeek
-                  citas={filtradas}
-                  fecha={fecha}
-                  hoy={hoy}
-                  profesionales={profesionales}
-                />
-              ))}
+            {search.vista === "semana" && (
+              <AgendaSemanaCarriles
+                citas={filtradas}
+                citasOcupacion={citasParaOcupacion}
+                fecha={fecha}
+                hoy={hoy}
+                profesionales={columnas}
+                horarios={horarios}
+                zonaHoraria={access.clinic?.timezone}
+                datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
+                allergyAlerts={allergyAlerts}
+                renderAcciones={accionesDeCita}
+              />
+            )}
             {search.vista === "mes" && (
               <AgendaMonth
                 citas={filtradas}

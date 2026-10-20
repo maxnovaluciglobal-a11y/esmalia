@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { DemoBanner } from "@/components/demo-banner";
-import { OfflineBanner } from "@/components/offline-banner";
 import { PendingSyncBanner } from "@/components/pending-sync-banner";
 import { RoleSimulationBar } from "@/components/role-simulation-bar";
 import { TrialBanner } from "@/components/trial-banner";
@@ -11,7 +10,6 @@ import {
   useAvisoMfaPospuesto,
   useEstadoMfa,
 } from "@/components/verificacion-dos-pasos";
-import { useConnectivity } from "@/hooks/use-connectivity";
 import { useColaOffline } from "@/hooks/use-offline-mutation";
 import type { ClinicAccess } from "@/lib/access/access";
 import { debeMostrarAvisoMfa } from "@/lib/auth/mfa";
@@ -22,7 +20,7 @@ import { getMySubscription } from "@/lib/billing.functions";
 /**
  * Una sola franja de estado (rediseño, fase 4). Antes podían apilarse hasta
  * cinco banners; ahora se muestra el más importante, en este orden:
- * demo > sin conexión > sincronización pendiente > modo solo lectura >
+ * demo > cambios fallidos o en conflicto > modo solo lectura >
  * simulación de rol >
  * verificación en dos pasos (owner sin factor, se puede posponer) > trial.
  *
@@ -35,17 +33,10 @@ import { getMySubscription } from "@/lib/billing.functions";
  * resolver un conflicto) y sus acciones siguen intactos. Mismo queryKey de
  * suscripción que `TrialBanner` y el dashboard: comparten caché.
  */
-export function StatusStrip({
-  access,
-  shellV2 = false,
-}: {
-  access: ClinicAccess;
-  /** Con el shell A+ la red y los pendientes van en la pastilla de conexión:
-   *  acá solo llegan los fallidos y conflictos, que piden una decisión. */
-  shellV2?: boolean;
-}) {
-  const { online } = useConnectivity();
-  const { pendientes, fallidos, conflictos } = useColaOffline(access.userId);
+export function StatusStrip({ access }: { access: ClinicAccess }) {
+  // La red y los pendientes van en la pastilla de conexión del shell: acá
+  // solo llegan los fallidos y conflictos, que piden una decisión.
+  const { fallidos, conflictos } = useColaOffline(access.userId);
   const clinicId = access.clinic?.id;
   const esDemo = Boolean(access.clinic?.isDemo);
 
@@ -71,13 +62,7 @@ export function StatusStrip({
     });
 
   if (esDemo) return <DemoBanner />;
-  if (shellV2) {
-    if (fallidos.length + conflictos.length > 0) {
-      return <PendingSyncBanner userId={access.userId} soloAccionables />;
-    }
-  } else if (!online) {
-    return <OfflineBanner />;
-  } else if (pendientes.length + fallidos.length + conflictos.length > 0) {
+  if (fallidos.length + conflictos.length > 0) {
     return <PendingSyncBanner userId={access.userId} />;
   }
   // Solo lectura (BIL-01) antes que la simulación y el aviso de MFA: explica

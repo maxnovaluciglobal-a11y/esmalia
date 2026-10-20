@@ -3,7 +3,7 @@ import { CloudUpload, Wifi, WifiOff } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useConnectivity } from "@/hooks/use-connectivity";
 import { useColaOffline } from "@/hooks/use-offline-mutation";
-import { textoConexion } from "@/lib/shell-v2";
+import { textoConexion } from "@/lib/shell";
 import { cn } from "@/lib/utils";
 
 const hora = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
@@ -42,8 +42,8 @@ export function PastillaConexionVista({
 }
 
 /**
- * Pastilla de conexión del shell A+ (flag `shell-v2`). Reemplaza a dos
- * franjas (`OfflineBanner` y la parte informativa de `PendingSyncBanner`):
+ * Pastilla de conexión del shell A+. Reemplazó a la franja "sin conexión" y
+ * a la parte informativa de `PendingSyncBanner`:
  * dice si hay red y cuántas operaciones de la cola de este usuario esperan
  * subir. Los fallidos y los conflictos NO van acá: piden una decisión y
  * siguen en la franja de estado, con sus botones.

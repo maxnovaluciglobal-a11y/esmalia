@@ -566,10 +566,9 @@ interface Props {
    */
   onPresupuestarPieza?: (pieza: { tooth: number; surface: ToothSurface }) => void;
   /**
-   * Sugerencia "por realizar → presupuesto" (PR 11, flag
-   * `ficha-sugerencia-presupuesto`). El padre la pasa solo con el flag
-   * encendido y permiso de facturar; sin ella el odontograma se comporta como
-   * antes (queda el botón "Presupuestar" de G-1).
+   * Sugerencia "por realizar → presupuesto" (PR 11 del rediseño A+). El
+   * padre la pasa solo con permiso de facturar; sin ella el odontograma no
+   * sugiere nada (queda el botón "Presupuestar" de G-1).
    */
   sugerenciaPresupuesto?: { currency: string; onVerPresupuesto?: () => void };
   /** Edad del paciente: elige la dentición con la que abre (CLI-04). `null` = desconocida. */
@@ -714,7 +713,6 @@ export function Odontogram({
     const sugerir =
       conSugerencia &&
       debeSugerir({
-        flag: true,
         puedeFacturar: true,
         soloLectura,
         marca: { id: nueva.id, condition, status: estado },

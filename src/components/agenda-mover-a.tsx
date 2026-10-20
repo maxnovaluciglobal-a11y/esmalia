@@ -6,7 +6,7 @@ import {
   type BloqueHorario,
   type Destino,
   type Veredicto,
-} from "@/components/agenda-arrastre";
+} from "@/components/agenda-movimiento";
 import { horaDeMinutos } from "@/components/agenda-hueco";
 import { Button } from "@/components/ui/button";
 import {
