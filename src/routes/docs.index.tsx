@@ -1,5 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { CalendarDays, FileUp, MessageCircle, Shield, Sparkles } from "lucide-react";
+import {
+  CalendarDays,
+  CreditCard,
+  Download,
+  FileUp,
+  MessageCircle,
+  Shield,
+  Sparkles,
+} from "lucide-react";
 import { canonicalHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/docs/")({
@@ -19,6 +27,18 @@ const cards = [
     icon: FileUp,
     title: "Migrar desde otro sistema",
     text: "Plantillas CSV para traer tus pacientes y citas, qué se importa y cómo correr los dos sistemas en paralelo.",
+  },
+  {
+    to: "/docs/suscripcion-y-prueba" as const,
+    icon: CreditCard,
+    title: "Prueba y suscripción",
+    text: "Cómo funciona la prueba gratis, cómo te suscribes y qué pasa si un pago falla.",
+  },
+  {
+    to: "/docs/exportar-tus-datos" as const,
+    icon: Download,
+    title: "Exportar tus datos",
+    text: "Cómo sacar todos los datos de tu clínica, o la ficha de un paciente, cuando quieras.",
   },
   {
     to: "/docs/whatsapp" as const,

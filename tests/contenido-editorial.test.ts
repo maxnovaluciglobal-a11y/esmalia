@@ -19,6 +19,8 @@ const RUTAS_FIJAS = new Set([
   "/docs",
   "/docs/primeros-pasos",
   "/docs/migrar-desde-otro-sistema",
+  "/docs/suscripcion-y-prueba",
+  "/docs/exportar-tus-datos",
   "/docs/whatsapp",
   "/docs/portal-pacientes",
   "/docs/datos-y-seguridad",

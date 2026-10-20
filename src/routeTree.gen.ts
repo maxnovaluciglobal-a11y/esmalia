@@ -50,9 +50,11 @@ import { Route as CompararSlugRouteImport } from './routes/comparar.$slug'
 import { Route as CorreosBajaRouteImport } from './routes/correos.baja'
 import { Route as DocsIndexRouteImport } from './routes/docs.index'
 import { Route as DocsDatosYSeguridadRouteImport } from './routes/docs.datos-y-seguridad'
+import { Route as DocsExportarTusDatosRouteImport } from './routes/docs.exportar-tus-datos'
 import { Route as DocsMigrarDesdeOtroSistemaRouteImport } from './routes/docs.migrar-desde-otro-sistema'
 import { Route as DocsPortalPacientesRouteImport } from './routes/docs.portal-pacientes'
 import { Route as DocsPrimerosPasosRouteImport } from './routes/docs.primeros-pasos'
+import { Route as DocsSuscripcionYPruebaRouteImport } from './routes/docs.suscripcion-y-prueba'
 import { Route as DocsWhatsappRouteImport } from './routes/docs.whatsapp'
 import { Route as FuncionesIndexRouteImport } from './routes/funciones.index'
 import { Route as FuncionesSlugRouteImport } from './routes/funciones.$slug'
@@ -314,6 +316,11 @@ const DocsDatosYSeguridadRoute = DocsDatosYSeguridadRouteImport.update({
   path: '/datos-y-seguridad',
   getParentRoute: () => DocsRoute,
 } as any)
+const DocsExportarTusDatosRoute = DocsExportarTusDatosRouteImport.update({
+  id: '/exportar-tus-datos',
+  path: '/exportar-tus-datos',
+  getParentRoute: () => DocsRoute,
+} as any)
 const DocsMigrarDesdeOtroSistemaRoute =
   DocsMigrarDesdeOtroSistemaRouteImport.update({
     id: '/migrar-desde-otro-sistema',
@@ -328,6 +335,11 @@ const DocsPortalPacientesRoute = DocsPortalPacientesRouteImport.update({
 const DocsPrimerosPasosRoute = DocsPrimerosPasosRouteImport.update({
   id: '/primeros-pasos',
   path: '/primeros-pasos',
+  getParentRoute: () => DocsRoute,
+} as any)
+const DocsSuscripcionYPruebaRoute = DocsSuscripcionYPruebaRouteImport.update({
+  id: '/suscripcion-y-prueba',
+  path: '/suscripcion-y-prueba',
   getParentRoute: () => DocsRoute,
 } as any)
 const DocsWhatsappRoute = DocsWhatsappRouteImport.update({
@@ -683,9 +695,11 @@ export interface FileRoutesByFullPath {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/exportar-tus-datos': typeof DocsExportarTusDatosRoute
   '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
+  '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
@@ -780,9 +794,11 @@ export interface FileRoutesByTo {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/exportar-tus-datos': typeof DocsExportarTusDatosRoute
   '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
+  '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
@@ -882,9 +898,11 @@ export interface FileRoutesById {
   '/comparar/$slug': typeof CompararSlugRoute
   '/correos/baja': typeof CorreosBajaRoute
   '/docs/datos-y-seguridad': typeof DocsDatosYSeguridadRoute
+  '/docs/exportar-tus-datos': typeof DocsExportarTusDatosRoute
   '/docs/migrar-desde-otro-sistema': typeof DocsMigrarDesdeOtroSistemaRoute
   '/docs/portal-pacientes': typeof DocsPortalPacientesRoute
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
+  '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
@@ -983,9 +1001,11 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/exportar-tus-datos'
     | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
+    | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
     | '/funciones/$slug'
     | '/guias/$slug'
@@ -1080,9 +1100,11 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/exportar-tus-datos'
     | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
+    | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
     | '/funciones/$slug'
     | '/guias/$slug'
@@ -1181,9 +1203,11 @@ export interface FileRouteTypes {
     | '/comparar/$slug'
     | '/correos/baja'
     | '/docs/datos-y-seguridad'
+    | '/docs/exportar-tus-datos'
     | '/docs/migrar-desde-otro-sistema'
     | '/docs/portal-pacientes'
     | '/docs/primeros-pasos'
+    | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
     | '/funciones/$slug'
     | '/guias/$slug'
@@ -1581,6 +1605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsDatosYSeguridadRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/docs/exportar-tus-datos': {
+      id: '/docs/exportar-tus-datos'
+      path: '/exportar-tus-datos'
+      fullPath: '/docs/exportar-tus-datos'
+      preLoaderRoute: typeof DocsExportarTusDatosRouteImport
+      parentRoute: typeof DocsRoute
+    }
     '/docs/migrar-desde-otro-sistema': {
       id: '/docs/migrar-desde-otro-sistema'
       path: '/migrar-desde-otro-sistema'
@@ -1600,6 +1631,13 @@ declare module '@tanstack/react-router' {
       path: '/primeros-pasos'
       fullPath: '/docs/primeros-pasos'
       preLoaderRoute: typeof DocsPrimerosPasosRouteImport
+      parentRoute: typeof DocsRoute
+    }
+    '/docs/suscripcion-y-prueba': {
+      id: '/docs/suscripcion-y-prueba'
+      path: '/suscripcion-y-prueba'
+      fullPath: '/docs/suscripcion-y-prueba'
+      preLoaderRoute: typeof DocsSuscripcionYPruebaRouteImport
       parentRoute: typeof DocsRoute
     }
     '/docs/whatsapp': {
@@ -2105,18 +2143,22 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface DocsRouteChildren {
   DocsDatosYSeguridadRoute: typeof DocsDatosYSeguridadRoute
+  DocsExportarTusDatosRoute: typeof DocsExportarTusDatosRoute
   DocsMigrarDesdeOtroSistemaRoute: typeof DocsMigrarDesdeOtroSistemaRoute
   DocsPortalPacientesRoute: typeof DocsPortalPacientesRoute
   DocsPrimerosPasosRoute: typeof DocsPrimerosPasosRoute
+  DocsSuscripcionYPruebaRoute: typeof DocsSuscripcionYPruebaRoute
   DocsWhatsappRoute: typeof DocsWhatsappRoute
   DocsIndexRoute: typeof DocsIndexRoute
 }
 
 const DocsRouteChildren: DocsRouteChildren = {
   DocsDatosYSeguridadRoute: DocsDatosYSeguridadRoute,
+  DocsExportarTusDatosRoute: DocsExportarTusDatosRoute,
   DocsMigrarDesdeOtroSistemaRoute: DocsMigrarDesdeOtroSistemaRoute,
   DocsPortalPacientesRoute: DocsPortalPacientesRoute,
   DocsPrimerosPasosRoute: DocsPrimerosPasosRoute,
+  DocsSuscripcionYPruebaRoute: DocsSuscripcionYPruebaRoute,
   DocsWhatsappRoute: DocsWhatsappRoute,
   DocsIndexRoute: DocsIndexRoute,
 }
