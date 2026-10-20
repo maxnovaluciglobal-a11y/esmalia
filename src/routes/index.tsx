@@ -27,7 +27,7 @@ export const Route = createFileRoute("/")({
           content:
             "Software para clínicas dentales de Chile, Perú, México, Colombia y Argentina: agenda por profesional, ficha con odontograma, caja del día y recordatorios por WhatsApp que envía tu equipo con un toque. 14 días gratis, sin tarjeta.",
         },
-        { property: "og:title", content: "Esmalia · Cada silla vacía es plata que no vuelve" },
+        { property: "og:title", content: "Esmalia · Cada silla vacía es dinero que no vuelve" },
         {
           property: "og:description",
           content:
