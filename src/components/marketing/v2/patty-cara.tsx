@@ -1,31 +1,43 @@
 /**
- * Patty como personaje (landing A+): la cara en el violeta de la IA, con la
- * chispa ocre. Decorativa: el texto que la acompaña lleva el significado.
+ * Patty como personaje (landing A+): su cara, con la etiqueta "IA" siempre
+ * visible para que nadie la confunda con una persona del equipo.
+ *
+ * La imagen la generó Walter con IA (Gemini, 20-oct-2026); no es una persona
+ * real. Origen y recorte: `04 - Marca y Diseno/patty-avatar-2026-10-20/`.
+ * Sin fondo (recorte de sujeto de macOS Vision) y con la cara centrada; el
+ * círculo de atrás es `--ai-soft`. Archivos: `public/brand/patty/cara-128.webp`
+ * y `cara-256.webp`.
  */
-export function PattyCara({ className }: { className?: string }) {
+type PattyCaraProps = {
+  className?: string;
+  /** Lado en px con el que se muestra; elige la imagen y el tamaño de la etiqueta. */
+  px?: number;
+  /** "eager" solo cuando está a la vista al cargar la página. */
+  carga?: "lazy" | "eager";
+};
+
+export function PattyCara({ className, px = 40, carga = "lazy" }: PattyCaraProps) {
+  const chica = px < 32;
   return (
-    <svg viewBox="0 0 44 44" aria-hidden="true" focusable="false" className={className}>
-      <path
-        d="M22 3c9.5 0 17 6.6 17 17.5S31.5 41 22 41 5 31.4 5 20.5 12.5 3 22 3z"
-        fill="var(--ai)"
+    <span
+      role="img"
+      aria-label="Patty, la inteligencia artificial de Esmalia"
+      className={["lv-patty-cara", chica ? "chica" : "", className ?? ""].join(" ").trim()}
+      style={{ width: px, height: px }}
+    >
+      <img
+        src="/brand/patty/cara-128.webp"
+        srcSet="/brand/patty/cara-128.webp 128w, /brand/patty/cara-256.webp 256w"
+        sizes={`${px}px`}
+        width={px}
+        height={px}
+        alt=""
+        loading={carga}
+        decoding="async"
       />
-      <path
-        d="M10 14c3-5 7.5-7.5 12-7.5"
-        stroke="var(--ai-border)"
-        strokeWidth="2"
-        fill="none"
-        strokeLinecap="round"
-      />
-      <ellipse className="eye" cx="16.5" cy="21" rx="2.3" ry="3.4" fill="var(--background)" />
-      <ellipse className="eye" cx="27.5" cy="21" rx="2.3" ry="3.4" fill="var(--background)" />
-      <path
-        d="M17 29q5 4 10 0"
-        stroke="var(--background)"
-        strokeWidth="2.2"
-        fill="none"
-        strokeLinecap="round"
-      />
-      <path d="M36 4l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2z" fill="var(--brand-on-night)" />
-    </svg>
+      <span className="ia" aria-hidden="true">
+        IA
+      </span>
+    </span>
   );
 }

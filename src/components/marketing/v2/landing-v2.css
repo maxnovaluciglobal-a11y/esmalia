@@ -2947,9 +2947,8 @@
   align-items: center;
   gap: 8px;
 }
-.lv-pt-card-h svg {
-  width: 26px;
-  height: 26px;
+.lv-pt-card-h .lv-patty-cara {
+  flex: none;
 }
 .lv-pt-card-h b {
   color: var(--ai);
@@ -3292,21 +3291,6 @@
   height: 40px;
   flex: none;
 }
-.lv2[data-mov="on"] .lv-pav .eye {
-  animation: lv-blink 5.5s infinite;
-  transform-origin: center;
-  transform-box: fill-box;
-}
-@keyframes lv-blink {
-  0%,
-  92%,
-  100% {
-    transform: scaleY(1);
-  }
-  95% {
-    transform: scaleY(0.1);
-  }
-}
 @media (max-width: 560px) {
   .lv-patty-chip .txt span {
     display: none;
@@ -3355,4 +3339,48 @@
     content-visibility: auto;
     contain-intrinsic-size: auto 900px;
   }
+}
+
+/* Patty con cara (20-oct-2026): foto redonda con la etiqueta "IA" siempre a la vista. */
+.lv-patty-cara {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  border-radius: 999px;
+}
+.lv-patty-cara img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  object-fit: cover;
+  background: var(--ai-soft);
+  box-shadow: 0 0 0 2px var(--ai-border);
+}
+.lv-patty-cara .ia {
+  position: absolute;
+  right: -4px;
+  bottom: -3px;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--ai);
+  color: var(--ai-foreground);
+  box-shadow: 0 0 0 2px var(--background);
+  font-family: var(--lv-mono, ui-monospace, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+}
+.lv-pt-av .ia {
+  right: 0;
+  bottom: 2px;
+  padding: 2px 8px;
+  font-size: 13px;
+}
+.lv-patty-cara.chica .ia {
+  right: -6px;
+  bottom: -4px;
+  padding: 0 3px;
+  font-size: 8px;
 }

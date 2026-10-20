@@ -8,7 +8,7 @@ export function PattyChip() {
   if (!visible) return null;
   return (
     <div className="lv-patty-chip">
-      <PattyCara className="lv-pav" />
+      <PattyCara className="lv-pav" px={40} carga="eager" />
       <a className="txt" href="#patty">
         <b>Hola, soy Patty.</b> <span>Estoy en habilitación. Baja y te cuento qué haré.</span>
       </a>
