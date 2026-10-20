@@ -394,9 +394,15 @@
   text-transform: uppercase;
   color: var(--lv-ocre-ink);
 }
+.lv-hero-copy {
+  /* El titular se mide contra su columna, no contra la ventana: la línea
+     más larga ("vacía es dinero") ocupa ~5,43 em, así que 17.5cqi entra
+     siempre en la columna sin cortar la última letra. */
+  container-type: inline-size;
+}
 .lv-hh {
   display: block;
-  font-size: clamp(52px, 8.2vw, 128px);
+  font-size: clamp(52px, min(8.2vw, 17.5cqi), 128px);
   line-height: 0.88;
   letter-spacing: -0.03em;
 }
@@ -1054,7 +1060,7 @@
     gap: 12px;
   }
   .lv-hh {
-    font-size: clamp(46px, 13.4vw, 76px);
+    font-size: clamp(46px, min(13.4vw, 17.5cqi), 76px);
   }
   .lv-molar-col {
     max-width: 440px;
