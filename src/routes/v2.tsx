@@ -6,7 +6,10 @@
 // sin cambios.
 import { createFileRoute } from "@tanstack/react-router";
 
+import { faqJsonLdScript } from "@/lib/seo";
+
 import { LandingV2 } from "@/components/marketing/v2/landing-v2";
+import { FAQ_CORTA } from "@/components/marketing/v2/faq-corta-datos";
 import landingV2Css from "@/components/marketing/v2/landing-v2.css?url";
 
 export const Route = createFileRoute("/v2")({
@@ -21,6 +24,7 @@ export const Route = createFileRoute("/v2")({
       { name: "robots", content: "noindex" },
     ],
     links: [{ rel: "stylesheet", href: landingV2Css }],
+    scripts: faqJsonLdScript(FAQ_CORTA.map((f) => ({ q: f.q, a: f.a }))),
   }),
   component: LandingV2,
 });

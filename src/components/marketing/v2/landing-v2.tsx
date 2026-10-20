@@ -12,22 +12,27 @@ import { FranjaSeguridad } from "@/components/marketing/franja-seguridad";
 import { SiteFooter } from "@/components/site-chrome";
 import { useMovimiento } from "@/hooks/use-movimiento";
 
+import { AcordeonMolar } from "./acordeon-molar";
+import { Arco32 } from "./arco-32";
 import { BentoFlujo } from "./bento-flujo";
 import { Cifras } from "./cifras";
 import { CtaFinal } from "./cta-final";
 import { EncabezadoV2, type EnlaceSeccion } from "./encabezado";
 import { HeroDia } from "./hero-dia";
 import { Marquee } from "./marquee";
+import { PattyChip } from "./patty-chip";
+import { PattySeccion } from "./patty-seccion";
 import { PreciosV2 } from "./precios-v2";
 import { ReservaEnVivo } from "./reserva-en-vivo";
+import { FaqCorta, TestimoniosReservados, TodaviaNo } from "./secciones-finales";
 import { TimelinePrueba } from "./timeline-prueba";
 
 const SECCIONES: readonly EnlaceSeccion[] = [
   { label: "Reserva online", href: "#reserva" },
   { label: "Producto", href: "#producto" },
-  { label: "Calculadora", href: "#calculadora" },
   { label: "Cómo funciona", href: "#como" },
   { label: "Precios", href: "#precios" },
+  { label: "Preguntas", href: "#preguntas" },
 ];
 
 const CONDICIONES = [
@@ -64,12 +69,19 @@ export function LandingV2() {
             <CalculadoraFugas />
           </div>
         </section>
+        <Arco32 />
+        <AcordeonMolar />
+        <PattySeccion />
         <TimelinePrueba />
+        <TodaviaNo />
         <FranjaSeguridad className="max-w-none w-[min(1320px,100%-48px)] px-0 max-[720px]:w-[calc(100%-32px)]" />
         <PreciosV2 />
+        <TestimoniosReservados />
+        <FaqCorta />
         <CtaFinal />
       </main>
       <SiteFooter />
+      <PattyChip />
     </div>
   );
 }
