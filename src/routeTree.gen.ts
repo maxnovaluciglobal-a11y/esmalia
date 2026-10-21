@@ -25,6 +25,7 @@ import { Route as PortalRouteImport } from './routes/portal'
 import { Route as PortalLaboratorioRouteImport } from './routes/portal-laboratorio'
 import { Route as PreciosRouteImport } from './routes/precios'
 import { Route as PrivacidadRouteImport } from './routes/privacidad'
+import { Route as RecorridoRouteImport } from './routes/recorrido'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SoftwareDentalArgentinaRouteImport } from './routes/software-dental-argentina'
 import { Route as SoftwareDentalChileRouteImport } from './routes/software-dental-chile'
@@ -190,6 +191,11 @@ const PreciosRoute = PreciosRouteImport.update({
 const PrivacidadRoute = PrivacidadRouteImport.update({
   id: '/privacidad',
   path: '/privacidad',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecorridoRoute = RecorridoRouteImport.update({
+  id: '/recorrido',
+  path: '/recorrido',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -679,6 +685,7 @@ export interface FileRoutesByFullPath {
   '/portal-laboratorio': typeof PortalLaboratorioRouteWithChildren
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/recorrido': typeof RecorridoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -779,6 +786,7 @@ export interface FileRoutesByTo {
   '/portal-laboratorio': typeof PortalLaboratorioRouteWithChildren
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/recorrido': typeof RecorridoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -883,6 +891,7 @@ export interface FileRoutesById {
   '/portal-laboratorio': typeof PortalLaboratorioRouteWithChildren
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
+  '/recorrido': typeof RecorridoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -988,6 +997,7 @@ export interface FileRouteTypes {
     | '/portal-laboratorio'
     | '/precios'
     | '/privacidad'
+    | '/recorrido'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1088,6 +1098,7 @@ export interface FileRouteTypes {
     | '/portal-laboratorio'
     | '/precios'
     | '/privacidad'
+    | '/recorrido'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1191,6 +1202,7 @@ export interface FileRouteTypes {
     | '/portal-laboratorio'
     | '/precios'
     | '/privacidad'
+    | '/recorrido'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1296,6 +1308,7 @@ export interface RootRouteChildren {
   PortalLaboratorioRoute: typeof PortalLaboratorioRouteWithChildren
   PreciosRoute: typeof PreciosRoute
   PrivacidadRoute: typeof PrivacidadRoute
+  RecorridoRoute: typeof RecorridoRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SoftwareDentalArgentinaRoute: typeof SoftwareDentalArgentinaRoute
   SoftwareDentalChileRoute: typeof SoftwareDentalChileRoute
@@ -1441,6 +1454,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidad'
       fullPath: '/privacidad'
       preLoaderRoute: typeof PrivacidadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recorrido': {
+      id: '/recorrido'
+      path: '/recorrido'
+      fullPath: '/recorrido'
+      preLoaderRoute: typeof RecorridoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -2230,6 +2250,7 @@ const rootRouteChildren: RootRouteChildren = {
   PortalLaboratorioRoute: PortalLaboratorioRouteWithChildren,
   PreciosRoute: PreciosRoute,
   PrivacidadRoute: PrivacidadRoute,
+  RecorridoRoute: RecorridoRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SoftwareDentalArgentinaRoute: SoftwareDentalArgentinaRoute,
   SoftwareDentalChileRoute: SoftwareDentalChileRoute,

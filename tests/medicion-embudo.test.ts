@@ -77,6 +77,7 @@ describe("esRutaMedible", () => {
     "/comparar/esmalia-vs-dentalink",
     "/software-dental-chile",
     "/calculadora-rentabilidad-dental",
+    "/recorrido",
   ])("mide %s", (ruta) => expect(esRutaMedible(ruta)).toBe(true));
 
   it.each([

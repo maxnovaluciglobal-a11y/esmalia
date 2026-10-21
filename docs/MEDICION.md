@@ -119,6 +119,23 @@ group by e.canal, e.campana
 order by sesiones desc;
 ```
 
+### Recorrido comercial: qué clínica lo abrió
+
+`/recorrido` se manda 1 a 1 por WhatsApp, solo después de que la clínica responde. El kit de envíos arma el enlace con `utm_source=whatsapp&utm_medium=kit&utm_campaign=c<id>`, donde `<id>` es el número de la clínica en el kit (`data-id`). No es un dato de contacto: el número solo se cruza con el kit, fuera de la base. Los botones de la página mandan `cta_click` con `lugar` = `recorrido-portada` o `recorrido-oferta`. Hasta dónde leyó no se mide: haría falta un evento nuevo (migración del CHECK `marketing_events_name_valido`).
+
+```sql
+select props->>'utm_campaign' as clinica_kit,
+       min(created_at) as primera_apertura,
+       count(*) as aperturas
+from public.marketing_events
+where name = 'page_view'
+  and props->>'path' = '/recorrido'
+  and props->>'utm_medium' = 'kit'
+  and coalesce((props->>'interno')::boolean, false) = false
+group by 1
+order by 2 desc;
+```
+
 ### North Star
 
 ```sql

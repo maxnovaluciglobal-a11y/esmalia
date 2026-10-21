@@ -1,0 +1,512 @@
+/*
+ * Recorrido comercial (/recorrido). Se carga junto a landing-v2.css y reusa
+ * sus tokens y piezas (.lv-wrap, .lv-h-sec, .lv-btn, .lv-on-night). Todo lo
+ * propio cuelga de `.rc`. Pensado primero para el celular (llega por
+ * WhatsApp) y con estilos de impresión para sacar el PDF desde el navegador.
+ */
+
+.rc ::selection {
+  background: color-mix(in srgb, var(--brand) 35%, transparent);
+  color: var(--foreground);
+}
+
+.rc .rc-narrow {
+  max-width: 900px;
+}
+.rc-sec {
+  padding: clamp(64px, 9vw, 120px) 0;
+  border-top: 1px solid var(--lv-line);
+}
+.rc-sec.lv-on-night {
+  border-top: 0;
+}
+.rc .lv-h-sec.lv-h-sm {
+  font-size: clamp(36px, 5vw, 64px);
+  max-width: 18ch;
+}
+
+/* ── Portada ─────────────────────────────────────────────── */
+.rc-hero {
+  padding: clamp(40px, 7vw, 96px) 0 clamp(56px, 8vw, 104px);
+}
+.rc-sello {
+  font: 600 13px/1.3 var(--lv-sans);
+  color: var(--lv-ocre-ink);
+  margin-bottom: 18px;
+}
+/* `.lv2 h1` baja el peso a 500; la única cara de Bricolage es 800. */
+.lv2 .rc-h1 {
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-synthesis: none;
+  font-size: clamp(44px, 8vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+  max-width: 14ch;
+}
+.rc-h1 em {
+  font-style: normal;
+  color: var(--lv-ocre-display);
+}
+.rc-lead {
+  margin-top: 24px;
+}
+.rc-hechos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin-top: 28px;
+  padding: 16px 0;
+  border-block: 1px solid var(--lv-line);
+  font: 500 15px/1.4 var(--lv-sans);
+  color: var(--lv-ink-2);
+}
+.rc-hechos b {
+  color: var(--foreground);
+  font-weight: 650;
+}
+.rc-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+.rc-hero-shot {
+  margin-top: clamp(40px, 6vw, 72px);
+}
+
+/* ── Capturas ────────────────────────────────────────────── */
+.rc-shot {
+  display: block;
+  border-radius: var(--lv-r-l);
+  border: 1px solid var(--lv-line-2);
+  overflow: hidden;
+  background: var(--card);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--foreground) 8%, transparent),
+    0 18px 40px -18px color-mix(in srgb, var(--foreground) 30%, transparent);
+  transition: transform 0.35s var(--ease-out);
+}
+.rc-shot:hover {
+  transform: translateY(-2px);
+}
+.rc-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.rc-ver-grande {
+  display: none;
+  margin-top: -8px;
+  font: 500 13px/1.4 var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+@media (max-width: 820px) {
+  .rc-ver-grande {
+    display: block;
+  }
+}
+.rc-shot:focus-visible {
+  outline: 2px solid var(--lv-ocre-ink);
+  outline-offset: 3px;
+}
+
+/* ── Listas ──────────────────────────────────────────────── */
+.rc-h3 {
+  font: 650 14px/1.3 var(--lv-sans);
+  color: var(--lv-ink-3);
+  margin-bottom: 14px;
+}
+.rc-lista {
+  display: grid;
+  gap: 14px;
+  font: 400 16.5px/1.5 var(--lv-sans);
+  max-width: 60ch;
+}
+.rc-lista li {
+  position: relative;
+  padding-left: 28px;
+}
+.rc-lista li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.5em;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+}
+.rc-lista-antes li {
+  color: var(--lv-ink-2);
+}
+.rc-lista-antes li::before {
+  border: 1.5px solid var(--lv-line-2);
+}
+.rc-lista-despues li::before {
+  background: var(--lv-ocre-display);
+}
+.rc-cambio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(32px, 6vw, 96px);
+  margin-top: clamp(32px, 5vw, 56px);
+}
+
+/* ── Recorrido del paciente (sobre noche) ────────────────── */
+.rc-ol {
+  counter-reset: paso;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(32px, 6vw, 96px);
+  margin-top: clamp(36px, 5vw, 64px);
+}
+.rc-ol li {
+  counter-increment: paso;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  column-gap: 16px;
+  padding: 22px 0;
+  border-top: 1px solid var(--night-line);
+}
+.rc-ol li::before {
+  content: counter(paso);
+  grid-row: span 2;
+  font-family: var(--lv-display);
+  font-weight: 800;
+  font-size: 44px;
+  line-height: 0.9;
+  color: var(--brand-on-night);
+}
+.rc-ol b {
+  font: 650 19px/1.3 var(--lv-sans);
+  color: var(--on-night);
+}
+.rc-ol span {
+  margin-top: 6px;
+  font: 400 16px/1.5 var(--lv-sans);
+  color: var(--on-night-2);
+  max-width: 46ch;
+}
+
+/* ── Pantallas ───────────────────────────────────────────── */
+.rc-pantalla-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: start;
+}
+.rc-alterna .rc-pantalla-txt {
+  order: 2;
+}
+.rc-pantalla-txt {
+  position: sticky;
+  top: 32px;
+}
+.rc-p {
+  margin: 20px 0 24px;
+  font: 400 17px/1.55 var(--lv-sans);
+  color: var(--lv-ink-2);
+  max-width: 52ch;
+}
+.rc-pantalla-img {
+  display: grid;
+  gap: 20px;
+}
+.rc-alterna {
+  background: var(--lv-paper-2);
+}
+
+/* ── Diferencias y datos ─────────────────────────────────── */
+.rc-dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 clamp(32px, 6vw, 96px);
+  margin-top: clamp(32px, 5vw, 56px);
+}
+.rc-dl > div {
+  padding: 24px 0;
+  border-top: 1px solid var(--lv-line-2);
+}
+.rc-dl dt {
+  font-family: var(--lv-serif);
+  font-size: clamp(24px, 2.4vw, 30px);
+  line-height: 1.15;
+}
+.rc-dl dd {
+  margin-top: 8px;
+  font: 400 16px/1.55 var(--lv-sans);
+  color: var(--lv-ink-2);
+  max-width: 48ch;
+}
+.rc-datos-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: clamp(32px, 5vw, 80px);
+  align-items: start;
+}
+
+/* ── Dudas ───────────────────────────────────────────────── */
+.rc-acc {
+  margin-top: clamp(28px, 4vw, 48px);
+  border-bottom: 1px solid var(--lv-line-2);
+}
+.rc-acc details {
+  border-top: 1px solid var(--lv-line-2);
+}
+.rc-acc summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 16px 0;
+  font: 600 17px/1.35 var(--lv-sans);
+}
+.rc-acc summary::-webkit-details-marker {
+  display: none;
+}
+.rc-acc summary::after {
+  content: "+";
+  flex: none;
+  font: 400 26px/1 var(--lv-sans);
+  color: var(--lv-ocre-ink);
+  transition: transform 0.3s var(--ease-out);
+}
+.rc-acc details[open] summary::after {
+  transform: rotate(45deg);
+}
+.rc-acc summary:focus-visible {
+  outline: 2px solid var(--lv-ocre-ink);
+  outline-offset: 2px;
+}
+.rc-acc p {
+  padding: 0 0 22px;
+  font: 400 16px/1.6 var(--lv-sans);
+  color: var(--lv-ink-2);
+  max-width: 64ch;
+}
+
+/* ── Oferta (bloque ocre, como el cierre de la landing) ──── */
+.rc-oferta {
+  background: var(--lv-ocre-block);
+  color: #15120f;
+  padding: clamp(72px, 9vw, 120px) 0;
+}
+.rc-oferta .lv-h-sec,
+.rc-oferta .lv-h-sec em {
+  color: #15120f;
+  font-style: normal;
+}
+.rc-oferta .lv-h-sec {
+  font-size: clamp(52px, 8vw, 120px);
+  max-width: 11ch;
+}
+.rc-oferta-lista {
+  display: grid;
+  gap: 14px;
+  margin-top: 32px;
+  font: 500 17px/1.5 var(--lv-sans);
+  color: #2e2010;
+  max-width: 60ch;
+}
+.rc-oferta-lista b {
+  color: #15120f;
+  font-weight: 700;
+}
+.rc-oferta-nota {
+  margin-top: 22px;
+  font: 500 14px/1.5 var(--lv-sans);
+  color: #3b2a14;
+}
+.rc-oferta .lv-btn-ink,
+.rc-oferta .lv-btn-ink:hover {
+  background: #15120f;
+  color: #f1ece4;
+}
+.rc-oferta .lv-btn-line {
+  color: #15120f;
+  border-color: #15120f;
+}
+.rc-oferta .lv-btn-line:hover {
+  background: #15120f;
+  color: #f1ece4;
+}
+.rc-oferta :focus-visible {
+  outline-color: #15120f;
+}
+
+/* ── Pie ─────────────────────────────────────────────────── */
+.rc-pie {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 28px 0 40px;
+  font: 400 14px/1.5 var(--lv-sans);
+  color: var(--lv-ink-3);
+}
+.rc-imprimir {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--lv-line-2);
+  font: 600 14px/1 var(--lv-sans);
+  color: var(--foreground);
+  background: transparent;
+  cursor: pointer;
+}
+.rc-imprimir:hover {
+  border-color: var(--foreground);
+}
+.rc-print-only {
+  display: none;
+}
+
+/* ── Celular ─────────────────────────────────────────────── */
+@media (max-width: 820px) {
+  .rc-cambio-grid,
+  .rc-ol,
+  .rc-dl,
+  .rc-pantalla-grid,
+  .rc-datos-grid {
+    grid-template-columns: 1fr;
+  }
+  .rc-alterna .rc-pantalla-txt {
+    order: 0;
+  }
+  .rc-pantalla-txt {
+    position: static;
+  }
+  .rc-ol li {
+    grid-template-columns: 44px 1fr;
+  }
+  .rc-ol li::before {
+    font-size: 36px;
+  }
+  .rc-ctas .lv-btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* ── Impresión (Guardar como PDF) ────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+  .rc {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+  }
+  .rc-noprint,
+  .rc-ctas,
+  .rc-pie button {
+    display: none !important;
+  }
+  .rc-print-only {
+    display: block;
+  }
+  .rc .lv-wrap {
+    width: 100%;
+    max-width: none;
+  }
+  .rc-sec,
+  .rc-hero,
+  .rc-oferta {
+    padding: 28px 0;
+  }
+  .rc-hero {
+    padding-top: 0;
+  }
+  .rc-h1 {
+    font-size: 54px;
+  }
+  .rc .lv-h-sec.lv-h-sm {
+    font-size: 36px;
+  }
+  .rc-oferta .lv-h-sec {
+    font-size: 60px;
+  }
+  .rc-pantalla-grid,
+  .rc-datos-grid {
+    grid-template-columns: 1fr;
+  }
+  .rc-pantalla-txt {
+    position: static;
+    order: 0 !important;
+  }
+  .rc-shot {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  html,
+  body {
+    background: #fff !important;
+  }
+  /* En papel todo va sobre blanco: sin bloques de tinta ni fondos alternos. */
+  .rc-pasos.lv-on-night,
+  .rc-alterna {
+    background: #fff;
+    color: var(--foreground);
+  }
+  .rc-pasos .lv-h-sec,
+  .rc-ol b {
+    color: var(--foreground);
+  }
+  .rc-pasos .lv-h-sec em,
+  .rc-ol li::before {
+    color: var(--lv-ocre-display);
+  }
+  .rc-ol span {
+    color: var(--lv-ink-2);
+  }
+  .rc-ol li {
+    border-top-color: var(--lv-line-2);
+  }
+  .rc-pantalla-txt,
+  .rc-pantalla-img {
+    break-inside: avoid;
+  }
+  .rc-dudas,
+  .rc-oferta {
+    break-before: page;
+  }
+  .rc h2 {
+    break-after: avoid;
+  }
+  .rc-dl,
+  .rc-datos-grid {
+    break-before: avoid;
+  }
+  .rc-ver-grande {
+    display: none;
+  }
+  .rc-ol li,
+  .rc-dl > div,
+  .rc-acc details {
+    break-inside: avoid;
+  }
+  /* En papel no hay clic: las respuestas se imprimen abiertas. */
+  .rc-acc details > p {
+    display: block;
+  }
+  .rc-acc summary::after {
+    content: none;
+  }
+  .rc-contacto-impreso {
+    margin-top: 24px;
+    font: 700 16px/1.4 var(--lv-sans);
+  }
+}
+
+/* La landing pinta tarde lo que está debajo del hero (content-visibility).
+   Acá no: al imprimir o guardar como PDF esas secciones salían en blanco. */
+.lv2.rc main > *,
+.lv2.rc > .lv-foot {
+  content-visibility: visible;
+}
