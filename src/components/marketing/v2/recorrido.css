@@ -214,7 +214,9 @@
   gap: 20px;
 }
 .rc-alterna {
-  background: var(--lv-paper-2);
+  /* Sale de los tokens del tema, no de --lv-paper-2 (fijo claro): en modo
+     oscuro el texto pasa a claro y sobre ese fondo no se leía. */
+  background: color-mix(in srgb, var(--foreground) 5%, var(--background));
 }
 
 /* ── Diferencias y datos ─────────────────────────────────── */
