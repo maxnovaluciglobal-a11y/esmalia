@@ -65,6 +65,7 @@ const RUTAS_EXACTAS = new Set([
   "/terminos",
   "/dpa",
   "/calculadora-rentabilidad-dental",
+  "/recorrido",
 ]);
 
 /** Secciones de contenido público (la sección y todo lo que cuelga de ella). */
