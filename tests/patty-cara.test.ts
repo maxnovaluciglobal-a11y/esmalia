@@ -62,12 +62,16 @@ describe("cara de Patty", () => {
     expect(landing).not.toContain("bg-ai-soft");
   });
 
-  it("solo la landing importa landing-v2.css", () => {
+  // La app nunca la carga; solo las páginas públicas de marketing: la
+  // portada y el recorrido comercial (/recorrido, 21-oct-2026).
+  it("solo la landing y el recorrido importan landing-v2.css", () => {
     const conCss = archivos(SRC)
       .filter((r) => /\.(tsx?|css)$/.test(r))
       .filter((r) => /(?:import|@import)[^;\n]*landing-v2\.css/.test(readFileSync(r, "utf8")))
       .map((r) => path.relative(SRC, r));
-    expect(conCss).toEqual([path.join("routes", "index.tsx")]);
+    expect(conCss.sort()).toEqual(
+      [path.join("routes", "index.tsx"), path.join("routes", "recorrido.tsx")].sort(),
+    );
   });
 });
 
