@@ -24,9 +24,9 @@ function ldJsonScript(data: Record<string, unknown>) {
 
 const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 
-// Perfiles públicos de la marca para `sameAs`. Vacío a propósito hasta que
-// existan: un sameAs a una URL inexistente confunde más de lo que ayuda.
-export const SAME_AS: string[] = [];
+// Perfiles públicos de la marca para `sameAs`. Solo perfiles que existen de
+// verdad: un sameAs a una URL inexistente confunde más de lo que ayuda.
+export const SAME_AS: string[] = ["https://www.instagram.com/esmalia_dental/"];
 
 // Lo mismo que dice src/content/llms-base.md (/llms.txt): el schema y el llms.txt no pueden
 // contradecirse (los motores de IA los contrastan).
