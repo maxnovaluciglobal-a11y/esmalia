@@ -5,6 +5,21 @@ de WhatsApp. Esmalia es **Tech Provider independiente** (Cloud API directo,
 sin un BSP en el medio). Cada clínica paga a Meta sus conversaciones con su
 propio medio de pago.
 
+## Estado al 21-oct-2026
+| Pieza | Estado |
+|---|---|
+| App de Meta **Esmalia** | ✅ ID `1659883992514425`, propiedad del portafolio, caso de uso WhatsApp agregado, ícono y URLs legales cargadas |
+| Webhook | ✅ `https://esmalia.com/api/whatsapp-webhook` verificado; campos `messages`, `message_template_status_update`, `account_update` (token rotado el 20-oct) |
+| Embedded Signup v4 | ✅ configuración "Esmalia Embedded Signup v4", ID `2083986443004167` (= `VITE_WHATSAPP_CONFIG_ID`), producto WhatsApp Cloud API, token de usuario del sistema a 60 días |
+| Facebook Login for Business | ✅ Client OAuth, Web OAuth, HTTPS, navegador integrado, modo estricto y SDK de JavaScript; URI y dominio `https://esmalia.com/` |
+| Usuario del sistema | ✅ `esmalia-whatsapp` (`61595613541883`), acceso total a la app |
+| Variables en Vercel | ✅ `WHATSAPP_APP_ID`, `VITE_WHATSAPP_APP_ID`, `VITE_WHATSAPP_CONFIG_ID`, `WHATSAPP_APP_SECRET` (sensitive), redeploy hecho |
+| Tech Provider | ⏳ falta (lo registra Walter: Casos de uso → Conviértete en proveedor de tecnología) |
+| Verificación del negocio | ⏳ falta: Meta pide un teléfono de EE. UU. con un documento de la LLC (factura del proveedor del número) |
+| App Review | ⏳ después de lo anterior |
+
+Mientras la app no esté publicada, solo conectan su WhatsApp las personas con rol en la app: para el piloto, sumar a cada clínica como **tester** (Roles de la app).
+
 ## Estructura en Meta
 
 Un solo **portafolio comercial**: `Maxnova & Luci LLC` (ID `2490091194819587`),
@@ -59,9 +74,9 @@ La verificación del negocio es del portafolio: se hace una vez y sirve a los tr
 
 | Variable | Secreta | Estado |
 |---|---|---|
-| `WHATSAPP_APP_ID` / `VITE_WHATSAPP_APP_ID` | No | Al crear la app |
-| `VITE_WHATSAPP_CONFIG_ID` | No | Al crear la configuración v4 |
-| `WHATSAPP_APP_SECRET` | Sí | La carga Walter |
+| `WHATSAPP_APP_ID` / `VITE_WHATSAPP_APP_ID` | No | ✅ Cargadas (20-oct) |
+| `VITE_WHATSAPP_CONFIG_ID` | No | ✅ Cargada (20-oct) |
+| `WHATSAPP_APP_SECRET` | Sí | ✅ Cargada (20-oct, por portapapeles, validada contra Meta) |
 | `WHATSAPP_CREDENTIALS_KEY` | Sí | Cargada |
 | `WHATSAPP_WEBHOOK_VERIFY_TOKEN` | Baja | Cargada |
 | `WHATSAPP_API_VERSION` / `VITE_WHATSAPP_API_VERSION` | No | `v25.0`, cargadas |
