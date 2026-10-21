@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DIAS_PARA_VOLVER,
   MUESTRA_MINIMA,
   ausenciaSegunAviso,
   ausenciaSegunRecordatorio,
+  citasTrasOutreach,
   coberturaDeMensajes,
   formatearEspera,
   medianaDeRespuestaEnMinutos,
@@ -240,5 +242,84 @@ describe("formatearEspera", () => {
     expect(formatearEspera(300)).toBe("5 horas");
     expect(formatearEspera(1440)).toBe("1 día");
     expect(formatearEspera(4320)).toBe("3 días");
+  });
+});
+
+describe("citasTrasOutreach", () => {
+  const DIA = 24 * 60 * 60 * 1000;
+  const AHORA = Date.parse("2026-10-21T12:00:00Z");
+  const hace = (d: number) => new Date(AHORA - d * DIA).toISOString();
+
+  it("cuenta el envío si el paciente agendó dentro de la ventana", () => {
+    const r = citasTrasOutreach(
+      [
+        { patientId: "a", kind: "hygiene_recall", createdAt: hace(30) },
+        { patientId: "b", kind: "hygiene_recall", createdAt: hace(30) },
+        { patientId: "c", kind: "quote_follow_up", createdAt: hace(20) },
+      ],
+      [
+        { patientId: "a", createdAt: hace(25) }, // 5 días después: vuelve
+        { patientId: "b", createdAt: hace(10) }, // 20 días después: fuera de la ventana
+        { patientId: "c", createdAt: hace(21) }, // antes del mensaje: no cuenta
+      ],
+      AHORA,
+    );
+    expect(r.total).toMatchObject({ numerador: 1, denominador: 3 });
+    expect(r.enCurso).toBe(0);
+    const recall = r.porTipo.find((t) => t.kind === "hygiene_recall")!;
+    expect(recall.volvieron).toMatchObject({ numerador: 1, denominador: 2 });
+    const presupuesto = r.porTipo.find((t) => t.kind === "quote_follow_up")!;
+    expect(presupuesto.volvieron).toMatchObject({ numerador: 0, denominador: 1 });
+  });
+
+  it("deja en curso los envíos cuya ventana no cerró, aunque ya hayan agendado", () => {
+    const r = citasTrasOutreach(
+      [{ patientId: "a", kind: "payment_due", createdAt: hace(3) }],
+      [{ patientId: "a", createdAt: hace(1) }],
+      AHORA,
+    );
+    expect(r.total.denominador).toBe(0);
+    expect(r.enCurso).toBe(1);
+    expect(r.porTipo[0]).toMatchObject({ kind: "payment_due", enCurso: 1 });
+  });
+
+  it("el borde: justo a los 14 días cuenta, un minuto después no", () => {
+    const enviado = AHORA - 30 * DIA;
+    const r = citasTrasOutreach(
+      [
+        { patientId: "a", kind: "hygiene_recall", createdAt: new Date(enviado).toISOString() },
+        { patientId: "b", kind: "hygiene_recall", createdAt: new Date(enviado).toISOString() },
+      ],
+      [
+        { patientId: "a", createdAt: new Date(enviado + DIAS_PARA_VOLVER * DIA).toISOString() },
+        {
+          patientId: "b",
+          createdAt: new Date(enviado + DIAS_PARA_VOLVER * DIA + 60_000).toISOString(),
+        },
+      ],
+      AHORA,
+    );
+    expect(r.total).toMatchObject({ numerador: 1, denominador: 2 });
+  });
+
+  it("sin envíos no inventa nada", () => {
+    const r = citasTrasOutreach([], [{ patientId: "a", createdAt: hace(1) }], AHORA);
+    expect(r).toEqual({
+      total: { numerador: 0, denominador: 0, porcentaje: null },
+      enCurso: 0,
+      porTipo: [],
+    });
+  });
+
+  it("el porcentaje aparece recién con muestra suficiente", () => {
+    const envios = Array.from({ length: MUESTRA_MINIMA }, (_, i) => ({
+      patientId: `p${i}`,
+      kind: "hygiene_recall",
+      createdAt: hace(30),
+    }));
+    const citasCreadas = envios
+      .slice(0, 5)
+      .map((e) => ({ patientId: e.patientId, createdAt: hace(28) }));
+    expect(citasTrasOutreach(envios, citasCreadas, AHORA).total.porcentaje).toBe(25);
   });
 });

@@ -21,11 +21,21 @@ import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
 import { motivoParaNoEnviarWhatsApp, quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import { sendEmail } from "@/lib/messaging/email.server";
+import { PLANTILLAS_EMAIL_DE_RESPALDO } from "@/lib/messaging/plantillas-email-respaldo";
 import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-sandbox";
 import type { EmailSandboxConfig } from "@/lib/messaging/email-sandbox";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import {
+  COOLDOWN_SEGUIMIENTO_MS,
+  DIAS_SIN_RESPUESTA_MAXIMO,
+  DIAS_SIN_RESPUESTA_POR_DEFECTO,
+  calcularPresupuestosSinRespuesta,
+  type PacienteContactable,
+  type PresupuestoSinRespuesta,
+} from "@/lib/messaging/presupuestos-sin-respuesta";
 
 /** Lee la config de sandbox de email de la clínica desde la DB (fuente de
  * verdad única, compartida con /sandbox-email). Sin fila = default seguro.
@@ -364,14 +374,16 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
         .maybeSingle();
       if (templateErr)
         throw new Error(mensajeDb(templateErr, "No pudimos cargar la plantilla de email."));
-      if (!template) throw new Error("No hay plantilla de email activa para este tipo de aviso.");
+      // Sin plantilla propia de la clínica, la de fábrica si el kind tiene una.
+      const plantilla = template ?? PLANTILLAS_EMAIL_DE_RESPALDO[data.templateKind] ?? null;
+      if (!plantilla) throw new Error("No hay plantilla de email activa para este tipo de aviso.");
 
       const vars = { ...data.variables, paciente: patient.full_name, clinica: clinic?.name ?? "" };
-      const subject = renderTemplate(template.subject ?? "", vars);
+      const subject = renderTemplate(plantilla.subject ?? "", vars);
       // renderTemplateHtml (no renderTemplate): esto es HTML real que Resend
       // manda sin sanitizar — `paciente`/`clinica` vienen de campos que
       // recepción puede editar libremente (security-review 01-sep).
-      const html = renderTemplateHtml(template.body, vars);
+      const html = renderTemplateHtml(plantilla.body, vars);
 
       const sandboxConfig = await loadEmailSandboxConfig(supabase, data.clinicId);
       const result = await sendEmail({ to: recipient, subject, html }, sandboxConfig);
@@ -384,7 +396,7 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
           patient_id: data.patientId,
           appointment_id: data.appointmentId ?? null,
           quote_id: data.quoteId ?? null,
-          template_id: template.id,
+          template_id: template?.id ?? null,
           template_kind: data.templateKind,
           channel: "email",
           direction: "outbound",
@@ -597,8 +609,6 @@ const HYGIENE_RECALL_COOLDOWN_MS = 150 * 24 * 60 * 60 * 1000; // no re-sugerir a
 const REVIEW_REQUEST_MIN_DELAY_MS = 2 * 60 * 60 * 1000; // 2h después de la cita
 const REVIEW_REQUEST_MAX_WINDOW_MS = 14 * 24 * 60 * 60 * 1000; // no revivir visitas viejas
 const PAYMENT_DUE_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
-const QUOTE_FOLLOW_UP_AFTER_MS = 7 * 24 * 60 * 60 * 1000; // presupuesto enviado hace +7 días
-const QUOTE_FOLLOW_UP_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000; // no repetir el nudge antes de esto
 const BIRTHDAY_COOLDOWN_MS = 300 * 24 * 60 * 60 * 1000; // no repetir en el mismo año
 const TREATMENT_FOLLOWUP_MIN_DELAY_MS = 2 * 24 * 60 * 60 * 1000; // 2 días después de completado
 const TREATMENT_FOLLOWUP_MAX_WINDOW_MS = 10 * 24 * 60 * 60 * 1000; // no revivir tratamientos viejos
@@ -643,7 +653,6 @@ export interface PendingOutreachItem {
 const OUTREACH_MESSAGES_WINDOW_MS = Math.max(
   HYGIENE_RECALL_COOLDOWN_MS,
   PAYMENT_DUE_COOLDOWN_MS,
-  QUOTE_FOLLOW_UP_COOLDOWN_MS,
   BIRTHDAY_COOLDOWN_MS,
   TREATMENT_FOLLOWUP_COOLDOWN_MS,
   REFERRAL_INVITE_COOLDOWN_MS,
@@ -691,7 +700,6 @@ export async function calcularOutreachPendiente(
     { filas: recentOutreach, error: msgErr },
     balances,
     { data: clinic, error: clinicErr },
-    { filas: sentQuotes, error: quoteErr },
     { filas: completedItems, error: completedErr },
     { data: branchRows, error: branchErr },
   ] = await Promise.all([
@@ -739,16 +747,6 @@ export async function calcularOutreachPendiente(
     // fetchPatientBalances (patients.functions.ts) sobre por qué se unificó.
     fetchPatientBalances(supabase, clinicId),
     supabase.from("clinics").select("currency").eq("id", clinicId).single(),
-    leerTodasLasPaginas((desde, hasta) =>
-      supabase
-        .from("quotes")
-        .select("id, patient_id, number, total_cents, currency, sent_at")
-        .eq("clinic_id", clinicId)
-        .eq("status", "sent")
-        .not("sent_at", "is", null)
-        .order("id", { ascending: true })
-        .range(desde, hasta),
-    ),
     // Solo el último completado por paciente importa, y solo si cae dentro de
     // la ventana del followup o de la encuesta: si el último es más viejo, el
     // paciente no es candidato, y con este filtro tampoco aparece.
@@ -779,8 +777,6 @@ export async function calcularOutreachPendiente(
     throw new Error(mensajeDb(completedErr, "No pudimos cargar los tratamientos completados."));
   if (clinicErr)
     throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
-  if (quoteErr)
-    throw new Error(mensajeDb(quoteErr, "No pudimos cargar los presupuestos enviados."));
   if (branchErr)
     throw new Error(mensajeDb(branchErr, "No pudimos cargar los datos de las sucursales."));
 
@@ -799,11 +795,9 @@ export async function calcularOutreachPendiente(
   );
 
   // Cooldown: último hygiene_recall/payment_due/birthday_greeting/
-  // treatment_followup/referral_invite por paciente, último quote_follow_up
-  // por presupuesto, review_request por cita.
+  // treatment_followup/referral_invite por paciente, review_request por cita.
   const lastHygieneRecallByPatient = new Map<string, string>();
   const lastPaymentDueByPatient = new Map<string, string>();
-  const lastQuoteFollowUpByQuote = new Map<string, string>();
   const lastBirthdayByPatient = new Map<string, string>();
   const lastTreatmentFollowupByPatient = new Map<string, string>();
   const lastReferralInviteByPatient = new Map<string, string>();
@@ -815,13 +809,6 @@ export async function calcularOutreachPendiente(
     }
     if (m.template_kind === "payment_due" && !lastPaymentDueByPatient.has(m.patient_id)) {
       lastPaymentDueByPatient.set(m.patient_id, m.created_at);
-    }
-    if (
-      m.template_kind === "quote_follow_up" &&
-      m.quote_id &&
-      !lastQuoteFollowUpByQuote.has(m.quote_id)
-    ) {
-      lastQuoteFollowUpByQuote.set(m.quote_id, m.created_at);
     }
     if (m.template_kind === "birthday_greeting" && !lastBirthdayByPatient.has(m.patient_id)) {
       lastBirthdayByPatient.set(m.patient_id, m.created_at);
@@ -900,26 +887,8 @@ export async function calcularOutreachPendiente(
     });
   }
 
-  // ── quote_follow_up ──
-  for (const q of sentQuotes ?? []) {
-    if (!q.sent_at) continue; // ya filtrado por la query, pero TS no lo sabe
-    const patient = patientById.get(q.patient_id);
-    if (!patient) continue;
-    const sinceMs = ahora - new Date(q.sent_at).getTime();
-    if (sinceMs < QUOTE_FOLLOW_UP_AFTER_MS) continue;
-    const lastSent = lastQuoteFollowUpByQuote.get(q.id);
-    if (lastSent && ahora - new Date(lastSent).getTime() < QUOTE_FOLLOW_UP_COOLDOWN_MS) continue;
-    items.push({
-      patientId: q.patient_id,
-      patientName: patient.full_name,
-      patientPhone: patient.phone,
-      kind: "quote_follow_up",
-      quoteId: q.id,
-      quoteNumber: q.number,
-      quoteTotalCents: q.total_cents,
-      currency: q.currency,
-    });
-  }
+  // quote_follow_up: va en su propio grupo, "Presupuestos sin respuesta"
+  // (calcularPresupuestosPendientes), con WhatsApp o email y días a elección.
 
   // ── birthday_greeting ── (marketing: solo pacientes opt-in, comparación
   // por mes/día en UTC — no hace falta precisión de huso horario para esto).
@@ -1031,9 +1000,138 @@ export const countPendingOutreach = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<{ total: number }> => {
-    const items = await calcularOutreachPendiente(context.supabase, data.clinicId, Date.now());
-    return { total: items.length };
+    const ahora = Date.now();
+    const [items, presupuestos] = await Promise.all([
+      calcularOutreachPendiente(context.supabase, data.clinicId, ahora),
+      calcularPresupuestosPendientes(
+        context.supabase,
+        data.clinicId,
+        ahora,
+        DIAS_SIN_RESPUESTA_POR_DEFECTO,
+      ),
+    ]);
+    return { total: items.length + presupuestos.length };
   });
+
+/** Lee y arma "Presupuestos sin respuesta". La regla está en `calcularPresupuestosSinRespuesta`. */
+export async function calcularPresupuestosPendientes(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  ahora: number,
+  dias: number,
+): Promise<PresupuestoSinRespuesta[]> {
+  const [
+    { filas: presupuestos, error: quoteErr },
+    { filas: seguimientos, error: msgErr },
+    { data: clinic, error: clinicErr },
+  ] = await Promise.all([
+    leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .from("quotes")
+        .select(
+          "id, patient_id, number, status, total_cents, currency, sent_at, created_at, valid_until, accepted_at",
+        )
+        .eq("clinic_id", clinicId)
+        .in("status", ["sent", "draft"])
+        .is("accepted_at", null)
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    // Un envío que falló (email rechazado, sandbox) no cuenta como seguimiento.
+    leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .from("messages")
+        .select("quote_id, created_at")
+        .eq("clinic_id", clinicId)
+        .eq("template_kind", "quote_follow_up")
+        .eq("direction", "outbound")
+        .neq("status", "failed")
+        .not("quote_id", "is", null)
+        .gte("created_at", new Date(ahora - COOLDOWN_SEGUIMIENTO_MS).toISOString())
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .range(desde, hasta),
+    ),
+    supabase.from("clinics").select("timezone").eq("id", clinicId).maybeSingle(),
+  ]);
+  if (quoteErr)
+    throw new Error(mensajeDb(quoteErr, "No pudimos cargar los presupuestos sin respuesta."));
+  if (msgErr)
+    throw new Error(mensajeDb(msgErr, "No pudimos revisar los seguimientos ya enviados."));
+  if (clinicErr)
+    throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
+
+  const ultimoSeguimiento = new Map<string, string>();
+  for (const m of seguimientos) {
+    if (m.quote_id && !ultimoSeguimiento.has(m.quote_id)) {
+      ultimoSeguimiento.set(m.quote_id, m.created_at);
+    }
+  }
+
+  // Solo los pacientes con presupuesto abierto, de a tandas para no armar
+  // una URL enorme. Los archivados no reciben seguimiento.
+  const idsDePacientes = [...new Set(presupuestos.map((q) => q.patient_id))];
+  const pacientes: PacienteContactable[] = [];
+  for (let i = 0; i < idsDePacientes.length; i += 200) {
+    const tanda = idsDePacientes.slice(i, i + 200);
+    const { data: filas, error } = await supabase
+      .from("patients")
+      .select("id, full_name, phone, email, wa_opt_in, wa_opt_out_at")
+      .eq("clinic_id", clinicId)
+      .in("id", tanda)
+      .is("archived_at", null);
+    if (error) throw new Error(mensajeDb(error, "No pudimos cargar los pacientes."));
+    for (const p of filas ?? []) {
+      pacientes.push({
+        id: p.id,
+        fullName: p.full_name,
+        phone: p.phone,
+        email: p.email,
+        waOptIn: p.wa_opt_in,
+        waOptOutAt: p.wa_opt_out_at,
+      });
+    }
+  }
+
+  return calcularPresupuestosSinRespuesta({
+    presupuestos: presupuestos.map((q) => ({
+      id: q.id,
+      patientId: q.patient_id,
+      number: q.number,
+      status: q.status as "sent" | "draft",
+      totalCents: q.total_cents,
+      currency: q.currency,
+      sentAt: q.sent_at,
+      createdAt: q.created_at,
+      validUntil: q.valid_until,
+      acceptedAt: q.accepted_at,
+    })),
+    pacientes,
+    ultimoSeguimientoPorPresupuesto: ultimoSeguimiento,
+    ahora,
+    hoy: hoyISO(clinic?.timezone ?? DEFAULT_TIMEZONE),
+    dias,
+  });
+}
+
+export const listPresupuestosSinRespuesta = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        dias: z.number().int().min(1).max(DIAS_SIN_RESPUESTA_MAXIMO).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<PresupuestoSinRespuesta[]> =>
+    calcularPresupuestosPendientes(
+      context.supabase,
+      data.clinicId,
+      Date.now(),
+      data.dias ?? DIAS_SIN_RESPUESTA_POR_DEFECTO,
+    ),
+  );
 
 /** Prende/apaga el opt-in de WhatsApp del paciente. Lo apaga siempre puede cualquier operador; prenderlo requiere haberlo hablado con el paciente. */
 export const setPatientWhatsAppOptIn = createServerFn({ method: "POST" })

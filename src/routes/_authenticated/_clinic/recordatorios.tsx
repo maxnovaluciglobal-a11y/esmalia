@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -22,9 +22,15 @@ import { requirePermission } from "@/lib/access/route-guards";
 import {
   listPendingOutreach,
   listPendingReminders,
+  listPresupuestosSinRespuesta,
   type PendingOutreachItem,
   type PendingReminder,
 } from "@/lib/messaging/messaging.functions";
+import {
+  DIAS_SIN_RESPUESTA_POR_DEFECTO,
+  OPCIONES_DE_DIAS_SIN_RESPUESTA,
+  type PresupuestoSinRespuesta,
+} from "@/lib/messaging/presupuestos-sin-respuesta";
 import type { OutreachTemplateKind } from "@/lib/messaging/messaging";
 import { formatMoney } from "@/lib/finance/finance";
 import { cn } from "@/lib/utils";
@@ -37,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/recordatorios")({
       {
         name: "description",
         content:
-          "Cola de recordatorios de 48h y avisos de 3h antes de cada cita, listos para mandar por WhatsApp con un click.",
+          "Cola de recordatorios de 48h, avisos de 3h y presupuestos sin respuesta, listos para mandar por WhatsApp o email con un click.",
       },
       { property: "og:title", content: "Recordatorios | Esmalia" },
       {
@@ -48,6 +54,18 @@ export const Route = createFileRoute("/_authenticated/_clinic/recordatorios")({
   }),
   component: RecordatoriosPage,
 });
+
+const CLAVE_DIAS_PRESUPUESTO = "esmalia:recordatorios:dias-presupuesto";
+
+function leerDiasPresupuesto(): number {
+  try {
+    const guardado = Number(localStorage.getItem(CLAVE_DIAS_PRESUPUESTO));
+    if ((OPCIONES_DE_DIAS_SIN_RESPUESTA as readonly number[]).includes(guardado)) return guardado;
+  } catch {
+    // Almacenamiento bloqueado: el valor por defecto.
+  }
+  return DIAS_SIN_RESPUESTA_POR_DEFECTO;
+}
 
 function filaClass(kind: PendingReminder["reminderKind"]) {
   return kind === "appointment_checkin"
@@ -134,6 +152,30 @@ function RecordatoriosPage() {
     queryFn: () => fetchOutreach({ data: { clinicId: clinicId! } }),
   });
 
+  // Se lee después de montar: en SSR no hay localStorage y el primer render
+  // tiene que coincidir con el del servidor.
+  const [diasPresupuesto, setDiasPresupuesto] = useState<number>(DIAS_SIN_RESPUESTA_POR_DEFECTO);
+  useEffect(() => setDiasPresupuesto(leerDiasPresupuesto()), []);
+  const cambiarDiasPresupuesto = (dias: number) => {
+    setDiasPresupuesto(dias);
+    try {
+      localStorage.setItem(CLAVE_DIAS_PRESUPUESTO, String(dias));
+    } catch {
+      // Sin almacenamiento (modo privado): el valor dura lo que la pestaña.
+    }
+  };
+  const fetchPresupuestos = useServerFn(listPresupuestosSinRespuesta);
+  const {
+    data: presupuestos = [],
+    isLoading: isLoadingPresupuestos,
+    isError: presupuestosConError,
+    refetch: reintentarPresupuestos,
+  } = useQuery({
+    queryKey: ["presupuestos-sin-respuesta", clinicId, diasPresupuesto],
+    enabled: Boolean(clinicId),
+    queryFn: () => fetchPresupuestos({ data: { clinicId: clinicId!, dias: diasPresupuesto } }),
+  });
+
   const { aviso3h, recordatorio48h } = useMemo(() => {
     const aviso3h = recordatorios.filter((r) => r.reminderKind === "appointment_checkin");
     const recordatorio48h = recordatorios.filter((r) => r.reminderKind === "appointment_reminder");
@@ -161,24 +203,31 @@ function RecordatoriosPage() {
   const invalidarOutreach = () => {
     queryClient.invalidateQueries({ queryKey: ["pending-outreach", clinicId] });
   };
+  const invalidarPresupuestos = () => {
+    queryClient.invalidateQueries({ queryKey: ["presupuestos-sin-respuesta", clinicId] });
+  };
 
   // Un error no es "nada pendiente": antes la lista vacía decía que no había
   // a quién escribirle cuando en realidad no se pudo consultar.
   const nadaPendiente =
     !isLoading &&
     !isLoadingOutreach &&
+    !isLoadingPresupuestos &&
     !isError &&
     !outreachConError &&
+    !presupuestosConError &&
     recordatorios.length === 0 &&
-    outreach.length === 0;
+    outreach.length === 0 &&
+    presupuestos.length === 0;
 
   return (
     <AppShell title="Recordatorios" access={access}>
       <div className="space-y-6">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo), y
-          pacientes candidatos a un recall, un pedido de reseña o un aviso de saldo. Se manda por
-          WhatsApp con un click — tú revisas antes de que salga nada.
+          Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
+          presupuestos que siguen sin respuesta y pacientes candidatos a un recall, un pedido de
+          reseña o un aviso de saldo. Se manda por WhatsApp o email con un click — tú revisas antes
+          de que salga nada.
         </p>
 
         {(isLoading || isLoadingOutreach) && (
@@ -196,6 +245,13 @@ function RecordatoriosPage() {
           <ErrorDeCarga
             onReintentar={reintentarOutreach}
             mensaje="No pudimos cargar los pacientes candidatos a recall, reseña o saldo."
+          />
+        )}
+
+        {presupuestosConError && (
+          <ErrorDeCarga
+            onReintentar={reintentarPresupuestos}
+            mensaje="No pudimos cargar los presupuestos sin respuesta."
           />
         )}
 
@@ -242,6 +298,17 @@ function RecordatoriosPage() {
               onSent={invalidar}
             />
           </section>
+        )}
+
+        {!isLoadingPresupuestos && !presupuestosConError && clinicId && (
+          <PresupuestosSinRespuesta
+            items={presupuestos}
+            dias={diasPresupuesto}
+            onCambiarDias={cambiarDiasPresupuesto}
+            clinicId={clinicId}
+            clinica={clinicaNombre}
+            onSent={invalidarPresupuestos}
+          />
         )}
 
         {!isLoadingOutreach &&
@@ -466,5 +533,145 @@ function OutreachList({
         </div>
       ))}
     </div>
+  );
+}
+
+function hace(dias: number): string {
+  return dias === 1 ? "hace 1 día" : `hace ${dias} días`;
+}
+
+function PresupuestosSinRespuesta({
+  items,
+  dias,
+  onCambiarDias,
+  clinicId,
+  clinica,
+  onSent,
+}: {
+  items: PresupuestoSinRespuesta[];
+  dias: number;
+  onCambiarDias: (dias: number) => void;
+  clinicId: string;
+  clinica: string;
+  onSent: () => void;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="flex items-center gap-1.5 font-display text-lg font-semibold">
+          <Receipt className="size-4 text-info" /> Presupuestos sin respuesta
+          <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold text-info">
+            {items.length}
+          </span>
+        </h2>
+        <div
+          role="group"
+          aria-label="Días sin respuesta"
+          className="inline-flex items-center gap-0.5 rounded-lg border border-hairline p-0.5"
+        >
+          <span className="px-2 text-xs text-muted-foreground">Sin respuesta hace</span>
+          {OPCIONES_DE_DIAS_SIN_RESPUESTA.map((opcion) => (
+            <button
+              key={opcion}
+              type="button"
+              aria-pressed={opcion === dias}
+              onClick={() => onCambiarDias(opcion)}
+              className={cn(
+                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                opcion === dias
+                  ? "bg-brand-soft text-brand-700"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {opcion}+ días
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="card-clinical px-5 py-4 text-sm text-muted-foreground">
+          Ningún presupuesto lleva {dias} días o más sin aceptarse.
+        </p>
+      ) : (
+        <div className="card-clinical divide-y divide-hairline overflow-hidden">
+          {items.map((item) => {
+            const variables = {
+              numero_presupuesto: item.quoteNumber,
+              total: formatMoney(item.quoteTotalCents, item.currency),
+              clinica,
+            };
+            const sinCanal = !item.puedeWhatsApp && !item.puedeEmail;
+            return (
+              <div
+                key={item.quoteId}
+                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium">{item.patientName}</p>
+                    {item.estado === "draft" && (
+                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        Borrador
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-xs text-muted-foreground">
+                    Presupuesto {item.quoteNumber} ·{" "}
+                    <span className="cifra">
+                      {formatMoney(item.quoteTotalCents, item.currency)}
+                    </span>{" "}
+                    · {item.estado === "draft" ? "creado" : "enviado"} {hace(item.diasSinRespuesta)}
+                  </p>
+                  {item.estado === "draft" && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      No figura como enviado: confirma que el paciente lo recibió antes de
+                      escribirle.
+                    </p>
+                  )}
+                  {sinCanal ? (
+                    <p className="mt-1 text-xs text-destructive">
+                      {item.motivoSinWhatsApp} Sin email cargado — no se puede enviar.
+                    </p>
+                  ) : (
+                    !item.puedeWhatsApp && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        WhatsApp no disponible: {item.motivoSinWhatsApp}
+                      </p>
+                    )
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {item.puedeWhatsApp && (
+                    <WhatsAppButton
+                      clinicId={clinicId}
+                      patientId={item.patientId}
+                      quoteId={item.quoteId}
+                      templateKind="quote_follow_up"
+                      variant="full"
+                      label="WhatsApp"
+                      variables={variables}
+                      onSent={onSent}
+                    />
+                  )}
+                  {item.puedeEmail && (
+                    <EmailButton
+                      clinicId={clinicId}
+                      patientId={item.patientId}
+                      quoteId={item.quoteId}
+                      templateKind="quote_follow_up"
+                      variant="full"
+                      label="Email"
+                      variables={variables}
+                      onSent={onSent}
+                    />
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

@@ -191,3 +191,95 @@ export function formatearEspera(minutos: number): string {
   const dias = Math.round(horas / 24);
   return dias === 1 ? "1 día" : `${dias} días`;
 }
+
+// ─── Lo que volvió ────────────────────────────────────────────────────────
+
+/** Días después de un mensaje de outreach en los que una cita nueva cuenta como "volvió". */
+export const DIAS_PARA_VOLVER = 14;
+
+export interface EnvioDeOutreach {
+  patientId: string;
+  kind: string;
+  createdAt: string;
+}
+
+export interface CitaCreada {
+  patientId: string;
+  createdAt: string;
+}
+
+export interface VueltaPorTipo {
+  kind: string;
+  /** Envíos cuya ventana ya cerró, y cuántos terminaron en una cita agendada. */
+  volvieron: Proporcion;
+  /** Envíos cuya ventana sigue abierta: todavía no se sabe. */
+  enCurso: number;
+}
+
+export interface CitasTrasOutreach {
+  total: Proporcion;
+  enCurso: number;
+  porTipo: VueltaPorTipo[];
+}
+
+/**
+ * Por cada mensaje de outreach enviado (recall, presupuesto, saldo…), ¿el
+ * paciente agendó una cita en los `dias` siguientes? Cuenta la fecha en que
+ * se **creó** la cita, no la fecha de la cita: lo que se mide es la reacción
+ * al mensaje.
+ *
+ * - Un envío cuya ventana no terminó no entra en el denominador (un "no
+ *   todavía" no es un "no"); se informa aparte como `enCurso`.
+ * - Una misma cita puede seguir a dos mensajes (recall y saldo el mismo día):
+ *   cada mensaje cuenta la suya. Es una tasa por mensaje, no un total de
+ *   citas generadas.
+ * - ⚠️ Observacional, como el resto de la pantalla: quien recibe un recall
+ *   quizá iba a llamar igual.
+ */
+export function citasTrasOutreach(
+  envios: EnvioDeOutreach[],
+  citas: CitaCreada[],
+  ahora: number,
+  dias: number = DIAS_PARA_VOLVER,
+): CitasTrasOutreach {
+  const ventanaMs = dias * 24 * 60 * 60 * 1000;
+  const citasPorPaciente = new Map<string, number[]>();
+  for (const c of citas) {
+    const lista = citasPorPaciente.get(c.patientId) ?? [];
+    lista.push(new Date(c.createdAt).getTime());
+    citasPorPaciente.set(c.patientId, lista);
+  }
+
+  const porKind = new Map<string, { cerrados: number; volvieron: number; enCurso: number }>();
+  for (const e of envios) {
+    const enviado = new Date(e.createdAt).getTime();
+    const cuenta = porKind.get(e.kind) ?? { cerrados: 0, volvieron: 0, enCurso: 0 };
+    porKind.set(e.kind, cuenta);
+    if (enviado + ventanaMs > ahora) {
+      cuenta.enCurso += 1;
+      continue;
+    }
+    cuenta.cerrados += 1;
+    const agendo = (citasPorPaciente.get(e.patientId) ?? []).some(
+      (t) => t > enviado && t <= enviado + ventanaMs,
+    );
+    if (agendo) cuenta.volvieron += 1;
+  }
+
+  let cerrados = 0;
+  let volvieron = 0;
+  let enCurso = 0;
+  const porTipo: VueltaPorTipo[] = [];
+  for (const [kind, c] of porKind) {
+    cerrados += c.cerrados;
+    volvieron += c.volvieron;
+    enCurso += c.enCurso;
+    porTipo.push({ kind, volvieron: proporcion(c.volvieron, c.cerrados), enCurso: c.enCurso });
+  }
+  porTipo.sort(
+    (a, b) =>
+      b.volvieron.denominador + b.enCurso - (a.volvieron.denominador + a.enCurso) ||
+      a.kind.localeCompare(b.kind),
+  );
+  return { total: proporcion(volvieron, cerrados), enCurso, porTipo };
+}

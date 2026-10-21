@@ -1,7 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Inbox, Loader2, MessageSquare, TrendingDown } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarCheck,
+  Inbox,
+  Loader2,
+  MessageSquare,
+  TrendingDown,
+} from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
@@ -16,6 +23,7 @@ import {
   type Proporcion,
 } from "@/lib/messaging/efectividad";
 import { getEfectividad } from "@/lib/messaging/efectividad.functions";
+import { MESSAGE_TEMPLATE_KIND_LABELS, type MessageTemplateKind } from "@/lib/messaging/messaging";
 
 export const Route = createFileRoute("/_authenticated/_clinic/efectividad")({
   beforeLoad: requirePermission("dashboard:view"),
@@ -194,6 +202,45 @@ function EfectividadPage() {
                       equipo elige a quién le manda recordatorio, y esa elección puede coincidir con
                       quién iba a faltar igual. Tómalo como una señal, no como una prueba de que el
                       recordatorio causó la diferencia.
+                    </span>
+                  </p>
+                </Tarjeta>
+
+                <Tarjeta titulo="Lo que volvió" icono={<CalendarCheck className="h-4 w-4" />}>
+                  <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      Mensajes de seguimiento tras los que el paciente agendó una cita en los{" "}
+                      {data.diasParaVolver} días siguientes
+                    </span>
+                    <Cifra p={data.volvieron.total} sufijo="mensajes" />
+                  </div>
+                  {data.volvieron.porTipo.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                      {data.volvieron.porTipo.map((t) => (
+                        <li
+                          key={t.kind}
+                          className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
+                        >
+                          <span className="text-muted-foreground">
+                            {MESSAGE_TEMPLATE_KIND_LABELS[t.kind as MessageTemplateKind] ?? t.kind}
+                          </span>
+                          <span className="cifra">
+                            {t.volvieron.numerador} de {t.volvieron.denominador}
+                            {t.enCurso > 0 && (
+                              <span className="text-muted-foreground"> · {t.enCurso} en curso</span>
+                            )}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <p className="mt-3 flex gap-2 rounded-lg bg-muted/50 p-3 text-xs leading-relaxed text-muted-foreground">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                    <span>
+                      Cuenta la fecha en que se creó la cita, sin las canceladas. Los mensajes de
+                      los últimos {data.diasParaVolver} días quedan “en curso” hasta que cierre su
+                      ventana. Tampoco es un experimento: quien recibe un recall quizá iba a llamar
+                      igual.
                     </span>
                   </p>
                 </Tarjeta>
