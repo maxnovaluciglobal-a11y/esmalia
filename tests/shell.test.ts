@@ -13,6 +13,7 @@ import {
   interpretarNuevaCita,
   leerNuevaCita,
   leerPedidoAbrirCaja,
+  paginasQueCoinciden,
   propsItemNav,
   textoConexion,
 } from "@/lib/shell";
@@ -62,23 +63,50 @@ describe("shell A+", () => {
   });
 
   describe("acciones del buscador ⌘K", () => {
-    it("recepción puede agendar y abrir caja", () => {
+    it("recepción puede agendar, abrir caja, cobrar y crear pacientes", () => {
       expect(accionesRapidas("reception").map((a) => a.label)).toEqual([
         "Nueva cita",
         "Abrir caja",
+        "Registrar pago",
+        "Crear paciente",
       ]);
     });
 
     it("solo ofrece lo que el rol puede hacer", () => {
-      expect(accionesRapidas("dentist").map((a) => a.id)).toEqual(["nueva-cita"]);
-      expect(accionesRapidas("accounting").map((a) => a.id)).toEqual(["abrir-caja"]);
+      expect(accionesRapidas("dentist").map((a) => a.id)).toEqual(["nueva-cita", "crear-paciente"]);
+      expect(accionesRapidas("accounting").map((a) => a.id)).toEqual([
+        "abrir-caja",
+        "registrar-pago",
+      ]);
       expect(accionesRapidas("assistant")).toEqual([]);
       expect(accionesRapidas(null)).toEqual([]);
     });
 
     it("filtra por lo escrito, sin mayúsculas", () => {
       expect(accionesRapidas("owner", "CAJA").map((a) => a.id)).toEqual(["abrir-caja"]);
-      expect(accionesRapidas("owner", "paciente")).toEqual([]);
+      expect(accionesRapidas("owner", "zzz")).toEqual([]);
+    });
+
+    it("entiende sinónimos: cobrar, paciente nuevo, agendar", () => {
+      expect(accionesRapidas("owner", "cobrar").map((a) => a.id)).toEqual(["registrar-pago"]);
+      expect(accionesRapidas("owner", "paciente nuevo").map((a) => a.id)).toEqual([
+        "crear-paciente",
+      ]);
+      expect(accionesRapidas("owner", "agend").map((a) => a.id)).toEqual(["nueva-cita"]);
+    });
+
+    it("las páginas también se encuentran por sinónimo y desde el comienzo de palabra", () => {
+      const paginas = [
+        { to: "/comisiones", label: "Reportes · Comisiones" },
+        { to: "/presupuestos", label: "Caja · Presupuestos", sinonimos: ["presupuesto"] },
+        { to: "/cajas", label: "Caja · Caja del día", sinonimos: ["cobrar"] },
+      ];
+      expect(paginasQueCoinciden(paginas, "isi")).toEqual([]);
+      expect(paginasQueCoinciden(paginas, "presupuesto").map((p) => p.to)).toEqual([
+        "/presupuestos",
+      ]);
+      expect(paginasQueCoinciden(paginas, "cobrar").map((p) => p.to)).toEqual(["/cajas"]);
+      expect(paginasQueCoinciden(paginas, "", 2)).toHaveLength(2);
     });
   });
 
@@ -88,6 +116,8 @@ describe("shell A+", () => {
       expect(porId).toEqual({
         "nueva-cita": "/agenda?nueva=1",
         "abrir-caja": "/cajas?abrir=1",
+        "registrar-pago": "/cajas",
+        "crear-paciente": "/pacientes",
       });
     });
 
@@ -110,6 +140,11 @@ describe("shell A+", () => {
       expect(hrefDeAccion(caja, { pathname: "/cajas", searchStr: "?x=1" })).toBe(
         "/cajas?x=1&abrir=1",
       );
+      // Una acción sin diálogo solo lleva a su pantalla (y si ya se está ahí,
+      // no pierde la búsqueda).
+      const pago = accionesRapidas("owner").find((a) => a.id === "registrar-pago")!;
+      expect(hrefDeAccion(pago, { pathname: "/agenda", searchStr: "?q=1" })).toBe("/cajas");
+      expect(hrefDeAccion(pago, { pathname: "/cajas", searchStr: "?x=1" })).toBe("/cajas?x=1");
     });
 
     it("el buscador navega con hrefDeAccion", () => {

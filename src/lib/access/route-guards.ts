@@ -28,3 +28,17 @@ export function requireAnyPermission(...permissions: Permission[]) {
     }
   };
 }
+
+/**
+ * Solo el propietario. Para herramientas internas (Pruebas de email, Modo
+ * prueba de email). Mira el rol vigente: quien simula un rol menor ve la
+ * puerta cerrada, igual que con `requirePermission`. Par en el servidor:
+ * `requireClinicRole(..., ["owner"])`, con el rol real.
+ */
+export function requireOwner() {
+  return ({ context }: { context: { access: ClinicAccess } }) => {
+    if (context.access.role !== "owner") {
+      throw redirect({ to: "/sin-acceso" });
+    }
+  };
+}

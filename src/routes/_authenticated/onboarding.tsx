@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, Loader2, Plus, Trash2 } from "lucide-react";
 
 import { completeClinicSetup, getMyClinics } from "@/lib/onboarding.functions";
 import { COUNTRIES, SPECIALTY_PRESETS } from "@/lib/onboarding-types";
@@ -128,22 +128,48 @@ function OnboardingPage() {
     <div className="min-h-dvh bg-surface px-4 py-10 sm:py-16">
       <div className="mx-auto w-full max-w-3xl">
         <header className="mb-8">
-          <div className="mb-6 flex items-center">
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <EsmaliaLogo size={28} />
+            {/* Con una clínica ya creada, el asistente tiene salida: antes la
+                única forma de volver era el botón "atrás" del navegador. */}
+            {existing.length > 0 && (
+              <Link
+                to="/dashboard"
+                className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+                Cancelar y volver a mi clínica
+              </Link>
+            )}
           </div>
-          <h1 className="font-display text-2xl font-semibold sm:text-3xl">Configura tu clínica</h1>
+          <h1 className="font-display text-2xl font-semibold sm:text-3xl">
+            {existing.length > 0 ? "Crea otra clínica" : "Configura tu clínica"}
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Cuatro pasos para dejar la agenda operativa. Todo se puede editar después.
           </p>
 
           {existing.length > 0 && (
-            <p className="mt-4 rounded-lg border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-              Ya perteneces a {existing.length} clínica(s):{" "}
-              <span className="font-medium text-foreground">
-                {existing.map((c) => c.name).join(", ")}
-              </span>
-              . Este asistente creará una clínica nueva.
-            </p>
+            <div className="mt-4 space-y-2 rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              <p>
+                Estás creando una <span className="font-medium text-foreground">clínica nueva</span>
+                , separada de{" "}
+                <span className="font-medium text-foreground">
+                  {existing.map((c) => c.name).join(", ")}
+                </span>
+                : empieza vacía, sin pacientes ni agenda.
+              </p>
+              <p>
+                Si querías cambiar el nombre u otros datos de tu clínica, ve a{" "}
+                <Link
+                  to="/datos-de-la-clinica"
+                  className="font-medium text-brand-700 underline underline-offset-4"
+                >
+                  Ajustes · Datos de la clínica
+                </Link>
+                .
+              </p>
+            </div>
           )}
         </header>
 

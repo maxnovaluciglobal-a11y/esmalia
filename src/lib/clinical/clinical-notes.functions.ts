@@ -11,7 +11,11 @@ import { createNotification } from "@/lib/messaging/notifications.functions";
 import type { Database } from "@/integrations/supabase/types";
 
 type SupabaseCtx = SupabaseClient<Database>;
-import { versionVigenteSegunCoincidencia } from "@/lib/clinical/clinical-notes";
+import {
+  versionVigenteSegunCoincidencia,
+  verificarAsistenciaIa,
+  type EventoIaDeNota,
+} from "@/lib/clinical/clinical-notes";
 import { leerTodasLasPaginas } from "@/lib/paginacion";
 import { PROMPTS_NOTA, PROMPT_ENTIDADES, SYSTEM_BASE } from "@/lib/ai/prompts";
 import type {
@@ -93,7 +97,7 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       // no una policy de RLS a nivel de paciente. Ahora: notes primero, y
       // versions solo por los note_id que ya sabemos que son de este
       // paciente — mismo patrón .in()+Map que ya pide CLAUDE.md.
-      const [notesRes, auditRes, entitiesRes, reviewsRes] = await Promise.all([
+      const [notesRes, auditRes, entitiesRes, reviewsRes, eventosIaRes] = await Promise.all([
         supabase
           .from("clinical_notes")
           .select("*")
@@ -120,6 +124,15 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           .in("patient_ref", refs)
           .order("created_at", { ascending: false })
           .limit(60),
+        // Evidencia de que Patty participó (eventos `ai_*` que registra el
+        // servidor al llamar al modelo): sin límite, a diferencia de la
+        // auditoría visible, para no perder la de notas viejas.
+        supabase
+          .from("clinical_note_audit")
+          .select("note_id, actor_id, created_at")
+          .eq("clinic_id", data.clinicId)
+          .in("patient_ref", refs)
+          .like("action", "ai_%"),
       ]);
 
       if (notesRes.error)
@@ -153,6 +166,11 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           mensajeDb(versionsRes.error, "No pudimos cargar las versiones de las notas clínicas."),
         );
 
+      const eventosIa: EventoIaDeNota[] = (eventosIaRes.data ?? []).map((e) => ({
+        noteId: e.note_id,
+        actorId: e.actor_id,
+        createdAt: e.created_at,
+      }));
       const versions = versionsRes.filas;
       const audit = auditRes.data ?? [];
       const entities = entitiesRes.data ?? [];
@@ -177,6 +195,32 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           .map((v) => ({ version: v.version, coincide: v.matches_note }));
         versionesPorNota.set(n.id, versionVigenteSegunCoincidencia(propias));
       }
+
+      // "con asistencia de IA" solo con evidencia de que Patty participó.
+      const verificado = verificarAsistenciaIa({
+        versions: versions.map((v) => ({
+          id: v.id,
+          noteId: v.note_id,
+          version: v.version,
+          title: v.title,
+          preview: v.preview,
+          aiAssisted: v.ai_assisted,
+          aiAction: v.ai_action,
+          authorId: v.author_id,
+          authorName: nombres.get(v.author_id) ?? null,
+          createdAt: v.created_at,
+        })),
+        audit: audit.map((a) => ({
+          id: a.id,
+          noteId: a.note_id,
+          action: a.action,
+          detail: a.detail,
+          actorId: a.actor_id,
+          actorName: nombres.get(a.actor_id) ?? null,
+          createdAt: a.created_at,
+        })),
+        eventosIa,
+      });
 
       await lectura;
       return {
@@ -206,27 +250,8 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           updatedAt: n.updated_at,
           updatedBy: n.updated_by,
         })),
-        versions: versions.map((v) => ({
-          id: v.id,
-          noteId: v.note_id,
-          version: v.version,
-          title: v.title,
-          preview: v.preview,
-          aiAssisted: v.ai_assisted,
-          aiAction: v.ai_action,
-          authorId: v.author_id,
-          authorName: nombres.get(v.author_id) ?? null,
-          createdAt: v.created_at,
-        })),
-        audit: audit.map((a) => ({
-          id: a.id,
-          noteId: a.note_id,
-          action: a.action,
-          detail: a.detail,
-          actorId: a.actor_id,
-          actorName: nombres.get(a.actor_id) ?? null,
-          createdAt: a.created_at,
-        })),
+        versions: verificado.versions,
+        audit: verificado.audit,
         entities: entities.map((e) => ({
           id: e.id,
           noteId: e.note_id,
@@ -318,6 +343,31 @@ async function versionActual(supabase: SupabaseCtx, noteId: string): Promise<num
   return data?.version ?? null;
 }
 
+/**
+ * `aiAssisted` lo manda el cliente: solo se guarda si la auditoría tiene un
+ * evento `ai_*` del mismo autor para esta nota (o para una nota todavía sin
+ * guardar). Con Patty en habilitación no hay eventos, así que ninguna
+ * versión nueva queda marcada como asistida por IA.
+ */
+async function asistenciaIaRespaldada(
+  supabase: SupabaseCtx,
+  caso: { clinicId: string; patientRef: string; noteId: string | null; userId: string },
+): Promise<boolean> {
+  const consulta = supabase
+    .from("clinical_note_audit")
+    .select("id")
+    .eq("clinic_id", caso.clinicId)
+    .eq("patient_ref", caso.patientRef)
+    .eq("actor_id", caso.userId)
+    .like("action", "ai_%");
+  const { data, error } = await (
+    caso.noteId
+      ? consulta.or(`note_id.eq.${caso.noteId},note_id.is.null`)
+      : consulta.is("note_id", null)
+  ).limit(1);
+  return !error && (data?.length ?? 0) > 0;
+}
+
 const saveInput = clinicPatient.extend({
   noteId: z.string().uuid().nullable().optional(),
   patientName: z.string().max(160).nullable().optional(),
@@ -366,6 +416,15 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const noteId = data.noteId ?? null;
     let esCreacion = !noteId;
+    const aiAssisted = data.aiAssisted
+      ? await asistenciaIaRespaldada(supabase, {
+          clinicId: data.clinicId,
+          patientRef: data.patientRef,
+          noteId,
+          userId,
+        })
+      : false;
+    const aiAction = aiAssisted ? (data.aiAction ?? null) : null;
 
     if (noteId && !esCreacion) {
       const { data: existente } = await supabase
@@ -396,8 +455,8 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
               title: data.title,
               content: data.content,
               summary: data.summary ?? null,
-              ai_assisted: data.aiAssisted,
-              ai_action: data.aiAction ?? null,
+              ai_assisted: aiAssisted,
+              ai_action: aiAction,
               author_id: userId,
             })
             .select("id")
@@ -441,8 +500,8 @@ export const saveClinicalNote = createServerFn({ method: "POST" })
       p_content: data.content,
       p_summary: data.summary ?? undefined,
       p_patient_name: data.patientName ?? undefined,
-      p_ai_assisted: data.aiAssisted,
-      p_ai_action: data.aiAction ?? undefined,
+      p_ai_assisted: aiAssisted,
+      p_ai_action: aiAction ?? undefined,
       p_addendum_of: esCreacion ? (data.addendumOf ?? undefined) : undefined,
     });
     const guardada = filas?.[0];

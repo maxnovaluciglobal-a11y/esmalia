@@ -32,7 +32,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/dominio-email")({
   beforeLoad: requirePermission("team:manage"),
   head: () => ({
     meta: [
-      { title: "Autenticación del dominio de email | Esmalia" },
+      { title: "Dominio de email | Esmalia" },
       {
         name: "description",
         content:
@@ -129,7 +129,7 @@ function DominioEmailPage() {
   }
 
   return (
-    <AppShell title="Autenticación del dominio" access={access}>
+    <AppShell title="Dominio de email" access={access}>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-6">
         <header className="flex flex-col gap-2">
           <h1 className="font-display text-xl font-semibold text-foreground">

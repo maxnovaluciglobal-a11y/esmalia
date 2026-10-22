@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { PERMISSION_LABELS } from "@/lib/access/permisos-etiquetas";
 import { requirePermission } from "@/lib/access/route-guards";
 import {
   CLINIC_ROLES,
@@ -134,7 +135,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/equipo")({
   beforeLoad: requirePermission("team:view"),
   head: () => ({
     meta: [
-      { title: "Equipo y permisos | Esmalia" },
+      { title: "Equipo | Esmalia" },
       {
         name: "description",
         content:
@@ -184,7 +185,7 @@ function EquipoPage() {
   const members: ClinicMember[] = membersQuery.data ?? [];
 
   return (
-    <AppShell title="Equipo y permisos" access={access}>
+    <AppShell title="Equipo" access={access}>
       <div className="space-y-8">
         {error && (
           <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
@@ -280,7 +281,7 @@ function EquipoPage() {
                       key={p}
                       className="rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground"
                     >
-                      {p}
+                      {PERMISSION_LABELS[p]}
                     </li>
                   ))}
                 </ul>

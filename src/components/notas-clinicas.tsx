@@ -514,6 +514,23 @@ export function NotasClinicas({
   // Bloqueada para edición: firmada o en revisión pendiente (también validado por la base de datos).
   const firmada = notaActual?.status === "signed";
   const bloqueada = firmada || revisionPendiente;
+  // "Resumen de Patty" solo si Patty participó: en esta edición o, con
+  // evidencia en la auditoría, en la versión vigente (ver verificarAsistenciaIa).
+  const versionVigente = versiones.find(
+    (v) => v.noteId === noteId && v.version === notaActual?.version,
+  );
+  const resumenDePatty = aiUsada || Boolean(versionVigente?.aiAssisted);
+  // Motivo visible de por qué "Guardar versión" está deshabilitado (no solo
+  // en un tooltip). La firmada ya lo explica arriba del editor.
+  const motivoGuardar = ocupado
+    ? null
+    : revisionPendiente
+      ? "La nota está en revisión: se edita cuando el revisor la resuelva."
+      : firmada
+        ? null
+        : !contenido.trim()
+          ? "Escribe el contenido de la nota para guardar una versión."
+          : null;
 
   if (!clinicId) {
     return (
@@ -540,10 +557,11 @@ export function NotasClinicas({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <button
             onClick={exportarPdf}
             disabled={!notaActual}
+            aria-describedby={!notaActual ? "motivo-exportar-pdf" : undefined}
             className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60 disabled:opacity-50"
           >
             <Download className="size-3" /> Exportar PDF
@@ -555,6 +573,11 @@ export function NotasClinicas({
             >
               Nueva nota
             </button>
+          )}
+          {!notaActual && (
+            <p id="motivo-exportar-pdf" className="w-full text-right text-xs text-muted-foreground">
+              Guarda la nota para exportarla en PDF.
+            </p>
           )}
         </div>
       </div>
@@ -777,6 +800,7 @@ export function NotasClinicas({
               <button
                 onClick={() => guardar(aiUsada ? "draft" : null)}
                 disabled={ocupado || bloqueada || !contenido.trim()}
+                aria-describedby={motivoGuardar ? "motivo-guardar-nota" : undefined}
                 className="inline-flex items-center gap-1.5 rounded-lg border border-brand bg-transparent px-3 py-1.5 text-xs font-medium text-brand-700 disabled:opacity-50"
               >
                 {guardarOffline.enCurso ? (
@@ -790,6 +814,7 @@ export function NotasClinicas({
                 <button
                   onClick={() => firmar.mutate()}
                   disabled={firmar.isPending || !puedeFirmar}
+                  aria-describedby={!puedeFirmar ? "motivo-firmar-nota" : undefined}
                   title={
                     !esProfesional
                       ? "Solo un doctor/a o administrador puede firmar la nota"
@@ -812,6 +837,22 @@ export function NotasClinicas({
                 >
                   <FilePlus2 className="size-3" /> Agregar adenda
                 </button>
+              )}
+              {motivoGuardar && (
+                <p
+                  id="motivo-guardar-nota"
+                  className="w-full text-right text-xs text-muted-foreground"
+                >
+                  {motivoGuardar}
+                </p>
+              )}
+              {noteId && !firmada && !puedeFirmar && (
+                <p
+                  id="motivo-firmar-nota"
+                  className="w-full text-right text-xs text-muted-foreground"
+                >
+                  Solo un doctor/a o administración puede firmar la nota.
+                </p>
               )}
             </div>
           )}
@@ -878,10 +919,17 @@ export function NotasClinicas({
                     )}
                     Enviar a revisión
                   </button>
-                  {notaActual.status !== "signed" && (
+                  {notaActual.status !== "signed" ? (
                     <span className="text-xs text-muted-foreground">
                       Firma la nota para poder solicitar aprobación.
                     </span>
+                  ) : (
+                    !revisorId &&
+                    revisores.length > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        Elige un revisor para enviarla.
+                      </span>
+                    )
                   )}
                   {revisores.length === 0 && (
                     <span className="text-xs text-muted-foreground">
@@ -960,19 +1008,27 @@ export function NotasClinicas({
             </div>
           )}
 
-          {resumen && (
-            <div className="rounded-xl border border-ai-border/60 bg-ai-soft p-4">
-              <p className="mb-2 flex items-center gap-2.5 text-xs font-semibold text-ai">
-                <PattyCara px={28} decorativa />
-                <span>
-                  Resumen de <span className="font-display text-[1.15em] italic">Patty</span>
-                </span>
-              </p>
-              <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
-                {resumen}
-              </p>
-            </div>
-          )}
+          {resumen &&
+            (resumenDePatty ? (
+              <div className="rounded-xl border border-ai-border/60 bg-ai-soft p-4">
+                <p className="mb-2 flex items-center gap-2.5 text-xs font-semibold text-ai">
+                  <PattyCara px={28} decorativa />
+                  <span>
+                    Resumen de <span className="font-display text-[1.15em] italic">Patty</span>
+                  </span>
+                </p>
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                  {resumen}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-hairline p-4">
+                <p className="mb-2 text-xs font-semibold text-muted-foreground">Resumen</p>
+                <p className="whitespace-pre-wrap text-xs leading-relaxed text-muted-foreground">
+                  {resumen}
+                </p>
+              </div>
+            ))}
 
           {entidades.length > 0 && (
             <div className="rounded-xl border border-hairline p-4">
@@ -1074,6 +1130,11 @@ export function NotasClinicas({
           <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {isLoading && <p className="text-xs text-muted-foreground">Cargando…</p>}
 
+            {panel === "versiones" && !isLoading && puedeEditar && revisionPendiente && (
+              <p className="text-xs text-muted-foreground">
+                Con la revisión pendiente no se puede revertir a otra versión.
+              </p>
+            )}
             {panel === "versiones" &&
               !isLoading &&
               (versiones.length === 0 ? (

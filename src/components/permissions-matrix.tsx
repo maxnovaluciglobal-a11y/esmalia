@@ -7,8 +7,8 @@ import {
   ROLE_DESCRIPTIONS,
   ROLE_LABELS,
   hasPermission,
-  type Permission,
 } from "@/lib/access/access";
+import { PERMISSION_LABELS } from "@/lib/access/permisos-etiquetas";
 import {
   NOTE_ACTIONS,
   NOTE_ACTION_LABELS,
@@ -17,26 +17,6 @@ import {
   evaluarAccionNota,
   type NoteState,
 } from "@/lib/clinical/note-permissions";
-
-const PERMISSION_LABELS: Record<Permission, string> = {
-  "dashboard:view": "Ver dashboard",
-  "agenda:view": "Ver agenda",
-  "agenda:manage": "Gestionar agenda",
-  "patients:view": "Ver pacientes",
-  "patients:manage": "Gestionar pacientes",
-  "clinical:view": "Ver historia clínica",
-  "clinical:write": "Escribir historia clínica",
-  "treatments:view": "Ver tratamientos",
-  "finance:view": "Ver finanzas",
-  "cash:manage": "Abrir/cerrar caja",
-  "payments:reverse": "Reversar pagos",
-  "inventory:view": "Ver inventario",
-  "inventory:manage": "Gestionar inventario",
-  "team:view": "Ver equipo",
-  "team:manage": "Gestionar equipo",
-  "settings:manage": "Configuración de la clínica",
-  "commission:view-own": "Ver mi propia comisión",
-};
 
 function Marca({ ok }: { ok: boolean }) {
   return ok ? (
@@ -75,16 +55,23 @@ export function PermissionsMatrix() {
           <h2 className="font-display text-xl font-semibold">Acceso por módulo</h2>
           <p className="text-sm text-muted-foreground">
             Qué secciones de Esmalia puede abrir cada rol. Las reglas se aplican también en el
-            servidor.
+            servidor. En el celular, desliza la tabla hacia los lados para ver todos los roles.
           </p>
         </div>
 
-        <div className="card-clinical overflow-x-auto">
-          <table className="w-full min-w-[720px] border-collapse text-sm">
+        {/* `relative` no es decorativo: los `sr-only` de las celdas son
+            `position: absolute` y, sin un ancestro posicionado DENTRO del
+            contenedor con scroll, se salían de él y ensanchaban la página
+            entera en el celular (UX-06). */}
+        <div className="card-clinical relative max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
             <caption className="sr-only">Permisos de módulos por rol de clínica</caption>
             <thead>
               <tr className="border-b border-hairline">
-                <th scope="col" className="px-5 py-3 text-left font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="sticky left-0 z-[1] bg-background px-4 py-3 text-left font-medium text-muted-foreground sm:px-5"
+                >
                   Permiso
                 </th>
                 {CLINIC_ROLES.map((rol) => (
@@ -102,9 +89,11 @@ export function PermissionsMatrix() {
             <tbody>
               {PERMISSIONS.map((permiso) => (
                 <tr key={permiso} className="border-b border-hairline last:border-0">
-                  <th scope="row" className="px-5 py-3 text-left font-normal">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-[1] bg-background px-4 py-3 text-left font-normal sm:px-5"
+                  >
                     {PERMISSION_LABELS[permiso]}
-                    <span className="ml-2 text-[11px] text-muted-foreground">{permiso}</span>
                   </th>
                   {CLINIC_ROLES.map((rol) => (
                     <td key={rol} className="px-3 py-3 text-center">
@@ -146,14 +135,17 @@ export function PermissionsMatrix() {
           ))}
         </div>
 
-        <div className="card-clinical overflow-x-auto">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
+        <div className="card-clinical relative max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[640px] border-collapse text-sm">
             <caption className="sr-only">
               Acciones permitidas sobre una nota en estado {NOTE_STATE_LABELS[estado]}
             </caption>
             <thead>
               <tr className="border-b border-hairline">
-                <th scope="col" className="px-5 py-3 text-left font-medium text-muted-foreground">
+                <th
+                  scope="col"
+                  className="sticky left-0 z-[1] bg-background px-4 py-3 text-left font-medium text-muted-foreground sm:px-5"
+                >
                   Acción
                 </th>
                 {CLINIC_ROLES.map((rol) => (
@@ -166,7 +158,10 @@ export function PermissionsMatrix() {
             <tbody>
               {NOTE_ACTIONS.map((accion) => (
                 <tr key={accion} className="border-b border-hairline last:border-0">
-                  <th scope="row" className="px-5 py-3 text-left font-normal">
+                  <th
+                    scope="row"
+                    className="sticky left-0 z-[1] bg-background px-4 py-3 text-left font-normal sm:px-5"
+                  >
                     {NOTE_ACTION_LABELS[accion]}
                   </th>
                   {CLINIC_ROLES.map((rol) => {
