@@ -382,9 +382,9 @@ export async function validarHorarioYSolapamiento(
 
   // Aviso SOFT de doble-booking, no bloqueo duro (mismo criterio que Open
   // Dental): dos citas del mismo profesional cuyos rangos se cruzan. No
-  // usamos operatory_id como unidad de colisión porque createAppointment
-  // nunca lo setea todavía (siempre null) — professional_id es la unidad
-  // real hoy. Corre ANTES del insert para no tener que revertir nada.
+  // usamos operatory_id como unidad de colisión porque el box es opcional
+  // (se elige desde la Ola 1, pero la mayoría de las citas no lo trae) —
+  // professional_id es la unidad real hoy. Corre ANTES del insert para no tener que revertir nada.
   // Importa más ahora que la app es offline-first: dos recepcionistas
   // pueden estar cargando en paralelo sin verse.
   // `starts_at < endsAt AND ends_at > startsAt` es la condición estándar de
@@ -416,6 +416,40 @@ export async function validarHorarioYSolapamiento(
   return { startsAt, endsAt, solapamiento };
 }
 
+/**
+ * Campos del formulario de cita de la Ola 1 (AGE-11, AGE-14, AGE-15). Son
+ * opcionales: la cola sin conexión puede traer citas capturadas con una
+ * versión anterior de la app, sin ellos. En la edición, ausente = no tocar.
+ */
+const camposOla1 = {
+  /** Tipo de cita del catálogo de la clínica. El nombre lo copia la base (snapshot). */
+  appointmentTypeId: z.string().uuid().nullish(),
+  /** Box de la sucursal de la cita. */
+  operatoryId: z.string().uuid().nullish(),
+  /** Observaciones internas: solo las ve el equipo, nunca el paciente. */
+  notas: z.string().trim().max(1000).nullish(),
+};
+
+/**
+ * El box tiene que ser de la sucursal de la cita (y estar activo). La FK sola
+ * no lo garantiza: aceptaría un box de otra sede o de otra clínica.
+ */
+async function validarBox(
+  supabase: SupabaseClient<Database>,
+  params: { clinicId: string; branchId: string; operatoryId: string },
+): Promise<void> {
+  const { data: box, error } = await supabase
+    .from("operatories")
+    .select("id")
+    .eq("clinic_id", params.clinicId)
+    .eq("branch_id", params.branchId)
+    .eq("id", params.operatoryId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error) throw new Error(mensajeDb(error, "No pudimos verificar el box."));
+  if (!box) throw new Error("El box no es de la sucursal elegida.");
+}
+
 export const createAppointment = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
@@ -441,6 +475,7 @@ export const createAppointment = createServerFn({ method: "POST" })
         startsAt: z.string().min(1, "Falta la fecha y hora de inicio."),
         duracionMin: z.number().int().min(5).max(480),
         prioridad: z.boolean().optional(),
+        ...camposOla1,
       })
       .parse(input),
   )
@@ -452,6 +487,13 @@ export const createAppointment = createServerFn({ method: "POST" })
       startsAtRaw: data.startsAt,
       duracionMin: data.duracionMin,
     });
+    if (data.operatoryId) {
+      await validarBox(context.supabase, {
+        clinicId: data.clinicId,
+        branchId: data.branchId,
+        operatoryId: data.operatoryId,
+      });
+    }
 
     const { data: inserted, error } = await context.supabase
       .from("appointments")
@@ -466,6 +508,9 @@ export const createAppointment = createServerFn({ method: "POST" })
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
         is_priority: data.prioridad ?? false,
+        appointment_type_id: data.appointmentTypeId ?? null,
+        operatory_id: data.operatoryId ?? null,
+        notes: data.notas || null,
       })
       .select("id")
       .single();
@@ -516,10 +561,18 @@ export const updateAppointment = createServerFn({ method: "POST" })
         procedureId: z.string().uuid().optional(),
         startsAt: z.string().min(1, "Falta la fecha y hora de inicio."),
         duracionMin: z.number().int().min(5).max(480),
+        ...camposOla1,
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true; solapamiento?: Solapamiento }> => {
+    if (data.operatoryId) {
+      await validarBox(context.supabase, {
+        clinicId: data.clinicId,
+        branchId: data.branchId,
+        operatoryId: data.operatoryId,
+      });
+    }
     const { startsAt, endsAt, solapamiento } = await validarHorarioYSolapamiento(context.supabase, {
       clinicId: data.clinicId,
       branchId: data.branchId,
@@ -538,10 +591,21 @@ export const updateAppointment = createServerFn({ method: "POST" })
         procedure_id: data.procedureId ?? null,
         starts_at: startsAt.toISOString(),
         ends_at: endsAt.toISOString(),
+        // Ausente (cliente anterior) = no se toca. `null` = se quita.
+        ...(data.appointmentTypeId !== undefined
+          ? {
+              appointment_type_id: data.appointmentTypeId,
+              // Al quitar el tipo se quita también el nombre; con tipo, lo
+              // pone el trigger `appointments_tipo_de_cita`.
+              ...(data.appointmentTypeId === null ? { appointment_type_name: null } : {}),
+            }
+          : {}),
+        ...(data.operatoryId !== undefined ? { operatory_id: data.operatoryId } : {}),
+        ...(data.notas !== undefined ? { notes: data.notas || null } : {}),
       })
       .eq("id", data.appointmentId)
       .eq("clinic_id", data.clinicId);
-    if (error) throw new Error("No tienes permisos para editar esta cita.");
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para editar esta cita."));
     return { ok: true, solapamiento };
   });
 

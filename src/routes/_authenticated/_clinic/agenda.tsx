@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -54,8 +62,22 @@ import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones
 import type { SemillaCita } from "@/components/agenda-hueco";
 import { AgendaMonth, AgendaSemanaCarriles } from "@/components/agenda-views";
 import { fechaMasAntigua } from "@/components/agenda-ocupacion";
-import { AllergyAlertBanner, AllergyAlertIcon } from "@/components/medical-history-card";
+import { AllergyAlertIcon } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
+import { CamposCita } from "@/components/agenda-formulario-cita";
+import { FaltaCompletar } from "@/components/cita-formulario";
+import {
+  faltantesDelFormulario,
+  idsDelFormulario,
+  useFormularioCita,
+  type ValoresCita,
+} from "@/hooks/use-formulario-cita";
+import {
+  enfocarPrimerFaltante,
+  profesionalesDelSelector,
+} from "@/lib/clinic-operations/cita-formulario";
+import { getAppointmentFormDetails } from "@/lib/clinic-operations/cita-formulario.functions";
+import { esAtajoGuardar, esAtajoNuevaCita, hayDialogoAbierto } from "@/lib/atajos";
 import { addDaysISO, addMonthsISO, rangoDeVista } from "@/lib/clinic-operations/agenda-fechas";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { HolidayNotice } from "@/components/holiday-notice";
@@ -78,7 +100,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import {
   fecha as fechaFmt,
@@ -111,7 +132,6 @@ import {
 } from "@/lib/clinic-operations/clinic-data";
 
 import { listBranches, listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
-import { listProcedures } from "@/lib/finance/finance.functions";
 import { formatMoney } from "@/lib/finance/finance";
 import { listPatients } from "@/lib/patients/patients.functions";
 import { listAllergyAlerts } from "@/lib/clinical/medical-history.functions";
@@ -206,6 +226,9 @@ interface AgendaSearch {
    * "Agendar" de la ficha). `1` la abre vacía (acción "Nueva cita" del ⌘K).
    * Se limpia de la URL al abrir el diálogo (`interpretarNuevaCita`). */
   nueva?: string;
+  /** Con `nueva=1`: id del paciente que el diálogo trae elegido (contrato de
+   * la Ola 1, `hrefNuevaCita`). Se limpia junto con `nueva`. */
+  paciente?: string;
 }
 
 function parseVista(v: unknown): VistaAgenda | undefined {
@@ -227,6 +250,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
     estado: str(search.estado),
     page: num(search.page, 1),
     nueva: leerNuevaCita(search.nueva),
+    paciente: str(search.paciente) || undefined,
   }),
   beforeLoad: requirePermission("agenda:view"),
   head: () => ({
@@ -384,6 +408,48 @@ function SaldoBadge({
   );
 }
 
+/**
+ * Botón de guardar del formulario de cita con "Falta completar: …" debajo
+ * (AGE-16). Queda habilitado: si falta algo, el clic lleva el foco al primer
+ * campo pendiente en vez de un botón gris sin explicación.
+ */
+function GuardarCita({
+  idFaltan,
+  faltaTexto,
+  enCurso,
+  onGuardar,
+  children,
+}: {
+  idFaltan: string;
+  faltaTexto: string | null;
+  enCurso: boolean;
+  onGuardar: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        onClick={onGuardar}
+        disabled={enCurso}
+        aria-describedby={faltaTexto ? idFaltan : undefined}
+        aria-keyshortcuts="Meta+Enter Control+Enter"
+      >
+        {enCurso && <Loader2 className="size-3.5 animate-spin" />}
+        {children}
+      </Button>
+      <FaltaCompletar id={idFaltan} texto={faltaTexto} />
+    </div>
+  );
+}
+
+/** ⌘/Ctrl + Enter en cualquier campo del formulario: guardar. */
+function alTeclaDelFormulario(e: ReactKeyboardEvent, guardar: () => void) {
+  if (esAtajoGuardar(e)) {
+    e.preventDefault();
+    guardar();
+  }
+}
+
 function NuevaCitaDialog({
   clinicId,
   userId,
@@ -393,10 +459,13 @@ function NuevaCitaDialog({
   pacientes,
   allergyAlerts,
   pacienteInicial,
+  pacienteDeUrl,
   onPacienteInicialConsumido,
+  onPacienteDesconocido,
   semilla,
   onSemillaConsumida,
   citas,
+  puedeAdministrarProfesionales,
 }: {
   clinicId: string;
   userId: string;
@@ -407,7 +476,11 @@ function NuevaCitaDialog({
   /** Citas cargadas, para avisar choques antes de guardar. */
   citas: Cita[];
   pacienteInicial?: string;
+  /** `paciente` de la URL (`?nueva=1&paciente=<id>`, ver `hrefNuevaCita`). */
+  pacienteDeUrl?: string;
   onPacienteInicialConsumido?: () => void;
+  /** El paciente pedido por la URL todavía no está en la lista (recién creado). */
+  onPacienteDesconocido?: () => void;
   /** Clic en un hueco de la grilla de día: profesional, su sucursal y la
    * hora (wall-clock de la sucursal, ver agenda-hueco.ts) ya puestos. Mismo
    * patrón que `pacienteInicial`: se aplica una vez y se avisa que se usó.
@@ -418,33 +491,59 @@ function NuevaCitaDialog({
    * aviso (RLS restringe a owner/admin/dentist/assistant, o el rol no
    * tiene clinical:view — ver agenda.tsx). */
   allergyAlerts?: Record<string, string[]>;
+  puedeAdministrarProfesionales: boolean;
 }) {
   const zona = useZonaClinica();
   const [open, setOpen] = useState(false);
-  const [pacienteId, setPacienteId] = useState("");
-  const [sucursalId, setSucursalId] = useState("");
-  const [profesionalId, setProfesionalId] = useState("");
-  const [tratamiento, setTratamiento] = useState("");
-  const [startsAt, setStartsAt] = useState("");
-  const [duracion, setDuracion] = useState(30);
+  const form = useFormularioCita({ clinicId, abierto: open });
+  const { valores } = form;
+  const ids = idsDelFormulario("nc");
 
-  // Con una sola sucursal o un solo profesional no hay nada que elegir:
-  // se completan solos (antes eran dos selects obligatorios igual).
-  function completarUnicos() {
-    if (sucursales.length === 1) setSucursalId((v) => v || sucursales[0].id);
-    if (profesionales.length === 1) setProfesionalId((v) => v || profesionales[0].id);
+  // Con una sola sucursal o un solo profesional que atiende no hay nada que
+  // elegir: se completan solos.
+  function unicos(): Partial<ValoresCita> {
+    const atienden = profesionalesDelSelector(profesionales, "");
+    return {
+      ...(sucursales.length === 1 ? { sucursalId: sucursales[0].id } : {}),
+      ...(atienden.length === 1 ? { profesionalId: atienden[0].id } : {}),
+    };
+  }
+
+  function abrirCon(nuevos: Partial<ValoresCita> = {}) {
+    form.reiniciar({ ...unicos(), ...nuevos });
+    setOpen(true);
   }
 
   useEffect(() => {
-    const pedido = interpretarNuevaCita(pacienteInicial);
+    const pedido = interpretarNuevaCita(pacienteInicial, pacienteDeUrl);
     if (!pedido.abrir) return;
-    if (pedido.pacienteId) setPacienteId(pedido.pacienteId);
-    completarUnicos();
-    setOpen(true);
+    abrirCon(pedido.pacienteId ? { pacienteId: pedido.pacienteId } : {});
     onPacienteInicialConsumido?.();
-    // completarUnicos lee props estables de esta render; solo importa el seed.
+    // abrirCon lee props estables de esta render; solo importa el pedido.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pacienteInicial]);
+  }, [pacienteInicial, pacienteDeUrl]);
+
+  // Abierto desde la URL antes de que carguen sucursales y profesionales: los
+  // únicos se completan cuando llegan.
+  useEffect(() => {
+    if (!open) return;
+    const u = unicos();
+    if (!valores.sucursalId && u.sucursalId) form.set("sucursalId", u.sucursalId);
+    if (!valores.profesionalId && u.profesionalId) form.set("profesionalId", u.profesionalId);
+    // Solo importa que lleguen los catálogos con el diálogo abierto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sucursales, profesionales]);
+
+  // Paciente recién creado ("Guardar y agendar"): si todavía no está en la
+  // lista cargada, se pide de nuevo una vez para que el combobox lo muestre.
+  const pidioPaciente = useRef<string | null>(null);
+  useEffect(() => {
+    const id = valores.pacienteId;
+    if (!open || !id || pacientes.length === 0) return;
+    if (pacientes.some((p) => p.id === id) || pidioPaciente.current === id) return;
+    pidioPaciente.current = id;
+    onPacienteDesconocido?.();
+  }, [open, valores.pacienteId, pacientes, onPacienteDesconocido]);
 
   // Al cerrar, Radix devuelve el foco al botón "Nueva cita" de arriba: si se
   // abrió desde un hueco de la grilla, eso salta el scroll al tope de la
@@ -455,40 +554,50 @@ function NuevaCitaDialog({
 
   useEffect(() => {
     if (!semilla) return;
-    if (semilla.sucursalId) setSucursalId(semilla.sucursalId);
-    setProfesionalId(semilla.profesionalId);
-    setStartsAt(semilla.startsAt);
     origenFoco.current = semilla.origen ?? null;
-    completarUnicos();
-    setOpen(true);
+    abrirCon({
+      ...(semilla.sucursalId ? { sucursalId: semilla.sucursalId } : {}),
+      profesionalId: semilla.profesionalId,
+      startsAt: semilla.startsAt,
+    });
     onSemillaConsumida?.();
     // Igual que arriba: solo importa la semilla nueva.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [semilla]);
 
+  // `N` abre "Nueva cita" (si nadie está escribiendo ni hay otro diálogo).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!esAtajoNuevaCita(e, hayDialogoAbierto())) return;
+      if (triggerRef.current?.disabled) return;
+      e.preventDefault();
+      abrirCon();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sucursales, profesionales]);
+
   const createFn = useServerFn(createAppointment);
-  const fetchProcedures = useServerFn(listProcedures);
-  const proceduresQuery = useQuery({
-    queryKey: ["procedures", clinicId],
-    queryFn: () => fetchProcedures({ data: { clinicId } }),
-  });
-  const procedimientoSeleccionado = proceduresQuery.data?.find(
-    (p) => p.name.trim().toLowerCase() === tratamiento.trim().toLowerCase(),
-  );
 
   // Feriados (Nager.Date) del país de la clínica, para avisarle al staff si
   // agendó sobre un feriado (no bloquea: la clínica puede igual atender).
-  const startsYear = startsAt ? Number(startsAt.slice(0, 4)) : new Date().getFullYear();
+  const startsYear = valores.startsAt
+    ? Number(valores.startsAt.slice(0, 4))
+    : new Date().getFullYear();
   const { holidaysByDate } = usePublicHolidays(country, [startsYear]);
-  const feriadoSeleccionado = startsAt ? (holidaysByDate.get(startsAt.slice(0, 10)) ?? null) : null;
-
-  const disponibles = profesionales.filter((p) => !sucursalId || p.sucursalId === sucursalId);
+  const feriadoSeleccionado = valores.startsAt
+    ? (holidaysByDate.get(valores.startsAt.slice(0, 10)) ?? null)
+    : null;
 
   const crear = useOfflineMutation({
     kind: "crear-cita",
     userId,
     ejecutar: (payload) => createFn({ data: payload }),
-    invalidar: [["appointments", clinicId]],
+    invalidar: [
+      ["appointments", clinicId],
+      ["procedimientos-frecuentes", clinicId],
+    ],
     resumen: (p) => `Cita: ${String(p.tratamiento)}`,
     // Aviso SOLAPADO, no bloqueo (ver appointments.functions.ts): el server
     // igual creó la cita, esto solo le avisa a quien agenda que otra cita
@@ -497,61 +606,67 @@ function NuevaCitaDialog({
     onExito: (resultado) => avisarSiSolapa(resultado, zona),
     onDone: () => {
       setOpen(false);
-      setPacienteId("");
-      setSucursalId("");
-      setProfesionalId("");
-      setTratamiento("");
-      setStartsAt("");
-      setDuracion(30);
+      form.reiniciar();
     },
   });
 
+  const { faltan, texto: faltaTexto } = faltantesDelFormulario(valores, { paciente: true });
+
   function agendar() {
+    if (faltan.length > 0) {
+      enfocarPrimerFaltante(faltan, ids);
+      return;
+    }
+    if (crear.enCurso) return;
     void crear.mutar({
       // Igual que en los cobros: el id sale del equipo para que reintentar
       // la cola no agende la misma cita dos veces.
       id: crypto.randomUUID(),
       clinicId,
-      branchId: sucursalId,
-      patientId: pacienteId,
-      professionalId: profesionalId,
-      tratamiento: tratamiento.trim(),
-      procedureId: procedimientoSeleccionado?.id,
+      branchId: valores.sucursalId,
+      patientId: valores.pacienteId,
+      professionalId: valores.profesionalId,
+      tratamiento: valores.tratamiento.trim(),
+      procedureId: form.procedimientoSeleccionado?.id,
       // `startsAt` viaja como wall-clock crudo y el servidor lo interpreta en
       // la timezone de la sucursal. Es determinista: da igual si esto se
       // sincroniza dentro de tres días, la hora agendada no se corre.
-      startsAt,
-      duracionMin: duracion,
+      startsAt: valores.startsAt,
+      duracionMin: valores.duracion,
+      appointmentTypeId: valores.tipoId,
+      operatoryId: valores.boxId || null,
+      notas: valores.observaciones.trim() || null,
     });
   }
 
-  const puedeCrear = pacienteId && sucursalId && profesionalId && tratamiento.trim() && startsAt;
   const choques = useChoquesDelFormulario({
     citas,
     profesionales,
-    pacienteId,
-    profesionalId,
-    sucursalId,
-    startsAt,
-    duracion,
+    pacienteId: valores.pacienteId,
+    profesionalId: valores.profesionalId,
+    sucursalId: valores.sucursalId,
+    startsAt: valores.startsAt,
+    duracion: valores.duracion,
   });
 
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        setOpen(o);
-        if (o) completarUnicos();
+        if (o) abrirCon();
+        else setOpen(false);
       }}
     >
       <BloqueoEscritura>
         <DialogTrigger asChild>
-          <Button ref={triggerRef} size="sm">
+          <Button ref={triggerRef} size="sm" aria-keyshortcuts="N">
             <Plus className="size-4" /> Nueva cita
           </Button>
         </DialogTrigger>
       </BloqueoEscritura>
       <DialogContent
+        className="max-h-[92dvh] overflow-y-auto"
+        onKeyDown={(e) => alTeclaDelFormulario(e, agendar)}
         onCloseAutoFocus={(e) => {
           const origen = origenFoco.current;
           origenFoco.current = null;
@@ -567,127 +682,34 @@ function NuevaCitaDialog({
             La hora se interpreta en el huso horario de la sucursal seleccionada.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="nc-paciente">Paciente</Label>
-            <PatientCombobox
-              id="nc-paciente"
-              value={pacienteId}
-              onChange={setPacienteId}
-              pacientes={pacientes}
-            />
-            {pacienteId && <AllergyAlertBanner allergies={allergyAlerts?.[pacienteId] ?? []} />}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="nc-sucursal">Sucursal</Label>
-              <select
-                id="nc-sucursal"
-                value={sucursalId}
-                onChange={(e) => {
-                  setSucursalId(e.target.value);
-                  setProfesionalId("");
-                }}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir sucursal…</option>
-                {sucursales.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="nc-profesional">Profesional</Label>
-              <select
-                id="nc-profesional"
-                value={profesionalId}
-                onChange={(e) => setProfesionalId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir profesional…</option>
-                {disponibles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="nc-tratamiento">Tratamiento / motivo</Label>
-            <input
-              id="nc-tratamiento"
-              value={tratamiento}
-              onChange={(e) => setTratamiento(e.target.value)}
-              placeholder="Ej: Control, limpieza…"
-              list="nc-procedimientos"
-              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-            />
-            <datalist id="nc-procedimientos">
-              {(proceduresQuery.data ?? []).map((p) => (
-                <option key={p.id} value={p.name} />
-              ))}
-            </datalist>
-            {procedimientoSeleccionado && (
-              <p className="text-[11px] text-muted-foreground">
-                Ligado al procedimiento del catálogo — se reflejará en presupuestos futuros.
-              </p>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="nc-inicio">Fecha y hora</Label>
-              <input
-                id="nc-inicio"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+        <CamposCita
+          form={form}
+          prefijo="nc"
+          sucursales={sucursales}
+          profesionales={profesionales}
+          pacientes={pacientes}
+          allergyAlerts={allergyAlerts}
+          puedeAdministrarProfesionales={puedeAdministrarProfesionales}
+          avisos={
+            <>
+              {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+              <ChoquesDelFormulario
+                conflictos={choques}
+                profesionales={profesionales}
+                profesionalId={valores.profesionalId}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="nc-duracion">Duración (min)</Label>
-              <input
-                id="nc-duracion"
-                type="number"
-                min={5}
-                max={480}
-                step={5}
-                value={duracion}
-                onChange={(e) => setDuracion(Number(e.target.value))}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-          </div>
-          {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
-          <ChoquesDelFormulario
-            conflictos={choques}
-            profesionales={profesionales}
-            profesionalId={profesionalId}
-          />
-        </div>
+            </>
+          }
+        />
         <DialogFooter>
-          <AccionDeshabilitada
-            motivo={
-              !puedeCrear &&
-              `Falta ${[
-                !pacienteId && "paciente",
-                !sucursalId && "sucursal",
-                !profesionalId && "profesional",
-                !tratamiento.trim() && "tratamiento",
-                !startsAt && "fecha y hora",
-              ]
-                .filter(Boolean)
-                .join(", ")}.`
-            }
+          <GuardarCita
+            idFaltan={ids.faltan}
+            faltaTexto={faltaTexto}
+            enCurso={crear.enCurso}
+            onGuardar={agendar}
           >
-            <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
-              {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
-              {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
-            </Button>
-          </AccionDeshabilitada>
+            {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
+          </GuardarCita>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -702,89 +724,127 @@ function NuevaCitaDialog({
  */
 function EditarCitaDialog({
   clinicId,
-  userId,
   country,
   cita,
   sucursales,
   profesionales,
   citas,
+  puedeAdministrarProfesionales,
 }: {
   clinicId: string;
-  userId: string;
   country: string | undefined;
   cita: Cita;
   sucursales: { id: string; nombre: string }[];
   profesionales: Profesional[];
   citas: Cita[];
+  puedeAdministrarProfesionales: boolean;
 }) {
   const zona = useZonaClinica();
   const [open, setOpen] = useState(false);
-  const [sucursalId, setSucursalId] = useState(cita.sucursalId);
-  const [profesionalId, setProfesionalId] = useState(cita.profesionalId);
-  const [tratamiento, setTratamiento] = useState(cita.tratamiento);
-  const [startsAt, setStartsAt] = useState(`${cita.fecha}T${horaDeCita(cita.inicio)}`);
-  const [duracion, setDuracion] = useState(cita.duracion);
+  const form = useFormularioCita({ clinicId, abierto: open });
+  const { valores } = form;
+  const ids = idsDelFormulario(`ec-${cita.id.slice(0, 8)}`);
+
+  // Tipo, box y observaciones no viajan en el listado de la agenda: se leen
+  // al abrir. Hasta que llegan, no se mandan (el servidor no los toca).
+  const fetchDetalle = useServerFn(getAppointmentFormDetails);
+  const detalleQ = useQuery({
+    queryKey: ["appointment-form-details", clinicId, cita.id],
+    enabled: open,
+    staleTime: 0,
+    queryFn: () => fetchDetalle({ data: { clinicId, appointmentId: cita.id } }),
+  });
+  const detalleAplicado = useRef(false);
+  useEffect(() => {
+    if (!open || !detalleQ.data || detalleAplicado.current) return;
+    detalleAplicado.current = true;
+    const d = detalleQ.data;
+    form.setValores((v) => ({
+      ...v,
+      tipoId: d.tipoId,
+      boxId: d.boxId ?? "",
+      observaciones: d.observaciones,
+    }));
+    // form.setValores es estable (useState); solo importa el detalle nuevo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, detalleQ.data]);
 
   function reabrirConValoresActuales(next: boolean) {
     if (next) {
-      setSucursalId(cita.sucursalId);
-      setProfesionalId(cita.profesionalId);
-      setTratamiento(cita.tratamiento);
-      setStartsAt(`${cita.fecha}T${horaDeCita(cita.inicio)}`);
-      setDuracion(cita.duracion);
+      detalleAplicado.current = false;
+      form.reiniciar({
+        pacienteId: cita.pacienteId,
+        sucursalId: cita.sucursalId,
+        profesionalId: cita.profesionalId,
+        tratamiento: cita.tratamiento,
+        startsAt: `${cita.fecha}T${horaDeCita(cita.inicio)}`,
+        duracion: cita.duracion,
+      });
     }
     setOpen(next);
   }
 
-  const updateFn = useServerFn(updateAppointment);
-  const fetchProcedures = useServerFn(listProcedures);
-  const proceduresQuery = useQuery({
-    queryKey: ["procedures", clinicId],
-    queryFn: () => fetchProcedures({ data: { clinicId } }),
-    enabled: open,
-  });
-  const procedimientoSeleccionado = proceduresQuery.data?.find(
-    (p) => p.name.trim().toLowerCase() === tratamiento.trim().toLowerCase(),
-  );
-
-  const startsYear = startsAt ? Number(startsAt.slice(0, 4)) : new Date().getFullYear();
+  const startsYear = valores.startsAt
+    ? Number(valores.startsAt.slice(0, 4))
+    : new Date().getFullYear();
   const { holidaysByDate } = usePublicHolidays(country, [startsYear]);
-  const feriadoSeleccionado = startsAt ? (holidaysByDate.get(startsAt.slice(0, 10)) ?? null) : null;
+  const feriadoSeleccionado = valores.startsAt
+    ? (holidaysByDate.get(valores.startsAt.slice(0, 10)) ?? null)
+    : null;
 
-  const disponibles = profesionales.filter((p) => !sucursalId || p.sucursalId === sucursalId);
-
+  const updateFn = useServerFn(updateAppointment);
+  const queryClient = useQueryClient();
   const editar = useMutation({
     mutationFn: () =>
       updateFn({
         data: {
           appointmentId: cita.id,
           clinicId,
-          branchId: sucursalId,
-          professionalId: profesionalId,
-          tratamiento: tratamiento.trim(),
-          procedureId: procedimientoSeleccionado?.id,
-          startsAt,
-          duracionMin: duracion,
+          branchId: valores.sucursalId,
+          professionalId: valores.profesionalId,
+          tratamiento: valores.tratamiento.trim(),
+          procedureId: form.procedimientoSeleccionado?.id,
+          startsAt: valores.startsAt,
+          duracionMin: valores.duracion,
+          ...(detalleAplicado.current
+            ? {
+                appointmentTypeId: valores.tipoId,
+                operatoryId: valores.boxId || null,
+                notas: valores.observaciones.trim() || null,
+              }
+            : {}),
         },
       }),
     onSuccess: (resultado) => {
       avisarSiSolapa(resultado, zona);
+      queryClient.invalidateQueries({ queryKey: ["appointments", clinicId] });
+      queryClient.invalidateQueries({
+        queryKey: ["appointment-form-details", clinicId, cita.id],
+      });
       toast.success("Cita actualizada.");
       setOpen(false);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
-  const puedeGuardar = sucursalId && profesionalId && tratamiento.trim() && startsAt;
+  const { faltan, texto: faltaTexto } = faltantesDelFormulario(valores, { paciente: false });
+  function guardar() {
+    if (faltan.length > 0) {
+      enfocarPrimerFaltante(faltan, ids);
+      return;
+    }
+    if (!editar.isPending) editar.mutate();
+  }
+
   const choques = useChoquesDelFormulario({
     citas: open ? citas : SIN_CITAS,
     profesionales,
     citaId: cita.id,
     pacienteId: cita.pacienteId,
-    profesionalId,
-    sucursalId,
-    startsAt,
-    duracion,
+    profesionalId: valores.profesionalId,
+    sucursalId: valores.sucursalId,
+    startsAt: valores.startsAt,
+    duracion: valores.duracion,
   });
 
   return (
@@ -799,104 +859,43 @@ function EditarCitaDialog({
           <Pencil className="size-3.5" />
         </button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent
+        className="max-h-[92dvh] overflow-y-auto"
+        onKeyDown={(e) => alTeclaDelFormulario(e, guardar)}
+      >
         <DialogHeader>
           <DialogTitle>Editar cita</DialogTitle>
           <DialogDescription>
             {cita.paciente} · la hora se interpreta en el huso horario de la sucursal seleccionada.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ec-sucursal">Sucursal</Label>
-              <select
-                id="ec-sucursal"
-                value={sucursalId}
-                onChange={(e) => {
-                  setSucursalId(e.target.value);
-                  setProfesionalId("");
-                }}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir sucursal…</option>
-                {sucursales.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ec-profesional">Profesional</Label>
-              <select
-                id="ec-profesional"
-                value={profesionalId}
-                onChange={(e) => setProfesionalId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir profesional…</option>
-                {disponibles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ec-tratamiento">Tratamiento / motivo</Label>
-            <input
-              id="ec-tratamiento"
-              value={tratamiento}
-              onChange={(e) => setTratamiento(e.target.value)}
-              placeholder="Ej: Control, limpieza…"
-              list="ec-procedimientos"
-              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-            />
-            <datalist id="ec-procedimientos">
-              {(proceduresQuery.data ?? []).map((p) => (
-                <option key={p.id} value={p.name} />
-              ))}
-            </datalist>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ec-inicio">Fecha y hora</Label>
-              <input
-                id="ec-inicio"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+        <CamposCita
+          form={form}
+          prefijo={`ec-${cita.id.slice(0, 8)}`}
+          sucursales={sucursales}
+          profesionales={profesionales}
+          puedeAdministrarProfesionales={puedeAdministrarProfesionales}
+          profesionalActualId={cita.profesionalId}
+          avisos={
+            <>
+              {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+              <ChoquesDelFormulario
+                conflictos={choques}
+                profesionales={profesionales}
+                profesionalId={valores.profesionalId}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="ec-duracion">Duración (min)</Label>
-              <input
-                id="ec-duracion"
-                type="number"
-                min={5}
-                max={480}
-                step={5}
-                value={duracion}
-                onChange={(e) => setDuracion(Number(e.target.value))}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-          </div>
-          {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
-          <ChoquesDelFormulario
-            conflictos={choques}
-            profesionales={profesionales}
-            profesionalId={profesionalId}
-          />
-        </div>
+            </>
+          }
+        />
         <DialogFooter>
-          <Button onClick={() => editar.mutate()} disabled={editar.isPending || !puedeGuardar}>
-            {editar.isPending && <Loader2 className="size-3.5 animate-spin" />}
+          <GuardarCita
+            idFaltan={ids.faltan}
+            faltaTexto={faltaTexto}
+            enCurso={editar.isPending}
+            onGuardar={guardar}
+          >
             {choques.length > 0 ? "Guardar igual" : "Guardar cambios"}
-          </Button>
+          </GuardarCita>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -912,6 +911,7 @@ function AgendarSolicitudDialog({
   open,
   onOpenChange,
   citas,
+  puedeAdministrarProfesionales,
 }: {
   clinicId: string;
   country: string | undefined;
@@ -921,12 +921,30 @@ function AgendarSolicitudDialog({
   request: PendingAppointmentRequest;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  puedeAdministrarProfesionales: boolean;
 }) {
   const zona = useZonaClinica();
-  const [sucursalId, setSucursalId] = useState("");
-  const [profesionalId, setProfesionalId] = useState("");
-  const [duracion, setDuracion] = useState(30);
-  const [startsAt, setStartsAt] = useState(`${request.preferredDate}T09:00`);
+  const form = useFormularioCita({ clinicId, abierto: open });
+  const { valores } = form;
+  const ids = idsDelFormulario("as");
+
+  // El diálogo se monta por solicitud: se siembra una vez con lo que pidió
+  // el paciente (motivo como tratamiento y su fecha preferida a las 9:00).
+  const sembrado = useRef<string | null>(null);
+  useEffect(() => {
+    if (sembrado.current === request.id) return;
+    sembrado.current = request.id;
+    const atienden = profesionalesDelSelector(profesionales, "");
+    form.reiniciar({
+      pacienteId: request.patientId,
+      ...(sucursales.length === 1 ? { sucursalId: sucursales[0].id } : {}),
+      ...(atienden.length === 1 ? { profesionalId: atienden[0].id } : {}),
+      tratamiento: request.reason.slice(0, 200),
+      startsAt: `${request.preferredDate}T09:00`,
+    });
+    // Solo importa la solicitud nueva.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [request.id]);
 
   const queryClient = useQueryClient();
   const createFn = useServerFn(createAppointment);
@@ -935,23 +953,29 @@ function AgendarSolicitudDialog({
   // Feriados (Nager.Date) del país de la clínica — el paciente pidió esta
   // fecha desde el portal sin saber si es feriado; se lo marcamos al staff
   // acá, en el momento de confirmar la hora real.
-  const startsYear = startsAt ? Number(startsAt.slice(0, 4)) : new Date().getFullYear();
+  const startsYear = valores.startsAt
+    ? Number(valores.startsAt.slice(0, 4))
+    : new Date().getFullYear();
   const { holidaysByDate } = usePublicHolidays(country, [startsYear]);
-  const feriadoSeleccionado = startsAt ? (holidaysByDate.get(startsAt.slice(0, 10)) ?? null) : null;
-
-  const disponibles = profesionales.filter((p) => !sucursalId || p.sucursalId === sucursalId);
+  const feriadoSeleccionado = valores.startsAt
+    ? (holidaysByDate.get(valores.startsAt.slice(0, 10)) ?? null)
+    : null;
 
   const agendar = useMutation({
     mutationFn: async () => {
       const { id, solapamiento } = await createFn({
         data: {
           clinicId,
-          branchId: sucursalId,
+          branchId: valores.sucursalId,
           patientId: request.patientId,
-          professionalId: profesionalId,
-          tratamiento: request.reason.slice(0, 200),
-          startsAt,
-          duracionMin: duracion,
+          professionalId: valores.profesionalId,
+          tratamiento: valores.tratamiento.trim().slice(0, 200),
+          procedureId: form.procedimientoSeleccionado?.id,
+          startsAt: valores.startsAt,
+          duracionMin: valores.duracion,
+          appointmentTypeId: valores.tipoId,
+          operatoryId: valores.boxId || null,
+          notas: valores.observaciones.trim() || null,
         },
       });
       await markScheduledFn({ data: { clinicId, requestId: request.id, appointmentId: id } });
@@ -960,6 +984,7 @@ function AgendarSolicitudDialog({
     onSuccess: ({ solapamiento }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments", clinicId] });
       queryClient.invalidateQueries({ queryKey: ["appointment-requests", clinicId] });
+      queryClient.invalidateQueries({ queryKey: ["procedimientos-frecuentes", clinicId] });
       toast.success("Cita agendada y solicitud cerrada");
       // Aviso SOLAPADO, no bloqueo — ver appointments.functions.ts.
       avisarSiSolapa({ solapamiento }, zona);
@@ -968,99 +993,61 @@ function AgendarSolicitudDialog({
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
-  const puedeAgendar = sucursalId && profesionalId && startsAt;
+  const { faltan, texto: faltaTexto } = faltantesDelFormulario(valores, { paciente: false });
+  function confirmar() {
+    if (faltan.length > 0) {
+      enfocarPrimerFaltante(faltan, ids);
+      return;
+    }
+    if (!agendar.isPending) agendar.mutate();
+  }
+
   const choques = useChoquesDelFormulario({
     citas,
     profesionales,
     pacienteId: request.patientId,
-    profesionalId,
-    sucursalId,
-    startsAt,
-    duracion,
+    profesionalId: valores.profesionalId,
+    sucursalId: valores.sucursalId,
+    startsAt: valores.startsAt,
+    duracion: valores.duracion,
   });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className="max-h-[92dvh] overflow-y-auto"
+        onKeyDown={(e) => alTeclaDelFormulario(e, confirmar)}
+      >
         <DialogHeader>
           <DialogTitle>Agendar solicitud de {request.patientName}</DialogTitle>
           <DialogDescription>{request.reason}</DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="as-sucursal">Sucursal</Label>
-              <select
-                id="as-sucursal"
-                value={sucursalId}
-                onChange={(e) => {
-                  setSucursalId(e.target.value);
-                  setProfesionalId("");
-                }}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir sucursal…</option>
-                {sucursales.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="as-profesional">Profesional</Label>
-              <select
-                id="as-profesional"
-                value={profesionalId}
-                onChange={(e) => setProfesionalId(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              >
-                <option value="">Elegir profesional…</option>
-                {disponibles.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="as-inicio">Fecha y hora</Label>
-              <input
-                id="as-inicio"
-                type="datetime-local"
-                value={startsAt}
-                onChange={(e) => setStartsAt(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+        <CamposCita
+          form={form}
+          prefijo="as"
+          sucursales={sucursales}
+          profesionales={profesionales}
+          puedeAdministrarProfesionales={puedeAdministrarProfesionales}
+          avisos={
+            <>
+              {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+              <ChoquesDelFormulario
+                conflictos={choques}
+                profesionales={profesionales}
+                profesionalId={valores.profesionalId}
               />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="as-duracion">Duración (min)</Label>
-              <input
-                id="as-duracion"
-                type="number"
-                min={5}
-                max={480}
-                step={5}
-                value={duracion}
-                onChange={(e) => setDuracion(Number(e.target.value))}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-          </div>
-          {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
-          <ChoquesDelFormulario
-            conflictos={choques}
-            profesionales={profesionales}
-            profesionalId={profesionalId}
-          />
-        </div>
+            </>
+          }
+        />
         <DialogFooter>
-          <Button onClick={() => agendar.mutate()} disabled={agendar.isPending || !puedeAgendar}>
-            {agendar.isPending && <Loader2 className="size-3.5 animate-spin" />}
+          <GuardarCita
+            idFaltan={ids.faltan}
+            faltaTexto={faltaTexto}
+            enCurso={agendar.isPending}
+            onGuardar={confirmar}
+          >
             {choques.length > 0 ? "Confirmar igual" : "Confirmar cita"}
-          </Button>
+          </GuardarCita>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1541,12 +1528,15 @@ function AgendaPage() {
     enabled: Boolean(clinicId),
     queryFn: () => fetchProfessionals({ data: { clinicId: clinicId! } }),
   });
-  const { data: pacientesRes } = useQuery({
+  const { data: pacientesRes, refetch: refetchPacientesQuery } = useQuery({
     queryKey: ["patients", clinicId],
     enabled: Boolean(clinicId),
     queryFn: () => fetchPatients({ data: { clinicId: clinicId! } }),
   });
   const pacientes = useMemo(() => pacientesRes?.items ?? [], [pacientesRes]);
+  const refetchPacientes = useCallback(() => void refetchPacientesQuery(), [refetchPacientesQuery]);
+  // Quién ve el atajo "Agrégalo en Profesionales" bajo el selector (AGE-17).
+  const puedeAdministrarProfesionales = hasPermission(access.role, "settings:manage");
   const { data: listaEspera = [] } = useQuery({
     queryKey: ["waitlist", clinicId],
     enabled: Boolean(clinicId),
@@ -1817,9 +1807,15 @@ function AgendaPage() {
               citas={citas}
               allergyAlerts={allergyAlerts}
               pacienteInicial={search.nueva}
+              pacienteDeUrl={search.paciente}
               onPacienteInicialConsumido={() =>
-                navigate({ search: (prev) => ({ ...prev, nueva: undefined }), replace: true })
+                navigate({
+                  search: (prev) => ({ ...prev, nueva: undefined, paciente: undefined }),
+                  replace: true,
+                })
               }
+              onPacienteDesconocido={refetchPacientes}
+              puedeAdministrarProfesionales={puedeAdministrarProfesionales}
               semilla={semillaHueco}
               onSemillaConsumida={() => setSemillaHueco(null)}
             />
@@ -2171,12 +2167,12 @@ function AgendaPage() {
                           />
                           <EditarCitaDialog
                             clinicId={clinicId}
-                            userId={access.userId}
                             country={access.clinic?.country}
                             cita={c}
                             sucursales={sucursales}
                             profesionales={profesionales}
                             citas={citas}
+                            puedeAdministrarProfesionales={puedeAdministrarProfesionales}
                           />
                         </span>
                       ) : (
@@ -2387,6 +2383,7 @@ function AgendaPage() {
           profesionales={profesionales}
           citas={citas}
           request={solicitudEnAgenda}
+          puedeAdministrarProfesionales={puedeAdministrarProfesionales}
           open={Boolean(solicitudEnAgenda)}
           onOpenChange={(open) => !open && setSolicitudEnAgenda(null)}
         />

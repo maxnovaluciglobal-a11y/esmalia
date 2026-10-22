@@ -11,6 +11,7 @@ import {
   decidirAbrirCaja,
   hrefDeAccion,
   hrefDeCobro,
+  hrefNuevaCita,
   interpretarNuevaCita,
   leerNuevaCita,
   leerPedidoAbrirCaja,
@@ -187,6 +188,16 @@ describe("shell A+", () => {
       expect(interpretarNuevaCita("  ")).toEqual({ abrir: false, pacienteId: null });
     });
 
+    it("agenda: ?nueva=1&paciente=<id> abre con ese paciente (contrato de la Ola 1)", () => {
+      const id = "7f3c2a1e-0000-4000-8000-000000000001";
+      expect(interpretarNuevaCita("1", id)).toEqual({ abrir: true, pacienteId: id });
+      expect(interpretarNuevaCita("1", " ")).toEqual({ abrir: true, pacienteId: null });
+      // Sin `nueva`, `paciente` solo no abre nada.
+      expect(interpretarNuevaCita(undefined, id)).toEqual({ abrir: false, pacienteId: null });
+      expect(hrefNuevaCita(id)).toBe(`/agenda?nueva=1&paciente=${id}`);
+      expect(hrefNuevaCita()).toBe("/agenda?nueva=1");
+    });
+
     it("caja: solo 1 cuenta como pedido", () => {
       expect(leerPedidoAbrirCaja(1)).toBe("1");
       expect(leerPedidoAbrirCaja("1")).toBe("1");
@@ -207,7 +218,8 @@ describe("shell A+", () => {
     it("las rutas leen el pedido y lo borran de la URL", () => {
       const agenda = leer("src/routes/_authenticated/_clinic/agenda.tsx");
       expect(agenda).toContain("nueva: leerNuevaCita(search.nueva)");
-      expect(agenda).toContain("interpretarNuevaCita(pacienteInicial)");
+      expect(agenda).toContain("interpretarNuevaCita(pacienteInicial, pacienteDeUrl)");
+      expect(agenda).toContain("paciente: str(search.paciente) || undefined");
       const cajas = leer("src/routes/_authenticated/_clinic/cajas.tsx");
       expect(cajas).toContain("abrir: leerPedidoAbrirCaja(search.abrir)");
       expect(cajas).toMatch(/abrir: undefined \}\), replace: true/);

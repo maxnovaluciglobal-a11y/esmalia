@@ -160,17 +160,30 @@ export function paginasQueCoinciden(
 
 /**
  * `/agenda?nueva=…`: con `1` abre "Nueva cita" vacía (acción del ⌘K); con
- * cualquier otro valor lo toma como id de paciente (botón "Agendar" de la
- * ficha). Un id de paciente es un uuid, así que nunca choca con `1`.
+ * `1` y `paciente=<id>` la abre con ese paciente elegido (contrato de la
+ * Ola 1: "Guardar y agendar" del alta de paciente y "Agendar" de la ficha,
+ * ver `hrefNuevaCita`). Por compatibilidad, `nueva=<id>` sin `paciente`
+ * también abre con ese paciente (links anteriores). Un id de paciente es un
+ * uuid, así que nunca choca con `1`.
  */
-export function interpretarNuevaCita(nueva: string | undefined): {
+export function interpretarNuevaCita(
+  nueva: string | undefined,
+  paciente?: string | undefined,
+): {
   abrir: boolean;
   pacienteId: string | null;
 } {
   const v = (nueva ?? "").trim();
+  const p = (paciente ?? "").trim();
   if (!v) return { abrir: false, pacienteId: null };
-  if (v === PEDIDO_ABRIR) return { abrir: true, pacienteId: null };
+  if (v === PEDIDO_ABRIR) return { abrir: true, pacienteId: p || null };
   return { abrir: true, pacienteId: v };
+}
+
+/** `/agenda?nueva=1[&paciente=<id>]`: abre "Nueva cita", con el paciente ya elegido si viene. */
+export function hrefNuevaCita(pacienteId?: string | null): string {
+  const base = `/agenda?nueva=${PEDIDO_ABRIR}`;
+  return pacienteId ? `${base}&paciente=${encodeURIComponent(pacienteId)}` : base;
 }
 
 /**

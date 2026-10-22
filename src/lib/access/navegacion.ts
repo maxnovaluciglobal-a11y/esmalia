@@ -200,9 +200,10 @@ export const AJUSTES: readonly GrupoAjustes[] = [
       },
       {
         to: "/estados-de-cita",
-        label: "Estados de cita",
-        detalle: "Etiquetas de la agenda",
+        label: "Estados y tipos de cita",
+        detalle: "Etiquetas de la agenda y tipos de consulta",
         permisos: ["settings:manage"],
+        sinonimos: ["tipos de cita", "tipo de consulta", "estados de cita"],
       },
       {
         to: "/consentimientos",

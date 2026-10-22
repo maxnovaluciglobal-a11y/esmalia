@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Profesional, Sucursal } from "@/lib/clinic-operations/clinic-data";
+import { atiendePacientes } from "@/lib/clinic-operations/cita-formulario";
 import { mensajeDb } from "@/lib/db-errors";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
@@ -89,7 +90,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await supabase
       .from("professionals")
-      .select("id, full_name, branch_id, specialty_id, default_operatory_id, color")
+      .select("id, full_name, branch_id, specialty_id, default_operatory_id, color, user_id")
       .eq("clinic_id", data.clinicId)
       .eq("is_active", true)
       .order("full_name", { ascending: true });
@@ -106,23 +107,40 @@ export const listProfessionals = createServerFn({ method: "GET" })
       ),
     ];
 
-    const [{ data: specialties, error: specError }, { data: operatories, error: opError }] =
-      await Promise.all([
-        supabase
-          .from("specialties")
-          .select("id, name")
-          .in("id", specialtyIds.length ? specialtyIds : [""]),
-        supabase
-          .from("operatories")
-          .select("id, name")
-          .in("id", operatoryIds.length ? operatoryIds : [""]),
-      ]);
+    const userIds = [
+      ...new Set((rows ?? []).map((r) => r.user_id).filter((v): v is string => Boolean(v))),
+    ];
+
+    const [
+      { data: specialties, error: specError },
+      { data: operatories, error: opError },
+      { data: miembros, error: miembrosError },
+    ] = await Promise.all([
+      supabase
+        .from("specialties")
+        .select("id, name")
+        .in("id", specialtyIds.length ? specialtyIds : [""]),
+      supabase
+        .from("operatories")
+        .select("id, name")
+        .in("id", operatoryIds.length ? operatoryIds : [""]),
+      // Rol en el equipo de quien tiene usuario vinculado: decide si atiende
+      // pacientes (AGE-17). Sin usuario vinculado, atiende.
+      supabase
+        .from("clinic_members")
+        .select("user_id, role")
+        .eq("clinic_id", data.clinicId)
+        .in("user_id", userIds.length ? userIds : [""]),
+    ]);
 
     if (specError) throw new Error(mensajeDb(specError, "No pudimos cargar las especialidades."));
     if (opError) throw new Error(mensajeDb(opError, "No pudimos cargar los boxes."));
+    if (miembrosError)
+      throw new Error(mensajeDb(miembrosError, "No pudimos cargar los roles del equipo."));
 
     const specialtyById = new Map((specialties ?? []).map((s) => [s.id, s.name]));
     const operatoryById = new Map((operatories ?? []).map((o) => [o.id, o.name]));
+    const rolPorUsuario = new Map((miembros ?? []).map((m) => [m.user_id, m.role]));
 
     return (rows ?? []).map((r) => ({
       id: r.id,
@@ -132,6 +150,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
       especialidad: (r.specialty_id && specialtyById.get(r.specialty_id)) || "Sin especialidad",
       sucursalId: r.branch_id ?? "",
       color: r.color,
+      atiende: atiendePacientes(r.user_id ? (rolPorUsuario.get(r.user_id) ?? null) : null),
     }));
   });
 
