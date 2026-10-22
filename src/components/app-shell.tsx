@@ -88,7 +88,7 @@ function BarraInferior({
                 <>
                   <span
                     aria-hidden
-                    className="absolute -top-1.5 -right-3 min-w-4 rounded-sm bg-brand-700 px-0.5 text-center text-[11px] leading-4 tabular-nums text-white"
+                    className="absolute -top-1.5 -right-3 min-w-4 rounded-sm bg-primary px-0.5 text-center text-[11px] leading-4 tabular-nums text-primary-foreground"
                   >
                     {badge > 9 ? "9+" : badge}
                   </span>
@@ -467,7 +467,7 @@ export function AppShell({
                 <>
                   <span
                     aria-hidden
-                    className="min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                    className="min-w-5 rounded-sm bg-primary px-1 text-center text-[11px] leading-5 tabular-nums text-primary-foreground"
                   >
                     {d.badge > 9 ? "9+" : d.badge}
                   </span>
@@ -510,7 +510,7 @@ export function AppShell({
                     <>
                       <span
                         aria-hidden
-                        className="min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                        className="min-w-5 rounded-sm bg-primary px-1 text-center text-[11px] leading-5 tabular-nums text-primary-foreground"
                       >
                         {badge > 9 ? "9+" : badge}
                       </span>

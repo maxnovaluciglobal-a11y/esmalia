@@ -52,10 +52,7 @@ export function PacienteTimeline({
 
       <div className="space-y-4">
         {paciente.timeline.map((e) => (
-          <div
-            key={e.fecha + e.titulo}
-            className={cn("relative border-l-2 border-hairline pl-6", !e.actual && "opacity-70")}
-          >
+          <div key={e.fecha + e.titulo} className="relative border-l-2 border-hairline pl-6">
             <span
               className={cn(
                 "absolute -left-[9px] top-0 size-4 rounded-full border-4 border-card",

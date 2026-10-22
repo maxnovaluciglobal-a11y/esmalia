@@ -71,6 +71,7 @@ export function GlobalSearch({
   /** "Registrar pago" elegido: el buscador pasa a pedir el paciente a cobrar. */
   const [cobrando, setCobrando] = useState(false);
   const disparadorRef = useRef<HTMLButtonElement>(null);
+  const entradaRef = useRef<HTMLInputElement>(null);
   /** Al cerrar navegando, el foco queda en la página nueva y no vuelve al botón. */
   const cerroNavegando = useRef(false);
   const navigate = useNavigate();
@@ -176,6 +177,8 @@ export function GlobalSearch({
       setQ("");
       setQDiferida("");
       setSeleccion("");
+      // Con mouse o toque el foco pudo salir del campo: vuelve para escribir.
+      entradaRef.current?.focus();
       return;
     }
     cerroNavegando.current = true;
@@ -242,6 +245,7 @@ export function GlobalSearch({
             className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-2.5"
           >
             <CommandInput
+              ref={entradaRef}
               value={q}
               onValueChange={setQ}
               placeholder={
