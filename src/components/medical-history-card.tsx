@@ -7,8 +7,10 @@ import { toast } from "sonner";
 import {
   PREGUNTAS_RIESGO,
   SEVERIDADES_ALERGIA,
+  conciliarCuestionario,
   etiquetaSeveridad,
   preguntasRespondidas,
+  riesgosDesdeAntecedentes,
   type AlergiaDetallada,
   type ClavePregunta,
   type CuestionarioRiesgo,
@@ -239,20 +241,38 @@ function AllergyEditor({
   );
 }
 
-/** Cuestionario de riesgo: Sí / No / sin responder, con detalle cuando es Sí. */
+/**
+ * Cuestionario de riesgo: Sí / No / sin responder, con detalle cuando es Sí.
+ * UX-14: lo que ya dicen los antecedentes o la medicación aparece como "Sí,
+ * según antecedentes" (sin guardarse hasta que alguien lo confirme).
+ */
 function RiskQuestionnaire({
   value,
   onChange,
   disabled,
+  antecedentes,
+  medicacion,
 }: {
   value: CuestionarioRiesgo;
   onChange: (next: CuestionarioRiesgo) => void;
   disabled: boolean;
+  antecedentes: string[];
+  medicacion: string[];
 }) {
+  const { efectivo, desdeAntecedentes, contradicciones } = conciliarCuestionario(
+    value,
+    riesgosDesdeAntecedentes({ antecedentes, medicacion }),
+  );
+
   function responder(key: ClavePregunta, answer: "yes" | "no" | null) {
     const next = { ...value };
     if (answer === null) delete next[key];
-    else next[key] = { answer, detail: answer === "yes" ? value[key]?.detail : undefined };
+    // Confirmar una inferida deja como detalle de dónde salió ("Hipertensión").
+    else
+      next[key] = {
+        answer,
+        detail: answer === "yes" ? (value[key]?.detail ?? efectivo[key]?.detail) : undefined,
+      };
     onChange(next);
   }
 
@@ -265,12 +285,17 @@ function RiskQuestionnaire({
   return (
     <fieldset className="space-y-2">
       <legend className="text-xs font-medium text-muted-foreground">
-        Cuestionario de riesgo · {preguntasRespondidas(value)} de {PREGUNTAS_RIESGO.length}{" "}
+        Cuestionario de riesgo · {preguntasRespondidas(efectivo)} de {PREGUNTAS_RIESGO.length}{" "}
         respondidas
+        {desdeAntecedentes.length > 0 &&
+          ` (${desdeAntecedentes.length} según antecedentes, sin confirmar)`}
       </legend>
       <ul className="divide-y divide-hairline rounded-lg border border-hairline">
         {PREGUNTAS_RIESGO.map((p) => {
-          const r = value[p.key];
+          const guardada = value[p.key];
+          const inferida = desdeAntecedentes.includes(p.key);
+          const contradice = contradicciones.includes(p.key);
+          const r = guardada ?? efectivo[p.key];
           return (
             <li key={p.key} className="space-y-1.5 px-3 py-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -287,6 +312,7 @@ function RiskQuestionnaire({
                 {disabled ? (
                   <span className="text-xs text-muted-foreground">
                     {r ? (r.answer === "yes" ? "Sí" : "No") : "Sin responder"}
+                    {inferida && " · según antecedentes"}
                   </span>
                 ) : (
                   <div role="radiogroup" aria-label={p.label} className="flex gap-1">
@@ -300,15 +326,19 @@ function RiskQuestionnaire({
                         key={answer}
                         type="button"
                         role="radio"
-                        aria-checked={r?.answer === answer}
-                        onClick={() => responder(p.key, r?.answer === answer ? null : answer)}
+                        aria-checked={guardada?.answer === answer}
+                        onClick={() =>
+                          responder(p.key, guardada?.answer === answer ? null : answer)
+                        }
                         className={cn(
                           "min-h-8 min-w-10 rounded-md border px-2 text-xs",
-                          r?.answer === answer
-                            ? answer === "yes"
-                              ? "border-destructive bg-destructive/10 font-medium text-destructive"
-                              : "border-brand bg-brand/12 font-medium text-brand-700"
-                            : "border-hairline text-muted-foreground hover:bg-secondary",
+                          inferida && answer === "yes"
+                            ? "border-dashed border-destructive/60 text-destructive"
+                            : guardada?.answer === answer
+                              ? answer === "yes"
+                                ? "border-destructive bg-destructive/10 font-medium text-destructive"
+                                : "border-brand bg-brand/12 font-medium text-brand-700"
+                              : "border-hairline text-muted-foreground hover:bg-secondary",
                         )}
                       >
                         {texto}
@@ -317,13 +347,27 @@ function RiskQuestionnaire({
                   </div>
                 )}
               </div>
-              {r?.answer === "yes" &&
+              {inferida && (
+                <p className="text-[11px] text-muted-foreground">
+                  Según antecedentes: {r?.detail}.{" "}
+                  {!disabled && "Toca «Sí» para confirmarla o «No» si ya no aplica."}
+                </p>
+              )}
+              {contradice && (
+                <p className="flex items-center gap-1 text-[11px] text-warning">
+                  <AlertTriangle aria-hidden className="size-3 shrink-0" />
+                  Respondida «No», pero los antecedentes la mencionan. Revísalo con el paciente.
+                </p>
+              )}
+              {guardada?.answer === "yes" &&
                 (disabled ? (
-                  r.detail && <p className="text-xs text-muted-foreground">{r.detail}</p>
+                  guardada.detail && (
+                    <p className="text-xs text-muted-foreground">{guardada.detail}</p>
+                  )
                 ) : (
                   <input
                     aria-label={`Detalle: ${p.label}`}
-                    value={r.detail ?? ""}
+                    value={guardada.detail ?? ""}
                     onChange={(e) => detallar(p.key, e.target.value)}
                     placeholder={p.ayuda ?? "Detalle (opcional)"}
                     maxLength={300}
@@ -488,6 +532,8 @@ export function MedicalHistoryCard({
               value={cuestionario}
               onChange={setCuestionario}
               disabled={!puedeEditar}
+              antecedentes={conditions}
+              medicacion={medications}
             />
           )}
           <div className="space-y-1.5">

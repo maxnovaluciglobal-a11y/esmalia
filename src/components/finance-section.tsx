@@ -205,8 +205,42 @@ function draftLineTotal(it: DraftItem): number {
   return Math.max(0, it.quantity * it.unitPrice - draftDiscountCents(it));
 }
 
+/** Etiqueta visible arriba de cada campo de una línea del presupuesto (UX-08). */
+function CampoDeItem({
+  etiqueta,
+  ayuda,
+  className,
+  children,
+}: {
+  etiqueta: string;
+  ayuda?: string | null;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={cn("flex flex-col gap-0.5", className)}>
+      <span className="text-[11px] font-medium text-muted-foreground">{etiqueta}</span>
+      {children}
+      {ayuda && <span className="text-[11px] text-muted-foreground">{ayuda}</span>}
+    </label>
+  );
+}
+
 const INPUT_CLASS =
   "rounded-md border border-hairline bg-transparent px-2 py-1 text-xs outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+/**
+ * De dónde sale el precio de la línea: el arancel de la prestación elegida,
+ * o un aviso si se cambió a mano.
+ */
+function ayudaDePrecio(it: DraftItem, procedures: Procedure[], currency: string): string | null {
+  if (!it.procedureId) return null;
+  const p = procedures.find((x) => x.id === it.procedureId);
+  if (!p) return null;
+  return it.unitPrice === p.defaultPriceCents
+    ? "Del arancel"
+    : `Arancel: ${formatMoney(p.defaultPriceCents, currency)}`;
+}
 
 /**
  * Editor de las líneas de un presupuesto. Extraído de
@@ -286,132 +320,150 @@ function QuoteItemsEditor({
             </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              value={it.phaseLabel}
-              onChange={(e) => patch(i, { phaseLabel: e.target.value })}
-              list="fases-presupuesto"
-              placeholder="Fase"
-              title="Bloque que agrupa este ítem. Vacío = sin fase."
-              aria-label={`Fase del ítem ${i + 1}`}
-              className={cn(INPUT_CLASS, "w-28")}
-            />
+          <div className="flex flex-wrap items-start gap-2">
+            <CampoDeItem etiqueta="Fase">
+              <input
+                value={it.phaseLabel}
+                onChange={(e) => patch(i, { phaseLabel: e.target.value })}
+                list="fases-presupuesto"
+                placeholder="Fase"
+                title="Bloque que agrupa este ítem. Vacío = sin fase."
+                aria-label={`Fase del ítem ${i + 1}`}
+                className={cn(INPUT_CLASS, "w-28")}
+              />
+            </CampoDeItem>
 
-            <select
-              value={it.toothNumber ?? ""}
-              onChange={(e) =>
-                patch(i, {
-                  toothNumber: e.target.value ? Number(e.target.value) : null,
-                  surface: e.target.value ? it.surface : null,
-                })
-              }
-              title="Pieza dental (FDI)"
-              aria-label={`Pieza del ítem ${i + 1}`}
-              className={cn(INPUT_CLASS, "w-24")}
-            >
-              <option value="">Sin pieza</option>
-              <optgroup label="Permanente">
-                {FDI_ALL_ADULT.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Temporal">
-                {FDI_ALL_PRIMARY.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-
-            <select
-              value={it.surface ?? ""}
-              onChange={(e) =>
-                patch(i, { surface: (e.target.value || null) as ToothSurface | null })
-              }
-              disabled={it.toothNumber === null}
-              title="Superficie de la pieza"
-              aria-label={`Superficie del ítem ${i + 1}`}
-              className={cn(INPUT_CLASS, "w-32 disabled:opacity-40")}
-            >
-              <option value="">Toda la pieza</option>
-              {TOOTH_SURFACES.filter((s) => s !== "whole").map((s) => (
-                <option key={s} value={s}>
-                  {SURFACE_LABELS[s]}
-                </option>
-              ))}
-            </select>
-
-            <input
-              type="number"
-              min={1}
-              max={20}
-              value={it.quantity}
-              onChange={(e) => patch(i, { quantity: Number(e.target.value) })}
-              title="Cantidad"
-              aria-label={`Cantidad del ítem ${i + 1}`}
-              className={cn(INPUT_CLASS, "w-14")}
-            />
-            <MoneyInput
-              currency={currency}
-              min={0}
-              valueCents={it.unitPrice}
-              onValueChange={(c) => patch(i, { unitPrice: c ?? 0 })}
-              mostrarMoneda={false}
-              title="Precio unitario"
-              aria-label={`Precio unitario del ítem ${i + 1}`}
-              className={cn(INPUT_CLASS, "w-24")}
-            />
-
-            <div className="flex items-center">
-              {it.discountMode === "amount" ? (
-                <MoneyInput
-                  currency={currency}
-                  min={0}
-                  valueCents={it.discount}
-                  onValueChange={(c) => patch(i, { discount: c ?? 0 })}
-                  mostrarMoneda={false}
-                  title="Descuento en dinero"
-                  aria-label={`Descuento del ítem ${i + 1}`}
-                  placeholder="Desc."
-                  className={cn(INPUT_CLASS, "w-16 rounded-r-none")}
-                />
-              ) : (
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={it.discount}
-                  onChange={(e) => patch(i, { discount: Number(e.target.value) })}
-                  title="Descuento en %"
-                  aria-label={`Descuento del ítem ${i + 1}`}
-                  placeholder="Desc."
-                  className={cn(INPUT_CLASS, "w-16 rounded-r-none")}
-                />
-              )}
-              <button
-                type="button"
-                onClick={() =>
+            <CampoDeItem etiqueta="Pieza">
+              <select
+                value={it.toothNumber ?? ""}
+                onChange={(e) =>
                   patch(i, {
-                    discountMode: it.discountMode === "amount" ? "pct" : "amount",
-                    discount: 0,
+                    toothNumber: e.target.value ? Number(e.target.value) : null,
+                    surface: e.target.value ? it.surface : null,
                   })
                 }
-                title="Cambiar entre descuento en pesos y en porcentaje"
-                aria-label={`Descuento del ítem ${i + 1} en ${
-                  it.discountMode === "amount" ? "pesos" : "porcentaje"
-                }. Cambiar.`}
-                className="rounded-r-md border border-l-0 border-hairline px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                title="Pieza dental (FDI)"
+                aria-label={`Pieza del ítem ${i + 1}`}
+                className={cn(INPUT_CLASS, "w-24")}
               >
-                {it.discountMode === "amount" ? "$" : "%"}
-              </button>
+                <option value="">Sin pieza</option>
+                <optgroup label="Permanente">
+                  {FDI_ALL_ADULT.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Temporal">
+                  {FDI_ALL_PRIMARY.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </CampoDeItem>
+
+            <CampoDeItem etiqueta="Superficie">
+              <select
+                value={it.surface ?? ""}
+                onChange={(e) =>
+                  patch(i, { surface: (e.target.value || null) as ToothSurface | null })
+                }
+                disabled={it.toothNumber === null}
+                title="Superficie de la pieza"
+                aria-label={`Superficie del ítem ${i + 1}`}
+                className={cn(INPUT_CLASS, "w-32 disabled:opacity-40")}
+              >
+                <option value="">Toda la pieza</option>
+                {TOOTH_SURFACES.filter((s) => s !== "whole").map((s) => (
+                  <option key={s} value={s}>
+                    {SURFACE_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </CampoDeItem>
+
+            <CampoDeItem etiqueta="Cantidad">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={it.quantity}
+                onChange={(e) => patch(i, { quantity: Number(e.target.value) })}
+                title="Cantidad"
+                aria-label={`Cantidad del ítem ${i + 1}`}
+                className={cn(INPUT_CLASS, "w-14")}
+              />
+            </CampoDeItem>
+            <CampoDeItem etiqueta="Precio unitario" ayuda={ayudaDePrecio(it, procedures, currency)}>
+              <MoneyInput
+                currency={currency}
+                min={0}
+                valueCents={it.unitPrice}
+                onValueChange={(c) => patch(i, { unitPrice: c ?? 0 })}
+                mostrarMoneda={false}
+                title="Precio unitario"
+                aria-label={`Precio unitario del ítem ${i + 1}`}
+                className={cn(INPUT_CLASS, "w-24")}
+              />
+            </CampoDeItem>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[11px] font-medium text-muted-foreground" aria-hidden>
+                Descuento
+              </span>
+              <div className="flex items-center">
+                {it.discountMode === "amount" ? (
+                  <MoneyInput
+                    currency={currency}
+                    min={0}
+                    valueCents={it.discount}
+                    onValueChange={(c) => patch(i, { discount: c ?? 0 })}
+                    mostrarMoneda={false}
+                    title="Descuento en dinero"
+                    aria-label={`Descuento del ítem ${i + 1}`}
+                    placeholder="Desc."
+                    className={cn(INPUT_CLASS, "w-16 rounded-r-none")}
+                  />
+                ) : (
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={it.discount}
+                    onChange={(e) => patch(i, { discount: Number(e.target.value) })}
+                    title="Descuento en %"
+                    aria-label={`Descuento del ítem ${i + 1}`}
+                    placeholder="Desc."
+                    className={cn(INPUT_CLASS, "w-16 rounded-r-none")}
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    patch(i, {
+                      discountMode: it.discountMode === "amount" ? "pct" : "amount",
+                      discount: 0,
+                    })
+                  }
+                  title="Cambiar entre descuento en pesos y en porcentaje"
+                  aria-label={`Descuento del ítem ${i + 1} en ${
+                    it.discountMode === "amount" ? "pesos" : "porcentaje"
+                  }. Cambiar.`}
+                  className="rounded-r-md border border-l-0 border-hairline px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-secondary"
+                >
+                  {it.discountMode === "amount" ? "$" : "%"}
+                </button>
+              </div>
             </div>
 
-            <span className="ml-auto cifra text-xs text-muted-foreground">
-              {formatMoney(draftLineTotal(it), currency)}
-            </span>
+            <div className="ml-auto flex flex-col items-end gap-0.5">
+              <span className="text-[11px] font-medium text-muted-foreground">Total</span>
+              <span className="cifra py-1 text-xs text-muted-foreground">
+                {formatMoney(draftLineTotal(it), currency)}
+              </span>
+            </div>
           </div>
         </div>
       ))}
@@ -858,8 +910,19 @@ function NuevoPresupuestoDialog({
           />
         </div>
 
-        <DialogFooter>
-          <Button onClick={() => create.mutate()} disabled={!puedeCrear}>
+        <DialogFooter className="items-center gap-2">
+          {!items.some((it) => it.nameSnapshot.trim()) && (
+            <p id="motivo-crear-presupuesto" className="text-xs text-muted-foreground">
+              Elige una prestación del catálogo o escribe la descripción de un ítem.
+            </p>
+          )}
+          <Button
+            onClick={() => create.mutate()}
+            disabled={!puedeCrear}
+            aria-describedby={
+              !items.some((it) => it.nameSnapshot.trim()) ? "motivo-crear-presupuesto" : undefined
+            }
+          >
             {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
             Crear presupuesto
           </Button>
@@ -1039,7 +1102,7 @@ export function FinanceSection({
     queryKey: ["procedures", clinicId],
     queryFn: () => fetchProcedures({ data: { clinicId } }),
   });
-  const { data: payments = [] } = useQuery({
+  const { data: payments = [], isLoading: payLoading } = useQuery({
     queryKey: ["payments", clinicId, patientId],
     queryFn: () => fetchPayments({ data: { clinicId, patientId } }),
   });
@@ -1206,8 +1269,11 @@ export function FinanceSection({
               userId={userId}
               plans={plans}
               suggestedAmountCents={Math.max(0, balance)}
+              saldoCargado={!isLoading && !payLoading}
               currency={currency}
-              abrirAhora={Boolean(abrirPago) && !isLoading}
+              // Con los pagos todavía cargando, el saldo sugerido sería el
+              // total facturado: se espera a tener los dos.
+              abrirAhora={Boolean(abrirPago) && !isLoading && !payLoading}
               onAbierto={onPagoAbierto}
             />
             <NuevoPresupuestoDialog

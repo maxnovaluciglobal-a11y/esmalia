@@ -18,6 +18,7 @@ import {
   type PortalTokenPayload,
 } from "@/lib/patients/portal-token.server";
 import { motivoParaNoEnviarWhatsApp } from "@/lib/messaging/baja-whatsapp";
+import { TTL_MAXIMO_PORTAL_DIAS, portalAccesoVigente } from "@/lib/patients/portal-acceso";
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
@@ -39,7 +40,7 @@ export const generatePortalLink = createServerFn({ method: "POST" })
         // Tope bajado de 90 a 14 días — el trade-off del link sin login es
         // que quien lo abra ve PHI del paciente; una ventana de exposición
         // más corta limita el daño si el link se reenvía o se filtra.
-        ttlDays: z.number().int().min(1).max(14).default(7),
+        ttlDays: z.number().int().min(1).max(TTL_MAXIMO_PORTAL_DIAS).default(7),
       })
       .parse(input),
   )
@@ -199,6 +200,57 @@ export const revokePortalAccess = createServerFn({ method: "POST" })
       .eq("id", data.patientId);
     if (error) throw new Error("No tienes permisos para revocar el acceso de este paciente.");
     return { ok: true };
+  });
+
+/**
+ * ¿Tiene este paciente un link del portal que pueda seguir vigente? La ficha
+ * lo usa para ofrecer "Revocar acceso" solo cuando hay algo que revocar.
+ * Ante cualquier error responde `null` (no se sabe) y la ficha muestra el
+ * botón igual: cortar un link filtrado nunca puede depender de esta lectura.
+ */
+export const getPortalAccessState = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ vigente: boolean | null }> => {
+    const { supabase } = context;
+    const desde = new Date(Date.now() - TTL_MAXIMO_PORTAL_DIAS * 24 * 60 * 60 * 1000).toISOString();
+    const [paciente, envios, accesos] = await Promise.all([
+      supabase
+        .from("patients")
+        .select("portal_revoked_at")
+        .eq("clinic_id", data.clinicId)
+        .eq("id", data.patientId)
+        .maybeSingle(),
+      supabase
+        .from("messages")
+        .select("created_at")
+        .eq("clinic_id", data.clinicId)
+        .eq("patient_id", data.patientId)
+        .eq("template_kind", "portal_invite")
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(1),
+      supabase
+        .from("portal_access_log")
+        .select("created_at")
+        .eq("clinic_id", data.clinicId)
+        .eq("patient_id", data.patientId)
+        .gte("created_at", desde)
+        .order("created_at", { ascending: false })
+        .limit(1),
+    ]);
+    if (paciente.error || envios.error || accesos.error || !paciente.data) {
+      return { vigente: null };
+    }
+    return {
+      vigente: portalAccesoVigente({
+        revocadoEl: paciente.data.portal_revoked_at,
+        actividad: [envios.data?.[0]?.created_at, accesos.data?.[0]?.created_at],
+        ahora: new Date(),
+      }),
+    };
   });
 
 // ────────────────────────────────────────────────────────────

@@ -32,13 +32,21 @@ export function ArchivarFichaButton({
   patientId,
   patientName,
   archivadaEl,
+  abierto: abiertoControlado,
+  onAbiertoChange,
 }: {
   clinicId: string;
   patientId: string;
   patientName: string;
   archivadaEl: string | null;
+  /** Modo controlado (menú "Más acciones"): sin botón propio; la confirmación se mantiene. */
+  abierto?: boolean;
+  onAbiertoChange?: (abierto: boolean) => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  const controlado = abiertoControlado !== undefined;
+  const [abiertoInterno, setAbiertoInterno] = useState(false);
+  const abierto = controlado ? abiertoControlado : abiertoInterno;
+  const setAbierto = (v: boolean) => (controlado ? onAbiertoChange?.(v) : setAbiertoInterno(v));
   const router = useRouter();
   const queryClient = useQueryClient();
   const archivarFn = useServerFn(setPatientArchived);
@@ -57,16 +65,18 @@ export function ArchivarFichaButton({
 
   return (
     <>
-      <BloqueoEscritura>
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          className={buttonVariants({ variant: "outline" })}
-        >
-          {archivada ? <ArchiveRestore aria-hidden /> : <Archive aria-hidden />}
-          {archivada ? "Restaurar ficha" : "Archivar ficha"}
-        </button>
-      </BloqueoEscritura>
+      {!controlado && (
+        <BloqueoEscritura>
+          <button
+            type="button"
+            onClick={() => setAbierto(true)}
+            className={buttonVariants({ variant: "outline" })}
+          >
+            {archivada ? <ArchiveRestore aria-hidden /> : <Archive aria-hidden />}
+            {archivada ? "Restaurar ficha" : "Archivar ficha"}
+          </button>
+        </BloqueoEscritura>
+      )}
 
       <AlertDialog open={abierto} onOpenChange={(next) => !cambiar.isPending && setAbierto(next)}>
         <AlertDialogContent>

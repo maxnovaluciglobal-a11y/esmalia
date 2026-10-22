@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useRouter } from "@tanstack/react-router";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -40,6 +40,8 @@ export function EditarPacienteDialog({
   clinicId,
   country,
   paciente,
+  abierto: abiertoControlado,
+  onAbiertoChange,
 }: {
   clinicId: string;
   /** País de la clínica, para mostrar cómo queda guardado el teléfono. */
@@ -48,13 +50,22 @@ export function EditarPacienteDialog({
     Paciente,
     "id" | "nombre" | "documento" | "fechaNacimiento" | "telefono" | "email"
   >;
+  /**
+   * Modo controlado (menú "Más acciones" de la ficha): el padre abre y cierra
+   * el diálogo y no se dibuja el botón propio.
+   */
+  abierto?: boolean;
+  onAbiertoChange?: (abierto: boolean) => void;
 }) {
   const fid = useId();
   const router = useRouter();
   const queryClient = useQueryClient();
   const updateFn = useServerFn(updatePatient);
 
-  const [abierto, setAbierto] = useState(false);
+  const controlado = abiertoControlado !== undefined;
+  const [abiertoInterno, setAbiertoInterno] = useState(false);
+  const abierto = controlado ? abiertoControlado : abiertoInterno;
+  const setAbierto = (v: boolean) => (controlado ? onAbiertoChange?.(v) : setAbiertoInterno(v));
   const [original, setOriginal] = useState<DatosBasicos>(() => datosBasicosDe(paciente));
   const [datos, setDatos] = useState<DatosBasicos>(original);
   const [errores, setErrores] = useState<Partial<Record<CampoBasico, string>>>({});
@@ -76,14 +87,24 @@ export function EditarPacienteDialog({
     onError: (e) => toast.error(mensajeDeError(e)),
   });
 
-  function abrir() {
+  function prepararDesdeLaFicha() {
     // Siempre desde lo que muestra la ficha ahora, no desde un borrador viejo.
     const actuales = datosBasicosDe(paciente);
     setOriginal(actuales);
     setDatos(actuales);
     setErrores({});
+  }
+
+  function abrir() {
+    prepararDesdeLaFicha();
     setAbierto(true);
   }
+
+  // En modo controlado lo abre el padre: se prepara al abrirse.
+  useEffect(() => {
+    if (controlado && abiertoControlado) prepararDesdeLaFicha();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlado, abiertoControlado]);
 
   function enviar() {
     const encontrados = validarDatosBasicos(datos);
@@ -127,11 +148,13 @@ export function EditarPacienteDialog({
 
   return (
     <>
-      <BloqueoEscritura>
-        <button type="button" onClick={abrir} className={buttonVariants({ variant: "outline" })}>
-          <Pencil aria-hidden /> Editar datos
-        </button>
-      </BloqueoEscritura>
+      {!controlado && (
+        <BloqueoEscritura>
+          <button type="button" onClick={abrir} className={buttonVariants({ variant: "outline" })}>
+            <Pencil aria-hidden /> Editar datos
+          </button>
+        </BloqueoEscritura>
+      )}
 
       <Dialog open={abierto} onOpenChange={(next) => !guardar.isPending && setAbierto(next)}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">

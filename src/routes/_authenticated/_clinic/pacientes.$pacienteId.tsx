@@ -1,23 +1,21 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   ArrowLeft,
   CalendarClock,
-  CalendarPlus,
+  Gift,
   Pencil,
   ShieldAlert,
   Tag,
-  Wallet,
 } from "lucide-react";
 
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -33,7 +31,11 @@ import { MedicalHistoryCard } from "@/components/medical-history-card";
 import { VitalSignsCard } from "@/components/vital-signs-card";
 import { PatientGuardiansCard } from "@/components/patient-guardians-card";
 import { useGuardians } from "@/hooks/use-guardians";
-import { alertasDeAnamnesis } from "@/lib/clinical/anamnesis";
+import {
+  alertasDeAnamnesis,
+  conciliarCuestionario,
+  riesgosDesdeAntecedentes,
+} from "@/lib/clinical/anamnesis";
 import { getMedicalHistory } from "@/lib/clinical/medical-history.functions";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { esMenorDeEdad, parentescoLegible, tutorPrincipal } from "@/lib/patients/tutor";
@@ -48,11 +50,8 @@ import { MessagesHistory } from "@/components/messages-history";
 import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
-import { ArchivarFichaButton } from "@/components/archivar-ficha";
-import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
-import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
-import { ExportarFichaPaciente } from "@/components/exportar-ficha-paciente";
-import { puedeExportarPaciente } from "@/lib/exportacion/exportacion-clinica";
+import { AccionesDeLaFicha } from "@/components/ficha-acciones";
+import { getPortalAccessState } from "@/lib/patients/portal.functions";
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
@@ -69,7 +68,16 @@ import {
   validarBusquedaFicha,
   type PestanaFicha,
 } from "@/components/ficha-busqueda";
-import { BloqueoEscritura, SegunSoloLectura } from "@/components/solo-lectura";
+
+/** Bloque gris mientras carga: evita mostrar un valor por defecto que después cambia. */
+function Esqueleto({ className }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("block animate-pulse rounded bg-muted motion-reduce:animate-none", className)}
+    />
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/$pacienteId")({
   validateSearch: validarBusquedaFicha,
@@ -167,12 +175,15 @@ function ConvenioDelPaciente({
   clinicId,
   patientId,
   convenioId,
+  convenioNombre,
   afiliado,
   puedeEditar,
 }: {
   clinicId: string;
   patientId: string;
   convenioId: string | null;
+  /** Nombre que ya trae la ficha: se muestra sin esperar la lista de convenios. */
+  convenioNombre: string | null;
   afiliado: string | null;
   puedeEditar: boolean;
 }) {
@@ -183,7 +194,7 @@ function ConvenioDelPaciente({
   const [seleccion, setSeleccion] = useState(convenioId ?? "");
   const [nroAfiliado, setNroAfiliado] = useState(afiliado ?? "");
 
-  const { data: convenios = [] } = useQuery({
+  const { data: convenios = [], isLoading: cargandoConvenios } = useQuery({
     queryKey: ["agreements", clinicId],
     queryFn: () => fetchAgreements({ data: { clinicId } }),
   });
@@ -209,6 +220,9 @@ function ConvenioDelPaciente({
   });
 
   const actual = convenios.find((c) => c.id === convenioId);
+  // Sin el nombre en la ficha y con la lista cargando, todavía no se sabe
+  // cuál es: "Particular" de entrada y el convenio después confundía.
+  const nombre = actual?.name ?? convenioNombre ?? (convenioId ? null : "Particular");
 
   if (editando) {
     return (
@@ -262,7 +276,7 @@ function ConvenioDelPaciente({
     <div>
       <p className="kicker">Convenio</p>
       <p className="mt-1 truncate font-display text-xl font-semibold leading-tight">
-        {actual?.name ?? "Particular"}
+        {nombre ?? (cargandoConvenios ? <Esqueleto className="mt-1 h-5 w-32" /> : "Convenio")}
       </p>
       {afiliado && <p className="text-xs text-muted-foreground">Afiliado {afiliado}</p>}
       {puedeEditar && (
@@ -374,13 +388,21 @@ function PacienteDetalle() {
         (a) => a.name.toLocaleLowerCase("es") === n.toLocaleLowerCase("es"),
       ),
   );
+  // UX-14: lo que ya dicen los antecedentes también alerta, aunque el
+  // cuestionario no se haya completado.
   const alertas = medicalHistoryQuery.data
     ? alertasDeAnamnesis({
         alergias: [
           ...medicalHistoryQuery.data.allergyDetails,
           ...alergiasFusionadas.map((name) => ({ name, severity: "unknown" as const })),
         ],
-        cuestionario: medicalHistoryQuery.data.riskQuestionnaire,
+        cuestionario: conciliarCuestionario(
+          medicalHistoryQuery.data.riskQuestionnaire,
+          riesgosDesdeAntecedentes({
+            antecedentes: medicalHistoryQuery.data.conditions,
+            medicacion: medicalHistoryQuery.data.chronicMedications,
+          }),
+        ).efectivo,
       })
     : [];
   const alertasCriticas = alertas.filter((a) => a.nivel === "critica");
@@ -406,6 +428,21 @@ function PacienteDetalle() {
     access.clinic?.onboardingCallAt ?? null,
   );
 
+  // "Revocar acceso" solo cuando puede haber un link vigente. Si la lectura
+  // falla (`vigente: null`), el botón se muestra igual: cortar un link
+  // filtrado nunca depende de esta consulta.
+  const queryClient = useQueryClient();
+  const puedeGestionarPortal = hasPermission(access.role, "patients:manage");
+  const fetchPortalState = useServerFn(getPortalAccessState);
+  const portalQuery = useQuery({
+    queryKey: ["portal-access", clinicId, paciente.id],
+    queryFn: () => fetchPortalState({ data: { clinicId: clinicId!, patientId: paciente.id } }),
+    enabled: Boolean(clinicId) && puedeGestionarPortal && pestana === "mensajes",
+  });
+  const portalVigente = portalQuery.data ? portalQuery.data.vigente !== false : false;
+  const refrescarPortal = () =>
+    void queryClient.invalidateQueries({ queryKey: ["portal-access", clinicId, paciente.id] });
+
   const lineaDatos = [
     paciente.edad ? `${paciente.edad} años` : null,
     paciente.telefono || "Sin teléfono",
@@ -415,11 +452,9 @@ function PacienteDetalle() {
 
   const alertaMedica = !puedeVerClinico
     ? "Sin acceso"
-    : medicalHistoryQuery.isLoading
-      ? "…"
-      : alertasCriticas.length > 0
-        ? alertasCriticas.map((a) => a.texto).join(" · ")
-        : "Sin alertas críticas registradas";
+    : alertasCriticas.length > 0
+      ? alertasCriticas.map((a) => a.texto).join(" · ")
+      : "Sin alertas críticas registradas";
 
   return (
     <AppShell title="Ficha del paciente" access={access}>
@@ -489,81 +524,14 @@ function PacienteDetalle() {
                 )}
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {/* Datos de contacto e identificación: owner/admin/dentist/reception,
-                  igual que la policy patients_update_front_desk. */}
-              {clinicId && puedeEditarPaciente(access.role) && (
-                <EditarPacienteDialog
-                  clinicId={clinicId}
-                  country={access.clinic?.country ?? null}
-                  paciente={paciente}
-                />
-              )}
-              {clinicId && hasPermission(access.role, "settings:manage") && (
-                <ArchivarFichaButton
-                  clinicId={clinicId}
-                  patientId={paciente.id}
-                  patientName={paciente.nombre}
-                  archivadaEl={paciente.archivadaEl ?? null}
-                />
-              )}
-              {/* Derecho de acceso del paciente (CON-01): owner/admin/dentist.
-                  El servidor vuelve a verificar el rol y registra la exportación. */}
-              {access.clinic && puedeExportarPaciente(access.role) && (
-                <ExportarFichaPaciente
-                  clinicId={access.clinic.id}
-                  clinicName={access.clinic.name}
-                  timezone={access.clinic.timezone}
-                  isDemo={access.clinic.isDemo}
-                  patientId={paciente.id}
-                  patientName={paciente.nombre}
-                  generadoPor={access.fullName ?? access.email ?? "Usuario de la clínica"}
-                  incluirFinanzas={hasPermission(access.role, "finance:view")}
-                />
-              )}
-              {puedeFacturar && (
-                <BloqueoEscritura>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPestana("finanzas");
-                      setAbrirPago(true);
-                    }}
-                    className={buttonVariants({ variant: "outline" })}
-                  >
-                    <Wallet aria-hidden /> Cobrar
-                  </button>
-                </BloqueoEscritura>
-              )}
-              {hasPermission(access.role, "agenda:manage") && (
-                <SegunSoloLectura
-                  bloqueado={
-                    <BloqueoEscritura>
-                      <button type="button" className={buttonVariants()}>
-                        <CalendarPlus aria-hidden /> Agendar
-                      </button>
-                    </BloqueoEscritura>
-                  }
-                >
-                  <Link
-                    to="/agenda"
-                    search={{
-                      q: "",
-                      fecha: "",
-                      vista: "dia",
-                      sucursal: "",
-                      profesional: "",
-                      estado: "",
-                      page: 1,
-                      nueva: paciente.id,
-                    }}
-                    className={buttonVariants()}
-                  >
-                    <CalendarPlus aria-hidden /> Agendar
-                  </Link>
-                </SegunSoloLectura>
-              )}
-            </div>
+            <AccionesDeLaFicha
+              access={access}
+              paciente={paciente}
+              onCobrar={() => {
+                setPestana("finanzas");
+                setAbrirPago(true);
+              }}
+            />
           </div>
 
           {paciente.archivadaEl && (
@@ -590,6 +558,7 @@ function PacienteDetalle() {
                   clinicId={clinicId}
                   patientId={paciente.id}
                   convenioId={paciente.convenioId ?? null}
+                  convenioNombre={paciente.convenioNombre ?? null}
                   afiliado={paciente.convenioAfiliado ?? null}
                   puedeEditar={puedeFacturar}
                 />
@@ -606,9 +575,13 @@ function PacienteDetalle() {
                 {alertasCriticas.length > 0 && (
                   <AlertTriangle className="mt-1 size-4 shrink-0" aria-hidden />
                 )}
-                <span className="line-clamp-2" title={alertaMedica}>
-                  {alertaMedica}
-                </span>
+                {puedeVerClinico && medicalHistoryQuery.isLoading ? (
+                  <Esqueleto className="mt-1 h-5 w-40" />
+                ) : (
+                  <span className="line-clamp-2" title={alertaMedica}>
+                    {alertaMedica}
+                  </span>
+                )}
               </dd>
               {precauciones.length > 0 && (
                 <dd className="mt-1 line-clamp-1 text-xs text-muted-foreground">
@@ -685,6 +658,18 @@ function PacienteDetalle() {
                       {paciente.ultimaVisita || "Sin visitas registradas"}
                     </span>
                   </p>
+                  {clinicId && puedeGestionarPortal && paciente.referralCode && (
+                    <div className="flex items-start gap-2">
+                      <Gift className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      <ReferralCodeCard
+                        clinicId={clinicId}
+                        clinicCountry={access.clinic?.country ?? null}
+                        patientName={paciente.nombre}
+                        referralCode={paciente.referralCode}
+                        variante="dato"
+                      />
+                    </div>
+                  )}
                   {paciente.etiquetas.length > 0 && (
                     <p className="flex items-start gap-2">
                       <Tag className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -808,7 +793,7 @@ function PacienteDetalle() {
                   <MessagesHistory clinicId={clinicId} patientId={paciente.id} />
                 </div>
 
-                {hasPermission(access.role, "patients:manage") && (
+                {puedeGestionarPortal && (
                   <section className="rounded-lg border border-border p-6">
                     <div className="mb-3">
                       <h3 className="font-display text-xl font-semibold">Portal del paciente</h3>
@@ -816,40 +801,36 @@ function PacienteDetalle() {
                         Genera un link firmado (7 días) y compártelo por WhatsApp. Sin login.
                       </p>
                     </div>
-                    <div
-                      className={
-                        portalBloqueado
-                          ? "flex flex-col items-stretch gap-2"
-                          : "flex flex-wrap items-start gap-2"
-                      }
-                    >
+                    {portalBloqueado ? (
+                      // Sin bloque de venta dentro de la ficha clínica: solo el
+                      // estado, sin botones de agendar ni suscribirse.
+                      <p className="text-sm text-muted-foreground">
+                        El portal se activa con la puesta en marcha de la clínica o al suscribirse.
+                      </p>
+                    ) : (
                       <PortalLinkButton
                         clinicId={clinicId}
                         patientId={paciente.id}
-                        bloqueado={
-                          portalBloqueado
-                            ? {
-                                feature: "El portal del paciente",
-                                descripcion:
-                                  "Tus pacientes pueden ver sus próximas citas y pedir hora sin login, por un link que tú generas. Se activa con tu puesta en marcha o al suscribirte.",
-                                clinicName: access.clinic.name,
-                                clinicEmail: access.email,
-                              }
-                            : undefined
-                        }
+                        onCambio={refrescarPortal}
                       />
-                      {/* Revocar acceso NUNCA se gatea — cortar un link filtrado
-                          tiene que funcionar aunque la clínica no haya agendado
-                          su llamada ni se haya suscrito todavía. */}
-                      <RevokePortalAccessButton clinicId={clinicId} patientId={paciente.id} />
-                    </div>
+                    )}
+                    {/* Revocar nunca se gatea por suscripción: cortar un link
+                        filtrado tiene que funcionar siempre. Se muestra cuando
+                        puede haber un link vigente. */}
                     <div className="mt-3">
-                      <ReferralCodeCard
-                        clinicId={clinicId}
-                        clinicCountry={access.clinic?.country ?? null}
-                        patientName={paciente.nombre}
-                        referralCode={paciente.referralCode}
-                      />
+                      {portalQuery.isLoading ? (
+                        <Esqueleto className="h-8 w-48" />
+                      ) : portalVigente ? (
+                        <RevokePortalAccessButton
+                          clinicId={clinicId}
+                          patientId={paciente.id}
+                          onCambio={refrescarPortal}
+                        />
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          No hay links del portal vigentes para este paciente.
+                        </p>
+                      )}
                     </div>
                   </section>
                 )}

@@ -36,6 +36,9 @@ interface Props {
   generadoPor: string;
   /** Presupuestos y pagos: solo con `finance:view`. El servidor lo vuelve a exigir. */
   incluirFinanzas: boolean;
+  /** Modo controlado (menú "Más acciones"): el padre abre el diálogo y no hay botón propio. */
+  abierto?: boolean;
+  onAbiertoChange?: (abierto: boolean) => void;
 }
 
 /**
@@ -53,11 +56,16 @@ export function ExportarFichaPaciente({
   patientName,
   generadoPor,
   incluirFinanzas,
+  abierto: abiertoControlado,
+  onAbiertoChange,
 }: Props) {
   const iniciar = useServerFn(iniciarExportacionPaciente);
   const leer = useServerFn(leerTablaExportacionPaciente);
   const firmar = useServerFn(firmarArchivosExportacionPaciente);
-  const [abierto, setAbierto] = useState(false);
+  const controlado = abiertoControlado !== undefined;
+  const [abiertoInterno, setAbiertoInterno] = useState(false);
+  const abierto = controlado ? abiertoControlado : abiertoInterno;
+  const setAbierto = (v: boolean) => (controlado ? onAbiertoChange?.(v) : setAbiertoInterno(v));
   const [avance, setAvance] = useState<AvanceExportacion | null>(null);
   const enCurso = avance !== null;
 
@@ -100,13 +108,15 @@ export function ExportarFichaPaciente({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className={buttonVariants({ variant: "outline" })}
-      >
-        <Download aria-hidden /> Exportar ficha
-      </button>
+      {!controlado && (
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className={buttonVariants({ variant: "outline" })}
+        >
+          <Download aria-hidden /> Exportar ficha
+        </button>
+      )}
 
       <AlertDialog open={abierto} onOpenChange={(next) => !enCurso && setAbierto(next)}>
         <AlertDialogContent>
