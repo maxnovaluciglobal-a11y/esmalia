@@ -51,6 +51,8 @@ export interface PlantillaDocumento {
   description: string | null;
   active: boolean;
   source: "clinic" | "esmalia_model";
+  /** DOC-05: el paciente firma los documentos de esta plantilla (firma a distancia). */
+  requiresPatientSignature: boolean;
   /** Versión vigente (null si la plantilla todavía no tiene texto). */
   version: { id: string; numero: number; body: string; createdAt: string } | null;
   updatedAt: string;
@@ -63,7 +65,9 @@ export const listPlantillasDocumento = createServerFn({ method: "GET" })
     const { supabase } = context;
     const { data: filas, error } = await supabase
       .from("document_templates")
-      .select("id, kind, title, description, active, source, current_version_id, updated_at")
+      .select(
+        "id, kind, title, description, active, source, current_version_id, updated_at, requires_patient_signature",
+      )
       .eq("clinic_id", data.clinicId)
       .order("title", { ascending: true });
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar las plantillas de documentos."));
@@ -89,6 +93,7 @@ export const listPlantillasDocumento = createServerFn({ method: "GET" })
         description: f.description,
         active: f.active,
         source: f.source === "esmalia_model" ? "esmalia_model" : "clinic",
+        requiresPatientSignature: f.kind === "consentimiento" || f.requires_patient_signature,
         version: v ? { id: v.id, numero: v.version, body: v.body, createdAt: v.created_at } : null,
         updatedAt: f.updated_at,
       };
@@ -458,6 +463,8 @@ export interface DocumentoEmitidoCompleto extends DocumentoEmitidoResumen {
   signatureUrl: string | null;
   voidedByName: string | null;
   timezone: string;
+  /** DOC-05: se le puede pedir la firma al paciente (consentimiento o plantilla marcada). */
+  requiereFirmaDelPaciente: boolean;
 }
 
 export const getDocumentoEmitido = createServerFn({ method: "GET" })
@@ -500,6 +507,15 @@ export const getDocumentoEmitido = createServerFn({ method: "GET" })
       .select("timezone")
       .eq("id", data.clinicId)
       .maybeSingle();
+    let plantillaRequiereFirma = false;
+    if (d.template_id && d.kind !== "consentimiento") {
+      const { data: t } = await supabase
+        .from("document_templates")
+        .select("requires_patient_signature")
+        .eq("id", d.template_id)
+        .maybeSingle();
+      plantillaRequiereFirma = Boolean(t?.requires_patient_signature);
+    }
     await lectura;
     return {
       id: d.id,
@@ -530,6 +546,7 @@ export const getDocumentoEmitido = createServerFn({ method: "GET" })
       signatureUrl,
       voidedByName,
       timezone: c?.timezone ?? "America/Santiago",
+      requiereFirmaDelPaciente: d.kind === "consentimiento" || plantillaRequiereFirma,
     };
   });
 

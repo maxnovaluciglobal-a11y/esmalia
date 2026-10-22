@@ -58,6 +58,7 @@ import { Route as DocsPortalPacientesRouteImport } from './routes/docs.portal-pa
 import { Route as DocsPrimerosPasosRouteImport } from './routes/docs.primeros-pasos'
 import { Route as DocsSuscripcionYPruebaRouteImport } from './routes/docs.suscripcion-y-prueba'
 import { Route as DocsWhatsappRouteImport } from './routes/docs.whatsapp'
+import { Route as FirmarTokenRouteImport } from './routes/firmar.$token'
 import { Route as FuncionesIndexRouteImport } from './routes/funciones.index'
 import { Route as FuncionesSlugRouteImport } from './routes/funciones.$slug'
 import { Route as GuiasSlugRouteImport } from './routes/guias.$slug'
@@ -369,6 +370,11 @@ const DocsWhatsappRoute = DocsWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
   getParentRoute: () => DocsRoute,
+} as any)
+const FirmarTokenRoute = FirmarTokenRouteImport.update({
+  id: '/firmar/$token',
+  path: '/firmar/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const FuncionesIndexRoute = FuncionesIndexRouteImport.update({
   id: '/funciones/',
@@ -792,6 +798,7 @@ export interface FileRoutesByFullPath {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -904,6 +911,7 @@ export interface FileRoutesByTo {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -1021,6 +1029,7 @@ export interface FileRoutesById {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -1137,6 +1146,7 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1249,6 +1259,7 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1365,6 +1376,7 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1472,6 +1484,7 @@ export interface RootRouteChildren {
   AuthVerificarRoute: typeof AuthVerificarRoute
   CompararSlugRoute: typeof CompararSlugRoute
   CorreosBajaRoute: typeof CorreosBajaRoute
+  FirmarTokenRoute: typeof FirmarTokenRoute
   FuncionesSlugRoute: typeof FuncionesSlugRoute
   GuiasSlugRoute: typeof GuiasSlugRoute
   ParaSlugRoute: typeof ParaSlugRoute
@@ -1829,6 +1842,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/docs/whatsapp'
       preLoaderRoute: typeof DocsWhatsappRouteImport
       parentRoute: typeof DocsRoute
+    }
+    '/firmar/$token': {
+      id: '/firmar/$token'
+      path: '/firmar/$token'
+      fullPath: '/firmar/$token'
+      preLoaderRoute: typeof FirmarTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/funciones/': {
       id: '/funciones/'
@@ -2524,6 +2544,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthVerificarRoute: AuthVerificarRoute,
   CompararSlugRoute: CompararSlugRoute,
   CorreosBajaRoute: CorreosBajaRoute,
+  FirmarTokenRoute: FirmarTokenRoute,
   FuncionesSlugRoute: FuncionesSlugRoute,
   GuiasSlugRoute: GuiasSlugRoute,
   ParaSlugRoute: ParaSlugRoute,

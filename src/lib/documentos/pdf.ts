@@ -234,6 +234,13 @@ export interface HojaParaPdf {
   signatureUrl: string | null;
   /** Texto del pie de cada página (se le suma "Página i de n"). */
   pie: string;
+  /**
+   * Firma del paciente en la copia firmada a distancia (DOC-05): la imagen
+   * (data URL o URL firmada, opcional) sobre una línea con su nombre.
+   */
+  firmaPaciente?: { url: string | null; nombre: string; detalle: string } | null;
+  /** Bloques que van después de la firma del paciente (la constancia de firma, DOC-05). */
+  bloquesFinales?: Bloque[];
 }
 
 /** Encabezado, aviso y pie de un documento emitido. */
@@ -285,7 +292,7 @@ export async function construirHojaPdf(h: HojaParaPdf): Promise<jsPDF> {
   separador();
 
   const firma = h.signatureUrl ? await imagenComoDataUrl(h.signatureUrl) : null;
-  for (const b of h.bloques) {
+  const dibujar = (b: Bloque) => {
     switch (b.tipo) {
       case "titulo":
         lienzo.y += b.nivel === 1 ? 4 : 6;
@@ -332,7 +339,31 @@ export async function construirHojaPdf(h: HojaParaPdf): Promise<jsPDF> {
         break;
       }
     }
+  };
+  for (const b of h.bloques) dibujar(b);
+
+  if (h.firmaPaciente) {
+    // Abajo a la izquierda: la del paciente (la del profesional va a la derecha).
+    const fp = h.firmaPaciente;
+    const imagen = fp.url ? await imagenComoDataUrl(fp.url) : null;
+    lienzo.saltoSiHaceFalta(120);
+    lienzo.y += 20;
+    if (imagen) {
+      try {
+        doc.addImage(imagen.dataUrl, imagen.formato, MARGEN + 30, lienzo.y, 160, 56);
+      } catch {
+        // Imagen ilegible: queda el nombre sobre la línea.
+      }
+    }
+    lienzo.y += 62;
+    doc.setDrawColor(120);
+    doc.line(MARGEN, lienzo.y, MARGEN + 220, lienzo.y);
+    lienzo.y += 14;
+    texto(fp.nombre, { size: 9, x: MARGEN, espacio: 0, bold: true });
+    texto(fp.detalle, { size: 8, gris: true, x: MARGEN, espacio: 0 });
+    lienzo.y += 10;
   }
+  for (const b of h.bloquesFinales ?? []) dibujar(b);
 
   lienzo.enCadaPagina((i, paginas) => {
     doc.setFont("helvetica", "normal");

@@ -17,6 +17,10 @@ describe("scrub de tokens antes de Sentry", () => {
     );
     // El segmento se tapa aunque no tenga forma de JWT.
     expect(scrubTokensInString("/portal/abc123")).toBe("/portal/[token]");
+    // Firma a distancia (DOC-05): token opaco de 43 caracteres en el path.
+    expect(
+      scrubTokensInString("https://esmalia.com/firmar/Ab3_-Zx9Ab3_-Zx9Ab3_-Zx9Ab3_-Zx9Ab3_-Zx9Ab3"),
+    ).toBe("https://esmalia.com/firmar/[token]");
   });
 
   it("tapa cualquier JWT suelto en un mensaje", () => {

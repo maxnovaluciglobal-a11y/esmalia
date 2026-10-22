@@ -31,6 +31,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppButton } from "@/components/whatsapp-button";
+import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-distancia";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { hasPermission } from "@/lib/access/access";
 import { requireAnyPermission } from "@/lib/access/route-guards";
@@ -675,6 +676,23 @@ function Documentos({
           )}
         </div>
       </section>
+      <div className="lg:col-span-2">
+        {/* DOC-05: el paciente acepta y firma el presupuesto en su celular. */}
+        <FirmasADistanciaCard
+          clinicId={d.clinicId}
+          timezone={tz}
+          filtro={{ quoteId: q.id }}
+          objetivo={puedeEnviar ? { tipo: "presupuesto", id: q.id } : undefined}
+          puedeGestionar={() => puedeEnviar}
+          titulo="Aceptación a distancia"
+          descripcion="El paciente revisa el presupuesto en su celular y lo acepta completo con su firma: confirma su identidad con su RUT y un código que le llega por correo. Al firmar se crea el plan de tratamiento."
+          motivoNoPedir={
+            q.status === "draft" || q.status === "sent"
+              ? null
+              : "Solo se manda a firmar un presupuesto en borrador o enviado."
+          }
+        />
+      </div>
       <section className="card-clinical space-y-3 p-4 sm:p-5">
         <h3 className="font-display text-base font-semibold">Aceptación</h3>
         {!aceptado ? (

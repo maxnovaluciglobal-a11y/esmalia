@@ -49,8 +49,8 @@ export function redactPostgresLiterals(event: EventoConMensaje): void {
 
 const TOKEN = "[token]";
 
-/** Segmento que sigue a /portal/ o /portal-laboratorio/. */
-const PORTAL_PATH_PATTERN = /(\/portal(?:-laboratorio)?\/)[^/?#\s"'<>]+/g;
+/** Segmento que sigue a /portal/, /portal-laboratorio/ o /firmar/ (firma a distancia). */
+const PORTAL_PATH_PATTERN = /(\/(?:portal(?:-laboratorio)?|firmar)\/)[^/?#\s"'<>]+/g;
 
 /** Cualquier JWT (tres segmentos base64url, el primero arranca en `eyJ`). */
 const JWT_PATTERN = /eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;

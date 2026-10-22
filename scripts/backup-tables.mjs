@@ -67,6 +67,8 @@ export const TABLES = [
   "patient_guardians_audit",
   "patient_medical_history",
   "patient_medical_history_audit",
+  "patient_signature_events",
+  "patient_signature_requests",
   "patient_vital_signs",
   "patients",
   "payment_methods",

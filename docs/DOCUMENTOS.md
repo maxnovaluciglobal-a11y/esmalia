@@ -64,6 +64,10 @@ La receta es un documento del motor con flujo propio: plantilla `kind = 'receta'
 - **Correo al paciente** (`correo.ts` puro, `correo.server.ts`, `envios.functions.ts`): PDF adjunto, texto editable, cuerpo sin datos clínicos. Frenos en el servidor: nunca la demo; baja del paciente (`patients.email_opt_out_at`, enlace del pie con el token de `/correos/baja`, grupo `correos_paciente`); menor con tutor → al tutor; `email_sandbox_config` (en sandbox se bloquea o se desvía a la casilla de pruebas; el diálogo lo avisa antes de enviar). Todo intento queda en `messages`. El presupuesto, además, deja el evento `envio` en `quote_events` (quién, cuándo, a qué correo) y marca `sent_at` (un borrador pasa a enviado) con `registrar_envio_de_presupuesto(message_id)`. La copia de un documento emitido (DOC-07) queda en `messages.issued_document_id` y se lista en `/documentos/:id`.
 - **Demo:** `/api/demo-reset` deja un certificado de atención emitido en la ficha de Valentina, firmado por la profesional de la demo con el registro ficticio `EJEMPLO-000000`. `issued_documents_emitir` acepta el rol de servicio solo en la clínica demo y a nombre del usuario de la ficha del profesional (migración `20261025200200`).
 
+## Firma del paciente a distancia (Ola 5 · DOC-05)
+
+Un consentimiento, un documento cuya plantilla tiene marcado "El paciente firma este documento" (`document_templates.requires_patient_signature`) o un presupuesto se mandan a firmar al celular del paciente: link de un solo uso, RUT + código por correo, evidencia con huella y copia firmada en PDF (`construirHojaPdf` con `firmaPaciente` y `bloquesFinales`). Detalle, decisiones y base legal: `docs/FIRMA_A_DISTANCIA.md`.
+
 ## Límites conocidos
 
 - La copia al paciente es por descarga, impresión o correo (PDF adjunto). El portal de pacientes todavía no sirve documentos, así que no hay link firmado para mandar por WhatsApp.

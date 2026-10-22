@@ -40,6 +40,8 @@ export interface PresupuestoParaPdf {
   numero: string;
   pacienteNombre: string;
   clinicaNombre: string;
+  /** Firma del profesional a cargo (ruta y huella), para la firma a distancia (DOC-05). */
+  firmaProfesional: { path: string; sha256: string } | null;
 }
 
 /** Texto vigente de la plantilla "Presupuesto" de la clínica (o el modelo de Esmalia). */
@@ -182,5 +184,9 @@ export async function armarPresupuestoParaPdf(
     numero: q.number,
     pacienteNombre: datos.paciente.nombre,
     clinicaNombre: c.nombre,
+    firmaProfesional:
+      profesional?.firmaPath && profesional.firmaSha256
+        ? { path: profesional.firmaPath, sha256: profesional.firmaSha256 }
+        : null,
   };
 }

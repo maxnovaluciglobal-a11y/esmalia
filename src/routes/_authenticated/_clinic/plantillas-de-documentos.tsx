@@ -6,6 +6,7 @@ import { AlertTriangle, FileText, History, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { RequiereFirmaDelPaciente } from "@/components/firma-distancia/firmas-a-distancia";
 import { HojaDocumento } from "@/components/documentos/hoja-documento";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { BloqueoEscritura } from "@/components/solo-lectura";
@@ -457,6 +458,14 @@ function EditorPlantilla({
               </BloqueoEscritura>
             )}
           </div>
+
+          {plantilla && plantilla.kind !== "presupuesto" && plantilla.kind !== "receta" && (
+            <RequiereFirmaDelPaciente
+              clinicId={clinicId}
+              plantilla={plantilla}
+              deshabilitado={esDemo}
+            />
+          )}
 
           <VariablesInsertables onInsertar={insertar} kind={borrador.kind} />
         </form>
