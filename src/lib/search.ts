@@ -14,6 +14,27 @@ export function coincide(termino: string, ...campos: (string | null | undefined)
   return campos.some((c) => (c ? normaliza(c).includes(t) : false));
 }
 
+/** Sin mayúsculas ni tildes, para comparar lo escrito con etiquetas. */
+export function normalizarTexto(valor: string): string {
+  return valor
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * ¿Lo escrito coincide con alguno de los textos? Solo desde el comienzo de
+ * una palabra: "isi" no trae "Comisiones" (sí "Isidora") y "caja" trae
+ * "Abrir caja". Sin término, todo coincide.
+ */
+export function coincideTermino(termino: string, ...textos: readonly string[]): boolean {
+  const t = normalizarTexto(termino);
+  if (!t) return true;
+  return textos.some((texto) => ` ${normalizarTexto(texto)}`.includes(` ${t}`));
+}
+
 export interface Pagina<T> {
   items: T[];
   page: number;
