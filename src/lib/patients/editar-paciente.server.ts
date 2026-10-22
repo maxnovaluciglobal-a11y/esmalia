@@ -13,6 +13,8 @@ import { toE164 } from "@/lib/messaging/telefonos";
 import { vigilarCifradoDeDocumento } from "@/lib/patients/documento-cifrado.server";
 import type { EditarPacienteInput } from "@/lib/patients/editar-paciente";
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
+import { parcheDeFichaOla1 } from "@/lib/patients/datos-ficha";
+import { esTipoDocumento, formatearRut } from "@/lib/patients/rut";
 
 export const MENSAJE_SIN_PERMISO_EDITAR = "No tienes permisos para editar este paciente.";
 export const MENSAJE_PACIENTE_AJENO = "No encontramos ese paciente en esta clínica.";
@@ -49,14 +51,42 @@ export async function actualizarPaciente(
 
   // La ficha tiene que ser de ESTA clínica: un patientId de otra clínica (o
   // inexistente) se rechaza acá, antes de cualquier escritura.
+  // Los datos de la Ola 1 (tipo de documento, previsión…) solo se leen si
+  // vienen en el pedido: así una edición del teléfono sigue pidiendo lo mismo.
+  const tocaFicha =
+    rest.documento !== undefined ||
+    rest.documentoTipo !== undefined ||
+    rest.prevision !== undefined ||
+    rest.contactoEmergencia !== undefined ||
+    rest.origen !== undefined ||
+    rest.direccion !== undefined ||
+    rest.comuna !== undefined;
   const { data: actual, error: lecturaError } = await supabase
     .from("patients")
-    .select("id, phone, phone_valid")
+    .select(
+      tocaFicha ? "id, phone, phone_valid, document_id, document_type" : "id, phone, phone_valid",
+    )
     .eq("id", patientId)
     .eq("clinic_id", clinicId)
-    .maybeSingle();
+    .maybeSingle<{
+      id: string;
+      phone: string | null;
+      phone_valid: boolean | null;
+      document_id?: string | null;
+      document_type?: string | null;
+    }>();
   if (lecturaError) throw new Error(mensajeDb(lecturaError, "No pudimos cargar el paciente."));
   if (!actual) throw new Error(MENSAJE_PACIENTE_AJENO);
+
+  let pais: string | null = null;
+  if ((rest.telefono !== undefined && rest.telefono.trim()) || tocaFicha) {
+    const { data: clinica } = await supabase
+      .from("clinics")
+      .select("country")
+      .eq("id", clinicId)
+      .maybeSingle();
+    pais = clinica?.country ?? null;
+  }
 
   // Teléfono en E.164 con el país de la clínica, o el texto tal cual si no
   // se puede leer (mismo criterio que el alta, BIL-11). Numverify solo se
@@ -65,20 +95,39 @@ export async function actualizarPaciente(
   let phoneValid: boolean | null = null;
   if (rest.telefono !== undefined) {
     const limpio = rest.telefono.trim();
-    if (limpio) {
-      const { data: clinica } = await supabase
-        .from("clinics")
-        .select("country")
-        .eq("id", clinicId)
-        .maybeSingle();
-      phone = toE164(limpio, clinica?.country ?? null) ?? limpio;
-    }
+    if (limpio) phone = toE164(limpio, pais) ?? limpio;
     phoneValid = phone === actual.phone ? actual.phone_valid : await validarTelefono(phone);
   }
 
+  // FIC-01 a FIC-04: mismas reglas que el alta, pero la previsión no es
+  // obligatoria al editar (las fichas viejas pueden seguir "Pendiente").
+  const tipoFinal =
+    rest.documentoTipo ?? (esTipoDocumento(actual.document_type) ? actual.document_type : null);
+  const documentoCrudo =
+    rest.documento !== undefined ? rest.documento || null : (actual.document_id ?? null);
+  const documentoFinal =
+    documentoCrudo && tipoFinal === "rut" && rest.documento !== undefined
+      ? formatearRut(documentoCrudo)
+      : documentoCrudo;
+  let parcheFicha = {};
+  if (tocaFicha) {
+    const { parche, error } = parcheDeFichaOla1(rest, {
+      pais,
+      esAlta: false,
+      // Solo se valida el documento que se está escribiendo: un RUT viejo
+      // mal cargado no impide corregir el teléfono o la previsión.
+      documentoFinal:
+        rest.documento !== undefined || rest.documentoTipo !== undefined ? documentoFinal : null,
+      tipoFinal,
+    });
+    if (error) throw new Error(error);
+    parcheFicha = parche;
+  }
+
   const patch: Database["public"]["Tables"]["patients"]["Update"] = {
+    ...parcheFicha,
     ...(rest.nombre !== undefined && { full_name: rest.nombre }),
-    ...(rest.documento !== undefined && { document_id: rest.documento || null }),
+    ...(rest.documento !== undefined && { document_id: documentoFinal }),
     ...(rest.fechaNacimiento !== undefined && { birth_date: rest.fechaNacimiento }),
     ...(rest.telefono !== undefined && { phone, phone_valid: phoneValid }),
     ...(rest.email !== undefined && { email: rest.email || null }),
