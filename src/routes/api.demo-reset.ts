@@ -113,9 +113,18 @@ async function fecharPresupuestosDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
   if (!clinica) return;
   for (const p of PRESUPUESTOS_DEMO_SIN_RESPUESTA) {
     const fecha = new Date(Date.now() - p.dias * 24 * 60 * 60 * 1000).toISOString();
+    // Validez de 30 días desde la creación (PLA-06), como un presupuesto nuevo:
+    // sin ella el PDF dice "sin fecha de vencimiento".
+    const validoHasta = new Date(Date.now() + (30 - p.dias) * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
     const { error } = await supabaseAdmin
       .from("quotes")
-      .update(p.enviado ? { created_at: fecha, sent_at: fecha } : { created_at: fecha })
+      .update(
+        p.enviado
+          ? { created_at: fecha, sent_at: fecha, valid_until: validoHasta }
+          : { created_at: fecha, valid_until: validoHasta },
+      )
       .eq("clinic_id", clinica.id)
       .eq("number", p.number);
     if (error) throw new Error(error.message);
