@@ -170,6 +170,7 @@
   --color-night: var(--night);
   --color-night-2: var(--night-2);
   --color-night-3: var(--night-3);
+  --color-shell-edge: var(--shell-edge);
   --color-night-line: var(--night-line);
   --color-on-night: var(--on-night);
   --color-on-night-2: var(--on-night-2);
@@ -312,6 +313,10 @@
   --night-2: #1f1b17;
   --night-3: #2a2520;
   --night-line: rgb(241 236 228 / 0.13);
+  /* Borde del sidebar en tinta contra el papel (UX-12). En claro la tinta ya
+     se separa sola; en oscuro la tinta y el fondo quedaban casi iguales. */
+  --shell-edge: var(--night-line);
+  --shell-edge-pagina: var(--shell-edge);
   /* La tinta del tema de la PÁGINA, fijada en la raíz: un elemento con
      `.dark` propio (el sidebar en tinta) redefine --night con el paso
      hundido del modo oscuro, y con esto recupera la de la página. Se
@@ -334,6 +339,13 @@
      6,7:1 sobre papel; on-night sobre petróleo 6,4:1. */
   --petrol: #0f5e63;
   --petrol-foreground: #f1ece4;
+
+  /* Esquema de superficies del odontograma (sobre la tarjeta, no sobre el
+     marfil del diente): mismos colores clínicos que COLORES_SIMBOLOGIA. */
+  --odonto-neutro: #e4e1dc;
+  --odonto-azul: #1f5fbf;
+  --odonto-rojo: #c62828;
+  --odonto-trazo: rgb(21 18 15 / 0.12);
 
   /* Densidad tranquila: filas de tabla, ítems del sidebar, bloques de agenda. */
   --row-h: 44px;
@@ -428,8 +440,19 @@
   --sidebar-border: color-mix(in srgb, #f1ece4 12%, transparent);
   --sidebar-ring: #e1ad66;
 
+  /* Esquema del odontograma en oscuro (UX-12): antes quedaba un cuadro gris
+     claro sobre la tarjeta. Azul y rojo clínicos aclarados: ≥ 5:1 contra el
+     neutro oscuro, como pide WCAG 1.4.11 (3:1). */
+  --odonto-neutro: #2c2722;
+  --odonto-azul: #7aa5f0;
+  --odonto-rojo: #f08a80;
+  --odonto-trazo: rgb(241 236 228 / 0.18);
+
   /* ---- A+ (19-oct-2026) ---- */
-  /* La tinta se hunde un paso para seguir separándose del fondo oscuro. */
+  /* La tinta se hunde un paso para seguir separándose del fondo oscuro, y
+     el sidebar lleva un filete visible (UX-12: en oscuro se confundía con
+     el fondo). */
+  --shell-edge: rgb(241 236 228 / 0.24);
   --night: #0e0c0a;
   --night-2: #171411;
   --night-3: #221e1a;
@@ -454,6 +477,7 @@
   --night: var(--night-pagina);
   --night-2: var(--night-2-pagina);
   --night-3: var(--night-3-pagina);
+  --shell-edge: var(--shell-edge-pagina);
 }
 
 @layer base {

@@ -604,7 +604,7 @@ function BloqueCita({
         </span>
       </span>
       {c.duracion >= 45 && (
-        <span className="mt-0.5 block truncate text-[11px] opacity-80">{c.tratamiento}</span>
+        <span className="mt-0.5 block truncate text-[11px]">{c.tratamiento}</span>
       )}
       {c.prioridad && c.duracion >= 60 && (
         <span className="mt-1 inline-flex items-center gap-1 rounded bg-card/70 px-1.5 py-px text-[11px] font-medium text-warning">

@@ -78,7 +78,7 @@ function ChipListEditor({
                 type="button"
                 onClick={() => onChange(items.filter((i) => i !== item))}
                 aria-label={`Quitar ${item}`}
-                className="opacity-60 hover:opacity-100"
+                className="relative -my-1 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-full hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:-my-2.5 pointer-coarse:-mr-3 pointer-coarse:size-11"
               >
                 <X aria-hidden className="size-3" />
               </button>
@@ -178,13 +178,13 @@ function AllergyEditor({
             title={a.reaction ? `Reacción: ${a.reaction}` : undefined}
           >
             {a.name}
-            <span className="opacity-80">· {etiquetaSeveridad[a.severity].toLowerCase()}</span>
+            <span className="font-normal">· {etiquetaSeveridad[a.severity].toLowerCase()}</span>
             {!disabled && (
               <button
                 type="button"
                 onClick={() => onChange(items.filter((i) => i.name !== a.name))}
                 aria-label={`Quitar ${a.name}`}
-                className="opacity-70 hover:opacity-100"
+                className="relative -my-1 -mr-1.5 grid size-6 shrink-0 place-items-center rounded-full hover:bg-foreground/10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:-my-2.5 pointer-coarse:-mr-3 pointer-coarse:size-11"
               >
                 <X aria-hidden className="size-3" />
               </button>

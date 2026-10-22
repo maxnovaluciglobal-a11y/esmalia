@@ -322,7 +322,7 @@ export function AppShell({
       {/* `dark` en el aside: los tokens de adentro (logo, selector de
           clínica, foco) se leen sobre tinta aunque la página esté en claro.
           `tinta-de-pagina` evita que ese `dark` hunda el fondo (styles.css). */}
-      <aside className="dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-night-line bg-night text-on-night lg:flex">
+      <aside className="dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-shell-edge bg-night text-on-night lg:flex">
         <div className="space-y-4 px-5 pt-6 pb-4">
           <Link to="/dashboard" className="flex items-center py-1">
             <EsmaliaLogo size={28} />
@@ -415,7 +415,7 @@ export function AppShell({
                 className="size-10 rounded-full object-cover outline outline-offset-[-1px] outline-border"
               />
             ) : (
-              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand-700">
                 {initials(access.fullName, access.email)}
               </span>
             )}

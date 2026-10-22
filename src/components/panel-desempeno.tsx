@@ -108,7 +108,13 @@ function SerieMensual({ serie: serieCompleta, currency }: { serie: PanelMes[]; c
           Todavía no hay producción ni cobros en los últimos {serieCompleta.length} meses.
         </p>
       ) : (
-        <div ref={desplazable} className="overflow-x-auto">
+        <div
+          ref={desplazable}
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Producción y cobros por mes (desplazable)"
+        >
           {/* min-w en el wrapper, no en el svg: el svg y la fila de meses
            * tienen que compartir el mismo ancho para que el scroll horizontal
            * no los desalinee. Con pocos meses no hace falta: entra en un

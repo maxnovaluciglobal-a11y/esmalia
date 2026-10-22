@@ -664,7 +664,7 @@ function Dashboard() {
               <Link
                 to="/agenda"
                 search={busquedaAgendaHoy}
-                className="text-sm text-brand-700 hover:underline"
+                className="inline-flex min-h-11 items-center text-sm text-brand-700 hover:underline sm:min-h-9"
               >
                 Abrir agenda →
               </Link>

@@ -230,7 +230,7 @@ describe("shell A+", () => {
 
     it("el aside va en tinta", () => {
       expect(shell).toContain(
-        "dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-night-line bg-night text-on-night lg:flex",
+        "dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-shell-edge bg-night text-on-night lg:flex",
       );
       expect(shell).not.toContain("bg-sidebar");
     });
