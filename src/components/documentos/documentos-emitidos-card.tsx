@@ -17,6 +17,7 @@ import {
   type DocumentoEmitidoResumen,
 } from "@/lib/documentos/documentos.functions";
 import { folioDocumento } from "@/lib/documentos/motor";
+import { TIPOS_CON_FLUJO_PROPIO } from "@/lib/documentos/tipos";
 import { fecha } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
@@ -73,7 +74,8 @@ export function DocumentosEmitidosCard({
     }
   }
 
-  const documentos = consulta.data ?? [];
+  // MKT-05: las recetas se listan (y se emiten) en su propia tarjeta.
+  const documentos = (consulta.data ?? []).filter((d) => !TIPOS_CON_FLUJO_PROPIO.includes(d.kind));
 
   return (
     <section aria-labelledby="documentos-emitidos" className="rounded-lg border border-border p-6">

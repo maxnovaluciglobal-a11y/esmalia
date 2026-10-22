@@ -22,6 +22,7 @@ export const TABLES = [
   "clinic_agenda_settings",
   "clinic_counters",
   "clinic_data_exports",
+  "clinic_medications",
   "clinic_members",
   "clinic_patient_options",
   "clinical_access_log",

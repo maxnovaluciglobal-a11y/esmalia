@@ -65,7 +65,15 @@ const PLANTILLA_NUEVA = `# Título del documento
 Certifico que **{{paciente.nombre}}**, {{paciente.tipo_documento}} {{paciente.rut}}, …
 `;
 
-const GRUPOS: GrupoVariable[] = ["paciente", "clinica", "profesional", "documento", "reembolso"];
+const GRUPOS: GrupoVariable[] = [
+  "paciente",
+  "clinica",
+  "profesional",
+  "documento",
+  "reembolso",
+  // MKT-05 · receta
+  "receta",
+];
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";

@@ -31,7 +31,7 @@ import {
   renderPlantilla,
 } from "@/lib/documentos/motor";
 import { periodoValido } from "@/lib/documentos/reembolso";
-import { ETIQUETA_TIPO_DE_DOCUMENTO } from "@/lib/documentos/tipos";
+import { ETIQUETA_TIPO_DE_DOCUMENTO, TIPOS_CON_FLUJO_PROPIO } from "@/lib/documentos/tipos";
 import {
   construirContexto,
   definicionCampo,
@@ -94,7 +94,10 @@ export function EmitirDocumentoDialog({
     queryFn: () => listar({ data: { clinicId } }),
     enabled: abierto,
   });
-  const activas = (plantillas.data ?? []).filter((p) => p.active && p.version);
+  // MKT-05: la receta se emite desde la tarjeta Recetas (vademécum y alergias).
+  const activas = (plantillas.data ?? []).filter(
+    (p) => p.active && p.version && !TIPOS_CON_FLUJO_PROPIO.includes(p.kind),
+  );
 
   const [templateId, setTemplateId] = useState<string>("");
   const plantilla = activas.find((p) => p.id === templateId) ?? null;

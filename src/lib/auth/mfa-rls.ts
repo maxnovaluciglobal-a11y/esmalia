@@ -91,6 +91,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   clinic_agenda_settings: "configuración de la agenda",
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",
+  clinic_medications: "vademécum propio de la clínica: medicamentos y posología, sin pacientes",
   clinic_members: "membresía: la app la lee antes y durante la verificación",
   clinic_patient_options: "listas editables de la ficha (isapres, origen): sin datos de pacientes",
   clinics: "estructura de la clínica",

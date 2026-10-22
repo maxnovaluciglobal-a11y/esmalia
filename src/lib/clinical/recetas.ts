@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  ETIQUETA_GRUPO_FARMACOLOGICO as ETIQUETA_GRUPO,
+  VADEMECUM_BASE,
+  type GrupoFarmacologico,
+} from "@/lib/clinical/vademecum";
+
 /**
  * Recetas (CLI-13): lógica pura, sin red ni base. La usan el server fn
  * (validación), el diálogo de emisión (aviso de alergias) y el PDF.
@@ -74,62 +80,31 @@ export function edadEnAnios(
 // Vademécum corto y aviso de alergias
 // ---------------------------------------------------------------
 
-export type GrupoFarmacologico =
-  | "penicilinas"
-  | "cefalosporinas"
-  | "macrolidos"
-  | "lincosamidas"
-  | "nitroimidazoles"
-  | "aine"
-  | "analgesicos"
-  | "corticoides"
-  | "antisepticos"
-  | "antifungicos";
-
-const ETIQUETA_GRUPO: Record<GrupoFarmacologico, string> = {
-  penicilinas: "penicilinas",
-  cefalosporinas: "cefalosporinas",
-  macrolidos: "macrólidos",
-  lincosamidas: "lincosamidas",
-  nitroimidazoles: "nitroimidazoles",
-  aine: "antiinflamatorios no esteroideos (AINE)",
-  analgesicos: "analgésicos",
-  corticoides: "corticoides",
-  antisepticos: "antisépticos",
-  antifungicos: "antifúngicos",
-};
+export type { GrupoFarmacologico };
 
 /**
  * Sugerencias de nombre para el campo "medicamento" y grupo para el aviso de
- * alergias. No sugiere dosis a propósito: la dosis la decide el profesional
- * para cada paciente.
+ * alergias. Sale del vademécum base (src/lib/clinical/vademecum.ts) más
+ * algunos nombres que se siguen escribiendo a mano aunque no estén en el
+ * catálogo con su posología.
  */
-export const VADEMECUM: readonly { nombre: string; grupo: GrupoFarmacologico }[] = [
-  { nombre: "Amoxicilina", grupo: "penicilinas" },
-  { nombre: "Amoxicilina con ácido clavulánico", grupo: "penicilinas" },
-  { nombre: "Penicilina V", grupo: "penicilinas" },
-  { nombre: "Cefadroxilo", grupo: "cefalosporinas" },
-  { nombre: "Cefalexina", grupo: "cefalosporinas" },
-  { nombre: "Azitromicina", grupo: "macrolidos" },
-  { nombre: "Claritromicina", grupo: "macrolidos" },
-  { nombre: "Clindamicina", grupo: "lincosamidas" },
-  { nombre: "Metronidazol", grupo: "nitroimidazoles" },
-  { nombre: "Ibuprofeno", grupo: "aine" },
-  { nombre: "Naproxeno", grupo: "aine" },
-  { nombre: "Ketoprofeno", grupo: "aine" },
-  { nombre: "Diclofenaco", grupo: "aine" },
-  { nombre: "Ketorolaco", grupo: "aine" },
-  { nombre: "Nimesulida", grupo: "aine" },
-  { nombre: "Ácido acetilsalicílico", grupo: "aine" },
-  { nombre: "Paracetamol", grupo: "analgesicos" },
-  { nombre: "Metamizol", grupo: "analgesicos" },
-  { nombre: "Tramadol", grupo: "analgesicos" },
-  { nombre: "Dexametasona", grupo: "corticoides" },
-  { nombre: "Betametasona", grupo: "corticoides" },
-  { nombre: "Clorhexidina 0,12 % colutorio", grupo: "antisepticos" },
-  { nombre: "Nistatina", grupo: "antifungicos" },
-  { nombre: "Fluconazol", grupo: "antifungicos" },
-];
+export const VADEMECUM: readonly { nombre: string; grupo: GrupoFarmacologico }[] = (() => {
+  const vistos = new Set<string>();
+  const out: { nombre: string; grupo: GrupoFarmacologico }[] = [];
+  const sumar = (nombre: string, grupo: GrupoFarmacologico | null) => {
+    if (!grupo || vistos.has(nombre)) return;
+    vistos.add(nombre);
+    out.push({ nombre, grupo });
+  };
+  for (const m of VADEMECUM_BASE) sumar(m.principioActivo, m.grupo);
+  sumar("Penicilina V", "penicilinas");
+  sumar("Ácido acetilsalicílico", "aine");
+  sumar("Betametasona", "corticoides");
+  sumar("Clorhexidina 0,12 % colutorio", "antisepticos");
+  sumar("Lidocaína", "anestesicos_locales");
+  sumar("Valaciclovir", "antivirales");
+  return out;
+})();
 
 /** Palabras con las que se suele anotar una alergia a todo un grupo. */
 const ALIAS_GRUPO: Record<GrupoFarmacologico, string[]> = {
@@ -139,10 +114,15 @@ const ALIAS_GRUPO: Record<GrupoFarmacologico, string[]> = {
   lincosamidas: ["lincosamida", "clindamicina", "lincomicina"],
   nitroimidazoles: ["metronidazol", "tinidazol"],
   aine: ["aine", "antiinflamatorio", "aspirina", "acido acetilsalicilico", "salicilato"],
-  analgesicos: ["dipirona", "metamizol", "paracetamol", "acetaminofen", "tramadol"],
+  analgesicos: ["dipirona", "metamizol", "paracetamol", "acetaminofen"],
+  opioides: ["opioide", "opiaceo", "tramadol", "codeina", "morfina"],
   corticoides: ["corticoide", "corticoesteroide"],
   antisepticos: ["clorhexidina"],
-  antifungicos: ["azol", "nistatina"],
+  antifungicos: ["azol", "nistatina", "miconazol", "fluconazol"],
+  antivirales: ["aciclovir", "valaciclovir"],
+  anestesicos_locales: ["anestesia local", "anestesico local", "benzocaina", "lidocaina"],
+  fluoruros: ["fluoruro"],
+  gastroprotectores: ["omeprazol", "esomeprazol", "lansoprazol", "pantoprazol"],
 };
 
 /** Grupos con reactividad cruzada conocida que conviene avisar. */
@@ -162,7 +142,28 @@ export function normalizarTexto(texto: string): string {
 }
 
 /** Palabras demasiado genéricas para identificar un medicamento por sí solas. */
-const GENERICAS = new Set(["acido", "con", "colutorio", "comprimidos", "capsulas", "jarabe"]);
+const GENERICAS = new Set([
+  "acido",
+  "con",
+  "colutorio",
+  "comprimidos",
+  "capsulas",
+  "jarabe",
+  "crema",
+  "gotas",
+  "orales",
+  "suspension",
+  "bucal",
+  "dental",
+  "pasta",
+  // Sales: "Metamizol sódico" no es alérgico a "Diclofenaco sódico".
+  "sodico",
+  "sodica",
+  "potasico",
+  "potasica",
+  "clorhidrato",
+  "digluconato",
+]);
 
 function palabrasSignificativas(texto: string): string[] {
   return normalizarTexto(texto)
@@ -194,10 +195,15 @@ export function grupoDe(medicamento: string): GrupoFarmacologico | null {
  * Es una ayuda, no un control: el texto libre de la anamnesis puede decir
  * cualquier cosa y el vademécum es corto. El profesional decide.
  */
-export function alertasDeAlergia(medicamento: string, alergias: readonly string[]): string[] {
+export function alertasDeAlergia(
+  medicamento: string,
+  alergias: readonly string[],
+  /** Familia conocida (del vademécum); si no viene, se deduce del nombre. */
+  grupoConocido?: GrupoFarmacologico | null,
+): string[] {
   const med = normalizarTexto(medicamento);
   if (!med) return [];
-  const grupo = grupoDe(medicamento);
+  const grupo = grupoConocido ?? grupoDe(medicamento);
   const avisos: string[] = [];
 
   for (const alergiaOriginal of alergias) {

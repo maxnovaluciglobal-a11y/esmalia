@@ -169,7 +169,8 @@ describe("las server functions de la ficha registran la lectura", () => {
     // anamnesis + signos vitales (CLI-10)
     ["../src/lib/clinical/medical-history.functions.ts", "anamnesis", 2],
     ["../src/lib/clinical/clinical-documents.functions.ts", "documentos", 2],
-    ["../src/lib/clinical/prescriptions.functions.ts", "documentos", 1],
+    // lista de recetas + datos para emitir una (MKT-05) + receta en FHIR (MKT-05)
+    ["../src/lib/clinical/prescriptions.functions.ts", "documentos", 3],
   ];
 
   it.each(casos)("%s registra '%s'", (archivo, seccion, veces) => {
