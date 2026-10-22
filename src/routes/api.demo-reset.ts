@@ -41,6 +41,16 @@ export const Route = createFileRoute("/api/demo-reset")({
           console.error("[demo-reset] no se pudieron limpiar los factores MFA", e);
         }
 
+        // La semilla crea los presupuestos "hoy", así que la demo nunca tenía
+        // presupuestos sin respuesta que mostrar. Se fechan hacia atrás acá
+        // (service role pasa block_demo_writes) en vez de reescribir la
+        // función de reset en una migración. Un error no tumba el reset.
+        try {
+          await fecharPresupuestosDeLaDemo(supabaseAdmin);
+        } catch (e) {
+          console.error("[demo-reset] no se pudieron fechar los presupuestos", e);
+        }
+
         return new Response("ok", { status: 200 });
       },
     },
@@ -62,5 +72,30 @@ async function borrarFactoresMfaDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
   const { data } = await supabaseAdmin.auth.admin.mfa.listFactors({ userId: DEMO_USER_ID });
   for (const factor of data?.factors ?? []) {
     await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId: DEMO_USER_ID, id: factor.id });
+  }
+}
+
+/** Benjamín (enviado hace 9 días) e Isidora (borrador de hace 12): los dos sin respuesta. */
+const PRESUPUESTOS_DEMO_SIN_RESPUESTA = [
+  { number: "DEMO-0003", dias: 9, enviado: true },
+  { number: "DEMO-0004", dias: 12, enviado: false },
+] as const;
+
+async function fecharPresupuestosDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
+  const { data: clinica } = await supabaseAdmin
+    .from("clinics")
+    .select("id")
+    .eq("is_demo", true)
+    .limit(1)
+    .maybeSingle();
+  if (!clinica) return;
+  for (const p of PRESUPUESTOS_DEMO_SIN_RESPUESTA) {
+    const fecha = new Date(Date.now() - p.dias * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabaseAdmin
+      .from("quotes")
+      .update(p.enviado ? { created_at: fecha, sent_at: fecha } : { created_at: fecha })
+      .eq("clinic_id", clinica.id)
+      .eq("number", p.number);
+    if (error) throw new Error(error.message);
   }
 }

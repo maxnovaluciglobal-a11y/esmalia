@@ -4,14 +4,19 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { throwIfRequiresLlamadaOSuscripcion } from "@/lib/billing.functions";
 import { mensajeDb } from "@/lib/db-errors";
+import { leerTodasLasPaginas } from "@/lib/paginacion";
+import { OUTREACH_TEMPLATE_KINDS } from "@/lib/messaging/messaging";
 import {
+  DIAS_PARA_VOLVER,
   ausenciaSegunAviso,
+  citasTrasOutreach,
   ausenciaSegunRecordatorio,
   coberturaDeMensajes,
   medianaDeRespuestaEnMinutos,
   proporcion,
   tasaDeAusencia,
   type CitaMedible,
+  type CitasTrasOutreach,
   type Comparacion,
   type CoberturaDeMensajes,
   type EstadoCita,
@@ -42,6 +47,9 @@ export interface Efectividad {
   medianaRespuestaMin: number | null;
   sinResponder: number;
   solicitudes: { total: number; agendadas: Proporcion };
+  /** Por cada mensaje de outreach, ¿hubo cita agendada en los 14 días siguientes? */
+  volvieron: CitasTrasOutreach;
+  diasParaVolver: number;
   /** true si se tocó alguno de los techos y la muestra quedó recortada. */
   recortado: boolean;
 }
@@ -63,33 +71,66 @@ export const getEfectividad = createServerFn({ method: "GET" })
     await throwIfRequiresLlamadaOSuscripcion(supabase, data.clinicId, SIN_PERMISOS_EFECTIVIDAD);
     const desde = new Date(Date.now() - DIAS_DE_VENTANA * 24 * 60 * 60 * 1000).toISOString();
 
-    const [citasRes, mensajesRes, solicitudesRes, clinicaRes] = await Promise.all([
-      supabase
-        .from("appointments")
-        .select("id, status, patient_confirmed_at")
-        .eq("clinic_id", data.clinicId)
-        .gte("starts_at", desde)
-        .lte("starts_at", new Date().toISOString())
-        .limit(TOPE_CITAS),
-      supabase
-        .from("messages")
-        .select("patient_id, direction, body, created_at, appointment_id, template_kind")
-        .eq("clinic_id", data.clinicId)
-        .gte("created_at", desde)
-        .order("created_at", { ascending: true })
-        .limit(TOPE_MENSAJES),
-      supabase
-        .from("appointment_requests")
-        .select("status")
-        .eq("clinic_id", data.clinicId)
-        .eq("source", "whatsapp")
-        .gte("created_at", desde),
-      supabase.from("clinics").select("timezone").eq("id", data.clinicId).maybeSingle(),
-    ]);
+    const [citasRes, mensajesRes, solicitudesRes, clinicaRes, outreachRes, creadasRes] =
+      await Promise.all([
+        supabase
+          .from("appointments")
+          .select("id, status, patient_confirmed_at")
+          .eq("clinic_id", data.clinicId)
+          .gte("starts_at", desde)
+          .lte("starts_at", new Date().toISOString())
+          .limit(TOPE_CITAS),
+        supabase
+          .from("messages")
+          .select("patient_id, direction, body, created_at, appointment_id, template_kind")
+          .eq("clinic_id", data.clinicId)
+          .gte("created_at", desde)
+          .order("created_at", { ascending: true })
+          .limit(TOPE_MENSAJES),
+        supabase
+          .from("appointment_requests")
+          .select("status")
+          .eq("clinic_id", data.clinicId)
+          .eq("source", "whatsapp")
+          .gte("created_at", desde),
+        supabase.from("clinics").select("timezone").eq("id", data.clinicId).maybeSingle(),
+        // "Lo que volvió": envíos de outreach (los fallidos no llegaron a nadie)
+        // y las citas creadas desde entonces. Paginado: es un conteo, no una muestra.
+        leerTodasLasPaginas((desdeFila, hastaFila) =>
+          supabase
+            .from("messages")
+            .select("patient_id, template_kind, created_at")
+            .eq("clinic_id", data.clinicId)
+            .eq("direction", "outbound")
+            .in("template_kind", [...OUTREACH_TEMPLATE_KINDS])
+            .neq("status", "failed")
+            .gte("created_at", desde)
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(desdeFila, hastaFila),
+        ),
+        // Las canceladas no cuentan: una cita que se agendó y se canceló no es
+        // un paciente que volvió.
+        leerTodasLasPaginas((desdeFila, hastaFila) =>
+          supabase
+            .from("appointments")
+            .select("patient_id, created_at")
+            .eq("clinic_id", data.clinicId)
+            .neq("status", "cancelada")
+            .gte("created_at", desde)
+            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
+            .range(desdeFila, hastaFila),
+        ),
+      ]);
 
     if (citasRes.error) throw new Error(mensajeDb(citasRes.error, "No pudimos leer las citas."));
     if (mensajesRes.error)
       throw new Error(mensajeDb(mensajesRes.error, "No pudimos leer los mensajes."));
+    if (outreachRes.error)
+      throw new Error(mensajeDb(outreachRes.error, "No pudimos leer los mensajes enviados."));
+    if (creadasRes.error)
+      throw new Error(mensajeDb(creadasRes.error, "No pudimos leer las citas agendadas."));
 
     const filasMensajes = mensajesRes.data ?? [];
 
@@ -150,6 +191,19 @@ export const getEfectividad = createServerFn({ method: "GET" })
           solicitudes.length,
         ),
       },
+      volvieron: citasTrasOutreach(
+        outreachRes.filas
+          .filter((m) => m.patient_id && m.template_kind)
+          .map((m) => ({
+            patientId: m.patient_id as string,
+            kind: m.template_kind as string,
+            createdAt: m.created_at,
+          })),
+        creadasRes.filas.map((c) => ({ patientId: c.patient_id, createdAt: c.created_at })),
+        Date.now(),
+        DIAS_PARA_VOLVER,
+      ),
+      diasParaVolver: DIAS_PARA_VOLVER,
       recortado:
         (citasRes.data ?? []).length >= TOPE_CITAS || filasMensajes.length >= TOPE_MENSAJES,
     };
