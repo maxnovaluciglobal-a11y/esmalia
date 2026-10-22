@@ -147,6 +147,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
       nombre: r.full_name,
       box:
         (r.default_operatory_id && operatoryById.get(r.default_operatory_id)) || "Sin box asignado",
+      boxId: r.default_operatory_id,
       especialidad: (r.specialty_id && specialtyById.get(r.specialty_id)) || "Sin especialidad",
       sucursalId: r.branch_id ?? "",
       color: r.color,

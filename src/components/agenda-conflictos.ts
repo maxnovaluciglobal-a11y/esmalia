@@ -1,21 +1,22 @@
 import { horaDeMinutos } from "@/components/agenda-hueco";
+import type { Destino } from "@/components/agenda-movimiento";
 import type { Cita, Profesional } from "@/lib/clinic-operations/clinic-data";
 
 /**
- * Choques de horario en la agenda (UX-04, Ola 0).
+ * Choques de horario en la agenda (UX-04, Ola 0; box real desde la Ola 2).
  *
- * Lógica pura sobre las citas que ya cargó la agenda: no hay consulta nueva
- * ni cambio de modelo. Tres tipos de choque entre dos citas del mismo día
+ * Lógica pura sobre las citas que ya cargó la agenda: no hay consulta nueva. Tres tipos de choque entre dos citas del mismo día
  * cuyos rangos se cruzan:
  *
  * - `paciente`: el mismo paciente en dos citas a la vez (con cualquier
  *   profesional). Es el más grave: el paciente no puede estar en dos sillones.
  * - `profesional`: el mismo profesional con dos citas a la vez. Es el mismo
  *   criterio que el aviso del servidor (`validarHorarioYSolapamiento`).
- * - `box`: dos profesionales distintos que usan el mismo box. Las citas no
- *   guardan box (`operatory_id` siempre llega null), así que el box es el
- *   box por defecto del profesional (`Profesional.box`), dentro de la misma
- *   sucursal. "Sin box asignado" no cuenta como box.
+ * - `box`: dos profesionales distintos que usan el mismo box. El box es el
+ *   de la cita (`Cita.boxId`, AGE-04) y, solo si la cita no tiene, el box
+ *   por defecto de su profesional (`Profesional.boxId`, o su nombre en datos
+ *   viejos sin id, dentro de la misma sucursal). "Sin box asignado" no
+ *   cuenta como box.
  *
  * Nada de esto bloquea: igual que el servidor, avisa para que el equipo
  * decida. Las citas `ausente` no ocupan el horario (el paciente no vino).
@@ -41,9 +42,11 @@ export type CitaConflicto = Pick<
   | "duracion"
   | "estado"
   | "tratamiento"
->;
+> &
+  Partial<Pick<Cita, "boxId" | "box">>;
 
-export type ProfesionalConflicto = Pick<Profesional, "id" | "nombre" | "box" | "sucursalId">;
+export type ProfesionalConflicto = Pick<Profesional, "id" | "nombre" | "box" | "sucursalId"> &
+  Partial<Pick<Profesional, "boxId">>;
 
 /** Texto que devuelve el catálogo cuando el profesional no tiene box. */
 export const SIN_BOX = "Sin box asignado";
@@ -66,15 +69,53 @@ function seCruzan(
   return a.inicio < b.inicio + b.duracion && a.inicio + a.duracion > b.inicio;
 }
 
-/** Clave de box: el mismo nombre en otra sucursal es otro box. */
-function claveBox(
-  cita: Pick<Cita, "profesionalId" | "sucursalId">,
-  porId: Map<string, ProfesionalConflicto>,
+/**
+ * Box efectivo de una cita: el suyo y, si no tiene, el por defecto de su
+ * profesional. `id` es null solo con datos viejos que traen el nombre del
+ * box del profesional pero no su id.
+ */
+export function boxEfectivo(
+  cita: Partial<Pick<Cita, "boxId" | "box">>,
+  profesional: (Pick<Profesional, "box"> & Partial<Pick<Profesional, "boxId">>) | undefined,
+  nombreDeBox?: (id: string) => string | undefined,
+): { id: string | null; nombre: string; propio: boolean } | null {
+  if (cita.boxId) {
+    return {
+      id: cita.boxId,
+      nombre: nombreDeBox?.(cita.boxId) ?? cita.box ?? "Box",
+      propio: true,
+    };
+  }
+  const nombre = boxDe(profesional);
+  if (profesional?.boxId) {
+    return {
+      id: profesional.boxId,
+      nombre: nombreDeBox?.(profesional.boxId) ?? nombre ?? "Box",
+      propio: false,
+    };
+  }
+  return nombre ? { id: null, nombre, propio: false } : null;
+}
+
+/** Nombre del box efectivo de la cita, para los avisos de choque. */
+export function nombreBoxDe(
+  cita: Partial<Pick<Cita, "boxId" | "box">>,
+  profesional: (Pick<Profesional, "box"> & Partial<Pick<Profesional, "boxId">>) | undefined,
 ): string | null {
+  return boxEfectivo(cita, profesional)?.nombre ?? null;
+}
+
+/**
+ * Clave de box. Con id, el id (es único en toda la clínica); sin id (datos
+ * viejos), el nombre dentro de la sucursal: el mismo nombre en otra sucursal
+ * es otro box.
+ */
+function claveBox(cita: CitaConflicto, porId: Map<string, ProfesionalConflicto>): string | null {
   const p = porId.get(cita.profesionalId);
-  const box = boxDe(p);
+  const box = boxEfectivo(cita, p);
   if (!box) return null;
-  return `${cita.sucursalId || p?.sucursalId || ""}::${box.toLowerCase()}`;
+  if (box.id) return `id:${box.id}`;
+  return `${cita.sucursalId || p?.sucursalId || ""}::${box.nombre.toLowerCase()}`;
 }
 
 /** Tipos de choque entre dos citas que ya se sabe que se cruzan, de más a menos grave. */
@@ -161,6 +202,8 @@ export interface CitaCandidata {
   fecha: string;
   inicio: number;
   duracion: number;
+  /** Box elegido en el formulario (vacío = el del profesional). */
+  boxId?: string | null;
 }
 
 /**
@@ -186,6 +229,7 @@ export function conflictosDeCandidata(
     duracion: candidata.duracion,
     estado: "tentativa",
     tratamiento: "",
+    boxId: candidata.boxId || null,
   };
   const lista: Conflicto[] = [];
   for (const c of citas) {
@@ -194,6 +238,37 @@ export function conflictosDeCandidata(
     for (const tipo of tiposEntre(nueva, c, porId)) lista.push({ tipo, cita: c });
   }
   return ordenar(lista);
+}
+
+/**
+ * Choques que deja un movimiento (arrastre, Alt + flechas o "Mover a…",
+ * AGE-02): mismo paciente o mismo box en el destino. El mismo profesional no
+ * entra acá porque `validarDestino` ya no deja soltar encima de otra cita
+ * suya. Si la cita cambia de sucursal, su box se suelta (lo hace también la
+ * base, trigger `appointments_box_de_la_cita`) y cuenta el del profesional.
+ */
+export function choquesDelMovimiento(
+  cita: CitaConflicto & Pick<Cita, "duracion">,
+  destino: Destino,
+  citas: readonly CitaConflicto[],
+  profesionales: readonly ProfesionalConflicto[],
+): Conflicto[] {
+  const profesional = profesionales.find((p) => p.id === destino.profesionalId);
+  const sucursalId = profesional?.sucursalId || cita.sucursalId;
+  return conflictosDeCandidata(
+    {
+      id: cita.id,
+      pacienteId: cita.pacienteId,
+      profesionalId: destino.profesionalId,
+      sucursalId,
+      fecha: destino.fecha,
+      inicio: destino.inicio,
+      duracion: cita.duracion,
+      boxId: sucursalId === cita.sucursalId ? (cita.boxId ?? null) : null,
+    },
+    citas,
+    profesionales,
+  ).filter((x) => x.tipo !== "profesional");
 }
 
 /** Tipos distintos, en orden de gravedad. */

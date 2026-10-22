@@ -30,12 +30,22 @@ export interface Cita {
    * respuesta del paciente, o al revés.
    */
   pacienteConfirmo?: boolean;
+  /**
+   * Box elegido para la cita (`operatory_id`, AGE-04). Ausente o null = la
+   * cita no tiene box propio y, para los choques y la vista por box, vale el
+   * box por defecto de su profesional.
+   */
+  boxId?: string | null;
+  /** Nombre del box al agendarse (snapshot, regla 10). */
+  box?: string | null;
 }
 
 export interface Profesional {
   id: string;
   nombre: string;
   box: string;
+  /** Box por defecto (`default_operatory_id`): precarga el box de la cita. */
+  boxId?: string | null;
   especialidad: string;
   sucursalId: string;
   /** Hex guardado por el profesional en /profesionales — identifica sus citas en la agenda. */
