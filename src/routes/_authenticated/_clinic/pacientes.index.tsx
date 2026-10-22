@@ -539,6 +539,7 @@ function PacientesPage() {
   const clinicId = access.clinic?.id;
 
   const fetchPatients = useServerFn(listPatients);
+  const veFinanzas = hasPermission(access.role, "finance:view");
   const fetchBranches = useServerFn(listBranches);
   const archivo: FiltroDeArchivo = search.archivo ?? "activas";
   const fetchProfessionals = useServerFn(listProfessionals);
@@ -549,9 +550,9 @@ function PacientesPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["patients", clinicId, archivo],
+    queryKey: ["patients", clinicId, archivo, "con-saldos"],
     enabled: Boolean(clinicId),
-    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo } }),
+    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo, conSaldos: true } }),
   });
   const pacientes = useMemo(() => patientsRes?.items ?? [], [patientsRes]);
   const { data: sucursales = [] } = useQuery({
@@ -691,7 +692,8 @@ function PacientesPage() {
         <div role="group" aria-label="Filtros rápidos" className="flex flex-wrap gap-2">
           {(
             [
-              ["conSaldo", "Con saldo"],
+              // El saldo solo llega a quien tiene `finance:view` (el servidor lo calcula igual).
+              ...(veFinanzas ? ([["conSaldo", "Con saldo"]] as const) : []),
               ["sinCita", "Sin cita futura"],
             ] as const
           ).map(([clave, texto]) => (
