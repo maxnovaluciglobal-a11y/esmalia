@@ -36,6 +36,8 @@ export type AlineacionColumna = "izquierda" | "derecha";
 export interface ColumnaTabla {
   titulo: string;
   alineacion: AlineacionColumna;
+  /** Ancho relativo en el PDF (opcional; sin peso, el criterio de siempre). */
+  peso?: number;
 }
 
 export type Bloque =
@@ -93,6 +95,8 @@ export const TIPOS_DE_DOCUMENTO = [
   "informe",
   "consentimiento",
   "reembolso",
+  // MKT-05 · receta: se emite desde la tarjeta Recetas, no desde "Emitir documento".
+  "receta",
   "otro",
 ] as const;
 export type TipoDeDocumento = (typeof TIPOS_DE_DOCUMENTO)[number];
@@ -105,8 +109,12 @@ export const ETIQUETA_TIPO_DE_DOCUMENTO: Record<TipoDeDocumento, string> = {
   informe: "Informe odontológico",
   consentimiento: "Declaración o consentimiento",
   reembolso: "Reembolso de seguro complementario",
+  receta: "Receta",
   otro: "Otro documento",
 };
+
+/** Tipos que tienen su propio flujo de emisión (no salen en "Emitir documento"). */
+export const TIPOS_CON_FLUJO_PROPIO: readonly TipoDeDocumento[] = ["receta"];
 
 export function esTipoDeDocumento(valor: unknown): valor is TipoDeDocumento {
   return typeof valor === "string" && (TIPOS_DE_DOCUMENTO as readonly string[]).includes(valor);

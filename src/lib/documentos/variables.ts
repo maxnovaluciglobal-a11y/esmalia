@@ -11,6 +11,7 @@
  *   {{fecha}}          hoy en la zona horaria de la clínica
  *   {{campo.*}}        lo que se completa al emitir (motivo, días de reposo…)
  *   {{reembolso.*}}    prestaciones y pagos de un período (MKT-04)
+ *   {{receta.*}}       medicamentos, alergias e indicaciones (MKT-05, receta.ts)
  *
  * Los frentes siguientes (presupuesto, receta) suman su propio grupo acá
  * (`presupuesto.*`, `receta.*`) y su función de contexto, sin tocar el motor.
@@ -20,9 +21,23 @@ import { fecha as fechaCorta, fechaDocumento } from "@/lib/formato-fecha";
 import { textoPrevision, type DatosPrevision } from "@/lib/patients/datos-ficha";
 import { ETIQUETA_TIPO_DOCUMENTO, esTipoDocumento, formatearRut } from "@/lib/patients/rut";
 import type { TablaDeContexto } from "@/lib/documentos/tipos";
+// MKT-05 · receta
+import {
+  contextoDeReceta,
+  RECETA_DE_EJEMPLO,
+  VARIABLES_RECETA,
+  type DatosReceta,
+} from "@/lib/documentos/receta";
 
 export type GrupoVariable =
-  "paciente" | "clinica" | "profesional" | "documento" | "campo" | "reembolso";
+  | "paciente"
+  | "clinica"
+  | "profesional"
+  | "documento"
+  | "campo"
+  | "reembolso"
+  // MKT-05 · receta
+  | "receta";
 
 export const ETIQUETA_GRUPO: Record<GrupoVariable, string> = {
   paciente: "Paciente",
@@ -31,6 +46,8 @@ export const ETIQUETA_GRUPO: Record<GrupoVariable, string> = {
   documento: "Documento",
   campo: "Se completa al emitir",
   reembolso: "Reembolso",
+  // MKT-05 · receta
+  receta: "Receta",
 };
 
 export interface DefinicionVariable {
@@ -194,6 +211,8 @@ export const VARIABLES: readonly DefinicionVariable[] = [
     etiqueta: "Período",
     ejemplo: "1 de septiembre de 2026 al 30 de septiembre de 2026",
   },
+  // MKT-05 · receta
+  ...VARIABLES_RECETA,
 ];
 
 /**
@@ -379,6 +398,8 @@ export interface DatosParaDocumento {
     filas: FilaReembolso[];
     totalPagadoCents: number;
   };
+  // MKT-05 · receta: solo al emitir una receta (tarjeta Recetas de la ficha).
+  receta?: DatosReceta;
   /** Lo completado al emitir: nombre del campo → texto (fechas como YYYY-MM-DD). */
   campos: Readonly<Record<string, string>>;
 }
@@ -528,6 +549,12 @@ export function construirContexto(datos: DatosParaDocumento): {
     valores["reembolso.periodo"] =
       `${fechaDocumento(desde, zona)} al ${fechaDocumento(hasta, zona)}`;
   }
+  // MKT-05 · receta
+  if (datos.receta) {
+    const receta = contextoDeReceta(datos.receta);
+    Object.assign(valores, receta.valores);
+    Object.assign(tablas, receta.tablas);
+  }
   return { valores, tablas };
 }
 
@@ -541,9 +568,13 @@ export function contextoDeEjemplo(): {
   for (const c of CAMPOS) {
     valores[`${PREFIJO_CAMPO}${c.nombre}`] = textoDeCampo(c.nombre, c.ejemplo, "America/Santiago");
   }
+  // MKT-05 · receta
+  const receta = contextoDeReceta(RECETA_DE_EJEMPLO);
+  Object.assign(valores, receta.valores);
   return {
     valores,
     tablas: {
+      ...receta.tablas,
       "reembolso.prestaciones": tablaDeReembolso(
         [
           {
