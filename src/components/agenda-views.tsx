@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { Link } from "@tanstack/react-router";
+import { CalendarX2 } from "lucide-react";
 
 import {
   PIXELES_POR_MINUTO,
@@ -13,7 +13,7 @@ import {
   nroDiaISO,
   weekDaysISO,
 } from "@/lib/clinic-operations/agenda-fechas";
-import { horaDeMinutos, rangoDeGrilla } from "@/components/agenda-hueco";
+import { horaDeMinutos, iniciales, rangoDeGrilla } from "@/components/agenda-hueco";
 import { claseBloque, tonoDeEstadoCita } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
 import { horarioDelDia, type BloqueHorario } from "@/components/agenda-movimiento";
@@ -27,6 +27,7 @@ import {
 import { PanelCita } from "@/components/agenda-panel-cita";
 import { etiquetaBloqueCita } from "@/components/cita-acciones";
 import { enfocarCita } from "@/hooks/use-arrastre-cita";
+import { resumenConflictos, type Conflicto } from "@/components/agenda-conflictos";
 
 // El borde izquierdo identifica al profesional (color guardado en
 // /profesionales); acá solo queda fondo + texto según el estado de la cita.
@@ -46,13 +47,6 @@ function colorPorProfesional(
 }
 
 // ── Vista semana por carriles (PR 10b del plan A+) ───────────────────────
-
-/** "Dra. Paz Rojas" → "PR". Sin títulos (Dr., Dra.). */
-function iniciales(nombre: string): string {
-  const palabras = nombre.split(/\s+/).filter((w) => w && !/^(dr|dra|od|lic)\.?$/i.test(w));
-  const letras = palabras.length > 1 ? [palabras[0], palabras[palabras.length - 1]] : palabras;
-  return letras.map((w) => w[0]?.toUpperCase() ?? "").join("") || "·";
-}
 
 function apellido(paciente: string): string {
   const partes = paciente.trim().split(/\s+/);
@@ -108,6 +102,8 @@ export function AgendaSemanaCarriles({
   datosDesde,
   allergyAlerts,
   renderAcciones,
+  conflictos,
+  nombreProfesional,
 }: {
   /** Citas que se dibujan (con los filtros de búsqueda y estado aplicados). */
   citas: Cita[];
@@ -125,6 +121,9 @@ export function AgendaSemanaCarriles({
   datosDesde: string | null;
   allergyAlerts?: Record<string, string[]>;
   renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
+  /** Choques de horario por id de cita (`detectarConflictos`). */
+  conflictos?: Map<string, Conflicto[]>;
+  nombreProfesional?: (id: string) => string;
 }) {
   const ids = useMemo(() => profesionales.map((p) => p.id), [profesionales]);
   const porId = useMemo(() => new Map(profesionales.map((p) => [p.id, p])), [profesionales]);
@@ -187,7 +186,9 @@ export function AgendaSemanaCarriles({
   const columnas = {
     "--dias": dias.length,
     "--carriles": carriles,
-    "--ancho-min": `${52 + dias.length * carriles * 52}px`,
+    // 34px por carril: a 1440px la semana entera (7 días × 4 profesionales)
+    // entra sin desplazarse. Si no entra, se desplaza adentro de la tarjeta.
+    "--ancho-min": `${52 + dias.length * carriles * 34}px`,
   } as CSSProperties;
   const plantilla =
     "grid grid-cols-[52px_minmax(0,1fr)] md:grid-cols-[52px_repeat(var(--dias),minmax(0,1fr))]";
@@ -216,7 +217,11 @@ export function AgendaSemanaCarriles({
         })}
       </div>
 
-      <div className="card-clinical overflow-x-auto" style={columnas}>
+      {/* `relative`: sin un ancestro posicionado adentro de la caja que se
+          desplaza, los `sr-only` (absolutos) de las iniciales agrandaban la
+          página entera a 1549px (UX-01). `isolate`: los z-* de adentro no
+          se cuelan sobre la barra fija del celular. */}
+      <div className="card-clinical relative isolate overflow-x-auto" style={columnas}>
         <div className="md:min-w-[var(--ancho-min)]">
           <div className={cn(plantilla, "border-b border-hairline")}>
             <div />
@@ -317,38 +322,51 @@ export function AgendaSemanaCarriles({
                       />
                       {delaSemana
                         .filter((c) => c.fecha === d && c.profesionalId === p.id)
-                        .map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            data-cita-id={c.id}
-                            aria-label={`${etiquetaBloqueCita(c)}, ${p.nombre}`}
-                            aria-expanded={c.id === seleccionId}
-                            aria-controls={c.id === seleccionId ? "agenda-panel-cita" : undefined}
-                            onClick={() => setSeleccionId(c.id === seleccionId ? null : c.id)}
-                            className={cn(
-                              "absolute inset-x-0 overflow-hidden rounded border-l-2 px-1 text-left text-[11px] leading-[1.15] transition-shadow hover:z-10 hover:shadow-md focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
-                              estadoClases[c.estado],
-                              c.estado === "ausente" && "opacity-70",
-                              c.id === seleccionId &&
-                                "z-10 outline-2 outline-offset-1 outline-foreground",
-                            )}
-                            style={{
-                              top: (c.inicio - desde) * PIXELES_POR_MINUTO + 1,
-                              height: Math.max(c.duracion * PIXELES_POR_MINUTO - 2, 14),
-                              borderLeftColor: p.color,
-                            }}
-                          >
-                            {c.duracion >= 30 && (
-                              <span className="block cifra text-[10px] opacity-80">
-                                {horaDeMinutos(c.inicio)}
+                        .map((c) => {
+                          const choque = resumenConflictos(conflictos?.get(c.id));
+                          return (
+                            <button
+                              key={c.id}
+                              type="button"
+                              data-cita-id={c.id}
+                              aria-label={[`${etiquetaBloqueCita(c)}, ${p.nombre}`, choque]
+                                .filter(Boolean)
+                                .join(". ")}
+                              title={choque || undefined}
+                              aria-expanded={c.id === seleccionId}
+                              aria-controls={c.id === seleccionId ? "agenda-panel-cita" : undefined}
+                              onClick={() => setSeleccionId(c.id === seleccionId ? null : c.id)}
+                              className={cn(
+                                "absolute inset-x-0 overflow-hidden rounded border-l-2 px-1 text-left text-[11px] leading-[1.15] transition-shadow hover:z-10 hover:shadow-md focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
+                                estadoClases[c.estado],
+                                c.estado === "ausente" && "opacity-70",
+                                c.id === seleccionId &&
+                                  "z-10 outline-2 outline-offset-1 outline-foreground",
+                                choque && "border-y border-r border-dashed border-warning-border",
+                              )}
+                              style={{
+                                top: (c.inicio - desde) * PIXELES_POR_MINUTO + 1,
+                                height: Math.max(c.duracion * PIXELES_POR_MINUTO - 2, 14),
+                                borderLeftColor: p.color,
+                              }}
+                            >
+                              {c.duracion >= 30 && (
+                                <span className="block cifra text-[10px] opacity-80">
+                                  {horaDeMinutos(c.inicio)}
+                                </span>
+                              )}
+                              <span className="flex min-w-0 items-center gap-0.5 font-semibold">
+                                {choque && (
+                                  <CalendarX2
+                                    aria-hidden
+                                    className="size-2.5 shrink-0 text-warning"
+                                  />
+                                )}
+                                <span className="truncate">{apellido(c.paciente)}</span>
                               </span>
-                            )}
-                            <span className="block truncate font-semibold">
-                              {apellido(c.paciente)}
-                            </span>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                     </div>
                   ))}
                 </div>
@@ -373,6 +391,8 @@ export function AgendaSemanaCarriles({
           profesional={profesionalElegido}
           allergies={allergyAlerts?.[seleccionada.pacienteId]}
           renderAcciones={renderAcciones}
+          conflictos={conflictos?.get(seleccionada.id)}
+          nombreProfesional={nombreProfesional}
           onCerrar={cerrarPanel}
         />
       )}

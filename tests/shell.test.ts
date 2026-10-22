@@ -201,8 +201,17 @@ describe("shell A+", () => {
     it("la columna de la agenda no crece al ancho de la grilla", () => {
       const agenda = leer("src/routes/_authenticated/_clinic/agenda.tsx");
       expect(agenda).toContain('className="grid grid-cols-1 gap-8 xl:grid-cols-12"');
-      expect(agenda).toContain('className="min-w-0 space-y-4 xl:col-span-9"');
-      expect(agenda).toContain('className="min-w-0 space-y-4 xl:col-span-3"');
+      // La columna principal: 9 de 12, o 12 en la semana con el panel plegado.
+      expect(agenda).toContain('"min-w-0 space-y-4 max-md:space-y-3"');
+      expect(agenda).toContain('panelPlegado ? "xl:col-span-12" : "xl:col-span-9"');
+      expect(agenda).toContain('"min-w-0 space-y-4 xl:col-span-3"');
+    });
+
+    it("lo absoluto de la semana no agranda la página (UX-01)", () => {
+      // Sin ancestro posicionado dentro de la caja que se desplaza, los
+      // `sr-only` de las iniciales llevaban la página a 1549px.
+      const vistas = leer("src/components/agenda-views.tsx");
+      expect(vistas).toContain('className="card-clinical relative isolate overflow-x-auto"');
     });
   });
 
