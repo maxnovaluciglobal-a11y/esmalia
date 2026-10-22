@@ -51,6 +51,13 @@ import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
 import { AccionesDeLaFicha } from "@/components/ficha-acciones";
+import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
+import { AvisoGes, CompletitudDeLaFicha, ContactoDeEmergencia } from "@/components/ficha-ola1";
+import { faltantesDeLaFicha, textoPrevision } from "@/lib/patients/datos-ficha";
+import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
+import { motivosGes } from "@/lib/patients/ges";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
+import { EXPLICACION_BOTON_SOLO_LECTURA } from "@/lib/solo-lectura";
 import { getPortalAccessState } from "@/lib/patients/portal.functions";
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { hasPermission } from "@/lib/access/access";
@@ -447,9 +454,56 @@ function PacienteDetalle() {
   const refrescarPortal = () =>
     void queryClient.invalidateQueries({ queryKey: ["portal-access", clinicId, paciente.id] });
 
+  // Ola 1 · Frente Pacientes: previsión (FIC-02), ficha completa (SEG-08) y GES (MKT-01).
+  const esChile = (access.clinic?.country ?? "").toUpperCase() === "CL";
+  const soloLectura = useSoloLectura();
+  const [completando, setCompletando] = useState(false);
+  const embarazada = medicalHistoryQuery.data ? alertas.some((a) => a.clave === "pregnancy") : null;
+  const motivosDeGes = motivosGes({
+    pais: access.clinic?.country,
+    fechaNacimiento: paciente.fechaNacimiento,
+    hoy: hoyISO(timezone),
+    embarazada,
+  });
+  const faltantes = faltantesDeLaFicha(
+    {
+      prevision: paciente.prevision ?? null,
+      documento: paciente.documento,
+      fechaNacimiento: paciente.fechaNacimiento ?? null,
+      direccion: paciente.direccion ?? null,
+      comuna: paciente.comuna ?? null,
+      // Solo cuenta cuando se sabe: sin acceso clínico o cargando, no se acusa.
+      tieneAnamnesis:
+        puedeVerClinico && medicalHistoryQuery.data
+          ? medicalHistoryQuery.data.updatedAt != null
+          : null,
+    },
+    esChile,
+  );
+  const puedeCompletar = Boolean(clinicId) && puedeEditarPaciente(access.role);
+  const motivoSinPermiso = !puedeCompletar
+    ? "Tu rol no puede editar los datos del paciente."
+    : soloLectura
+      ? EXPLICACION_BOTON_SOLO_LECTURA
+      : null;
+  const irALaAnamnesis = () => {
+    setPestana("resumen");
+    window.setTimeout(
+      () => document.getElementById("anamnesis")?.scrollIntoView({ behavior: "smooth" }),
+      50,
+    );
+  };
+
   const lineaDatos = [
     paciente.edad ? `${paciente.edad} años` : null,
     paciente.telefono || "Sin teléfono",
+    esChile
+      ? `Previsión: ${textoPrevision({
+          plan: paciente.prevision ?? null,
+          tramo: paciente.previsionTramo ?? null,
+          institucion: paciente.previsionInstitucion ?? null,
+        })}`
+      : null,
     paciente.convenioNombre ?? null,
     paciente.documento ? `Doc. ${paciente.documento}` : null,
   ].filter(Boolean);
@@ -526,6 +580,7 @@ function PacienteDetalle() {
                       : "sin tutor registrado"}
                   </p>
                 )}
+                <AvisoGes motivos={motivosDeGes} />
               </div>
             </div>
             <AccionesDeLaFicha
@@ -543,6 +598,22 @@ function PacienteDetalle() {
               Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en
               los listados ni en la búsqueda; su historia clínica se conserva completa.
             </p>
+          )}
+
+          <CompletitudDeLaFicha
+            faltantes={faltantes}
+            onCompletarDatos={() => setCompletando(true)}
+            onCompletarAnamnesis={irALaAnamnesis}
+            motivoSinPermiso={motivoSinPermiso}
+          />
+          {clinicId && puedeCompletar && (
+            <EditarPacienteDialog
+              clinicId={clinicId}
+              country={access.clinic?.country ?? null}
+              paciente={paciente}
+              abierto={completando}
+              onAbiertoChange={setCompletando}
+            />
           )}
 
           <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
@@ -595,6 +666,9 @@ function PacienteDetalle() {
                   También: {precauciones.map((a) => a.texto).join(" · ")}
                 </dd>
               )}
+              <dd className="mt-1 text-xs">
+                <ContactoDeEmergencia contacto={paciente.contactoEmergencia} />
+              </dd>
             </div>
           </dl>
         </header>
@@ -619,12 +693,14 @@ function PacienteDetalle() {
                       patientId={paciente.id}
                       onVerOdontograma={() => setPestana("odontograma")}
                     />
-                    <MedicalHistoryCard
-                      clinicId={clinicId}
-                      patientId={paciente.id}
-                      puedeEditar={puedeEscribirClinico}
-                      userId={access.userId}
-                    />
+                    <div id="anamnesis" className="scroll-mt-48">
+                      <MedicalHistoryCard
+                        clinicId={clinicId}
+                        patientId={paciente.id}
+                        puedeEditar={puedeEscribirClinico}
+                        userId={access.userId}
+                      />
+                    </div>
                     <VitalSignsCard
                       clinicId={clinicId}
                       patientId={paciente.id}
@@ -676,6 +752,12 @@ function PacienteDetalle() {
                         variante="dato"
                       />
                     </div>
+                  )}
+                  {paciente.origen && (
+                    <p className="text-xs text-muted-foreground">
+                      Llegó por: {paciente.origen}
+                      {paciente.origenDetalle ? ` · ${paciente.origenDetalle}` : ""}
+                    </p>
                   )}
                   {paciente.etiquetas.length > 0 && (
                     <p className="flex items-start gap-2">
