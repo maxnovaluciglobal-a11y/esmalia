@@ -1787,14 +1787,17 @@ export function FinanceSection({
                             </Button>
                           </>
                         )}
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link
-                            to="/presupuestos/$presupuestoId"
-                            params={{ presupuestoId: quote.id }}
-                          >
-                            <FileText className="size-3.5" /> Ver detalle
-                          </Link>
-                        </Button>
+                        {/* Mismo público que la ruta del detalle (patients:manage). */}
+                        {puedeEditar && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <Link
+                              to="/presupuestos/$presupuestoId"
+                              params={{ presupuestoId: quote.id }}
+                            >
+                              <FileText className="size-3.5" /> Ver detalle
+                            </Link>
+                          </Button>
+                        )}
                         <div className="ml-auto">
                           <WhatsAppButton
                             clinicId={clinicId}
