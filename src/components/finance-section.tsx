@@ -85,6 +85,7 @@ import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { listProcedureSupplies } from "@/lib/clinic-operations/procedure-supplies.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { NuevoPagoDialog } from "@/components/finance/nuevo-pago-dialog";
+import { CobroConBonoDialog } from "@/components/finance/cobro-con-bono-dialog";
 import {
   AceptarPresupuestoDialog,
   ConfirmarConsumoDialog,
@@ -1287,6 +1288,12 @@ export function FinanceSection({
               // total facturado: se espera a tener los dos.
               abrirAhora={Boolean(abrirPago) && !isLoading && !payLoading}
               onAbierto={onPagoAbierto}
+            />
+            <CobroConBonoDialog
+              clinicId={clinicId}
+              patientId={patientId}
+              plans={plans}
+              currency={currency}
             />
             <NuevoPresupuestoDialog
               clinicId={clinicId}
