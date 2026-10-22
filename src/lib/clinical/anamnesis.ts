@@ -184,6 +184,202 @@ export function preguntasRespondidas(c: CuestionarioRiesgo): number {
   return CLAVES_PREGUNTA.filter((k) => c[k]).length;
 }
 
+// ── Cuestionario y antecedentes (UX-14) ───────────────────────────────────
+//
+// La ficha tenía "Hipertensión" en antecedentes y el cuestionario marcaba
+// "0 de 10 respondidas", con "Hipertensión arterial" sin responder. Lo que
+// ya está escrito en antecedentes (o en la medicación, para los
+// anticoagulantes) se refleja en el cuestionario como "Sí, según
+// antecedentes": se muestra y genera su alerta, pero no se guarda como
+// respuesta hasta que alguien la confirme (regla 11: no se fabrica una
+// respuesta que nadie dio). Una respuesta explícita siempre manda; si dice
+// "No" y los antecedentes dicen lo contrario, se avisa la contradicción.
+
+/** Minúsculas y sin tildes, para comparar texto libre. */
+function normalizarTexto(texto: string): string {
+  return texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+/** Palabras que, justo antes del término, lo niegan ("sin diabetes", "ex fumador"). */
+const NEGACIONES = new Set(["no", "sin", "niega", "descarta", "ex"]);
+
+type ReglaAntecedente = { key: ClavePregunta; terminos: readonly string[] };
+
+/**
+ * Términos (ya normalizados) que mapean un antecedente a una pregunta. Son
+ * conservadores a propósito: mejor dejar una pregunta sin inferir que
+ * inferir mal. Los fármacos solo cuentan para anticoagulantes, donde el
+ * nombre del medicamento es inequívoco.
+ */
+const REGLAS_ANTECEDENTES: readonly ReglaAntecedente[] = [
+  {
+    key: "anticoagulants",
+    terminos: ["anticoagulado", "anticoagulada", "anticoagulante", "antiagregante"],
+  },
+  { key: "diabetes", terminos: ["diabetes", "diabetico", "diabetica", "dm1", "dm2"] },
+  {
+    key: "hypertension",
+    terminos: ["hipertension", "hipertenso", "hipertensa", "hta", "presion alta"],
+  },
+  {
+    key: "heart_disease",
+    terminos: [
+      "cardiopatia",
+      "infarto",
+      "arritmia",
+      "fibrilacion auricular",
+      "marcapasos",
+      "valvulopatia",
+      "insuficiencia cardiaca",
+      "endocarditis",
+      "angina",
+    ],
+  },
+  { key: "pregnancy", terminos: ["embarazo", "embarazada", "gestacion"] },
+  { key: "breastfeeding", terminos: ["lactancia", "amamantando"] },
+  {
+    key: "infectious_disease",
+    terminos: ["vih", "sida", "hepatitis", "tuberculosis", "tbc"],
+  },
+  { key: "tobacco", terminos: ["tabaquismo", "tabaco", "fumador", "fumadora", "fuma"] },
+  {
+    key: "surgeries",
+    terminos: ["cirugia", "operado", "operada", "hospitalizacion", "hospitalizado"],
+  },
+];
+
+/** Fármacos anticoagulantes o antiagregantes (nombre genérico o comercial común). */
+const FARMACOS_ANTICOAGULANTES = [
+  "warfarina",
+  "acenocumarol",
+  "sintrom",
+  "apixaban",
+  "eliquis",
+  "rivaroxaban",
+  "xarelto",
+  "dabigatran",
+  "pradaxa",
+  "edoxaban",
+  "heparina",
+  "enoxaparina",
+  "clopidogrel",
+  "plavix",
+  "ticagrelor",
+  "prasugrel",
+  "aspirina",
+  "acido acetilsalicilico",
+] as const;
+
+type Mencion = "afirmada" | "negada" | "ausente";
+
+/**
+ * ¿Aparece `termino` como palabra (o frase) en `texto`? "negada" si hay una
+ * negación cerca antes ("sin diabetes", "no es fumador", "niega antecedentes
+ * de hipertensión", "ex fumador").
+ */
+function mencion(texto: string, termino: string): Mencion {
+  const palabras = texto.split(/[^a-z0-9]+/).filter(Boolean);
+  const partes = termino.split(" ");
+  let negada = false;
+  for (let i = 0; i + partes.length <= palabras.length; i++) {
+    if (!partes.every((p, j) => palabras[i + j] === p)) continue;
+    const previas = palabras.slice(Math.max(0, i - 2), i);
+    const lejanas = palabras.slice(Math.max(0, i - 4), i);
+    if (
+      previas.some((p) => NEGACIONES.has(p)) ||
+      lejanas.some((p) => p === "sin" || p === "niega")
+    ) {
+      negada = true;
+      continue;
+    }
+    return "afirmada";
+  }
+  return negada ? "negada" : "ausente";
+}
+
+/** De dónde sale cada respuesta inferida: los textos de antecedentes o medicación. */
+export type RiesgosDesdeAntecedentes = Partial<Record<ClavePregunta, string[]>>;
+
+/**
+ * Qué preguntas del cuestionario ya quedan contestadas con "Sí" por lo que
+ * dicen los antecedentes y la medicación. Un antecedente que no encaja en
+ * ninguna pregunta cuenta para "Otros antecedentes".
+ */
+export function riesgosDesdeAntecedentes(datos: {
+  antecedentes: readonly string[];
+  medicacion: readonly string[];
+}): RiesgosDesdeAntecedentes {
+  const resultado: RiesgosDesdeAntecedentes = {};
+  const sumar = (key: ClavePregunta, origen: string) => {
+    const lista = resultado[key] ?? [];
+    if (!lista.includes(origen)) lista.push(origen);
+    resultado[key] = lista;
+  };
+
+  for (const bruto of datos.antecedentes) {
+    const origen = bruto.trim();
+    if (!origen) continue;
+    const texto = normalizarTexto(origen);
+    let encajo = false;
+    let negado = false;
+    for (const regla of REGLAS_ANTECEDENTES) {
+      const menciones = regla.terminos.map((t) => mencion(texto, t));
+      if (menciones.includes("afirmada")) {
+        sumar(regla.key, origen);
+        encajo = true;
+      } else if (menciones.includes("negada")) {
+        negado = true;
+      }
+    }
+    // Un antecedente negado ("sin diabetes") no es un antecedente.
+    if (!encajo && !negado) sumar("other", origen);
+  }
+
+  for (const bruto of datos.medicacion) {
+    const origen = bruto.trim();
+    if (!origen) continue;
+    const texto = normalizarTexto(origen);
+    if (FARMACOS_ANTICOAGULANTES.some((f) => mencion(texto, f) === "afirmada")) {
+      sumar("anticoagulants", origen);
+    }
+  }
+  return resultado;
+}
+
+export type CuestionarioConciliado = {
+  /** Respuestas guardadas + las inferidas de antecedentes donde no había respuesta. */
+  efectivo: CuestionarioRiesgo;
+  /** Preguntas que están en "Sí" solo por los antecedentes (sin confirmar). */
+  desdeAntecedentes: ClavePregunta[];
+  /** Respondidas "No" aunque los antecedentes dicen lo contrario. */
+  contradicciones: ClavePregunta[];
+};
+
+/** Junta el cuestionario guardado con lo que se infiere de los antecedentes. */
+export function conciliarCuestionario(
+  cuestionario: CuestionarioRiesgo,
+  inferidos: RiesgosDesdeAntecedentes,
+): CuestionarioConciliado {
+  const efectivo: CuestionarioRiesgo = { ...cuestionario };
+  const desdeAntecedentes: ClavePregunta[] = [];
+  const contradicciones: ClavePregunta[] = [];
+  for (const k of CLAVES_PREGUNTA) {
+    const origen = inferidos[k];
+    if (!origen || origen.length === 0) continue;
+    const guardada = cuestionario[k];
+    if (!guardada) {
+      efectivo[k] = { answer: "yes", detail: origen.join(", ") };
+      desdeAntecedentes.push(k);
+    } else if (guardada.answer === "no") {
+      contradicciones.push(k);
+    }
+  }
+  return { efectivo, desdeAntecedentes, contradicciones };
+}
+
 // ── Alertas ───────────────────────────────────────────────────────────────
 
 export type NivelAlerta = "critica" | "precaucion";

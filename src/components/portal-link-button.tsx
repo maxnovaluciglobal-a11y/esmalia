@@ -21,6 +21,8 @@ interface Props {
     clinicName?: string | null;
     clinicEmail?: string | null;
   };
+  /** Avisa al padre que se emitió un link (o se revocó el acceso, en el botón de revocar). */
+  onCambio?: () => void;
 }
 
 /**
@@ -28,7 +30,7 @@ interface Props {
  * del portal (7 días de validez por default), copiarlo o mandarlo por
  * WhatsApp al paciente. Sin login, sin Twilio — el link vale por sí solo.
  */
-export function PortalLinkButton({ clinicId, patientId, bloqueado }: Props) {
+export function PortalLinkButton({ clinicId, patientId, bloqueado, onCambio }: Props) {
   const generate = useServerFn(generatePortalLink);
   const [copiedAt, setCopiedAt] = useState<number | null>(null);
 
@@ -41,6 +43,7 @@ export function PortalLinkButton({ clinicId, patientId, bloqueado }: Props) {
           ttlDays: 7,
         },
       }),
+    onSuccess: () => onCambio?.(),
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
@@ -137,12 +140,15 @@ export function PortalLinkButton({ clinicId, patientId, bloqueado }: Props) {
  * cuando uno se filtró o se reenvió a quien no correspondía. No hace
  * falta "restaurar": el próximo link que se genere ya funciona solo.
  */
-export function RevokePortalAccessButton({ clinicId, patientId }: Props) {
+export function RevokePortalAccessButton({ clinicId, patientId, onCambio }: Props) {
   const revoke = useServerFn(revokePortalAccess);
 
   const mut = useMutation({
     mutationFn: () => revoke({ data: { clinicId, patientId } }),
-    onSuccess: () => toast.success("Acceso al portal revocado. Los links anteriores ya no sirven."),
+    onSuccess: () => {
+      toast.success("Acceso al portal revocado. Los links anteriores ya no sirven.");
+      onCambio?.();
+    },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 

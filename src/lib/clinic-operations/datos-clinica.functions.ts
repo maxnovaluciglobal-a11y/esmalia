@@ -1,0 +1,65 @@
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
+
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireClinicPermission } from "@/lib/access/clinic-guards.server";
+import { camposDatosClinica, type DatosClinica } from "@/lib/clinic-operations/datos-clinica";
+import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
+
+const SIN_PERMISO = "No tienes permisos para ver o editar los datos de la clínica.";
+
+/** Datos de la clínica activa. Par en el servidor de `requirePermission("settings:manage")`. */
+export const getDatosClinica = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<DatosClinica> => {
+    const { supabase, userId } = context;
+    await requireClinicPermission(supabase, data.clinicId, userId, "settings:manage", SIN_PERMISO);
+    const { data: row, error } = await supabase
+      .from("clinics")
+      .select("id, name, legal_name, tax_id, country, currency, timezone")
+      .eq("id", data.clinicId)
+      .maybeSingle();
+    if (error || !row)
+      throw new Error(mensajeDb(error, "No pudimos cargar los datos de la clínica."));
+    return {
+      id: row.id,
+      name: row.name,
+      legalName: row.legal_name,
+      taxId: row.tax_id,
+      country: row.country,
+      currency: row.currency,
+      timezone: row.timezone,
+    };
+  });
+
+/**
+ * Edita la clínica actual: nombre, razón social, identificación fiscal y zona
+ * horaria. País y moneda quedan fuera a propósito (ver `datos-clinica.ts`).
+ * RLS (`clinics_update_managers`) ya exige `can_manage_clinic`; esto lo
+ * repite con la matriz de la app y el modo solo lectura (`requireEscritura`).
+ */
+export const updateDatosClinica = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z.object({ clinicId: z.string().uuid() }).merge(camposDatosClinica).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await requireClinicPermission(supabase, data.clinicId, userId, "settings:manage", SIN_PERMISO);
+    const { data: fila, error } = await supabase
+      .from("clinics")
+      .update({
+        name: data.name,
+        legal_name: data.legalName || null,
+        tax_id: data.taxId || null,
+        timezone: data.timezone,
+      })
+      .eq("id", data.clinicId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error(mensajeDb(error, "No pudimos guardar los datos de la clínica."));
+    if (!fila) throw new Error(SIN_PERMISO);
+    return { ok: true as const };
+  });

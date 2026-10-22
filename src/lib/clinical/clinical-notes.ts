@@ -281,3 +281,75 @@ export function tituloDeAdenda(tituloOriginal: string): string {
   const base = tituloOriginal.trim() || "Nota clínica";
   return `Adenda: ${base}`.slice(0, 160);
 }
+
+// ── Asistencia de IA verificada ───────────────────────────────────────────
+//
+// La auditoría decía "Creó la nota v1 con asistencia de IA" con Patty en
+// habilitación (AI_ENABLED apagado): el texto sale de `ai_assisted`, un dato
+// que manda el cliente al guardar (y que los datos de la demo traen en true).
+// Ahora "con asistencia de IA" solo se muestra si hay evidencia de que Patty
+// participó: un evento `ai_*` en la auditoría, que el servidor registra al
+// llamar al modelo, del mismo autor, de esa nota (o de una nota todavía sin
+// guardar, `note_id` nulo) y anterior a la versión.
+
+/** Sufijo que agrega el trigger `auditar_version_de_nota` al detalle. */
+export const SUFIJO_AUDITORIA_IA = " · con asistencia de IA";
+
+export interface EventoIaDeNota {
+  noteId: string | null;
+  actorId: string;
+  createdAt: string;
+}
+
+/** ¿Hay un evento de IA que respalde algo hecho por `actorId` en `noteId` hasta `hasta`? */
+export function hayEvidenciaDeIa(
+  eventos: readonly EventoIaDeNota[],
+  caso: { noteId: string | null; actorId: string; hasta: string },
+): boolean {
+  const hasta = new Date(caso.hasta).getTime();
+  return eventos.some(
+    (e) =>
+      e.actorId === caso.actorId &&
+      (e.noteId === null || e.noteId === caso.noteId) &&
+      new Date(e.createdAt).getTime() <= hasta,
+  );
+}
+
+/**
+ * Deja `aiAssisted` y el detalle de la auditoría en lo que se puede
+ * respaldar. Una versión sin evidencia pasa a no asistida; un registro de
+ * auditoría sin evidencia pierde el sufijo "con asistencia de IA".
+ */
+export function verificarAsistenciaIa<
+  V extends Pick<
+    ClinicalNoteVersionMeta,
+    "noteId" | "authorId" | "createdAt" | "aiAssisted" | "aiAction"
+  >,
+  A extends Pick<ClinicalNoteAuditEntry, "noteId" | "actorId" | "createdAt" | "detail">,
+>(datos: {
+  versions: readonly V[];
+  audit: readonly A[];
+  eventosIa: readonly EventoIaDeNota[];
+}): { versions: V[]; audit: A[] } {
+  const versions = datos.versions.map((v) =>
+    v.aiAssisted &&
+    !hayEvidenciaDeIa(datos.eventosIa, {
+      noteId: v.noteId,
+      actorId: v.authorId,
+      hasta: v.createdAt,
+    })
+      ? { ...v, aiAssisted: false, aiAction: null }
+      : v,
+  );
+  const audit = datos.audit.map((a) =>
+    a.detail?.includes(SUFIJO_AUDITORIA_IA) &&
+    !hayEvidenciaDeIa(datos.eventosIa, {
+      noteId: a.noteId,
+      actorId: a.actorId,
+      hasta: a.createdAt,
+    })
+      ? { ...a, detail: a.detail.replace(SUFIJO_AUDITORIA_IA, "") }
+      : a,
+  );
+  return { versions, audit };
+}

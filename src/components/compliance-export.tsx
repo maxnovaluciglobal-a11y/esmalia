@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Download, FileText, Loader2, ShieldCheck } from "lucide-react";
 
@@ -22,7 +23,8 @@ import {
   exportarComplianceCsv,
   exportarCompliancePdf,
 } from "@/lib/compliance-export";
-import { getComplianceLog } from "@/lib/compliance.functions";
+import { esUuid, getComplianceLog } from "@/lib/compliance.functions";
+import { coincide } from "@/lib/search";
 
 function isoDia(fecha: Date) {
   return fecha.toISOString().slice(0, 10);
@@ -31,10 +33,12 @@ function isoDia(fecha: Date) {
 interface Props {
   clinicId: string;
   clinicName: string;
+  /** El rol puede abrir fichas (`patients:view`): el nombre enlaza a la ficha. */
+  puedeAbrirFichas?: boolean;
 }
 
 /** Panel de compliance: historial filtrado de auditoría y revisión, exportable a CSV/PDF. */
-export function ComplianceExport({ clinicId, clinicName }: Props) {
+export function ComplianceExport({ clinicId, clinicName, puedeAbrirFichas = false }: Props) {
   const hoy = useMemo(() => new Date(), []);
   const hace30 = useMemo(() => new Date(hoy.getTime() - 29 * 86400000), [hoy]);
 
@@ -46,8 +50,12 @@ export function ComplianceExport({ clinicId, clinicName }: Props) {
   const fetchLog = useServerFn(getComplianceLog);
   const rangoValido = desde <= hasta;
 
+  // Un id pegado tal cual filtra en el servidor; un nombre filtra acá.
+  const terminoPaciente = paciente.trim();
+  const refExacta = esUuid(terminoPaciente) ? terminoPaciente : undefined;
+
   const { data, isFetching, error } = useQuery({
-    queryKey: ["compliance-log", clinicId, desde, hasta, origen, paciente.trim()],
+    queryKey: ["compliance-log", clinicId, desde, hasta, origen, refExacta ?? ""],
     enabled: rangoValido,
     queryFn: () =>
       fetchLog({
@@ -56,19 +64,23 @@ export function ComplianceExport({ clinicId, clinicName }: Props) {
           desde,
           hasta,
           source: origen,
-          patientRef: paciente.trim() || undefined,
+          patientRef: refExacta,
           limit: 1000,
         },
       }),
   });
 
-  const eventos = data?.events ?? [];
+  const eventos = useMemo(() => {
+    const todos = data?.events ?? [];
+    if (!terminoPaciente || refExacta) return todos;
+    return todos.filter((e) => coincide(terminoPaciente, e.patientName));
+  }, [data, terminoPaciente, refExacta]);
   const ctx = {
     clinicaNombre: clinicName,
     desde,
     hasta,
     origen,
-    pacienteRef: paciente.trim() || undefined,
+    pacienteRef: terminoPaciente || undefined,
   };
 
   return (
@@ -77,7 +89,7 @@ export function ComplianceExport({ clinicId, clinicName }: Props) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <ShieldCheck className="size-4 text-primary" aria-hidden />
-            Exportación para compliance
+            Exportación del historial de auditoría
           </CardTitle>
           <CardDescription>
             Filtra el historial de auditoría y revisión clínica de la clínica por rango de fechas y
@@ -125,7 +137,7 @@ export function ComplianceExport({ clinicId, clinicName }: Props) {
               <Label htmlFor="compliance-paciente">Paciente (opcional)</Label>
               <Input
                 id="compliance-paciente"
-                placeholder="Referencia del paciente"
+                placeholder="Nombre del paciente"
                 value={paciente}
                 onChange={(e) => setPaciente(e.target.value)}
               />
@@ -201,7 +213,21 @@ export function ComplianceExport({ clinicId, clinicName }: Props) {
                       {e.source === "review" ? "Revisión" : "Auditoría"}
                     </Badge>
                   </td>
-                  <td className="px-4 py-3">{e.patientRef}</td>
+                  <td className="px-4 py-3">
+                    {e.patientId && e.patientName && puedeAbrirFichas ? (
+                      <Link
+                        to="/pacientes/$pacienteId"
+                        params={{ pacienteId: e.patientId }}
+                        className="underline decoration-border underline-offset-4 hover:text-brand-700 hover:decoration-brand"
+                      >
+                        {e.patientName}
+                      </Link>
+                    ) : (
+                      (e.patientName ?? (
+                        <span className="text-muted-foreground">Paciente sin ficha</span>
+                      ))
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {e.noteTitle ?? "—"}
                     {e.noteVersion ? (

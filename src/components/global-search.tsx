@@ -1,8 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarPlus, CornerDownLeft, LockOpen, Search, UserRound } from "lucide-react";
+import {
+  CalendarPlus,
+  CornerDownLeft,
+  Loader2,
+  LockOpen,
+  Search,
+  UserPlus,
+  UserRound,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   Command,
@@ -16,9 +26,22 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { hasPermission, type ClinicAccess } from "@/lib/access/access";
 import { ajustesVisibles, destinosVisibles } from "@/lib/access/navegacion";
 import { buscarPacientes } from "@/lib/patients/buscar-pacientes.functions";
-import { accionesRapidas, hrefDeAccion, type AccionRapida } from "@/lib/shell";
+import {
+  accionesRapidas,
+  hrefDeAccion,
+  paginasQueCoinciden,
+  type AccionRapida,
+  type PaginaBuscable,
+} from "@/lib/shell";
 import { cn } from "@/lib/utils";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
+
+const ICONO_ACCION: Record<AccionRapida["id"], LucideIcon> = {
+  "nueva-cita": CalendarPlus,
+  "abrir-caja": LockOpen,
+  "registrar-pago": Wallet,
+  "crear-paciente": UserPlus,
+};
 
 /**
  * Búsqueda ⌘K. Reemplaza a la versión deshabilitada que leía los arrays MOCK
@@ -42,6 +65,11 @@ export function GlobalSearch({
   const [abierto, setAbierto] = useState(false);
   const [q, setQ] = useState("");
   const [qDiferida, setQDiferida] = useState("");
+  /** Ítem resaltado (controlado): cuando llegan pacientes, pasa al primero. */
+  const [seleccion, setSeleccion] = useState("");
+  const disparadorRef = useRef<HTMLButtonElement>(null);
+  /** Al cerrar navegando, el foco queda en la página nueva y no vuelve al botón. */
+  const cerroNavegando = useRef(false);
   const navigate = useNavigate();
   const ubicacion = useRouterState({ select: (st) => st.location });
   // El atajo se muestra según la plataforma. Arranca en "Ctrl K" (la mayoría
@@ -71,15 +99,29 @@ export function GlobalSearch({
     return () => window.clearTimeout(t);
   }, [q]);
 
-  const paginas = useMemo(() => {
+  // Cada apertura arranca vacía: antes quedaba la búsqueda anterior.
+  useEffect(() => {
+    if (!abierto) return;
+    cerroNavegando.current = false;
+    setQ("");
+    setQDiferida("");
+    setSeleccion("");
+  }, [abierto]);
+
+  const paginas = useMemo((): PaginaBuscable[] => {
     const desdeDestinos = destinosVisibles(access.role).flatMap((d) =>
       d.pestanas.map((p) => ({
         to: p.to,
         label: p.label === d.label ? d.label : `${d.label} · ${p.label}`,
+        sinonimos: [p.label, ...(p.sinonimos ?? [])],
       })),
     );
     const desdeAjustes = ajustesVisibles(access.role).flatMap((g) =>
-      g.items.map((i) => ({ to: i.to, label: `Ajustes · ${i.label}` })),
+      g.items.map((i) => ({
+        to: i.to,
+        label: `Ajustes · ${i.label}`,
+        sinonimos: [i.label, ...(i.sinonimos ?? [])],
+      })),
     );
     const vistas = new Set<string>();
     return [...desdeDestinos, ...desdeAjustes].filter((p) =>
@@ -87,10 +129,8 @@ export function GlobalSearch({
     );
   }, [access.role]);
 
-  const termino = q.trim().toLowerCase();
-  const paginasFiltradas = termino
-    ? paginas.filter((p) => p.label.toLowerCase().includes(termino))
-    : paginas.slice(0, 8);
+  // Desde el comienzo de una palabra: "isi" ya no trae "Reportes · Comisiones".
+  const paginasFiltradas = paginasQueCoinciden(paginas, q);
   // En solo lectura las acciones crean algo: no se ofrecen (el servidor
   // igual las rechazaría).
   const soloLectura = useSoloLectura();
@@ -99,6 +139,7 @@ export function GlobalSearch({
   const clinicId = access.clinic?.id;
   const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
   const buscar = useServerFn(buscarPacientes);
+  const buscandoPacientes = puedeBuscarPacientes && q.trim().length >= 2;
   const { data: pacientes = [], isFetching } = useQuery({
     queryKey: ["buscar-pacientes", clinicId, qDiferida],
     enabled: abierto && puedeBuscarPacientes && qDiferida.length >= 2,
@@ -106,9 +147,17 @@ export function GlobalSearch({
     staleTime: 30_000,
   });
 
+  // Los pacientes llegan después que las páginas (debounce + red) y cmdk ya
+  // había resaltado la primera página: con un paciente encontrado, Enter
+  // tiene que abrir su ficha.
+  const primerPaciente = pacientes[0]?.id;
+  useEffect(() => {
+    if (primerPaciente) setSeleccion(`paciente-${primerPaciente}`);
+  }, [primerPaciente]);
+
   function ir(to: string) {
+    cerroNavegando.current = true;
     setAbierto(false);
-    setQ("");
     void navigate({ to });
   }
 
@@ -116,14 +165,15 @@ export function GlobalSearch({
    *  diálogo (agenda con `?nueva=1`, caja con `?abrir=1`). Si ya se está en
    *  esa ruta, conserva su vista, fecha y filtros (`hrefDeAccion`). */
   function ejecutar(accion: AccionRapida) {
+    cerroNavegando.current = true;
     setAbierto(false);
-    setQ("");
     void navigate({ href: hrefDeAccion(accion, ubicacion) });
   }
 
   return (
     <>
       <button
+        ref={disparadorRef}
         type="button"
         onClick={() => setAbierto(true)}
         aria-label="Buscar paciente, página o acción"
@@ -153,11 +203,29 @@ export function GlobalSearch({
       <Dialog open={abierto} onOpenChange={setAbierto}>
         {/* En celular va arriba y no centrado: centrado, el teclado tapaba
             los resultados. */}
-        <DialogContent className="overflow-hidden p-0 max-sm:top-[8dvh] max-sm:w-[calc(100%-2rem)] max-sm:translate-y-0 max-sm:rounded-lg">
+        <DialogContent
+          className="overflow-hidden p-0 max-sm:top-[8dvh] max-sm:w-[calc(100%-2rem)] max-sm:translate-y-0 max-sm:rounded-lg"
+          onCloseAutoFocus={(e) => {
+            // Cerrar sin elegir nada (Esc, clic afuera) devuelve el foco al
+            // botón que lo abrió, aunque se haya abierto con ⌘K. Si se
+            // navegó, se deja que la página nueva maneje el foco.
+            const boton = disparadorRef.current;
+            if (cerroNavegando.current) {
+              e.preventDefault();
+              return;
+            }
+            if (boton && boton.offsetParent !== null) {
+              e.preventDefault();
+              boton.focus();
+            }
+          }}
+        >
           <DialogTitle className="sr-only">Buscar en Esmalia</DialogTitle>
           <Command
             label="Buscar en Esmalia"
             shouldFilter={false}
+            value={seleccion}
+            onValueChange={setSeleccion}
             className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input]]:h-12 [&_[cmdk-item]]:px-2 [&_[cmdk-item]]:py-2.5"
           >
             <CommandInput
@@ -171,8 +239,21 @@ export function GlobalSearch({
             />
             <CommandList>
               <CommandEmpty>
-                {isFetching ? "Buscando…" : "Sin resultados para esa búsqueda."}
+                {buscandoPacientes && (isFetching || q.trim() !== qDiferida)
+                  ? "Buscando…"
+                  : "Sin resultados para esa búsqueda."}
               </CommandEmpty>
+              {buscandoPacientes &&
+                pacientes.length === 0 &&
+                (isFetching || q.trim() !== qDiferida) &&
+                (acciones.length > 0 || paginasFiltradas.length > 0) && (
+                  <p
+                    role="status"
+                    className="flex items-center gap-2 px-4 pt-3 pb-1 text-xs text-muted-foreground"
+                  >
+                    <Loader2 className="size-3 animate-spin" aria-hidden /> Buscando pacientes…
+                  </p>
+                )}
               {pacientes.length > 0 && (
                 <CommandGroup heading="Pacientes">
                   {pacientes.map((p) => (
@@ -193,7 +274,7 @@ export function GlobalSearch({
               {acciones.length > 0 && (
                 <CommandGroup heading="Acciones">
                   {acciones.map((a) => {
-                    const Icono = a.id === "abrir-caja" ? LockOpen : CalendarPlus;
+                    const Icono = ICONO_ACCION[a.id];
                     return (
                       <CommandItem key={a.id} value={`accion-${a.id}`} onSelect={() => ejecutar(a)}>
                         <Icono className="text-muted-foreground" aria-hidden />

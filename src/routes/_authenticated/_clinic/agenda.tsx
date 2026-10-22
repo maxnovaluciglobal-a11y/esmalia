@@ -4,15 +4,20 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
+  CalendarDays,
+  CalendarX2,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
   Clock,
   CloudOff,
+  Ellipsis,
   FileUp,
   Inbox,
   Loader2,
   MoveRight,
+  PanelRightClose,
+  PanelRightOpen,
   Pencil,
   Plus,
   Wallet,
@@ -22,12 +27,23 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
-import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
-import { AgendaGrid, type ArrastreGrilla } from "@/components/agenda-grid";
+import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
+import { AgendaGrid, AvisoDeChoques, type ArrastreGrilla } from "@/components/agenda-grid";
+import {
+  boxDe,
+  conflictosDeCandidata,
+  detectarConflictos,
+  resumenConflictos,
+  type Conflicto,
+} from "@/components/agenda-conflictos";
+import { LeyendaAgenda } from "@/components/agenda-leyenda";
+import { QUERY_MOVIL, useMediaQuery } from "@/hooks/use-media-query";
 import { enfocarCita } from "@/hooks/use-arrastre-cita";
 import {
   aplicarMovimientosPendientes,
+  destinoDeStartsAt,
   esMovible,
+  fechaCorta,
   horarioDelDia,
   validarDestino,
   type Destino,
@@ -55,6 +71,13 @@ import {
 import { interpretarNuevaCita, leerNuevaCita } from "@/lib/shell";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
 import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -122,7 +145,25 @@ import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { BloqueoEscritura } from "@/components/solo-lectura";
 
-type VistaAgenda = "dia" | "semana" | "mes";
+/**
+ * `lista`: solo el listado del día, sin grilla. Es la vista por defecto en el
+ * celular (UX-02): la primera cita queda arriba sin desplazarse por horas
+ * vacías. En la URL va solo si alguien la eligió; sin `vista`, el
+ * componente decide según el ancho.
+ */
+type VistaAgenda = "dia" | "semana" | "mes" | "lista";
+
+const NOMBRE_VISTA: Record<VistaAgenda, string> = {
+  lista: "Lista",
+  dia: "Día",
+  semana: "Semana",
+  mes: "Mes",
+};
+
+/** La lista cubre lo mismo que el día. */
+function rangoDeLaVista(vista: VistaAgenda, fecha: string): [string, string] {
+  return rangoDeVista(vista === "lista" ? "dia" : vista, fecha);
+}
 
 /** Mueve la fecha un período hacia adelante/atrás según la vista activa. */
 function desplazarPeriodo(vista: VistaAgenda, fecha: string, dir: 1 | -1): string {
@@ -133,7 +174,7 @@ function desplazarPeriodo(vista: VistaAgenda, fecha: string, dir: 1 | -1): strin
 
 /** Título del período visible: día largo, rango de semana, o mes + año. */
 function labelPeriodo(vista: VistaAgenda, fecha: string): string {
-  if (vista === "dia") return formatoFechaLarga(fecha) || fecha;
+  if (vista === "dia" || vista === "lista") return formatoFechaLarga(fecha) || fecha;
   const parse = (iso: string) => new Date(`${iso}T00:00:00Z`);
   if (vista === "mes") {
     return new Intl.DateTimeFormat("es", {
@@ -157,7 +198,8 @@ function labelPeriodo(vista: VistaAgenda, fecha: string): string {
 interface AgendaSearch {
   q: string;
   fecha: string;
-  vista: VistaAgenda;
+  /** Ausente = la vista por defecto del equipo (lista en el celular, día en el resto). */
+  vista?: VistaAgenda;
   sucursal: string;
   profesional: string;
   estado: string;
@@ -168,8 +210,8 @@ interface AgendaSearch {
   nueva?: string;
 }
 
-function parseVista(v: unknown): VistaAgenda {
-  return v === "semana" || v === "mes" ? v : "dia";
+function parseVista(v: unknown): VistaAgenda | undefined {
+  return v === "dia" || v === "semana" || v === "mes" || v === "lista" ? v : undefined;
 }
 
 export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
@@ -236,6 +278,78 @@ function avisarSiSolapa(resultado: unknown) {
 }
 
 /**
+ * Choques de lo que se está por agendar contra las citas cargadas (UX-04):
+ * se muestran en el formulario ANTES de guardar. El servidor sigue siendo
+ * quien decide (`validarHorarioYSolapamiento`, que avisa del mismo
+ * profesional); esto suma el mismo paciente y el mismo box, y dice con qué
+ * cita choca.
+ */
+function useChoquesDelFormulario({
+  citas,
+  profesionales,
+  citaId,
+  pacienteId,
+  profesionalId,
+  sucursalId,
+  startsAt,
+  duracion,
+}: {
+  citas: Cita[];
+  profesionales: Profesional[];
+  citaId?: string;
+  pacienteId: string;
+  profesionalId: string;
+  sucursalId: string;
+  startsAt: string;
+  duracion: number;
+}): Conflicto[] {
+  return useMemo(() => {
+    const destino = destinoDeStartsAt(startsAt);
+    if (!destino || !profesionalId) return [];
+    return conflictosDeCandidata(
+      {
+        id: citaId,
+        pacienteId,
+        profesionalId,
+        sucursalId: sucursalId || undefined,
+        fecha: destino.fecha,
+        inicio: destino.inicio,
+        duracion,
+      },
+      citas,
+      profesionales,
+    );
+  }, [citas, profesionales, citaId, pacienteId, profesionalId, sucursalId, startsAt, duracion]);
+}
+
+function ChoquesDelFormulario({
+  conflictos,
+  profesionales,
+  profesionalId,
+}: {
+  conflictos: Conflicto[];
+  profesionales: Profesional[];
+  profesionalId: string;
+}) {
+  if (conflictos.length === 0) return null;
+  return (
+    <AvisoDeChoques
+      conflictos={conflictos}
+      nombreProfesional={(id) =>
+        profesionales.find((p) => p.id === id)?.nombre ?? "otro profesional"
+      }
+      box={boxDe(profesionales.find((p) => p.id === profesionalId))}
+      titulo={
+        conflictos.length === 1
+          ? "Este horario choca con otra cita"
+          : `Este horario choca con ${conflictos.length} citas`
+      }
+      pie="Puedes guardarla igual. Revisa si hace falta mover alguna."
+    />
+  );
+}
+
+/**
  * Situación financiera del paciente en la fila de la agenda (G-3).
  *
  * Tres estados y no dos: "sin datos" (el paciente no tiene ningún plan
@@ -286,13 +400,16 @@ function NuevaCitaDialog({
   onPacienteInicialConsumido,
   semilla,
   onSemillaConsumida,
+  citas,
 }: {
   clinicId: string;
   userId: string;
   country: string | undefined;
   sucursales: { id: string; nombre: string }[];
-  profesionales: { id: string; nombre: string; sucursalId: string | null }[];
+  profesionales: Profesional[];
   pacientes: { id: string; nombre: string }[];
+  /** Citas cargadas, para avisar choques antes de guardar. */
+  citas: Cita[];
   pacienteInicial?: string;
   onPacienteInicialConsumido?: () => void;
   /** Clic en un hueco de la grilla de día: profesional, su sucursal y la
@@ -412,6 +529,15 @@ function NuevaCitaDialog({
   }
 
   const puedeCrear = pacienteId && sucursalId && profesionalId && tratamiento.trim() && startsAt;
+  const choques = useChoquesDelFormulario({
+    citas,
+    profesionales,
+    pacienteId,
+    profesionalId,
+    sucursalId,
+    startsAt,
+    duracion,
+  });
 
   return (
     <Dialog
@@ -539,11 +665,16 @@ function NuevaCitaDialog({
             </div>
           </div>
           {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+          <ChoquesDelFormulario
+            conflictos={choques}
+            profesionales={profesionales}
+            profesionalId={profesionalId}
+          />
         </div>
         <DialogFooter>
           <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
             {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
-            Agendar cita
+            {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -564,15 +695,15 @@ function EditarCitaDialog({
   cita,
   sucursales,
   profesionales,
-  pacientes,
+  citas,
 }: {
   clinicId: string;
   userId: string;
   country: string | undefined;
   cita: Cita;
   sucursales: { id: string; nombre: string }[];
-  profesionales: { id: string; nombre: string; sucursalId: string | null }[];
-  pacientes: { id: string; nombre: string }[];
+  profesionales: Profesional[];
+  citas: Cita[];
 }) {
   const [open, setOpen] = useState(false);
   const [sucursalId, setSucursalId] = useState(cita.sucursalId);
@@ -632,6 +763,16 @@ function EditarCitaDialog({
   });
 
   const puedeGuardar = sucursalId && profesionalId && tratamiento.trim() && startsAt;
+  const choques = useChoquesDelFormulario({
+    citas: open ? citas : SIN_CITAS,
+    profesionales,
+    citaId: cita.id,
+    pacienteId: cita.pacienteId,
+    profesionalId,
+    sucursalId,
+    startsAt,
+    duracion,
+  });
 
   return (
     <Dialog open={open} onOpenChange={reabrirConValoresActuales}>
@@ -732,11 +873,16 @@ function EditarCitaDialog({
             </div>
           </div>
           {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+          <ChoquesDelFormulario
+            conflictos={choques}
+            profesionales={profesionales}
+            profesionalId={profesionalId}
+          />
         </div>
         <DialogFooter>
           <Button onClick={() => editar.mutate()} disabled={editar.isPending || !puedeGuardar}>
             {editar.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar cambios
+            {choques.length > 0 ? "Guardar igual" : "Guardar cambios"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -752,11 +898,13 @@ function AgendarSolicitudDialog({
   request,
   open,
   onOpenChange,
+  citas,
 }: {
   clinicId: string;
   country: string | undefined;
   sucursales: { id: string; nombre: string }[];
-  profesionales: { id: string; nombre: string; sucursalId: string | null }[];
+  profesionales: Profesional[];
+  citas: Cita[];
   request: PendingAppointmentRequest;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -807,6 +955,15 @@ function AgendarSolicitudDialog({
   });
 
   const puedeAgendar = sucursalId && profesionalId && startsAt;
+  const choques = useChoquesDelFormulario({
+    citas,
+    profesionales,
+    pacienteId: request.patientId,
+    profesionalId,
+    sucursalId,
+    startsAt,
+    duracion,
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -879,11 +1036,16 @@ function AgendarSolicitudDialog({
             </div>
           </div>
           {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
+          <ChoquesDelFormulario
+            conflictos={choques}
+            profesionales={profesionales}
+            profesionalId={profesionalId}
+          />
         </div>
         <DialogFooter>
           <Button onClick={() => agendar.mutate()} disabled={agendar.isPending || !puedeAgendar}>
             {agendar.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Confirmar cita
+            {choques.length > 0 ? "Confirmar igual" : "Confirmar cita"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -969,6 +1131,15 @@ function AgregarListaEsperaDialog({
     </Dialog>
   );
 }
+
+const SIN_CITAS: Cita[] = [];
+
+/** Lo que el paciente eligió en el portal (`portal.inicio.tsx`). */
+const URGENCIA_PORTAL = {
+  alta: "alta, dolor o urgencia",
+  media: "media, esta semana",
+  baja: "baja, puede esperar",
+} as const;
 
 const IMPORT_APPT_MAX_FILAS = 1000;
 
@@ -1282,6 +1453,16 @@ function AgendaPage() {
   const puedeGestionarAgenda = Boolean(clinicId) && hasPermission(access.role, "agenda:manage");
   // Mismo criterio que `puedeFacturar` en la ficha del paciente.
   const puedeCobrar = hasPermission(access.role, "patients:manage");
+  // Sin `vista` en la URL: lista en el celular (UX-02), día en el resto. En
+  // el servidor y en la hidratación vale "día"; en el celular se corrige al
+  // montar.
+  const movil = useMediaQuery(QUERY_MOVIL);
+  const vista: VistaAgenda = search.vista ?? (movil ? "lista" : "dia");
+  // Semana: el panel lateral (solicitudes, lista de espera) se pliega para
+  // que la grilla tenga el ancho entero (UX-01). Se abre a pedido.
+  const [panelEnSemana, setPanelEnSemana] = useState(false);
+  const panelPlegado = vista === "semana" && !panelEnSemana;
+  const refFecha = useRef<HTMLInputElement>(null);
   const [semillaHueco, setSemillaHueco] = useState<
     (SemillaCita & { origen?: HTMLElement | null }) | null
   >(null);
@@ -1441,9 +1622,14 @@ function AgendaPage() {
   // Rango de fechas visible según la vista (día = un día; semana = L→D;
   // mes = primer→último del mes). El listado de abajo y las tres vistas
   // comparten este rango, así el conteo y el listado siempre concuerdan.
-  const [rangoDesde, rangoHasta] = useMemo(
-    () => rangoDeVista(search.vista, fecha),
-    [search.vista, fecha],
+  const [rangoDesde, rangoHasta] = useMemo(() => rangoDeLaVista(vista, fecha), [vista, fecha]);
+
+  // Choques de horario (UX-04) sobre todas las citas cargadas, sin los
+  // filtros: un choque con una cita que el filtro esconde sigue siendo un
+  // choque.
+  const conflictos = useMemo(
+    () => detectarConflictos(citas, profesionales),
+    [citas, profesionales],
   );
 
   const filtradas = useMemo(
@@ -1484,10 +1670,8 @@ function AgendaPage() {
   // cambian lo que está ocupado.
   const citasParaOcupacion = useMemo(
     () =>
-      search.vista === "semana"
-        ? citas.filter((c) => c.fecha >= rangoDesde && c.fecha <= rangoHasta)
-        : [],
-    [search.vista, citas, rangoDesde, rangoHasta],
+      vista === "semana" ? citas.filter((c) => c.fecha >= rangoDesde && c.fecha <= rangoHasta) : [],
+    [vista, citas, rangoDesde, rangoHasta],
   );
 
   const ordenadas = useMemo(
@@ -1511,9 +1695,11 @@ function AgendaPage() {
     queryFn: () =>
       fetchBalances({ data: { clinicId: clinicId!, patientIds: pacienteIdsVisibles } }),
   });
-  const activos =
-    [search.q, search.sucursal, search.profesional, search.estado].filter(Boolean).length +
-    (fecha !== hoy ? 1 : 0);
+  // La fecha ya no es un filtro (se navega con las flechas y "Ir a fecha"):
+  // no cuenta como filtro activo ni se limpia con "Limpiar".
+  const activos = [search.q, search.sucursal, search.profesional, search.estado].filter(
+    Boolean,
+  ).length;
 
   // Acciones de una cita: las comparten el popover de la grilla de día y el
   // panel lateral de la semana.
@@ -1538,7 +1724,10 @@ function AgendaPage() {
           to="/pacientes/$pacienteId"
           params={{ pacienteId: c.pacienteId }}
           search={{ cobrar: 1 }}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-start")}
+          className={cn(
+            buttonVariants({ variant: "outline", size: "sm" }),
+            "justify-start pointer-coarse:h-11",
+          )}
         >
           <Wallet aria-hidden /> Cobrar
         </Link>
@@ -1547,7 +1736,7 @@ function AgendaPage() {
         <WhatsAppButton
           variant="full"
           label="Recordatorio por WhatsApp"
-          className="h-8 justify-start text-sm"
+          className="h-8 justify-start text-sm pointer-coarse:h-11"
           clinicId={clinicId}
           patientId={c.pacienteId}
           appointmentId={c.id}
@@ -1567,7 +1756,7 @@ function AgendaPage() {
             type="button"
             variant="outline"
             size="sm"
-            className="justify-start"
+            className="justify-start pointer-coarse:h-11"
             onClick={() => setCitaAMover(c)}
           >
             <MoveRight aria-hidden /> Mover a…
@@ -1579,7 +1768,7 @@ function AgendaPage() {
 
   return (
     <AppShell title="Agenda" access={access}>
-      <div className="space-y-6">
+      <div className="space-y-6 max-md:space-y-4">
         <p className="sr-only" aria-live="polite" aria-atomic="true">
           {reprogramar.anuncio}
         </p>
@@ -1595,9 +1784,14 @@ function AgendaPage() {
           onClose={() => setCitaAMover(null)}
         />
         <div className="flex items-center justify-end gap-2">
+          {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
           {clinicId && hasPermission(access.role, "agenda:manage") && (
-            <ImportarCitasDialog clinicId={clinicId} />
+            <div className="pointer-coarse:hidden">
+              <ImportarCitasDialog clinicId={clinicId} />
+            </div>
           )}
+          {/* Solo demo y desarrollo: fuera de la barra principal (UX, Ola 0). */}
+          {puedeSimular && <MasOpcionesAgenda enCola={enColaOffline.length} />}
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <NuevaCitaDialog
               clinicId={clinicId}
@@ -1606,6 +1800,7 @@ function AgendaPage() {
               sucursales={sucursales}
               profesionales={profesionales}
               pacientes={pacientes}
+              citas={citas}
               allergyAlerts={allergyAlerts}
               pacienteInicial={search.nueva}
               onPacienteInicialConsumido={() =>
@@ -1628,15 +1823,14 @@ function AgendaPage() {
           activos={activos}
           onReset={() =>
             navigate({
-              search: {
+              search: (prev: AgendaSearch) => ({
+                ...prev,
                 q: "",
-                fecha: hoy,
-                vista: search.vista,
                 sucursal: "",
                 profesional: "",
                 estado: "",
                 page: 1,
-              },
+              }),
             })
           }
         >
@@ -1646,7 +1840,6 @@ function AgendaPage() {
             onChange={(q) => set({ q })}
             placeholder="Paciente, tratamiento…"
           />
-          <DateField label="Fecha" value={fecha} onChange={(fecha) => set({ fecha })} />
           <SelectField
             label="Sucursal"
             value={search.sucursal}
@@ -1661,7 +1854,10 @@ function AgendaPage() {
             allLabel="Todos los profesionales"
             options={profesionales
               .filter((p) => !search.sucursal || p.sucursalId === search.sucursal)
-              .map((p) => ({ value: p.id, label: p.box ? `${p.nombre} · ${p.box}` : p.nombre }))}
+              .map((p) => {
+                const box = boxDe(p);
+                return { value: p.id, label: box ? `${p.nombre} · ${box}` : p.nombre };
+              })}
           />
           <SelectField
             label="Estado"
@@ -1675,53 +1871,101 @@ function AgendaPage() {
         {/* `grid-cols-1` y `min-w-0`: sin ellos la columna implícita crece al
             ancho mínimo de la grilla de la agenda y, en celular, la página
             queda más ancha que la pantalla. La grilla se desplaza adentro de
-            su propio contenedor. */}
+            su propio contenedor. En la semana el panel lateral se pliega y la
+            grilla toma el ancho entero. */}
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
-          <div className="min-w-0 space-y-4 xl:col-span-9">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+          <div
+            className={cn(
+              "min-w-0 space-y-4 max-md:space-y-3",
+              panelPlegado ? "xl:col-span-12" : "xl:col-span-9",
+            )}
+          >
+            {/* Barra de navegación: en el celular queda fija bajo el
+                encabezado y es compacta (UX-02). */}
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 max-md:sticky max-md:top-[calc(4rem+env(safe-area-inset-top))] max-md:z-20 max-md:-mx-5 max-md:border-b max-md:border-hairline max-md:bg-background/95 max-md:px-5 max-md:py-2 max-md:backdrop-blur-sm">
+              <div className="relative flex min-w-0 items-center gap-1.5 md:gap-2">
                 <button
                   type="button"
                   aria-label="Período anterior"
-                  onClick={() => set({ fecha: desplazarPeriodo(search.vista, fecha, -1) })}
-                  className="grid size-8 pointer-coarse:size-11 place-items-center rounded-lg border border-control hover:bg-secondary/60"
+                  onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, -1) })}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-control hover:bg-secondary/60 pointer-coarse:size-11"
                 >
                   <ChevronLeft className="size-4" />
                 </button>
                 <button
                   type="button"
                   onClick={() => set({ fecha: hoy })}
-                  className="rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60"
+                  className="shrink-0 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60 pointer-coarse:min-h-11"
                 >
                   Hoy
                 </button>
                 <button
                   type="button"
                   aria-label="Período siguiente"
-                  onClick={() => set({ fecha: desplazarPeriodo(search.vista, fecha, 1) })}
-                  className="grid size-8 pointer-coarse:size-11 place-items-center rounded-lg border border-control hover:bg-secondary/60"
+                  onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, 1) })}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-control hover:bg-secondary/60 pointer-coarse:size-11"
                 >
                   <ChevronRight className="size-4" />
                 </button>
-                <h2 className="ml-1 font-display text-lg font-semibold first-letter:uppercase">
-                  {labelPeriodo(search.vista, fecha)}
+                {/* Ir a una fecha lejana: reemplaza el filtro "Fecha" que
+                    repetía la navegación. */}
+                <button
+                  type="button"
+                  aria-label="Ir a una fecha"
+                  title="Ir a una fecha"
+                  onClick={() => {
+                    const input = refFecha.current;
+                    if (!input) return;
+                    try {
+                      input.showPicker();
+                    } catch {
+                      input.focus();
+                    }
+                  }}
+                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-hairline text-muted-foreground hover:bg-secondary/60 hover:text-foreground pointer-coarse:size-11"
+                >
+                  <CalendarDays className="size-4" aria-hidden />
+                </button>
+                <input
+                  ref={refFecha}
+                  type="date"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  value={fecha}
+                  onChange={(e) => e.target.value && set({ fecha: e.target.value })}
+                  className="pointer-events-none absolute size-px opacity-0"
+                />
+                <h2 className="ml-1 min-w-0 truncate font-display text-lg font-semibold first-letter:uppercase max-md:text-base">
+                  {vista === "dia" || vista === "lista" ? (
+                    <>
+                      <span className="md:hidden">{fechaCorta(fecha)}</span>
+                      <span className="max-md:hidden">{labelPeriodo(vista, fecha)}</span>
+                    </>
+                  ) : (
+                    labelPeriodo(vista, fecha)
+                  )}
                 </h2>
               </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex rounded-lg border border-hairline p-0.5 text-xs">
-                  {(["dia", "semana", "mes"] as const).map((v) => (
+              <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                <div
+                  role="group"
+                  aria-label="Vista"
+                  className="flex rounded-lg border border-hairline p-0.5 text-xs"
+                >
+                  {(["lista", "dia", "semana", "mes"] as const).map((v) => (
                     <button
                       key={v}
                       type="button"
+                      aria-pressed={vista === v}
                       onClick={() => set({ vista: v })}
                       className={cn(
-                        "rounded-md px-2.5 py-1 font-medium capitalize pointer-coarse:min-h-11 pointer-coarse:px-3.5",
-                        search.vista === v
+                        "rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11 pointer-coarse:px-3",
+                        vista === v
                           ? "bg-secondary text-foreground"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {v === "dia" ? "Día" : v}
+                      {NOMBRE_VISTA[v]}
                     </button>
                   ))}
                 </div>
@@ -1730,16 +1974,59 @@ function AgendaPage() {
                     ? "Cargando…"
                     : `${filtradas.length} cita${filtradas.length === 1 ? "" : "s"}`}
                 </p>
-                {puedeSimular && <SimularSinConexion enCola={enColaOffline.length} />}
+                {vista === "semana" && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="hidden xl:inline-flex"
+                    aria-expanded={!panelPlegado}
+                    aria-controls="agenda-panel-lateral"
+                    onClick={() => setPanelEnSemana((v) => !v)}
+                  >
+                    {panelPlegado ? (
+                      <PanelRightOpen aria-hidden />
+                    ) : (
+                      <PanelRightClose aria-hidden />
+                    )}
+                    {panelPlegado ? "Mostrar panel" : "Ocultar panel"}
+                    {panelPlegado && solicitudes.length > 0 && (
+                      <span className="rounded-full bg-brand-soft px-1.5 text-[11px] font-semibold text-brand-700">
+                        {solicitudes.length}
+                        <span className="sr-only"> solicitudes del portal</span>
+                      </span>
+                    )}
+                  </Button>
+                )}
               </div>
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              Arrastra una cita para moverla. Con teclado:{" "}
-              <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">Alt</kbd> +
-              flechas.
-            </p>
-            {search.vista === "dia" && (
+            {(vista === "dia" || vista === "semana") && (
+              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                {vista === "dia" && puedeGestionarAgenda ? (
+                  <p className="text-xs text-muted-foreground">
+                    <span className="pointer-coarse:hidden">
+                      Arrastra una cita para moverla. Con teclado:{" "}
+                      <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">
+                        Alt
+                      </kbd>{" "}
+                      + flechas.
+                    </span>
+                    <span className="hidden pointer-coarse:inline">
+                      Mantén presionada una cita para moverla.
+                    </span>
+                  </p>
+                ) : (
+                  <span />
+                )}
+                <LeyendaAgenda
+                  vista={vista}
+                  profesionales={columnas}
+                  hayChoques={filtradas.some((c) => conflictos.has(c.id))}
+                />
+              </div>
+            )}
+            {vista === "dia" && (
               <AgendaGrid
                 arrastre={
                   {
@@ -1763,9 +2050,11 @@ function AgendaPage() {
                     : undefined
                 }
                 renderAcciones={accionesDeCita}
+                conflictos={conflictos}
+                nombreProfesional={nombreProfesional}
               />
             )}
-            {search.vista === "semana" && (
+            {vista === "semana" && (
               <AgendaSemanaCarriles
                 citas={filtradas}
                 citasOcupacion={citasParaOcupacion}
@@ -1777,9 +2066,11 @@ function AgendaPage() {
                 datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
                 allergyAlerts={allergyAlerts}
                 renderAcciones={accionesDeCita}
+                conflictos={conflictos}
+                nombreProfesional={nombreProfesional}
               />
             )}
-            {search.vista === "mes" && (
+            {vista === "mes" && (
               <AgendaMonth
                 citas={filtradas}
                 fecha={fecha}
@@ -1790,8 +2081,8 @@ function AgendaPage() {
             )}
 
             <div className="card-clinical overflow-hidden">
-              <div className="border-b border-hairline bg-secondary/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Listado de citas filtradas
+              <div className="border-b border-hairline bg-secondary/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground max-md:px-4">
+                {vista === "lista" ? "Citas del día" : "Listado de citas filtradas"}
               </div>
               <div className="divide-y divide-hairline">
                 {pagina.items.map((c) => {
@@ -1799,6 +2090,7 @@ function AgendaPage() {
                     profesionales.find((p) => p.id === c.profesionalId)?.nombre ?? "—";
                   const sucursalNombre =
                     sucursales.find((s) => s.id === c.sucursalId)?.nombre ?? "—";
+                  const choque = resumenConflictos(conflictos.get(c.id));
                   // La fila es un contenedor, no un link: antes era un <Link>
                   // con botones, menú y WhatsApp adentro (interactivo dentro de
                   // interactivo, HTML inválido). Ahora el bloque de la cita es
@@ -1806,7 +2098,7 @@ function AgendaPage() {
                   return (
                     <div
                       key={c.id}
-                      className="grid gap-2 px-5 py-3 transition-colors hover:bg-secondary/50 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
+                      className="grid gap-2 px-5 py-3 transition-colors hover:bg-secondary/50 max-md:px-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
                     >
                       <Link
                         to="/pacientes/$pacienteId"
@@ -1814,6 +2106,7 @@ function AgendaPage() {
                         className="grid gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:grid-cols-[auto_2fr_1.5fr_1fr] sm:items-center sm:gap-4"
                       >
                         <span className="cifra text-xs text-muted-foreground">
+                          {vista === "semana" || vista === "mes" ? `${fechaCorta(c.fecha)} · ` : ""}
                           {horaDeCita(c.inicio)}
                         </span>
                         <div className="min-w-0">
@@ -1822,6 +2115,18 @@ function AgendaPage() {
                             <AllergyAlertIcon allergies={allergyAlerts[c.pacienteId]} />
                           </p>
                           <p className="truncate text-xs text-muted-foreground">{c.tratamiento}</p>
+                          {choque && (
+                            <p
+                              className="mt-0.5 inline-flex items-center gap-1 rounded bg-warning-soft px-1.5 py-px text-[11px] font-medium text-warning"
+                              title={conflictos
+                                .get(c.id)
+                                ?.map((x) => `${x.cita.paciente} · ${horaDeCita(x.cita.inicio)}`)
+                                .join("\n")}
+                            >
+                              <CalendarX2 className="size-3" aria-hidden />
+                              {choque}
+                            </p>
+                          )}
                         </div>
                         <span className="text-xs text-muted-foreground">
                           {profesionalNombre} · {sucursalNombre}
@@ -1857,7 +2162,7 @@ function AgendaPage() {
                             cita={c}
                             sucursales={sucursales}
                             profesionales={profesionales}
-                            pacientes={pacientes}
+                            citas={citas}
                           />
                         </span>
                       ) : (
@@ -1883,7 +2188,9 @@ function AgendaPage() {
                 })}
                 {!isLoading && pagina.items.length === 0 && (
                   <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                    No hay citas que coincidan con los filtros aplicados.
+                    {vista === "lista"
+                      ? "No hay citas este día con los filtros aplicados."
+                      : "No hay citas que coincidan con los filtros aplicados."}
                   </p>
                 )}
               </div>
@@ -1895,7 +2202,10 @@ function AgendaPage() {
             </div>
           </div>
 
-          <aside className="min-w-0 space-y-4 xl:col-span-3">
+          <aside
+            id="agenda-panel-lateral"
+            className={cn("min-w-0 space-y-4 xl:col-span-3", panelPlegado && "xl:hidden")}
+          >
             {solicitudes.length > 0 && (
               <>
                 <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-muted-foreground">
@@ -1910,6 +2220,7 @@ function AgendaPage() {
                       <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-medium">{s.patientName}</p>
                         <span
+                          title={`Urgencia que eligió el paciente: ${URGENCIA_PORTAL[s.priority]}`}
                           className={cn(
                             "shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium",
                             s.priority === "alta"
@@ -1919,6 +2230,7 @@ function AgendaPage() {
                                 : "bg-secondary text-muted-foreground",
                           )}
                         >
+                          <span className="sr-only">Urgencia </span>
                           {s.priority}
                         </span>
                       </div>
@@ -1931,6 +2243,7 @@ function AgendaPage() {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="pointer-coarse:h-11"
                             onClick={() => setSolicitudEnAgenda(s)}
                           >
                             Agendar
@@ -1938,7 +2251,7 @@ function AgendaPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="text-muted-foreground"
+                            className="text-muted-foreground pointer-coarse:h-11"
                             disabled={rechazar.isPending}
                             onClick={() => rechazar.mutate(s.id)}
                           >
@@ -2037,7 +2350,7 @@ function AgendaPage() {
                             type="button"
                             onClick={() => aceptarCita.mutate(c.id)}
                             disabled={aceptarCita.isPending}
-                            className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold text-brand-700 transition-colors hover:bg-brand-soft disabled:opacity-50"
+                            className="shrink-0 rounded px-1.5 py-0.5 text-[11px] font-semibold text-brand-700 transition-colors hover:bg-brand-soft disabled:opacity-50 pointer-coarse:min-h-11 pointer-coarse:px-3"
                           >
                             Aceptar
                           </button>
@@ -2058,6 +2371,7 @@ function AgendaPage() {
           country={access.clinic?.country}
           sucursales={sucursales}
           profesionales={profesionales}
+          citas={citas}
           request={solicitudEnAgenda}
           open={Boolean(solicitudEnAgenda)}
           onOpenChange={(open) => !open && setSolicitudEnAgenda(null)}
@@ -2068,26 +2382,42 @@ function AgendaPage() {
 }
 
 /**
- * "Simular sin conexión" (solo demo y desarrollo): fuerza el modo sin
- * conexión para mostrar la cola en vivo. Al apagarlo, la cola se
- * sincroniza sola si la red responde. Una clínica real no ve este control.
+ * Más opciones de la agenda (solo demo y desarrollo). "Simular sin conexión"
+ * fuerza el modo sin conexión para mostrar la cola en vivo; al apagarlo, la
+ * cola se sincroniza sola si la red responde. Una clínica real no ve este
+ * menú. Antes era un botón en la barra principal de la agenda (Ola 0).
  */
-function SimularSinConexion({ enCola }: { enCola: number }) {
+function MasOpcionesAgenda({ enCola }: { enCola: number }) {
   const { simulado } = useConnectivity();
   return (
-    <Button
-      type="button"
-      variant={simulado ? "default" : "outline"}
-      size="sm"
-      aria-pressed={Boolean(simulado)}
-      onClick={() => {
-        const activar = !simulado;
-        simularSinConexion(activar);
-        if (activar) toast("Sin conexión: la agenda sigue abierta. Lo que cambies queda en cola.");
-      }}
-    >
-      <CloudOff aria-hidden />
-      {simulado ? `Sin conexión · ${enCola} en cola` : "Simular sin conexión"}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-label="Más opciones de la agenda"
+          className="pointer-coarse:size-11"
+        >
+          {simulado ? <CloudOff aria-hidden /> : <Ellipsis aria-hidden />}
+          {simulado && <span className="tabular-nums">{enCola} en cola</span>}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-64">
+        <DropdownMenuLabel className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Solo en la demo
+        </DropdownMenuLabel>
+        <DropdownMenuCheckboxItem
+          checked={Boolean(simulado)}
+          onCheckedChange={(activar) => {
+            simularSinConexion(activar);
+            if (activar)
+              toast("Sin conexión: la agenda sigue abierta. Lo que cambies queda en cola.");
+          }}
+        >
+          {simulado ? `Sin conexión · ${enCola} en cola` : "Simular sin conexión"}
+        </DropdownMenuCheckboxItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

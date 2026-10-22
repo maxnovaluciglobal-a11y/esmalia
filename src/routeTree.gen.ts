@@ -80,6 +80,7 @@ import { Route as AuthenticatedClinicConsentimientosRouteImport } from './routes
 import { Route as AuthenticatedClinicConveniosRouteImport } from './routes/_authenticated/_clinic/convenios'
 import { Route as AuthenticatedClinicConversacionesRouteImport } from './routes/_authenticated/_clinic/conversaciones'
 import { Route as AuthenticatedClinicDashboardRouteImport } from './routes/_authenticated/_clinic/dashboard'
+import { Route as AuthenticatedClinicDatosDeLaClinicaRouteImport } from './routes/_authenticated/_clinic/datos-de-la-clinica'
 import { Route as AuthenticatedClinicDominioEmailRouteImport } from './routes/_authenticated/_clinic/dominio-email'
 import { Route as AuthenticatedClinicEfectividadRouteImport } from './routes/_authenticated/_clinic/efectividad'
 import { Route as AuthenticatedClinicEquipoRouteImport } from './routes/_authenticated/_clinic/equipo'
@@ -96,6 +97,7 @@ import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_auth
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
 import { Route as AuthenticatedClinicPreferenciasRouteImport } from './routes/_authenticated/_clinic/preferencias'
+import { Route as AuthenticatedClinicPresupuestosRouteImport } from './routes/_authenticated/_clinic/presupuestos'
 import { Route as AuthenticatedClinicProfesionalesRouteImport } from './routes/_authenticated/_clinic/profesionales'
 import { Route as AuthenticatedClinicPruebasEmailRouteImport } from './routes/_authenticated/_clinic/pruebas-email'
 import { Route as AuthenticatedClinicRecordatoriosRouteImport } from './routes/_authenticated/_clinic/recordatorios'
@@ -480,6 +482,12 @@ const AuthenticatedClinicDashboardRoute =
     path: '/dashboard',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicDatosDeLaClinicaRoute =
+  AuthenticatedClinicDatosDeLaClinicaRouteImport.update({
+    id: '/datos-de-la-clinica',
+    path: '/datos-de-la-clinica',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicDominioEmailRoute =
   AuthenticatedClinicDominioEmailRouteImport.update({
     id: '/dominio-email',
@@ -574,6 +582,12 @@ const AuthenticatedClinicPreferenciasRoute =
   AuthenticatedClinicPreferenciasRouteImport.update({
     id: '/preferencias',
     path: '/preferencias',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicPresupuestosRoute =
+  AuthenticatedClinicPresupuestosRouteImport.update({
+    id: '/presupuestos',
+    path: '/presupuestos',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
 const AuthenticatedClinicProfesionalesRoute =
@@ -739,6 +753,7 @@ export interface FileRoutesByFullPath {
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
+  '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
@@ -755,6 +770,7 @@ export interface FileRoutesByFullPath {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
+  '/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -840,6 +856,7 @@ export interface FileRoutesByTo {
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
+  '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
@@ -856,6 +873,7 @@ export interface FileRoutesByTo {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
+  '/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -946,6 +964,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/convenios': typeof AuthenticatedClinicConveniosRoute
   '/_authenticated/_clinic/conversaciones': typeof AuthenticatedClinicConversacionesRoute
   '/_authenticated/_clinic/dashboard': typeof AuthenticatedClinicDashboardRoute
+  '/_authenticated/_clinic/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/_authenticated/_clinic/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/_authenticated/_clinic/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/_authenticated/_clinic/equipo': typeof AuthenticatedClinicEquipoRoute
@@ -962,6 +981,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
   '/_authenticated/_clinic/preferencias': typeof AuthenticatedClinicPreferenciasRoute
+  '/_authenticated/_clinic/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/_authenticated/_clinic/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/_authenticated/_clinic/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/_authenticated/_clinic/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -1051,6 +1071,7 @@ export interface FileRouteTypes {
     | '/convenios'
     | '/conversaciones'
     | '/dashboard'
+    | '/datos-de-la-clinica'
     | '/dominio-email'
     | '/efectividad'
     | '/equipo'
@@ -1067,6 +1088,7 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/preferencias'
+    | '/presupuestos'
     | '/profesionales'
     | '/pruebas-email'
     | '/recordatorios'
@@ -1152,6 +1174,7 @@ export interface FileRouteTypes {
     | '/convenios'
     | '/conversaciones'
     | '/dashboard'
+    | '/datos-de-la-clinica'
     | '/dominio-email'
     | '/efectividad'
     | '/equipo'
@@ -1168,6 +1191,7 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/preferencias'
+    | '/presupuestos'
     | '/profesionales'
     | '/pruebas-email'
     | '/recordatorios'
@@ -1257,6 +1281,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/convenios'
     | '/_authenticated/_clinic/conversaciones'
     | '/_authenticated/_clinic/dashboard'
+    | '/_authenticated/_clinic/datos-de-la-clinica'
     | '/_authenticated/_clinic/dominio-email'
     | '/_authenticated/_clinic/efectividad'
     | '/_authenticated/_clinic/equipo'
@@ -1273,6 +1298,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
     | '/_authenticated/_clinic/preferencias'
+    | '/_authenticated/_clinic/presupuestos'
     | '/_authenticated/_clinic/profesionales'
     | '/_authenticated/_clinic/pruebas-email'
     | '/_authenticated/_clinic/recordatorios'
@@ -1841,6 +1867,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicDashboardRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/datos-de-la-clinica': {
+      id: '/_authenticated/_clinic/datos-de-la-clinica'
+      path: '/datos-de-la-clinica'
+      fullPath: '/datos-de-la-clinica'
+      preLoaderRoute: typeof AuthenticatedClinicDatosDeLaClinicaRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/dominio-email': {
       id: '/_authenticated/_clinic/dominio-email'
       path: '/dominio-email'
@@ -1951,6 +1984,13 @@ declare module '@tanstack/react-router' {
       path: '/preferencias'
       fullPath: '/preferencias'
       preLoaderRoute: typeof AuthenticatedClinicPreferenciasRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/presupuestos': {
+      id: '/_authenticated/_clinic/presupuestos'
+      path: '/presupuestos'
+      fullPath: '/presupuestos'
+      preLoaderRoute: typeof AuthenticatedClinicPresupuestosRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
     '/_authenticated/_clinic/profesionales': {
@@ -2079,6 +2119,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicConveniosRoute: typeof AuthenticatedClinicConveniosRoute
   AuthenticatedClinicConversacionesRoute: typeof AuthenticatedClinicConversacionesRoute
   AuthenticatedClinicDashboardRoute: typeof AuthenticatedClinicDashboardRoute
+  AuthenticatedClinicDatosDeLaClinicaRoute: typeof AuthenticatedClinicDatosDeLaClinicaRoute
   AuthenticatedClinicDominioEmailRoute: typeof AuthenticatedClinicDominioEmailRoute
   AuthenticatedClinicEfectividadRoute: typeof AuthenticatedClinicEfectividadRoute
   AuthenticatedClinicEquipoRoute: typeof AuthenticatedClinicEquipoRoute
@@ -2095,6 +2136,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
   AuthenticatedClinicPreferenciasRoute: typeof AuthenticatedClinicPreferenciasRoute
+  AuthenticatedClinicPresupuestosRoute: typeof AuthenticatedClinicPresupuestosRoute
   AuthenticatedClinicProfesionalesRoute: typeof AuthenticatedClinicProfesionalesRoute
   AuthenticatedClinicPruebasEmailRoute: typeof AuthenticatedClinicPruebasEmailRoute
   AuthenticatedClinicRecordatoriosRoute: typeof AuthenticatedClinicRecordatoriosRoute
@@ -2122,6 +2164,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicConversacionesRoute:
       AuthenticatedClinicConversacionesRoute,
     AuthenticatedClinicDashboardRoute: AuthenticatedClinicDashboardRoute,
+    AuthenticatedClinicDatosDeLaClinicaRoute:
+      AuthenticatedClinicDatosDeLaClinicaRoute,
     AuthenticatedClinicDominioEmailRoute: AuthenticatedClinicDominioEmailRoute,
     AuthenticatedClinicEfectividadRoute: AuthenticatedClinicEfectividadRoute,
     AuthenticatedClinicEquipoRoute: AuthenticatedClinicEquipoRoute,
@@ -2140,6 +2184,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicOrtodonciaRoute: AuthenticatedClinicOrtodonciaRoute,
     AuthenticatedClinicPermisosRoute: AuthenticatedClinicPermisosRoute,
     AuthenticatedClinicPreferenciasRoute: AuthenticatedClinicPreferenciasRoute,
+    AuthenticatedClinicPresupuestosRoute: AuthenticatedClinicPresupuestosRoute,
     AuthenticatedClinicProfesionalesRoute:
       AuthenticatedClinicProfesionalesRoute,
     AuthenticatedClinicPruebasEmailRoute: AuthenticatedClinicPruebasEmailRoute,

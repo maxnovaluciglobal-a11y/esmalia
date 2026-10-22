@@ -172,13 +172,13 @@ export function resumenSandbox(config: EmailSandboxConfig) {
   if (config.redirectEnabled && isValidEmail(config.redirectTo)) {
     return {
       tono: "aviso" as const,
-      titulo: "Sandbox con redirección",
+      titulo: "Modo prueba con redirección",
       detalle: `Todo se desvía a ${normalizeEmail(config.redirectTo)}, salvo ${config.allowlist.length} dirección(es) permitida(s).`,
     };
   }
   return {
     tono: "seguro" as const,
-    titulo: "Sandbox bloqueante",
+    titulo: "Modo prueba bloqueante",
     detalle:
       config.allowlist.length > 0
         ? `Solo reciben email las ${config.allowlist.length} dirección(es) de prueba; el resto se bloquea.`

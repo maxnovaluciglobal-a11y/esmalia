@@ -168,13 +168,15 @@ describe("quién edita los datos de un paciente", () => {
 });
 
 describe("cableado de la ficha y del servidor", () => {
-  const ruta = leer("src/routes/_authenticated/_clinic/pacientes.$pacienteId.tsx");
+  // Las acciones de la cabecera viven en ficha-acciones.tsx desde UX-10.
+  const ruta = leer("src/components/ficha-acciones.tsx");
   const dialogo = leer("src/components/editar-paciente-dialog.tsx");
   const servidor = leer("src/lib/patients/editar-paciente.server.ts");
   const funciones = leer("src/lib/patients/patients.functions.ts");
 
   it("la ficha muestra Editar datos solo a quien puede editar", () => {
-    expect(ruta).toMatch(/puedeEditarPaciente\(access\.role\) && \(\s*<EditarPacienteDialog/);
+    expect(ruta).toContain("puedeEditarPaciente(access.role)");
+    expect(ruta).toMatch(/puedeEditar && \(\s*<EditarPacienteDialog/);
   });
 
   it("el diálogo usa updatePatient, refresca la ficha y el listado y avisa en tuteo", () => {

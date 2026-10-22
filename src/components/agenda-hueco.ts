@@ -128,3 +128,10 @@ export function minutosAhoraEnZona(timeZone: string | undefined, ahora: Date): n
   const m = Number(partes.find((p) => p.type === "minute")?.value ?? 0);
   return h * 60 + m - HORA_INICIO * 60;
 }
+
+/** "Dra. Paz Rojas" → "PR". Sin títulos (Dr., Dra.). */
+export function iniciales(nombre: string): string {
+  const palabras = nombre.split(/\s+/).filter((w) => w && !/^(dr|dra|od|lic)\.?$/i.test(w));
+  const letras = palabras.length > 1 ? [palabras[0], palabras[palabras.length - 1]] : palabras;
+  return letras.map((w) => w[0]?.toUpperCase() ?? "").join("") || "·";
+}
