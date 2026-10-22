@@ -13,6 +13,7 @@ export const TABLES = [
   "agreements",
   "appointment_requests",
   "appointment_statuses",
+  "appointment_types",
   "appointments",
   "branches",
   "cash_registers",
