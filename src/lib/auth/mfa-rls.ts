@@ -107,6 +107,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   patient_document_bidx:
     "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
   payment_methods: "catálogo de medios de pago",
+  procedure_price_realignments:
+    "historial de realineaciones de precios de lista (sin datos de pacientes)",
   procedure_supplies: "catálogo de insumos por prestación",
   procedures: "catálogo de prestaciones y precios de lista",
   professional_schedules: "horarios del equipo",

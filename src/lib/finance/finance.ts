@@ -55,6 +55,18 @@ export interface Procedure {
   /** Costo de laboratorio. `null` = sin dato, no cero. */
   labCostCents: number | null;
   position: number;
+  /** Especialidad del arancel (ADM-02). `null` = sin especialidad. Opcional:
+   * ausente si la base todavía no tiene la migración 20261024100000. */
+  specialtyId?: string | null;
+  /** Código Fonasa (MLE) de la prestación, si la clínica lo usa (ADM-03). */
+  fonasaCode?: string | null;
+  /** Tiene equivalente en la Modalidad de Atención Institucional (ADM-03). */
+  isMai?: boolean;
+  /** Rango de referencia que ve la clínica; nunca se impone. `null` = sin dato. */
+  suggestedMinCents?: number | null;
+  suggestedMaxCents?: number | null;
+  /** Ítem del catálogo semilla del que se copió. No es FK (regla 10). */
+  catalogKey?: string | null;
 }
 
 /**

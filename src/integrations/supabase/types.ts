@@ -3534,6 +3534,12 @@ export type Database = {
           amount_cents: number;
           cash_register_id: string | null;
           clinic_id: string;
+          coverage_group_id: string | null;
+          coverage_insurer: string | null;
+          coverage_kind: string | null;
+          coverage_price_cents: number | null;
+          coverage_role: string | null;
+          coverage_tier: string | null;
           created_at: string;
           created_by: string;
           currency: string;
@@ -3552,11 +3558,19 @@ export type Database = {
           treatment_item_id: string | null;
           treatment_plan_id: string | null;
           updated_at: string;
+          voucher_cents: number | null;
+          voucher_number: string | null;
         };
         Insert: {
           amount_cents: number;
           cash_register_id?: string | null;
           clinic_id: string;
+          coverage_group_id?: string | null;
+          coverage_insurer?: string | null;
+          coverage_kind?: string | null;
+          coverage_price_cents?: number | null;
+          coverage_role?: string | null;
+          coverage_tier?: string | null;
           created_at?: string;
           created_by?: string;
           currency?: string;
@@ -3575,11 +3589,19 @@ export type Database = {
           treatment_item_id?: string | null;
           treatment_plan_id?: string | null;
           updated_at?: string;
+          voucher_cents?: number | null;
+          voucher_number?: string | null;
         };
         Update: {
           amount_cents?: number;
           cash_register_id?: string | null;
           clinic_id?: string;
+          coverage_group_id?: string | null;
+          coverage_insurer?: string | null;
+          coverage_kind?: string | null;
+          coverage_price_cents?: number | null;
+          coverage_role?: string | null;
+          coverage_tier?: string | null;
           created_at?: string;
           created_by?: string;
           currency?: string;
@@ -3598,6 +3620,8 @@ export type Database = {
           treatment_item_id?: string | null;
           treatment_plan_id?: string | null;
           updated_at?: string;
+          voucher_cents?: number | null;
+          voucher_number?: string | null;
         };
         Relationships: [
           {
@@ -3897,6 +3921,59 @@ export type Database = {
           },
         ];
       };
+      procedure_price_realignments: {
+        Row: {
+          affected_count: number;
+          amount_cents: number | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          id: string;
+          items: Json;
+          mode: string;
+          percent: number | null;
+          rounding_cents: number | null;
+          scope_label: string;
+        };
+        Insert: {
+          affected_count: number;
+          amount_cents?: number | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          id?: string;
+          items: Json;
+          mode: string;
+          percent?: number | null;
+          rounding_cents?: number | null;
+          scope_label: string;
+        };
+        Update: {
+          affected_count?: number;
+          amount_cents?: number | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          id?: string;
+          items?: Json;
+          mode?: string;
+          percent?: number | null;
+          rounding_cents?: number | null;
+          scope_label?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_price_realignments_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procedure_supplies: {
         Row: {
           clinic_id: string;
@@ -3952,6 +4029,7 @@ export type Database = {
       procedures: {
         Row: {
           allows_discount: boolean;
+          catalog_key: string | null;
           category: string | null;
           clinic_id: string;
           code: string | null;
@@ -3960,17 +4038,23 @@ export type Database = {
           currency: string;
           default_price_cents: number;
           duration_min: number | null;
+          fonasa_code: string | null;
           id: string;
           is_active: boolean;
           is_favorite: boolean;
+          is_mai: boolean;
           lab_cost_cents: number | null;
           name: string;
           position: number;
           reference_price_cents: number | null;
+          specialty_id: string | null;
+          suggested_max_cents: number | null;
+          suggested_min_cents: number | null;
           updated_at: string;
         };
         Insert: {
           allows_discount?: boolean;
+          catalog_key?: string | null;
           category?: string | null;
           clinic_id: string;
           code?: string | null;
@@ -3979,17 +4063,23 @@ export type Database = {
           currency?: string;
           default_price_cents?: number;
           duration_min?: number | null;
+          fonasa_code?: string | null;
           id?: string;
           is_active?: boolean;
           is_favorite?: boolean;
+          is_mai?: boolean;
           lab_cost_cents?: number | null;
           name: string;
           position?: number;
           reference_price_cents?: number | null;
+          specialty_id?: string | null;
+          suggested_max_cents?: number | null;
+          suggested_min_cents?: number | null;
           updated_at?: string;
         };
         Update: {
           allows_discount?: boolean;
+          catalog_key?: string | null;
           category?: string | null;
           clinic_id?: string;
           code?: string | null;
@@ -3998,13 +4088,18 @@ export type Database = {
           currency?: string;
           default_price_cents?: number;
           duration_min?: number | null;
+          fonasa_code?: string | null;
           id?: string;
           is_active?: boolean;
           is_favorite?: boolean;
+          is_mai?: boolean;
           lab_cost_cents?: number | null;
           name?: string;
           position?: number;
           reference_price_cents?: number | null;
+          specialty_id?: string | null;
+          suggested_max_cents?: number | null;
+          suggested_min_cents?: number | null;
           updated_at?: string;
         };
         Relationships: [
@@ -4013,6 +4108,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "procedures_specialty_id_fkey";
+            columns: ["specialty_id"];
+            isOneToOne: false;
+            referencedRelation: "specialties";
             referencedColumns: ["id"];
           },
         ];
@@ -4392,6 +4494,8 @@ export type Database = {
           id: string;
           is_active: boolean;
           name: string;
+          position: number;
+          slug: string | null;
         };
         Insert: {
           clinic_id: string;
@@ -4401,6 +4505,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name: string;
+          position?: number;
+          slug?: string | null;
         };
         Update: {
           clinic_id?: string;
@@ -4410,6 +4516,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name?: string;
+          position?: number;
+          slug?: string | null;
         };
         Relationships: [
           {
@@ -5014,6 +5122,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      asegurar_especialidades: {
+        Args: { p_clinic_id: string };
+        Returns: number;
+      };
       buscar_pacientes_por_documento: {
         Args: { p_clinic_id: string; p_documento: string };
         Returns: string[];
@@ -5176,6 +5288,18 @@ export type Database = {
       procedimientos_frecuentes: {
         Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
         Returns: { procedure_id: string; usos: number }[];
+      };
+      realinear_precios: {
+        Args: {
+          p_amount_cents: number | null;
+          p_cambios: Json;
+          p_clinic_id: string;
+          p_mode: string;
+          p_percent: number | null;
+          p_rounding_cents: number | null;
+          p_scope_label: string;
+        };
+        Returns: string;
       };
       registrar_evento_de_nota: {
         Args: {
