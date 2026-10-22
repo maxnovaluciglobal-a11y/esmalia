@@ -20,6 +20,11 @@ import {
 import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
 import { motivoParaNoEnviarWhatsApp, quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
+import {
+  cubrirPorPacienteYDia,
+  visitaPendienteDeResena,
+  type RecordatorioEnviado,
+} from "@/lib/messaging/recordatorios-agrupados";
 import { sendEmail } from "@/lib/messaging/email.server";
 import { PLANTILLAS_EMAIL_DE_RESPALDO } from "@/lib/messaging/plantillas-email-respaldo";
 import { DEFAULT_EMAIL_SANDBOX, clampMinEntregas } from "@/lib/messaging/email-sandbox";
@@ -424,6 +429,16 @@ const HORA_3H_MS = 3 * 60 * 60 * 1000;
 // entre dos visitas a la página.
 const MARGEN_MS = 4 * 60 * 60 * 1000;
 
+/** `YYYY-MM-DD` del instante en ese huso. */
+function diaLocalDe(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
+}
+
 function formatFechaHoraLocal(iso: string, timeZone: string): { fechaLarga: string; hora: string } {
   const date = new Date(iso);
   const fechaLarga = new Intl.DateTimeFormat("es-CL", {
@@ -452,6 +467,8 @@ export interface PendingReminder {
   startsAt: string;
   fechaLarga: string;
   hora: string;
+  /** `YYYY-MM-DD` de la cita en el huso de su sucursal (un recordatorio por paciente y día). */
+  diaLocal: string;
   /** Cuál de los dos avisos le falta a esta cita. */
   reminderKind: "appointment_reminder" | "appointment_checkin";
   /** Independiente por canal: WhatsApp y email no se tapan entre sí. */
@@ -536,7 +553,49 @@ export const listPendingReminders = createServerFn({ method: "GET" })
 
     const patientIds = [...new Set(pendientes.map((a) => a.patient_id))];
     const professionalIds = [...new Set(pendientes.map((a) => a.professional_id))];
-    const branchIds = [...new Set(pendientes.map((a) => a.branch_id))];
+
+    // UX-11: un recordatorio por paciente y día de cita. Se miran los
+    // recordatorios recientes de estos pacientes (no solo los de estas
+    // citas): el de otra cita del mismo día puede haber salido de la
+    // ventana y aun así cubrir esta.
+    const { data: recientes, error: recientesErr } = await supabase
+      .from("messages")
+      .select("patient_id, appointment_id, template_kind, channel")
+      .eq("clinic_id", data.clinicId)
+      .in("patient_id", patientIds)
+      .in("template_kind", ["appointment_reminder", "appointment_checkin"])
+      .in("status", ["sent", "queued"])
+      .not("appointment_id", "is", null)
+      .gte("created_at", new Date(ahora - 3 * 24 * 60 * 60 * 1000).toISOString());
+    if (recientesErr)
+      throw new Error(mensajeDb(recientesErr, "No pudimos revisar los recordatorios ya enviados."));
+    const citaPorId = new Map(
+      candidatas.map((a) => [a.id, { starts_at: a.starts_at, branch_id: a.branch_id }]),
+    );
+    const citasFaltantes = [
+      ...new Set(
+        (recientes ?? [])
+          .map((m) => m.appointment_id)
+          .filter((id): id is string => Boolean(id) && !citaPorId.has(id as string)),
+      ),
+    ];
+    if (citasFaltantes.length > 0) {
+      const { data: otras, error: otrasErr } = await supabase
+        .from("appointments")
+        .select("id, starts_at, branch_id")
+        .eq("clinic_id", data.clinicId)
+        .in("id", citasFaltantes);
+      if (otrasErr)
+        throw new Error(mensajeDb(otrasErr, "No pudimos revisar los recordatorios ya enviados."));
+      for (const o of otras ?? [])
+        citaPorId.set(o.id, { starts_at: o.starts_at, branch_id: o.branch_id });
+    }
+    const branchIds = [
+      ...new Set([
+        ...pendientes.map((a) => a.branch_id),
+        ...[...citaPorId.values()].map((c) => c.branch_id),
+      ]),
+    ];
 
     const [
       { data: patients, error: pErr },
@@ -579,6 +638,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
       return {
         appointmentId: a.id,
         patientId: a.patient_id,
+        diaLocal: diaLocalDe(a.starts_at, tzByBranch.get(a.branch_id) || DEFAULT_TIMEZONE),
         patientName: patient?.full_name ?? "Paciente",
         patientPhone: patient?.phone ?? null,
         patientEmail: patient?.email ?? null,
@@ -592,7 +652,19 @@ export const listPendingReminders = createServerFn({ method: "GET" })
         emailSent: a.emailSent,
       };
     });
-    return quitarBajasDeWhatsApp(filas, pacientesDeBaja);
+    const enviadosPorDia: RecordatorioEnviado[] = [];
+    for (const m of recientes ?? []) {
+      const cita = m.appointment_id ? citaPorId.get(m.appointment_id) : undefined;
+      if (!cita) continue;
+      if (m.channel !== "whatsapp" && m.channel !== "email") continue;
+      enviadosPorDia.push({
+        patientId: m.patient_id,
+        diaLocal: diaLocalDe(cita.starts_at, tzByBranch.get(cita.branch_id) || DEFAULT_TIMEZONE),
+        kind: m.template_kind as RecordatorioEnviado["kind"],
+        channel: m.channel,
+      });
+    }
+    return quitarBajasDeWhatsApp(cubrirPorPacienteYDia(filas, enviadosPorDia), pacientesDeBaja);
   });
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -803,6 +875,7 @@ export async function calcularOutreachPendiente(
   const lastReferralInviteByPatient = new Map<string, string>();
   const lastNpsSurveyByPatient = new Map<string, string>();
   const reviewRequestedAppointments = new Set<string>();
+  const lastReviewRequestByPatient = new Map<string, string>();
   for (const m of recentOutreach ?? []) {
     if (m.template_kind === "hygiene_recall" && !lastHygieneRecallByPatient.has(m.patient_id)) {
       lastHygieneRecallByPatient.set(m.patient_id, m.created_at);
@@ -827,6 +900,9 @@ export async function calcularOutreachPendiente(
     }
     if (m.template_kind === "review_request" && m.appointment_id) {
       reviewRequestedAppointments.add(m.appointment_id);
+    }
+    if (m.template_kind === "review_request" && !lastReviewRequestByPatient.has(m.patient_id)) {
+      lastReviewRequestByPatient.set(m.patient_id, m.created_at);
     }
   }
 
@@ -857,6 +933,9 @@ export async function calcularOutreachPendiente(
     const sinceMs = ahora - new Date(a.ends_at).getTime();
     if (sinceMs < REVIEW_REQUEST_MIN_DELAY_MS || sinceMs > REVIEW_REQUEST_MAX_WINDOW_MS) continue;
     if (reviewRequestedAppointments.has(a.id)) continue;
+    // UX-11: un pedido de reseña cubre las visitas anteriores del paciente
+    // (antes cada visita de la ventana pedía la suya: 39 filas repetidas).
+    if (!visitaPendienteDeResena(a.ends_at, lastReviewRequestByPatient.get(a.patient_id))) continue;
     items.push({
       patientId: a.patient_id,
       patientName: patient.full_name,
@@ -1041,7 +1120,7 @@ export async function calcularPresupuestosPendientes(
     leerTodasLasPaginas((desde, hasta) =>
       supabase
         .from("messages")
-        .select("quote_id, created_at")
+        .select("quote_id, patient_id, created_at")
         .eq("clinic_id", clinicId)
         .eq("template_kind", "quote_follow_up")
         .eq("direction", "outbound")
@@ -1062,9 +1141,13 @@ export async function calcularPresupuestosPendientes(
     throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
 
   const ultimoSeguimiento = new Map<string, string>();
+  const ultimoSeguimientoPorPaciente = new Map<string, string>();
   for (const m of seguimientos) {
     if (m.quote_id && !ultimoSeguimiento.has(m.quote_id)) {
       ultimoSeguimiento.set(m.quote_id, m.created_at);
+    }
+    if (!ultimoSeguimientoPorPaciente.has(m.patient_id)) {
+      ultimoSeguimientoPorPaciente.set(m.patient_id, m.created_at);
     }
   }
 
@@ -1108,6 +1191,7 @@ export async function calcularPresupuestosPendientes(
     })),
     pacientes,
     ultimoSeguimientoPorPresupuesto: ultimoSeguimiento,
+    ultimoSeguimientoPorPaciente,
     ahora,
     hoy: hoyISO(clinic?.timezone ?? DEFAULT_TIMEZONE),
     dias,
