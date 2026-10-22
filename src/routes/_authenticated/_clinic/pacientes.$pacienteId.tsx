@@ -43,6 +43,7 @@ import { listAgreements, setPatientAgreement } from "@/lib/finance/clinic-financ
 import { PatientDocumentsCard } from "@/components/patient-documents-card";
 import { PatientConsentsCard } from "@/components/patient-consents-card";
 import { PatientPrescriptionsCard } from "@/components/patient-prescriptions-card";
+import { DocumentosEmitidosCard } from "@/components/documentos/documentos-emitidos-card";
 import { Odontogram, OdontogramResumen } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
 import { FinanceSection, type PiezaSeed } from "@/components/finance-section";
@@ -848,6 +849,16 @@ function PacienteDetalle() {
 
           {puedeVerClinico && clinicId && (
             <TabsContent value="documentos" className="space-y-6">
+              <DocumentosEmitidosCard
+                clinicId={clinicId}
+                patientId={paciente.id}
+                timezone={access.clinic?.timezone ?? "America/Santiago"}
+                puedeEmitir={
+                  puedeEscribirClinico &&
+                  (access.role === "owner" || access.role === "admin" || access.role === "dentist")
+                }
+                esAdministrador={access.role === "owner" || access.role === "admin"}
+              />
               <PatientDocumentsCard
                 clinicId={clinicId}
                 patientId={paciente.id}

@@ -1,0 +1,53 @@
+/*
+ * Documento emitido (DOC-01): "Imprimir" o "Guardar como PDF" con el diálogo
+ * del navegador, como /recorrido y los resultados del piloto. Solo se imprime
+ * la hoja: el menú lateral, la barra de arriba y los botones quedan fuera.
+ *
+ * Todo cuelga de `body:has(.documento-emitido)` para no tocar la impresión de
+ * ninguna otra pantalla. El modo oscuro se apaga al imprimir desde la página
+ * (evento `beforeprint`), así que acá alcanza con los tokens claros.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  body:has(.documento-emitido) [data-app-shell] > aside,
+  body:has(.documento-emitido) #main-content > header,
+  body:has(.documento-emitido) [data-app-shell] nav,
+  body:has(.documento-emitido)
+    #main-content
+    > div
+    > :not(.documento-emitido):not(:has(.documento-emitido)),
+  .documento-emitido .no-imprimir {
+    display: none !important;
+  }
+
+  body:has(.documento-emitido) #main-content > div {
+    padding: 0 !important;
+  }
+
+  .documento-emitido {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    max-width: none !important;
+  }
+
+  .documento-emitido .hoja-documento {
+    border: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  .documento-emitido .firma-documento,
+  .documento-emitido table,
+  .documento-emitido tr {
+    break-inside: avoid;
+  }
+
+  .documento-emitido .hoja-documento img {
+    filter: none !important;
+  }
+}

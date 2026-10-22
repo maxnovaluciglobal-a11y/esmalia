@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { rutEsValido } from "@/lib/patients/rut";
+
 /**
  * Datos editables de la clínica ACTUAL (UX-03, Ola 0). Antes Ajustes llevaba
  * a `/onboarding`, que crea una clínica nueva: quien quería corregir el
@@ -17,7 +19,25 @@ export type DatosClinica = {
   country: string;
   currency: string;
   timezone: string;
+  /** FIN-16: datos tributarios (solo para documentos; sin integración con el SII). */
+  giro: string | null;
+  direccionTributaria: string | null;
+  comunaTributaria: string | null;
+  tipoBoleta: "exenta" | "afecta" | null;
 };
+
+/**
+ * FIN-16: en una clínica de Chile, la identificación fiscal es el RUT de la
+ * empresa y se valida con el dígito verificador (par de `rut_es_valido`, que
+ * la base aplica por trigger cuando cambia). En otros países es texto libre.
+ */
+export function errorRutEmpresa(taxId: string, country: string): string | null {
+  const t = taxId.trim();
+  if (!t || country.toUpperCase() !== "CL") return null;
+  return rutEsValido(t)
+    ? null
+    : "El RUT de la empresa no es válido: revisa los números y el dígito verificador (por ejemplo, 76.123.456-0).";
+}
 
 /** ¿El navegador/servidor reconoce la zona horaria IANA? */
 export function esZonaHorariaValida(zona: string): boolean {
@@ -36,6 +56,10 @@ export const camposDatosClinica = z.object({
   legalName: z.string().trim().max(160),
   taxId: z.string().trim().max(40),
   timezone: z.string().trim().refine(esZonaHorariaValida, "Elige una zona horaria de la lista."),
+  giro: z.string().trim().max(160).optional().default(""),
+  direccionTributaria: z.string().trim().max(200).optional().default(""),
+  comunaTributaria: z.string().trim().max(80).optional().default(""),
+  tipoBoleta: z.enum(["exenta", "afecta", ""]).optional().default(""),
 });
 
 export type CamposDatosClinica = z.infer<typeof camposDatosClinica>;
