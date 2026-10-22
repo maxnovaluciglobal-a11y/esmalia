@@ -6,6 +6,7 @@ import { BellRing, Mail, MailX, Star } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { VerificacionDosPasosCard } from "@/components/verificacion-dos-pasos";
+import { MiFirmaCard } from "@/components/documentos/mi-firma";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { toast } from "sonner";
 import {
@@ -232,6 +233,13 @@ function PreferenciasPage() {
         {/* SEG-01: la seguridad de la cuenta es personal, como los avisos:
             cualquier rol la gestiona para sí mismo. */}
         <VerificacionDosPasosCard />
+
+        {/* DOC-06: la firma para documentos es personal, como los avisos. */}
+        {access.clinic &&
+          hasPermission(access.role, "clinical:write") &&
+          (access.role === "owner" || access.role === "admin" || access.role === "dentist") && (
+            <MiFirmaCard clinicId={access.clinic.id} esDemo={access.clinic.isDemo} />
+          )}
 
         {puedeGestionarConfig && access.clinic && (
           <BranchReviewLinksSection clinicId={access.clinic.id} />

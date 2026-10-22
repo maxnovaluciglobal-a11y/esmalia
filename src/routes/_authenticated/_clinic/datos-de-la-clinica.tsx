@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ACCESS_QUERY_KEY } from "@/lib/access/access";
 import { requirePermission } from "@/lib/access/route-guards";
 import {
+  errorRutEmpresa,
   etiquetaZonaHoraria,
   zonasHorariasDisponibles,
   type DatosClinica,
@@ -87,23 +88,52 @@ function FormularioDatos({ datos, esDemo }: { datos: DatosClinica; esDemo: boole
   const [legalName, setLegalName] = useState(datos.legalName ?? "");
   const [taxId, setTaxId] = useState(datos.taxId ?? "");
   const [timezone, setTimezone] = useState(datos.timezone);
+  const [giro, setGiro] = useState(datos.giro ?? "");
+  const [direccionTributaria, setDireccionTributaria] = useState(datos.direccionTributaria ?? "");
+  const [comunaTributaria, setComunaTributaria] = useState(datos.comunaTributaria ?? "");
+  const [tipoBoleta, setTipoBoleta] = useState<"" | "exenta" | "afecta">(datos.tipoBoleta ?? "");
   useEffect(() => {
     setName(datos.name);
     setLegalName(datos.legalName ?? "");
     setTaxId(datos.taxId ?? "");
     setTimezone(datos.timezone);
+    setGiro(datos.giro ?? "");
+    setDireccionTributaria(datos.direccionTributaria ?? "");
+    setComunaTributaria(datos.comunaTributaria ?? "");
+    setTipoBoleta(datos.tipoBoleta ?? "");
   }, [datos]);
 
   const zonas = useMemo(() => zonasHorariasDisponibles(datos.timezone), [datos.timezone]);
   const pais = COUNTRIES.find((c) => c.code === datos.country);
+  const esChile = datos.country.toUpperCase() === "CL";
+  const cambioRut = taxId.trim() !== (datos.taxId ?? "");
+  // Solo se valida si cambia: un RUT viejo mal escrito no bloquea el resto.
+  const errorRut = cambioRut ? errorRutEmpresa(taxId, datos.country) : null;
   const cambio =
     name.trim() !== datos.name ||
     legalName.trim() !== (datos.legalName ?? "") ||
-    taxId.trim() !== (datos.taxId ?? "") ||
-    timezone !== datos.timezone;
+    cambioRut ||
+    timezone !== datos.timezone ||
+    giro.trim() !== (datos.giro ?? "") ||
+    direccionTributaria.trim() !== (datos.direccionTributaria ?? "") ||
+    comunaTributaria.trim() !== (datos.comunaTributaria ?? "") ||
+    tipoBoleta !== (datos.tipoBoleta ?? "");
 
   const mut = useMutation({
-    mutationFn: () => guardar({ data: { clinicId: datos.id, name, legalName, taxId, timezone } }),
+    mutationFn: () =>
+      guardar({
+        data: {
+          clinicId: datos.id,
+          name,
+          legalName,
+          taxId,
+          timezone,
+          giro,
+          direccionTributaria,
+          comunaTributaria,
+          tipoBoleta,
+        },
+      }),
     onSuccess: async () => {
       toast.success("Datos de la clínica guardados.");
       await queryClient.invalidateQueries({ queryKey: ["datos-clinica", datos.id] });
@@ -120,7 +150,7 @@ function FormularioDatos({ datos, esDemo }: { datos: DatosClinica; esDemo: boole
       className="space-y-8"
       onSubmit={(e) => {
         e.preventDefault();
-        if (cambio) mut.mutate();
+        if (cambio && !errorRut) mut.mutate();
       }}
     >
       <section aria-labelledby="datos-identidad" className="space-y-4">
@@ -143,23 +173,90 @@ function FormularioDatos({ datos, esDemo }: { datos: DatosClinica; esDemo: boole
               Es el que ven tu equipo, tus pacientes y el portal.
             </p>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="clinica-razon">Razón social (opcional)</Label>
+        </div>
+      </section>
+
+      <section aria-labelledby="datos-tributarios" className="space-y-4">
+        <div className="space-y-1">
+          <h2 id="datos-tributarios" className="kicker">
+            Datos tributarios
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Se imprimen en los documentos que emites, como el detalle para el reembolso del seguro
+            complementario. Esmalia no emite boletas ni facturas ni se conecta con el SII.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="clinica-razon">Razón social</Label>
             <Input
               id="clinica-razon"
               value={legalName}
               onChange={(e) => setLegalName(e.target.value)}
               maxLength={160}
+              autoComplete="organization"
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="clinica-fiscal">Identificación fiscal (opcional)</Label>
+            <Label htmlFor="clinica-fiscal">
+              {esChile ? "RUT de la empresa" : "Identificación fiscal"}
+            </Label>
             <Input
               id="clinica-fiscal"
               value={taxId}
               onChange={(e) => setTaxId(e.target.value)}
               maxLength={40}
-              placeholder="RUT, RFC, NIT, RUC o CUIT"
+              placeholder={esChile ? "76.123.456-0" : "RFC, NIT, RUC o CUIT"}
+              aria-invalid={errorRut ? true : undefined}
+              aria-describedby={errorRut ? "clinica-fiscal-error" : undefined}
+              className="cifra"
+            />
+            {errorRut && (
+              <p id="clinica-fiscal-error" role="alert" className="text-xs text-destructive">
+                {errorRut}
+              </p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="clinica-boleta">Boleta que emites</Label>
+            <select
+              id="clinica-boleta"
+              value={tipoBoleta}
+              onChange={(e) => setTipoBoleta(e.target.value as "" | "exenta" | "afecta")}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-base shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring md:text-sm"
+            >
+              <option value="">Sin indicar</option>
+              <option value="exenta">Boleta exenta</option>
+              <option value="afecta">Boleta afecta</option>
+            </select>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="clinica-giro">Giro</Label>
+            <Input
+              id="clinica-giro"
+              value={giro}
+              onChange={(e) => setGiro(e.target.value)}
+              maxLength={160}
+              placeholder="Servicios odontológicos"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="clinica-dir-tributaria">Dirección tributaria</Label>
+            <Input
+              id="clinica-dir-tributaria"
+              value={direccionTributaria}
+              onChange={(e) => setDireccionTributaria(e.target.value)}
+              maxLength={200}
+              autoComplete="street-address"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="clinica-comuna-tributaria">Comuna</Label>
+            <Input
+              id="clinica-comuna-tributaria"
+              value={comunaTributaria}
+              onChange={(e) => setComunaTributaria(e.target.value)}
+              maxLength={80}
             />
           </div>
         </div>
@@ -216,7 +313,7 @@ function FormularioDatos({ datos, esDemo }: { datos: DatosClinica; esDemo: boole
 
       <div className="flex flex-wrap items-center gap-3">
         <BloqueoEscritura>
-          <Button type="submit" disabled={!cambio || mut.isPending || esDemo}>
+          <Button type="submit" disabled={!cambio || Boolean(errorRut) || mut.isPending || esDemo}>
             {mut.isPending && <Loader2 className="animate-spin" aria-hidden />}
             Guardar cambios
           </Button>

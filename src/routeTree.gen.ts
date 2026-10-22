@@ -98,6 +98,7 @@ import { Route as AuthenticatedClinicMiAgendaRouteImport } from './routes/_authe
 import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_authenticated/_clinic/morosidad'
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
+import { Route as AuthenticatedClinicPlantillasDeDocumentosRouteImport } from './routes/_authenticated/_clinic/plantillas-de-documentos'
 import { Route as AuthenticatedClinicPreferenciasRouteImport } from './routes/_authenticated/_clinic/preferencias'
 import { Route as AuthenticatedClinicProfesionalesRouteImport } from './routes/_authenticated/_clinic/profesionales'
 import { Route as AuthenticatedClinicPruebasEmailRouteImport } from './routes/_authenticated/_clinic/pruebas-email'
@@ -114,6 +115,7 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as ApiCorreosBajaRouteImport } from './routes/api.correos.baja'
 import { Route as ApiRecursoSlugRouteImport } from './routes/api.recurso.$slug'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe.webhook'
+import { Route as AuthenticatedClinicDocumentosDocumentoIdRouteImport } from './routes/_authenticated/_clinic/documentos.$documentoId'
 import { Route as AuthenticatedClinicPacientesIndexRouteImport } from './routes/_authenticated/_clinic/pacientes.index'
 import { Route as AuthenticatedClinicPacientesPacienteIdRouteImport } from './routes/_authenticated/_clinic/pacientes.$pacienteId'
 import { Route as AuthenticatedClinicPresupuestosIndexRouteImport } from './routes/_authenticated/_clinic/presupuestos.index'
@@ -595,6 +597,12 @@ const AuthenticatedClinicPermisosRoute =
     path: '/permisos',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicPlantillasDeDocumentosRoute =
+  AuthenticatedClinicPlantillasDeDocumentosRouteImport.update({
+    id: '/plantillas-de-documentos',
+    path: '/plantillas-de-documentos',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicPreferenciasRoute =
   AuthenticatedClinicPreferenciasRouteImport.update({
     id: '/preferencias',
@@ -687,6 +695,12 @@ const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   path: '/api/stripe/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedClinicDocumentosDocumentoIdRoute =
+  AuthenticatedClinicDocumentosDocumentoIdRouteImport.update({
+    id: '/documentos/$documentoId',
+    path: '/documentos/$documentoId',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicPacientesIndexRoute =
   AuthenticatedClinicPacientesIndexRouteImport.update({
     id: '/pacientes/',
@@ -806,6 +820,7 @@ export interface FileRoutesByFullPath {
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
+  '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
@@ -822,6 +837,7 @@ export interface FileRoutesByFullPath {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
@@ -914,6 +930,7 @@ export interface FileRoutesByTo {
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
+  '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
@@ -930,6 +947,7 @@ export interface FileRoutesByTo {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
@@ -1027,6 +1045,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
+  '/_authenticated/_clinic/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
   '/_authenticated/_clinic/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/_authenticated/_clinic/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/_authenticated/_clinic/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
@@ -1043,6 +1062,7 @@ export interface FileRoutesById {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/_authenticated/_clinic/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/_authenticated/_clinic/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/_authenticated/_clinic/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/_authenticated/_clinic/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
@@ -1139,6 +1159,7 @@ export interface FileRouteTypes {
     | '/morosidad'
     | '/ortodoncia'
     | '/permisos'
+    | '/plantillas-de-documentos'
     | '/preferencias'
     | '/profesionales'
     | '/pruebas-email'
@@ -1155,6 +1176,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
     | '/presupuestos/paquetes'
@@ -1247,6 +1269,7 @@ export interface FileRouteTypes {
     | '/morosidad'
     | '/ortodoncia'
     | '/permisos'
+    | '/plantillas-de-documentos'
     | '/preferencias'
     | '/profesionales'
     | '/pruebas-email'
@@ -1263,6 +1286,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
     | '/presupuestos/paquetes'
@@ -1359,6 +1383,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/morosidad'
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
+    | '/_authenticated/_clinic/plantillas-de-documentos'
     | '/_authenticated/_clinic/preferencias'
     | '/_authenticated/_clinic/profesionales'
     | '/_authenticated/_clinic/pruebas-email'
@@ -1375,6 +1400,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/_authenticated/_clinic/documentos/$documentoId'
     | '/_authenticated/_clinic/pacientes/$pacienteId'
     | '/_authenticated/_clinic/presupuestos/$presupuestoId'
     | '/_authenticated/_clinic/presupuestos/paquetes'
@@ -2058,6 +2084,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicPermisosRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/plantillas-de-documentos': {
+      id: '/_authenticated/_clinic/plantillas-de-documentos'
+      path: '/plantillas-de-documentos'
+      fullPath: '/plantillas-de-documentos'
+      preLoaderRoute: typeof AuthenticatedClinicPlantillasDeDocumentosRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/preferencias': {
       id: '/_authenticated/_clinic/preferencias'
       path: '/preferencias'
@@ -2170,6 +2203,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStripeWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/_clinic/documentos/$documentoId': {
+      id: '/_authenticated/_clinic/documentos/$documentoId'
+      path: '/documentos/$documentoId'
+      fullPath: '/documentos/$documentoId'
+      preLoaderRoute: typeof AuthenticatedClinicDocumentosDocumentoIdRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/pacientes/': {
       id: '/_authenticated/_clinic/pacientes/'
       path: '/pacientes'
@@ -2237,6 +2277,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicMorosidadRoute: typeof AuthenticatedClinicMorosidadRoute
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
+  AuthenticatedClinicPlantillasDeDocumentosRoute: typeof AuthenticatedClinicPlantillasDeDocumentosRoute
   AuthenticatedClinicPreferenciasRoute: typeof AuthenticatedClinicPreferenciasRoute
   AuthenticatedClinicProfesionalesRoute: typeof AuthenticatedClinicProfesionalesRoute
   AuthenticatedClinicPruebasEmailRoute: typeof AuthenticatedClinicPruebasEmailRoute
@@ -2248,6 +2289,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicSuscripcionRoute: typeof AuthenticatedClinicSuscripcionRoute
   AuthenticatedClinicTratamientosRoute: typeof AuthenticatedClinicTratamientosRoute
   AuthenticatedClinicWhatsappRoute: typeof AuthenticatedClinicWhatsappRoute
+  AuthenticatedClinicDocumentosDocumentoIdRoute: typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   AuthenticatedClinicPacientesPacienteIdRoute: typeof AuthenticatedClinicPacientesPacienteIdRoute
   AuthenticatedClinicPresupuestosPresupuestoIdRoute: typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   AuthenticatedClinicPresupuestosPaquetesRoute: typeof AuthenticatedClinicPresupuestosPaquetesRoute
@@ -2292,6 +2334,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicMorosidadRoute: AuthenticatedClinicMorosidadRoute,
     AuthenticatedClinicOrtodonciaRoute: AuthenticatedClinicOrtodonciaRoute,
     AuthenticatedClinicPermisosRoute: AuthenticatedClinicPermisosRoute,
+    AuthenticatedClinicPlantillasDeDocumentosRoute:
+      AuthenticatedClinicPlantillasDeDocumentosRoute,
     AuthenticatedClinicPreferenciasRoute: AuthenticatedClinicPreferenciasRoute,
     AuthenticatedClinicProfesionalesRoute:
       AuthenticatedClinicProfesionalesRoute,
@@ -2306,6 +2350,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicSuscripcionRoute: AuthenticatedClinicSuscripcionRoute,
     AuthenticatedClinicTratamientosRoute: AuthenticatedClinicTratamientosRoute,
     AuthenticatedClinicWhatsappRoute: AuthenticatedClinicWhatsappRoute,
+    AuthenticatedClinicDocumentosDocumentoIdRoute:
+      AuthenticatedClinicDocumentosDocumentoIdRoute,
     AuthenticatedClinicPacientesPacienteIdRoute:
       AuthenticatedClinicPacientesPacienteIdRoute,
     AuthenticatedClinicPresupuestosPresupuestoIdRoute:

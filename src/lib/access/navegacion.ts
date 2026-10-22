@@ -193,9 +193,9 @@ export const AJUSTES: readonly GrupoAjustes[] = [
       {
         to: "/datos-de-la-clinica",
         label: "Datos de la clínica",
-        detalle: "Nombre, razón social, zona horaria y moneda",
+        detalle: "Nombre, datos tributarios, zona horaria y moneda",
         permisos: ["settings:manage"],
-        sinonimos: ["clínica", "nombre", "razón social", "dirección"],
+        sinonimos: ["clínica", "nombre", "razón social", "dirección", "rut", "giro", "boleta"],
       },
       {
         to: "/sucursales",
@@ -237,6 +237,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         label: "Consentimientos",
         detalle: "Plantillas para firmar",
         permisos: ["settings:manage"],
+      },
+      {
+        to: "/plantillas-de-documentos",
+        label: "Plantillas de documentos",
+        detalle: "Certificados, reposos, derivaciones, informes y reembolsos",
+        permisos: ["settings:manage"],
+        sinonimos: ["certificado", "reposo", "derivación", "informe", "alta", "reembolso"],
       },
     ],
   },
@@ -337,8 +344,9 @@ export const AJUSTES: readonly GrupoAjustes[] = [
       {
         to: "/preferencias",
         label: "Preferencias",
-        detalle: "Tus avisos y la verificación en dos pasos",
+        detalle: "Tus avisos, tu firma y la verificación en dos pasos",
         permisos: ["dashboard:view"],
+        sinonimos: ["firma", "registro superintendencia"],
       },
     ],
   },
