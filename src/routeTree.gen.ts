@@ -80,6 +80,7 @@ import { Route as AuthenticatedClinicConfiguracionDeAgendaRouteImport } from './
 import { Route as AuthenticatedClinicConsentimientosRouteImport } from './routes/_authenticated/_clinic/consentimientos'
 import { Route as AuthenticatedClinicConveniosRouteImport } from './routes/_authenticated/_clinic/convenios'
 import { Route as AuthenticatedClinicConversacionesRouteImport } from './routes/_authenticated/_clinic/conversaciones'
+import { Route as AuthenticatedClinicCuentasPorCobrarRouteImport } from './routes/_authenticated/_clinic/cuentas-por-cobrar'
 import { Route as AuthenticatedClinicDashboardRouteImport } from './routes/_authenticated/_clinic/dashboard'
 import { Route as AuthenticatedClinicDatosDeLaClinicaRouteImport } from './routes/_authenticated/_clinic/datos-de-la-clinica'
 import { Route as AuthenticatedClinicDominioEmailRouteImport } from './routes/_authenticated/_clinic/dominio-email'
@@ -486,6 +487,12 @@ const AuthenticatedClinicConversacionesRoute =
     path: '/conversaciones',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicCuentasPorCobrarRoute =
+  AuthenticatedClinicCuentasPorCobrarRouteImport.update({
+    id: '/cuentas-por-cobrar',
+    path: '/cuentas-por-cobrar',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicDashboardRoute =
   AuthenticatedClinicDashboardRouteImport.update({
     id: '/dashboard',
@@ -781,6 +788,7 @@ export interface FileRoutesByFullPath {
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
+  '/cuentas-por-cobrar': typeof AuthenticatedClinicCuentasPorCobrarRoute
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
@@ -888,6 +896,7 @@ export interface FileRoutesByTo {
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
+  '/cuentas-por-cobrar': typeof AuthenticatedClinicCuentasPorCobrarRoute
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
@@ -1000,6 +1009,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/_authenticated/_clinic/convenios': typeof AuthenticatedClinicConveniosRoute
   '/_authenticated/_clinic/conversaciones': typeof AuthenticatedClinicConversacionesRoute
+  '/_authenticated/_clinic/cuentas-por-cobrar': typeof AuthenticatedClinicCuentasPorCobrarRoute
   '/_authenticated/_clinic/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/_authenticated/_clinic/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/_authenticated/_clinic/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
@@ -1111,6 +1121,7 @@ export interface FileRouteTypes {
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
+    | '/cuentas-por-cobrar'
     | '/dashboard'
     | '/datos-de-la-clinica'
     | '/dominio-email'
@@ -1218,6 +1229,7 @@ export interface FileRouteTypes {
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
+    | '/cuentas-por-cobrar'
     | '/dashboard'
     | '/datos-de-la-clinica'
     | '/dominio-email'
@@ -1329,6 +1341,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/consentimientos'
     | '/_authenticated/_clinic/convenios'
     | '/_authenticated/_clinic/conversaciones'
+    | '/_authenticated/_clinic/cuentas-por-cobrar'
     | '/_authenticated/_clinic/dashboard'
     | '/_authenticated/_clinic/datos-de-la-clinica'
     | '/_authenticated/_clinic/dominio-email'
@@ -1919,6 +1932,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicConversacionesRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/cuentas-por-cobrar': {
+      id: '/_authenticated/_clinic/cuentas-por-cobrar'
+      path: '/cuentas-por-cobrar'
+      fullPath: '/cuentas-por-cobrar'
+      preLoaderRoute: typeof AuthenticatedClinicCuentasPorCobrarRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/dashboard': {
       id: '/_authenticated/_clinic/dashboard'
       path: '/dashboard'
@@ -2199,6 +2219,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicConsentimientosRoute: typeof AuthenticatedClinicConsentimientosRoute
   AuthenticatedClinicConveniosRoute: typeof AuthenticatedClinicConveniosRoute
   AuthenticatedClinicConversacionesRoute: typeof AuthenticatedClinicConversacionesRoute
+  AuthenticatedClinicCuentasPorCobrarRoute: typeof AuthenticatedClinicCuentasPorCobrarRoute
   AuthenticatedClinicDashboardRoute: typeof AuthenticatedClinicDashboardRoute
   AuthenticatedClinicDatosDeLaClinicaRoute: typeof AuthenticatedClinicDatosDeLaClinicaRoute
   AuthenticatedClinicDominioEmailRoute: typeof AuthenticatedClinicDominioEmailRoute
@@ -2249,6 +2270,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicConveniosRoute: AuthenticatedClinicConveniosRoute,
     AuthenticatedClinicConversacionesRoute:
       AuthenticatedClinicConversacionesRoute,
+    AuthenticatedClinicCuentasPorCobrarRoute:
+      AuthenticatedClinicCuentasPorCobrarRoute,
     AuthenticatedClinicDashboardRoute: AuthenticatedClinicDashboardRoute,
     AuthenticatedClinicDatosDeLaClinicaRoute:
       AuthenticatedClinicDatosDeLaClinicaRoute,

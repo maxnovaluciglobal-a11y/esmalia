@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { CircleDollarSign, Loader2 } from "lucide-react";
+import { CircleDollarSign, Loader2, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,19 +19,45 @@ import {
   PAYMENT_METHOD_LABELS,
   formatMoney,
   type PaymentMethod,
+  type PaymentMethodConfig,
   type TreatmentPlan,
 } from "@/lib/finance/finance";
 import { registerPayment } from "@/lib/finance/finance.functions";
 import { MoneyInput } from "@/components/money-input";
 import { listPaymentMethods } from "@/lib/finance/clinic-finance.functions";
+import {
+  MAX_PARTES_COBRO,
+  estaPorCobrar,
+  restantePorAsignar,
+  validarReparto,
+  type CuentaPorCobrar,
+} from "@/lib/finance/cuentas-por-cobrar";
+import { metodoDelMedio } from "@/lib/finance/medios-de-pago";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { BloqueoEscritura } from "@/components/solo-lectura";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+
+const SELECT =
+  "w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+
+type Parte = { key: string; paymentMethodId: string; amountCents: number | null };
+
+/** Lo que conviene cobrar de una cuenta: la cuota impaga más antigua, o el saldo. */
+function sugeridoDeCuenta(cuenta: CuentaPorCobrar): number {
+  const cuota = cuenta.resumen.cuotas.find((c) => c.pendienteCents > 0);
+  return cuota?.pendienteCents ?? cuenta.resumen.saldoCents;
+}
+
+function metodoDe(medio: PaymentMethodConfig | undefined): PaymentMethod {
+  return medio ? metodoDelMedio(medio.kind, medio.legacyKey) : "other";
+}
 
 export function NuevoPagoDialog({
   clinicId,
   patientId,
   userId,
   plans,
+  cuentas = [],
   suggestedAmountCents,
   saldoCargado = true,
   currency,
@@ -42,6 +68,8 @@ export function NuevoPagoDialog({
   patientId: string;
   userId: string;
   plans: TreatmentPlan[];
+  /** Cuentas por cobrar del paciente (FIN-02). Las que tienen saldo se ofrecen para imputar. */
+  cuentas?: CuentaPorCobrar[];
   /** Saldo pendiente del paciente (0 si está al día o a favor). Precarga el monto. */
   suggestedAmountCents: number;
   /** false mientras planes o pagos cargan: el saldo todavía no es el real. */
@@ -74,7 +102,20 @@ export function NuevoPagoDialog({
     queryKey: ["payment-methods", clinicId],
     queryFn: () => fetchPaymentMethods({ data: { clinicId } }),
   });
-  const [planId, setPlanId] = useState<string>("");
+  const medioPorId = useMemo(() => new Map(mediosDePago.map((m) => [m.id, m])), [mediosDePago]);
+  // Sin elegir nada, el primer medio de la lista es el que muestra el select.
+  const medioElegido = paymentMethodId || mediosDePago[0]?.id || "";
+
+  // "" = a cuenta; "cuenta:<id>" = una cuenta por cobrar; "plan:<id>" = un plan.
+  const [destino, setDestino] = useState("");
+  const cuentasPorCobrar = cuentas.filter((c) => estaPorCobrar(c.resumen.estado));
+  const planesConCuenta = new Set(cuentas.filter((c) => !c.voidedAt).map((c) => c.treatmentPlanId));
+  const planesSinCuenta = plans.filter((p) => !planesConCuenta.has(p.id));
+
+  // FIN-04: un cobro repartido en varios medios.
+  const [repartir, setRepartir] = useState(false);
+  const [partes, setPartes] = useState<Parte[]>([]);
+
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const payFn = useServerFn(registerPayment);
@@ -87,6 +128,8 @@ export function NuevoPagoDialog({
     invalidar: [
       ["payments", clinicId, patientId],
       ["patients", clinicId],
+      ["cuentas-paciente", clinicId, patientId],
+      ["cuentas-por-cobrar", clinicId],
     ],
     resumen: (p) => `Cobro de ${formatMoney(p.amountCents as number, currency)}`,
     onDone: () => {
@@ -100,13 +143,58 @@ export function NuevoPagoDialog({
       setAmount(null);
       setMethod("cash");
       setPaymentMethodId("");
-      setPlanId("");
+      setDestino("");
+      setRepartir(false);
+      setPartes([]);
       setReference("");
       setNotes("");
     },
   });
 
+  const total = amount ?? 0;
+  const partesValidas = partes.map((p) => ({
+    paymentMethodId: p.paymentMethodId,
+    amountCents: p.amountCents ?? 0,
+  }));
+  const restante = restantePorAsignar(total, partesValidas);
+  // El primer medio todavía sin monto: "Completar" le pone lo que falta.
+  const sinMonto = partes.find((p) => (p.amountCents ?? 0) === 0);
+  const motivoReparto = repartir ? validarReparto(total, partesValidas) : null;
+  const motivo = total <= 0 ? "Ingresa un monto mayor que cero." : (motivoReparto ?? null);
+
+  function elegirDestino(valor: string) {
+    setDestino(valor);
+    if (montoEditado) return;
+    const cuenta = valor.startsWith("cuenta:")
+      ? cuentas.find((c) => c.id === valor.slice("cuenta:".length))
+      : undefined;
+    setAmount(cuenta ? sugeridoDeCuenta(cuenta) : suggestedAmountCents);
+  }
+
+  function activarReparto(activo: boolean) {
+    setRepartir(activo);
+    if (!activo) {
+      setPartes([]);
+      return;
+    }
+    const otro = mediosDePago.find((m) => m.id !== medioElegido);
+    setPartes([
+      { key: crypto.randomUUID(), paymentMethodId: medioElegido, amountCents: null },
+      { key: crypto.randomUUID(), paymentMethodId: otro?.id ?? "", amountCents: null },
+    ]);
+  }
+
+  function cambiarParte(key: string, cambio: Partial<Parte>) {
+    setPartes((prev) => prev.map((p) => (p.key === key ? { ...p, ...cambio } : p)));
+  }
+
   function guardar() {
+    const cuentaId = destino.startsWith("cuenta:") ? destino.slice("cuenta:".length) : null;
+    const cuenta = cuentaId ? cuentas.find((c) => c.id === cuentaId) : undefined;
+    const planId = destino.startsWith("plan:")
+      ? destino.slice("plan:".length)
+      : (cuenta?.treatmentPlanId ?? null);
+    const medioUnico = medioPorId.get(medioElegido);
     void create.mutar({
       // El id lo genera el equipo, no la base: si esto se captura sin
       // conexión y el reintento llega dos veces, el segundo choca contra la
@@ -114,16 +202,24 @@ export function NuevoPagoDialog({
       id: crypto.randomUUID(),
       clinicId,
       patientId,
-      amountCents: amount ?? 0,
-      method,
+      amountCents: total,
+      method: medioUnico ? metodoDe(medioUnico) : method,
       // Se manda vacío como undefined: el server solo busca la retención
       // cuando hay un medio configurado elegido.
-      paymentMethodId: paymentMethodId || undefined,
+      paymentMethodId: medioUnico ? medioUnico.id : undefined,
       // ⚠️ Sellado en la CAPTURA. Sin esto, un cobro tomado a las 10:00 que
       // sincroniza a las 15:00 entraría con la hora del servidor y el cierre
       // de caja del día quedaría mal.
       paidAt: new Date().toISOString(),
-      treatmentPlanId: planId || undefined,
+      treatmentPlanId: planId ?? undefined,
+      receivableId: cuentaId ?? undefined,
+      ...(repartir && {
+        partes: partes.map((p) => ({
+          paymentMethodId: p.paymentMethodId || null,
+          method: metodoDe(medioPorId.get(p.paymentMethodId)),
+          amountCents: p.amountCents ?? 0,
+        })),
+      }),
       reference: reference.trim() || undefined,
       notes: notes.trim() || undefined,
     });
@@ -147,7 +243,7 @@ export function NuevoPagoDialog({
           </Button>
         </DialogTrigger>
       </BloqueoEscritura>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Registrar pago</DialogTitle>
           <DialogDescription>
@@ -155,7 +251,42 @@ export function NuevoPagoDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="pay-plan">Aplicar a</Label>
+            <select
+              id="pay-plan"
+              value={destino}
+              onChange={(e) => elegirDestino(e.target.value)}
+              className={SELECT}
+            >
+              <option value="">A cuenta (sin asignar)</option>
+              {cuentasPorCobrar.length > 0 && (
+                <optgroup label="Cuentas por cobrar">
+                  {cuentasPorCobrar.map((c) => (
+                    <option key={c.id} value={`cuenta:${c.id}`}>
+                      {c.description} · saldo {formatMoney(c.resumen.saldoCents, c.currency)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {planesSinCuenta.length > 0 && (
+                <optgroup label="Planes de tratamiento">
+                  {planesSinCuenta.map((p) => (
+                    <option key={p.id} value={`plan:${p.id}`}>
+                      {p.name} · {formatMoney(p.totalCents, p.currency)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            {destino.startsWith("cuenta:") && (
+              <p className="text-xs text-muted-foreground">
+                Se imputa primero a la cuota más antigua.
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="pay-amount">Monto</Label>
               <MoneyInput
@@ -199,70 +330,164 @@ export function NuevoPagoDialog({
                 )}
               </p>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pay-method">Método</Label>
-              {mediosDePago.length > 0 ? (
-                <select
-                  id="pay-method"
-                  value={paymentMethodId}
-                  onChange={(e) => {
-                    const id = e.target.value;
-                    setPaymentMethodId(id);
-                    // El enum sigue guardándose: es lo que leen los reportes
-                    // viejos y la cola offline. `legacyKey` lo mapea; un medio
-                    // propio de la clínica ("Klap - Crédito") cae en 'other'.
-                    const medio = mediosDePago.find((m) => m.id === id);
-                    setMethod(medio?.legacyKey ?? "other");
-                  }}
-                  className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {mediosDePago.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                      {m.retentionPct > 0 ? ` · retiene ${m.retentionPct}%` : ""}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  id="pay-method"
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-                  className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {PAYMENT_METHOD_LABELS[m]}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
+            {!repartir && (
+              <div className="space-y-1.5">
+                <Label htmlFor="pay-method">Medio de pago</Label>
+                {mediosDePago.length > 0 ? (
+                  <select
+                    id="pay-method"
+                    value={medioElegido}
+                    onChange={(e) => setPaymentMethodId(e.target.value)}
+                    className={SELECT}
+                  >
+                    {mediosDePago.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                        {m.retentionPct > 0 ? ` · retiene ${m.retentionPct}%` : ""}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    id="pay-method"
+                    value={method}
+                    onChange={(e) => setMethod(e.target.value as PaymentMethod)}
+                    className={SELECT}
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m} value={m}>
+                        {PAYMENT_METHOD_LABELS[m]}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pay-plan">Aplicar a</Label>
-            <select
-              id="pay-plan"
-              value={planId}
-              onChange={(e) => setPlanId(e.target.value)}
-              className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <option value="">A cuenta (sin asignar a un plan)</option>
-              {plans.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} · {formatMoney(p.totalCents, p.currency)}
-                </option>
+
+          {mediosDePago.length > 1 && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={repartir}
+                onChange={(e) => activarReparto(e.target.checked)}
+                className="size-4 rounded border-hairline"
+              />
+              Pagar con varios medios (por ejemplo, efectivo y tarjeta)
+            </label>
+          )}
+
+          {repartir && (
+            <fieldset className="space-y-2 rounded-lg border border-hairline p-3">
+              <legend className="px-1 text-xs font-medium text-muted-foreground">
+                Reparto entre medios
+              </legend>
+              {partes.map((p, i) => (
+                <div
+                  key={p.key}
+                  className={
+                    partes.length > 2
+                      ? "grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_2.25rem] items-center gap-2"
+                      : "grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-center gap-2"
+                  }
+                >
+                  <select
+                    aria-label={`Medio ${i + 1}`}
+                    value={p.paymentMethodId}
+                    onChange={(e) => cambiarParte(p.key, { paymentMethodId: e.target.value })}
+                    className={SELECT}
+                  >
+                    <option value="" disabled>
+                      Elige un medio
+                    </option>
+                    {mediosDePago.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
+                  <MoneyInput
+                    aria-label={`Monto del medio ${i + 1}`}
+                    currency={currency}
+                    min={0}
+                    valueCents={p.amountCents}
+                    onValueChange={(c) => cambiarParte(p.key, { amountCents: c })}
+                  />
+                  {partes.length > 2 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Quitar medio ${i + 1}`}
+                      onClick={() => setPartes((prev) => prev.filter((x) => x.key !== p.key))}
+                    >
+                      <X className="size-4" />
+                    </Button>
+                  )}
+                </div>
               ))}
-            </select>
-          </div>
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs">
+                <span
+                  className={
+                    total > 0 && restante === 0
+                      ? "text-success"
+                      : restante < 0
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                  }
+                  aria-live="polite"
+                >
+                  {total <= 0
+                    ? "Ingresa primero el monto del cobro."
+                    : restante === 0
+                      ? "El reparto cuadra con el monto."
+                      : restante > 0
+                        ? `Falta asignar ${formatMoney(restante, currency)}.`
+                        : `Asignaste ${formatMoney(-restante, currency)} de más.`}
+                </span>
+                {restante > 0 && sinMonto && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => cambiarParte(sinMonto.key, { amountCents: restante })}
+                  >
+                    Completar {medioPorId.get(sinMonto.paymentMethodId)?.name ?? "el medio vacío"}
+                  </Button>
+                )}
+                {partes.length < Math.min(MAX_PARTES_COBRO, mediosDePago.length) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setPartes((prev) => [
+                        ...prev,
+                        {
+                          key: crypto.randomUUID(),
+                          paymentMethodId:
+                            mediosDePago.find((m) => !prev.some((x) => x.paymentMethodId === m.id))
+                              ?.id ?? "",
+                          amountCents: null,
+                        },
+                      ])
+                    }
+                  >
+                    <Plus className="size-3.5" /> Agregar medio
+                  </Button>
+                )}
+              </div>
+            </fieldset>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="pay-ref">Referencia (opcional)</Label>
             <input
               id="pay-ref"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="Nº de transacción, comprobante…"
-              className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              placeholder="Nº de transacción, comprobante, folio del bono…"
+              className={SELECT}
             />
           </div>
           <div className="space-y-1.5">
@@ -272,30 +497,19 @@ export function NuevoPagoDialog({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
-              className="w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className={SELECT}
             />
           </div>
         </div>
         <DialogFooter className="items-center gap-2">
-          {(amount ?? 0) <= 0 && (
-            <p id="motivo-guardar-pago" className="text-xs text-muted-foreground">
-              Ingresa un monto mayor que cero.
-            </p>
-          )}
-          <Button
-            onClick={guardar}
-            disabled={create.enCurso || (amount ?? 0) <= 0}
-            aria-describedby={(amount ?? 0) <= 0 ? "motivo-guardar-pago" : undefined}
-          >
-            {create.enCurso && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar pago
-          </Button>
+          <AccionDeshabilitada motivo={create.enCurso ? null : motivo}>
+            <Button onClick={guardar} disabled={create.enCurso}>
+              {create.enCurso && <Loader2 className="size-3.5 animate-spin" />}
+              Guardar pago
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
-/** Aceptar un presupuesto capturando (opcionalmente) la firma del paciente.
- * La firma es evidencia adicional del consentimiento — aceptar sin firma sigue
- * siendo válido (queda el nombre + IP como antes). */

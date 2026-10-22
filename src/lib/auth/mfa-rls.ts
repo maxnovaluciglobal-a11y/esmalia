@@ -65,6 +65,8 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   quote_events: "historial de cada presupuesto: estados, contactos y motivos de rechazo",
   quote_items: "ítems de presupuestos",
   quotes: "presupuestos",
+  receivable_installments: "cuotas de las cuentas por cobrar de un paciente",
+  receivables: "cuentas por cobrar de un paciente",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
   treatment_plans: "planes de tratamiento",
   waitlist_entries: "lista de espera: paciente y motivo",

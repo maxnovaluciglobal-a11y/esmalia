@@ -3414,6 +3414,7 @@ export type Database = {
           created_at: string;
           id: string;
           is_active: boolean;
+          kind: string | null;
           legacy_key: Database["public"]["Enums"]["payment_method"] | null;
           name: string;
           position: number;
@@ -3426,6 +3427,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_active?: boolean;
+          kind?: string | null;
           legacy_key?: Database["public"]["Enums"]["payment_method"] | null;
           name: string;
           position?: number;
@@ -3438,6 +3440,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           is_active?: boolean;
+          kind?: string | null;
           legacy_key?: Database["public"]["Enums"]["payment_method"] | null;
           name?: string;
           position?: number;
@@ -3553,7 +3556,9 @@ export type Database = {
           notes: string | null;
           paid_at: string;
           patient_id: string;
+          payment_group_id: string | null;
           payment_method_id: string | null;
+          receivable_id: string | null;
           reference: string | null;
           reversal_reason: string | null;
           reversed_at: string | null;
@@ -3584,7 +3589,9 @@ export type Database = {
           notes?: string | null;
           paid_at?: string;
           patient_id: string;
+          payment_group_id?: string | null;
           payment_method_id?: string | null;
+          receivable_id?: string | null;
           reference?: string | null;
           reversal_reason?: string | null;
           reversed_at?: string | null;
@@ -3615,7 +3622,9 @@ export type Database = {
           notes?: string | null;
           paid_at?: string;
           patient_id?: string;
+          payment_group_id?: string | null;
           payment_method_id?: string | null;
+          receivable_id?: string | null;
           reference?: string | null;
           reversal_reason?: string | null;
           reversed_at?: string | null;
@@ -3654,6 +3663,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "payment_methods";
             referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_receivable_fk";
+            columns: ["receivable_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "receivables";
+            referencedColumns: ["id", "clinic_id"];
           },
           {
             foreignKeyName: "payments_treatment_item_id_fkey";
@@ -4694,6 +4710,137 @@ export type Database = {
           },
         ];
       };
+      receivable_installments: {
+        Row: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at: string;
+          due_on: string;
+          id: string;
+          number: number;
+          receivable_id: string;
+        };
+        Insert: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at?: string;
+          due_on: string;
+          id?: string;
+          number: number;
+          receivable_id: string;
+        };
+        Update: {
+          amount_cents?: number;
+          clinic_id?: string;
+          created_at?: string;
+          due_on?: string;
+          id?: string;
+          number?: number;
+          receivable_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "receivable_installments_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receivable_installments_receivable_id_clinic_id_fkey";
+            columns: ["receivable_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "receivables";
+            referencedColumns: ["id", "clinic_id"];
+          },
+        ];
+      };
+      receivables: {
+        Row: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          description: string;
+          due_on: string | null;
+          id: string;
+          issued_on: string;
+          patient_id: string;
+          quote_id: string | null;
+          treatment_plan_id: string | null;
+          updated_at: string;
+          void_reason: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+        };
+        Insert: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          description: string;
+          due_on?: string | null;
+          id?: string;
+          issued_on: string;
+          patient_id: string;
+          quote_id?: string | null;
+          treatment_plan_id?: string | null;
+          updated_at?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Update: {
+          amount_cents?: number;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          description?: string;
+          due_on?: string | null;
+          id?: string;
+          issued_on?: string;
+          patient_id?: string;
+          quote_id?: string | null;
+          treatment_plan_id?: string | null;
+          updated_at?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "receivables_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receivables_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receivables_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "receivables_treatment_plan_id_fkey";
+            columns: ["treatment_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "treatment_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       specialties: {
         Row: {
           clinic_id: string;
@@ -5377,6 +5524,10 @@ export type Database = {
           version: number;
         }[];
       };
+      definir_cuotas: {
+        Args: { p_cuotas: Json; p_receivable_id: string };
+        Returns: undefined;
+      };
       extender_prueba_de_la_clinica: {
         Args: {
           p_actor_email: string;
@@ -5509,6 +5660,10 @@ export type Database = {
           p_scope_label: string;
         };
         Returns: string;
+      };
+      receivable_paid_totals: {
+        Args: { p_clinic_id: string; p_receivable_ids?: string[] };
+        Returns: { last_paid_at: string; paid_cents: number; receivable_id: string }[];
       };
       registrar_evento_de_nota: {
         Args: {

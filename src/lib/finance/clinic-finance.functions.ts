@@ -12,6 +12,7 @@ import type {
   PaymentMethodConfig,
 } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
+import { TIPOS_MEDIO, esTipoMedio } from "@/lib/finance/medios-de-pago";
 import { writePatientFields } from "@/lib/patients/patients.functions";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
@@ -26,7 +27,7 @@ import { requireEscritura } from "@/lib/solo-lectura.middleware";
 // ─── MEDIOS DE PAGO ──────────────────────────────────────────────────────
 
 const PAYMENT_METHOD_COLUMNS =
-  "id, name, retention_pct, allows_refund, is_active, position, legacy_key";
+  "id, name, retention_pct, allows_refund, is_active, position, legacy_key, kind";
 
 type PaymentMethodRow = {
   id: string;
@@ -36,6 +37,7 @@ type PaymentMethodRow = {
   is_active: boolean;
   position: number;
   legacy_key: string | null;
+  kind: string | null;
 };
 
 function mapPaymentMethod(row: PaymentMethodRow): PaymentMethodConfig {
@@ -49,6 +51,7 @@ function mapPaymentMethod(row: PaymentMethodRow): PaymentMethodConfig {
     isActive: row.is_active,
     position: row.position,
     legacyKey: row.legacy_key as PaymentMethodConfig["legacyKey"],
+    kind: esTipoMedio(row.kind) ? row.kind : null,
   };
 }
 
@@ -107,6 +110,11 @@ const PaymentMethodFields = {
   retentionPct: z.number().min(0).max(100).default(0),
   allowsRefund: z.boolean().default(false),
   position: z.number().int().min(0).max(999).default(0),
+  /**
+   * Tipo de medio (FIN-07). Opcional para los callers viejos: sin él, el
+   * medio queda sin tipo y cuenta como "otro", igual que antes.
+   */
+  kind: z.enum(TIPOS_MEDIO).nullish(),
 };
 
 export const createPaymentMethod = createServerFn({ method: "POST" })
@@ -123,6 +131,7 @@ export const createPaymentMethod = createServerFn({ method: "POST" })
         retention_pct: data.retentionPct,
         allows_refund: data.allowsRefund,
         position: data.position,
+        kind: data.kind ?? null,
       })
       .select("id")
       .single();
@@ -159,6 +168,8 @@ export const updatePaymentMethod = createServerFn({ method: "POST" })
         retention_pct: data.retentionPct,
         allows_refund: data.allowsRefund,
         position: data.position,
+        // `undefined` no toca el tipo guardado (caller viejo); `null` lo quita.
+        ...(data.kind !== undefined && { kind: data.kind }),
       })
       .eq("id", data.paymentMethodId)
       .eq("clinic_id", data.clinicId);

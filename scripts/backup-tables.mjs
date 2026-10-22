@@ -80,6 +80,8 @@ export const TABLES = [
   "quote_events",
   "quote_items",
   "quotes",
+  "receivable_installments",
+  "receivables",
   "specialties",
   "stripe_events",
   "subscriptions",

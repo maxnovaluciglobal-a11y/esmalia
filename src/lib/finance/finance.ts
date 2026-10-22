@@ -1,4 +1,5 @@
 import type { ToothSurface } from "@/lib/clinical/odontogram";
+import type { TipoMedio } from "@/lib/finance/medios-de-pago";
 
 export const QUOTE_STATUSES = [
   "draft",
@@ -90,6 +91,11 @@ export interface PaymentMethodConfig {
   position: number;
   /** Valor del enum viejo al que equivale, si equivale a alguno. */
   legacyKey: PaymentMethod | null;
+  /**
+   * Tipo de medio (FIN-07): efectivo, débito, Redcompra, cheque, bono…
+   * `null` = medio propio sin tipo, cuenta como "otro". Ver `medios-de-pago.ts`.
+   */
+  kind: TipoMedio | null;
 }
 
 /** Neto que le queda a la clínica tras la retención del medio de pago. */
@@ -361,6 +367,18 @@ export interface Payment {
   reversedAt: string | null;
   reversedById: string | null;
   reversalReason: string | null;
+  /** Nombre del medio configurado al cobrar (snapshot). `null` = pago anterior a G-6. */
+  methodNameSnapshot: string | null;
+  /** Cuenta por cobrar a la que se imputó. `null` = a cuenta o solo al plan. */
+  receivableId: string | null;
+  /** Cobro repartido en varios medios: las filas del mismo cobro comparten id. */
+  paymentGroupId: string | null;
+  /** Bono + copago (MKT-03): las dos filas del mismo cobro comparten id. */
+  coverageGroupId: string | null;
+  /** Qué parte es la fila en un cobro con bono. `null` = pago sin bono. */
+  coverageRole: "bono" | "copago" | null;
+  /** Número del bono (solo en la fila del bono). */
+  voucherNumber: string | null;
 }
 
 export const LAB_ORDER_STATUSES = [
