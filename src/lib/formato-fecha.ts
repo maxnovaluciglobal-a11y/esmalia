@@ -14,6 +14,7 @@
  * | `hora`        | 09:30 (24 h, sin segundos) |
  * | `diaSemana`   | mié 21 oct                 |
  * | `fechaLarga`  | miércoles 21 de octubre    |
+ * | `fechaDocumento` | 22 de octubre de 2026   |
  * | `mesAnio`     | octubre 2026               |
  * | `relativa`    | hoy · ayer · mañana · hace 3 días |
  *
@@ -135,6 +136,12 @@ export function diaSemana(valor: EntradaFecha, zona?: Zona): string {
 export function fechaLarga(valor: EntradaFecha, zona?: Zona): string {
   const p = piezas(valor, zona, { weekday: "long", day: "numeric", month: "long" });
   return p ? `${p.weekday} ${p.day} de ${p.month}` : SIN_FECHA;
+}
+
+/** "22 de octubre de 2026" (documentos emitidos: certificados, informes). */
+export function fechaDocumento(valor: EntradaFecha, zona?: Zona): string {
+  const p = piezas(valor, zona, { day: "numeric", month: "long", year: "numeric" });
+  return p ? `${p.day} de ${p.month} de ${p.year}` : SIN_FECHA;
 }
 
 /** "octubre 2026" */
