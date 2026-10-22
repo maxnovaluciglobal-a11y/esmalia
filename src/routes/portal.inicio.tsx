@@ -15,6 +15,7 @@ import { toast } from "sonner";
 
 import { Calendar } from "@/components/ui/calendar";
 import { HolidayNotice } from "@/components/holiday-notice";
+import { MisDatosYDerechos } from "@/components/portal/mis-datos-y-derechos";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { usePublicHolidays } from "@/hooks/use-public-holidays";
 import {
@@ -286,6 +287,8 @@ function PortalInicio() {
           </>
         )}
       </section>
+
+      <MisDatosYDerechos />
     </div>
   );
 }

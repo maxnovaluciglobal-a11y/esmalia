@@ -125,6 +125,25 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   updateLabOrderStatusFromPortal:
     "Portal del laboratorio (sin login): el laboratorio informa el estado de su trabajo.",
   confirmarBajaDeCorreos: "Baja de correos: obligatoria por ley, nunca se bloquea.",
+  descargarMisDatosPortal:
+    "Portal del paciente (sin login): derecho de acceso y portabilidad a sus datos (Ley 21.719).",
+  solicitarDerechoPortal:
+    "Portal del paciente (sin login): el paciente ejerce un derecho sobre sus datos (Ley 21.719).",
+  cambiarComunicacionPortal:
+    "Portal del paciente (sin login): oposición a recibir mensajes; obligatoria por ley, nunca se bloquea.",
+
+  // Obligaciones legales de la clínica con sus pacientes y con la autoridad
+  // (Ley 21.719): no dependen de que la suscripción esté al día.
+  registrarSolicitudTitular:
+    "Registrar una solicitud de derechos que llegó por otro canal: el plazo legal corre igual.",
+  actualizarSolicitudTitular:
+    "Responder una solicitud de derechos del paciente dentro del plazo legal.",
+  prorrogarSolicitudTitular: "Prorrogar el plazo legal de una solicitud de derechos del paciente.",
+  enviarRespuestaTitularPorCorreo:
+    "Enviar al paciente la respuesta a su solicitud de derechos (obligación legal).",
+  registrarBrecha: "Registrar un incidente de seguridad o brecha de datos (obligación legal).",
+  agregarSeguimientoBrecha:
+    "Seguimiento de un incidente de seguridad o brecha de datos (obligación legal).",
   submitMarketingLead: "Formulario público de la web.",
   ensureDemoClinicFresh: "Clínica demo pública (ya es de solo lectura por trigger).",
 

@@ -72,6 +72,8 @@ export interface ContenidoFicha {
   pacienteId: string;
   pacienteNombre: string;
   clinicaNombre: string;
+  /** Rótulo bajo el nombre de la clínica (por defecto, "Ficha clínica del paciente"). */
+  subtitulo?: string;
   /** Líneas bajo el nombre del paciente (documento, generación). */
   encabezado: string[];
   secciones: SeccionFicha[];
