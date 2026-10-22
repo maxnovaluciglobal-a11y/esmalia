@@ -307,7 +307,8 @@ function PruebasEmailPage() {
           <h2 className="font-display text-2xl font-semibold text-foreground">Pruebas de email</h2>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Lanza envíos de prueba de cada aviso del flujo clínico, revisa cómo queda cada
-            destinatario tras aplicar el sandbox y consulta los tiempos y errores de cada intento.
+            destinatario tras aplicar el modo prueba y consulta los tiempos y errores de cada
+            intento.
           </p>
         </header>
 
@@ -412,8 +413,8 @@ function PruebasEmailPage() {
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 />
                 <p className="text-xs text-muted-foreground">
-                  Una dirección por línea (o separadas por coma). Cada una pasa primero por la
-                  política de sandbox.
+                  Una dirección por línea (o separadas por coma). Cada una pasa primero por la regla
+                  del modo prueba.
                 </p>
               </div>
 

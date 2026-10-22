@@ -79,6 +79,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   agreement_coverage: "catálogo de coberturas de convenios",
   agreements: "catálogo de convenios",
   appointment_statuses: "catálogo de estados de cita",
+  appointment_types: "catálogo de tipos de cita",
   branches: "estructura de la clínica",
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",

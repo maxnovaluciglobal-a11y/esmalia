@@ -50,7 +50,7 @@ function SinAccesoLayout({ mensaje, children }: { mensaje: string; children?: Re
           to="/dashboard"
           className="inline-block rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12"
         >
-          Volver al dashboard
+          Volver al panel
         </Link>
       </div>
     </div>

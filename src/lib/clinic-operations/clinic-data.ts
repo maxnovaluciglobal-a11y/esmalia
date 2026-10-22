@@ -40,6 +40,10 @@ export interface Profesional {
   sucursalId: string;
   /** Hex guardado por el profesional en /profesionales — identifica sus citas en la agenda. */
   color: string;
+  /** Atiende pacientes (AGE-17): solo estos aparecen en el selector de la
+   *  cita. Ausente = sí (datos de una versión anterior o sin conexión). Ver
+   *  `atiendePacientes` en cita-formulario.ts. */
+  atiende?: boolean;
 }
 
 export interface EventoClinico {

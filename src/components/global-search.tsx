@@ -23,6 +23,8 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { HojaDeAtajos } from "@/components/hoja-de-atajos";
+import { esAtajoBuscar, hayDialogoAbierto } from "@/lib/atajos";
 import { hasPermission, type ClinicAccess } from "@/lib/access/access";
 import { ajustesVisibles, destinosVisibles } from "@/lib/access/navegacion";
 import { buscarPacientes } from "@/lib/patients/buscar-pacientes.functions";
@@ -92,6 +94,13 @@ export function GlobalSearch({
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         setAbierto((v) => !v);
+        return;
+      }
+      // NAV-03: `/` abre la búsqueda de pacientes, salvo que alguien esté
+      // escribiendo en un campo o haya otro diálogo abierto.
+      if (esAtajoBuscar(e, hayDialogoAbierto())) {
+        e.preventDefault();
+        setAbierto(true);
       }
     }
     window.addEventListener("keydown", onKey);
@@ -193,7 +202,7 @@ export function GlobalSearch({
         type="button"
         onClick={() => setAbierto(true)}
         aria-label="Buscar paciente, página o acción"
-        aria-keyshortcuts="Meta+K Control+K"
+        aria-keyshortcuts="Meta+K Control+K /"
         className={cn(
           "flex h-9 items-center gap-2 rounded-full border text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
           enBarraSuperior
@@ -215,6 +224,8 @@ export function GlobalSearch({
           {esMac ? "⌘K" : "Ctrl K"}
         </kbd>
       </button>
+
+      {atajo && <HojaDeAtajos esMac={esMac} />}
 
       <Dialog open={abierto} onOpenChange={setAbierto}>
         {/* En celular va arriba y no centrado: centrado, el teclado tapaba

@@ -258,8 +258,48 @@ export type Database = {
           },
         ];
       };
+      appointment_types: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          is_active: boolean;
+          name: string;
+          position: number;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          position?: number;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          position?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "appointment_types_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       appointments: {
         Row: {
+          appointment_type_id: string | null;
+          appointment_type_name: string | null;
           arrived_at: string | null;
           branch_id: string;
           clinic_id: string;
@@ -286,6 +326,8 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          appointment_type_id?: string | null;
+          appointment_type_name?: string | null;
           arrived_at?: string | null;
           branch_id: string;
           clinic_id: string;
@@ -312,6 +354,8 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          appointment_type_id?: string | null;
+          appointment_type_name?: string | null;
           arrived_at?: string | null;
           branch_id?: string;
           clinic_id?: string;
@@ -338,6 +382,13 @@ export type Database = {
           updated_by?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "appointments_appointment_type_id_fkey";
+            columns: ["appointment_type_id"];
+            isOneToOne: false;
+            referencedRelation: "appointment_types";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "appointments_branch_id_fkey";
             columns: ["branch_id"];
@@ -3739,6 +3790,7 @@ export type Database = {
           duration_min: number | null;
           id: string;
           is_active: boolean;
+          is_favorite: boolean;
           lab_cost_cents: number | null;
           name: string;
           position: number;
@@ -3757,6 +3809,7 @@ export type Database = {
           duration_min?: number | null;
           id?: string;
           is_active?: boolean;
+          is_favorite?: boolean;
           lab_cost_cents?: number | null;
           name: string;
           position?: number;
@@ -3775,6 +3828,7 @@ export type Database = {
           duration_min?: number | null;
           id?: string;
           is_active?: boolean;
+          is_favorite?: boolean;
           lab_cost_cents?: number | null;
           name?: string;
           position?: number;
@@ -4905,6 +4959,10 @@ export type Database = {
       patient_balances: {
         Args: { p_clinic_id: string; p_patient_ids?: string[] };
         Returns: { billed_cents: number; paid_cents: number; patient_id: string }[];
+      };
+      procedimientos_frecuentes: {
+        Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
+        Returns: { procedure_id: string; usos: number }[];
       };
       registrar_evento_de_nota: {
         Args: {

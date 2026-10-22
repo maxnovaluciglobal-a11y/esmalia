@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Boxes, Download, Loader2, Pencil, Plus, Upload } from "lucide-react";
+import { Boxes, Download, Loader2, Pencil, Plus, Star, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -39,6 +39,10 @@ import {
   setProcedureSupplies,
 } from "@/lib/clinic-operations/procedure-supplies.functions";
 import { listRecipeRecalibrationSuggestions } from "@/lib/clinic-operations/recipe-recalibration.functions";
+import {
+  listFrequentProcedures,
+  setProcedureFavorite,
+} from "@/lib/clinic-operations/cita-formulario.functions";
 import { coincide, str } from "@/lib/search";
 import { exportarCsv } from "@/lib/csv-export";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
@@ -755,6 +759,28 @@ function ArancelesPage() {
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
+  // Favoritos (AGE-12): con estrella aparecen primero en los botones de
+  // procedimientos frecuentes del formulario de cita.
+  const fetchFrecuentes = useServerFn(listFrequentProcedures);
+  const setFavoritoFn = useServerFn(setProcedureFavorite);
+  const { data: usoProcedimientos } = useQuery({
+    queryKey: ["procedimientos-frecuentes", clinicId],
+    enabled: Boolean(clinicId),
+    queryFn: () => fetchFrecuentes({ data: { clinicId: clinicId! } }),
+  });
+  const favoritos = useMemo(() => new Set(usoProcedimientos?.favoritos ?? []), [usoProcedimientos]);
+  const setFavorito = useMutation({
+    mutationFn: (v: { procedureId: string; favorito: boolean }) =>
+      setFavoritoFn({ data: { clinicId: clinicId!, ...v } }),
+    onSuccess: (_r, v) => {
+      queryClient.invalidateQueries({ queryKey: ["procedimientos-frecuentes", clinicId] });
+      toast.success(
+        v.favorito ? "Marcada como favorita: aparece primero al agendar." : "Ya no es favorita.",
+      );
+    },
+    onError: (e: Error) => toast.error(mensajeDeError(e)),
+  });
+
   const categorias = useMemo(
     () =>
       [...new Set(procedures.map((p) => p.category).filter((c): c is string => Boolean(c)))].sort(),
@@ -898,7 +924,35 @@ function ArancelesPage() {
                         )}
                       >
                         <td className="px-4 py-2">
-                          {p.name}
+                          <span className="inline-flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              aria-pressed={favoritos.has(p.id)}
+                              aria-label={
+                                favoritos.has(p.id)
+                                  ? `Quitar ${p.name} de favoritas`
+                                  : `Marcar ${p.name} como favorita`
+                              }
+                              title="Favorita: aparece primero al agendar una cita"
+                              disabled={setFavorito.isPending || !p.isActive}
+                              onClick={() =>
+                                setFavorito.mutate({
+                                  procedureId: p.id,
+                                  favorito: !favoritos.has(p.id),
+                                })
+                              }
+                              className={cn(
+                                "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-secondary disabled:opacity-40 pointer-coarse:size-11",
+                                favoritos.has(p.id) ? "text-brand-700" : "text-muted-foreground",
+                              )}
+                            >
+                              <Star
+                                className={cn("size-3.5", favoritos.has(p.id) && "fill-current")}
+                                aria-hidden
+                              />
+                            </button>
+                            {p.name}
+                          </span>
                           {!p.isActive && (
                             <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">
                               De baja
