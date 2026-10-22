@@ -21,6 +21,7 @@ import { tryMetaTemplateSend } from "@/lib/messaging/whatsapp.functions";
 import { mensajeTelefonoInvalido, normalizeToWaMe } from "@/lib/messaging/telefonos";
 import { motivoParaNoEnviarWhatsApp, quitarBajasDeWhatsApp } from "@/lib/messaging/baja-whatsapp";
 import {
+  contarFilasDeOutreach,
   cubrirPorPacienteYDia,
   visitaPendienteDeResena,
   type RecordatorioEnviado,
@@ -1089,7 +1090,8 @@ export const countPendingOutreach = createServerFn({ method: "GET" })
         DIAS_SIN_RESPUESTA_POR_DEFECTO,
       ),
     ]);
-    return { total: items.length + presupuestos.length };
+    // Filas por paciente, como las muestra /recordatorios (UX-11).
+    return { total: contarFilasDeOutreach(items, presupuestos) };
   });
 
 /** Lee y arma "Presupuestos sin respuesta". La regla está en `calcularPresupuestosSinRespuesta`. */

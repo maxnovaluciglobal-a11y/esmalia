@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 import {
   agruparPorPaciente,
   agruparRecordatorios,
+  contarFilasDeOutreach,
+  contarFilasDeRecordatorios,
   cubrirPorPacienteYDia,
   despacharEnSerie,
   unirConY,
@@ -290,5 +292,54 @@ describe("invariantes de envío", () => {
     const envio = servidor.slice(servidor.indexOf("export const sendWhatsAppFromTemplate"));
     expect(envio).toMatch(/motivoParaNoEnviarWhatsApp/);
     expect(envio).toMatch(/assertNotDemoClinic/);
+  });
+});
+
+describe("cuentas del badge y de Hoy = filas de /recordatorios", () => {
+  it("recordatorios de cita: una por paciente, aunque tenga varias citas o dos secciones", () => {
+    const filas = [
+      cita({ patientId: "p1" }),
+      cita({ patientId: "p1", startsAt: "2026-10-23T18:00:00Z", hora: "15:00" }),
+      cita({ patientId: "p1", reminderKind: "appointment_checkin", diaLocal: "2026-10-21" }),
+      cita({ patientId: "p2" }),
+    ];
+    const { aviso3h, recordatorio48h } = agruparRecordatorios(filas);
+    expect(contarFilasDeRecordatorios(filas)).toBe(aviso3h.length + recordatorio48h.length);
+    expect(contarFilasDeRecordatorios(filas)).toBe(2);
+  });
+
+  it("outreach y presupuestos: una fila por paciente en cada sección, igual que agruparPorPaciente", () => {
+    const outreach = [
+      { patientId: "p1", kind: "review_request" },
+      { patientId: "p1", kind: "review_request" },
+      { patientId: "p2", kind: "review_request" },
+      { patientId: "p1", kind: "payment_due" },
+    ];
+    const presupuestos = [{ patientId: "p1" }, { patientId: "p1" }, { patientId: "p3" }];
+    const porSeccion = ["review_request", "payment_due"].reduce(
+      (n, k) => n + agruparPorPaciente(outreach.filter((o) => o.kind === k)).length,
+      0,
+    );
+    expect(contarFilasDeOutreach(outreach, presupuestos)).toBe(
+      porSeccion + agruparPorPaciente(presupuestos).length,
+    );
+    expect(contarFilasDeOutreach(outreach, presupuestos)).toBe(5);
+  });
+
+  it("countPendingOutreach, el badge y Hoy usan las cuentas agrupadas", () => {
+    const servidor = readFileSync(
+      new URL("../src/lib/messaging/messaging.functions.ts", import.meta.url),
+      "utf8",
+    );
+    const cuenta = servidor.slice(servidor.indexOf("export const countPendingOutreach"));
+    expect(cuenta.slice(0, 1200)).toMatch(/contarFilasDeOutreach\(items, presupuestos\)/);
+    for (const archivo of [
+      "../src/components/app-shell.tsx",
+      "../src/routes/_authenticated/_clinic/dashboard.tsx",
+    ]) {
+      expect(readFileSync(new URL(archivo, import.meta.url), "utf8")).toMatch(
+        /contarFilasDeRecordatorios\(/,
+      );
+    }
   });
 });

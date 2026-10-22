@@ -228,6 +228,32 @@ export function visitaPendienteDeResena(
   return new Date(ultimoPedidoAlPaciente).getTime() < new Date(visitaTerminoEn).getTime();
 }
 
+// ─── Cuentas (badge del menú y "Avisos para despachar" de Hoy) ───────────
+
+/**
+ * Filas que muestra /recordatorios en las secciones de cita: una por
+ * paciente (ver `agruparRecordatorios`). El badge y Hoy cuentan esto, no
+ * citas sueltas, para que el número coincida con lo que se ve.
+ */
+export function contarFilasDeRecordatorios(filas: readonly RecordatorioDeCita[]): number {
+  const { aviso3h, recordatorio48h } = agruparRecordatorios(filas);
+  return aviso3h.length + recordatorio48h.length;
+}
+
+/**
+ * Filas de outreach y de presupuestos que muestra /recordatorios: una por
+ * paciente en cada sección (tipo de outreach) y una por paciente en
+ * "Presupuestos sin respuesta". Misma regla que `agruparPorPaciente`.
+ */
+export function contarFilasDeOutreach(
+  outreach: readonly { patientId: string; kind: string }[],
+  presupuestos: readonly { patientId: string }[],
+): number {
+  const porSeccion = new Set(outreach.map((o) => `${o.kind}|${o.patientId}`));
+  const conPresupuesto = new Set(presupuestos.map((q) => q.patientId));
+  return porSeccion.size + conPresupuesto.size;
+}
+
 // ─── Envío en tanda ───────────────────────────────────────────────────────
 
 /** Pausa entre emails de una tanda: Resend admite pocas solicitudes por segundo. */

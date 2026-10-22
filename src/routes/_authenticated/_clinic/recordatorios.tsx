@@ -83,7 +83,7 @@ const OUTREACH_META: Record<
   { label: string; icon: typeof Sparkles; badgeClass: string }
 > = {
   hygiene_recall: {
-    label: "Recall de higiene",
+    label: "Control periódico",
     icon: Sparkles,
     badgeClass: "bg-brand-soft text-brand-700",
   },
@@ -251,9 +251,9 @@ function RecordatoriosPage() {
       <div className="space-y-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
-          presupuestos que siguen sin respuesta y pacientes candidatos a un recall, un pedido de
-          reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes mandar de a
-          uno o con «Enviar todos»: tú revisas antes de que salga nada.
+          presupuestos que siguen sin respuesta y pacientes candidatos a un control periódico, un
+          pedido de reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes
+          mandar de a uno o con «Enviar todos»: tú revisas antes de que salga nada.
         </p>
 
         {(isLoading || isLoadingOutreach) && (
@@ -270,7 +270,7 @@ function RecordatoriosPage() {
         {outreachConError && (
           <ErrorDeCarga
             onReintentar={reintentarOutreach}
-            mensaje="No pudimos cargar los pacientes candidatos a recall, reseña o saldo."
+            mensaje="No pudimos cargar los pacientes candidatos a control periódico, reseña o saldo."
           />
         )}
 
@@ -287,7 +287,7 @@ function RecordatoriosPage() {
             <p className="text-sm font-medium">No hay nada pendiente ahora mismo.</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Esta lista se arma sola a medida que las citas entran a la ventana de 48h/3h, o
-              aparecen pacientes candidatos a recall, reseña o saldo.
+              aparecen pacientes candidatos a control periódico, reseña o saldo.
             </p>
           </div>
         )}
