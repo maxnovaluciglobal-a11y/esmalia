@@ -17,6 +17,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { SelectorColorProfesional } from "@/components/selector-color-profesional";
+import {
+  colorProfesional,
+  PALETA_PROFESIONALES,
+  colorDePaleta,
+  COLOR_PROFESIONAL_POR_DEFECTO,
+} from "@/lib/clinic-operations/color-profesional";
 import { listBranches, listSpecialties } from "@/lib/clinic-operations/clinic-catalog.functions";
 import {
   createProfessional,
@@ -69,7 +76,7 @@ const EMPTY_FORM: ProfessionalFormState = {
   email: "",
   phone: "",
   licenseNumber: "",
-  color: "#a8772c",
+  color: COLOR_PROFESIONAL_POR_DEFECTO,
   branchId: null,
   specialtyId: null,
 };
@@ -80,12 +87,15 @@ function ProfessionalFields({
   branches,
   specialties,
   idPrefix,
+  coloresUsados,
 }: {
   form: ProfessionalFormState;
   onChange: (next: ProfessionalFormState) => void;
   branches: { id: string; nombre: string }[];
   specialties: { id: string; name: string }[];
   idPrefix: string;
+  /** Colores de los otros profesionales activos (AGE-06). */
+  coloresUsados: readonly string[];
 }) {
   return (
     <div className="space-y-3">
@@ -120,27 +130,21 @@ function ProfessionalFields({
           />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-matricula`}>Matrícula (opcional)</Label>
-          <input
-            id={`${idPrefix}-matricula`}
-            value={form.licenseNumber}
-            onChange={(e) => onChange({ ...form, licenseNumber: e.target.value })}
-            className={inputClass()}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-color`}>Color en agenda</Label>
-          <input
-            id={`${idPrefix}-color`}
-            type="color"
-            value={form.color}
-            onChange={(e) => onChange({ ...form, color: e.target.value })}
-            className="h-9 w-full rounded-lg border border-hairline bg-transparent px-1"
-          />
-        </div>
+      <div className="space-y-1.5">
+        <Label htmlFor={`${idPrefix}-matricula`}>Matrícula (opcional)</Label>
+        <input
+          id={`${idPrefix}-matricula`}
+          value={form.licenseNumber}
+          onChange={(e) => onChange({ ...form, licenseNumber: e.target.value })}
+          className={inputClass()}
+        />
       </div>
+      <SelectorColorProfesional
+        id={`${idPrefix}-color`}
+        value={form.color}
+        onChange={(color) => onChange({ ...form, color })}
+        usados={coloresUsados}
+      />
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-sucursal`}>Sucursal</Label>
@@ -179,17 +183,28 @@ function ProfessionalFields({
   );
 }
 
+/** Primer color de la paleta que nadie usa (o el por defecto si están todos). */
+function colorLibre(usados: readonly string[]): string {
+  const tokens = new Set(usados.map((u) => colorDePaleta(u).token));
+  return (
+    PALETA_PROFESIONALES.find((c) => !tokens.has(c.token))?.claro ?? COLOR_PROFESIONAL_POR_DEFECTO
+  );
+}
+
 function NuevoProfesionalDialog({
   clinicId,
   branches,
   specialties,
+  coloresUsados,
 }: {
   clinicId: string;
   branches: { id: string; nombre: string }[];
   specialties: { id: string; name: string }[];
+  coloresUsados: readonly string[];
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProfessionalFormState>(EMPTY_FORM);
+  const formVacio = () => ({ ...EMPTY_FORM, color: colorLibre(coloresUsados) });
 
   const queryClient = useQueryClient();
   const createFn = useServerFn(createProfessional);
@@ -200,13 +215,13 @@ function NuevoProfesionalDialog({
       queryClient.invalidateQueries({ queryKey: ["professionals-detailed", clinicId] });
       toast.success("Profesional agregado.");
       setOpen(false);
-      setForm(EMPTY_FORM);
+      setForm(formVacio());
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (setOpen(v), v || setForm(EMPTY_FORM))}>
+    <Dialog open={open} onOpenChange={(v) => (setOpen(v), setForm(formVacio()))}>
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" /> Nuevo profesional
@@ -225,6 +240,7 @@ function NuevoProfesionalDialog({
           branches={branches}
           specialties={specialties}
           idPrefix="np"
+          coloresUsados={coloresUsados}
         />
         <DialogFooter>
           <Button
@@ -245,11 +261,13 @@ function EditarProfesionalDialog({
   professional,
   branches,
   specialties,
+  coloresUsados,
 }: {
   clinicId: string;
   professional: ProfessionalDetail;
   branches: { id: string; nombre: string }[];
   specialties: { id: string; name: string }[];
+  coloresUsados: readonly string[];
 }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<ProfessionalFormState>({
@@ -296,6 +314,7 @@ function EditarProfesionalDialog({
           branches={branches}
           specialties={specialties}
           idPrefix={`ep-${professional.id}`}
+          coloresUsados={coloresUsados}
         />
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -643,6 +662,9 @@ function ProfesionalesPage() {
   const professionals = professionalsQuery.data ?? [];
   const activeProfessionals = professionals.filter((p) => p.isActive);
   const inactiveProfessionals = professionals.filter((p) => !p.isActive);
+  // Colores en uso (AGE-06): el selector avisa si se repite uno.
+  const coloresDeOtros = (id?: string) =>
+    activeProfessionals.filter((p) => p.id !== id).map((p) => p.color);
   const branches = branchesQuery.data ?? [];
   const specialties = specialtiesQuery.data ?? [];
 
@@ -662,6 +684,7 @@ function ProfesionalesPage() {
             clinicId={clinicId}
             branches={branches}
             specialties={specialties}
+            coloresUsados={coloresDeOtros()}
           />
         </div>
 
@@ -689,7 +712,7 @@ function ProfesionalesPage() {
               <div className="flex items-start gap-3">
                 <span
                   className="mt-1 size-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: professional.color }}
+                  style={{ backgroundColor: colorProfesional(professional.color) }}
                 />
                 <div>
                   <p className="font-medium">{professional.fullName}</p>
@@ -711,6 +734,7 @@ function ProfesionalesPage() {
                   professional={professional}
                   branches={branches}
                   specialties={specialties}
+                  coloresUsados={coloresDeOtros(professional.id)}
                 />
               </div>
             </div>
@@ -734,6 +758,7 @@ function ProfesionalesPage() {
                     professional={professional}
                     branches={branches}
                     specialties={specialties}
+                    coloresUsados={coloresDeOtros(professional.id)}
                   />
                 </div>
               ))}
