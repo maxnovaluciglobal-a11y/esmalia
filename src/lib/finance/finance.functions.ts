@@ -23,6 +23,7 @@ import {
   QUOTE_STATUSES,
   TREATMENT_ITEM_STATUSES,
   type Payment,
+  type PaymentMethod,
   type Procedure,
   type Quote,
   type QuoteItem,
@@ -32,6 +33,8 @@ import {
   repartirCobertura,
 } from "@/lib/finance/finance";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
+import { MAX_PARTES_COBRO, validarReparto } from "@/lib/finance/cuentas-por-cobrar";
+import { metodoDelMedio } from "@/lib/finance/medios-de-pago";
 
 const SURFACE_ENUM = z.enum(TOOTH_SURFACES);
 const TOOTH_NUMBER_OPT = z
@@ -1670,7 +1673,7 @@ export const setTreatmentItemStatus = createServerFn({ method: "POST" })
 // ─── PAYMENTS ────────────────────────────────────────────────────────────
 
 const PAYMENT_COLUMNS =
-  "id, amount_cents, currency, method, reference, paid_at, notes, treatment_plan_id, treatment_item_id, created_by, reversed_at, reversed_by, reversal_reason";
+  "id, amount_cents, currency, method, reference, paid_at, notes, treatment_plan_id, treatment_item_id, created_by, reversed_at, reversed_by, reversal_reason, method_name_snapshot, receivable_id, payment_group_id";
 
 type PaymentRow = {
   id: string;
@@ -1686,6 +1689,9 @@ type PaymentRow = {
   reversed_at: string | null;
   reversed_by: string | null;
   reversal_reason: string | null;
+  method_name_snapshot: string | null;
+  receivable_id: string | null;
+  payment_group_id: string | null;
 };
 
 function mapPayment(row: PaymentRow): Payment {
@@ -1703,6 +1709,9 @@ function mapPayment(row: PaymentRow): Payment {
     reversedAt: row.reversed_at,
     reversedById: row.reversed_by,
     reversalReason: row.reversal_reason,
+    methodNameSnapshot: row.method_name_snapshot,
+    receivableId: row.receivable_id,
+    paymentGroupId: row.payment_group_id,
   };
 }
 
@@ -1763,26 +1772,79 @@ export const registerPayment = createServerFn({ method: "POST" })
          * perfectamente válido y deja las líneas sin imputación.
          */
         treatmentItemId: z.string().uuid().nullish(),
+        /**
+         * Cuenta por cobrar a la que se imputa (FIN-02/03). Sin ella, si el
+         * cobro va a un plan que tiene cuenta vigente, se imputa a esa.
+         */
+        receivableId: z.string().uuid().nullish(),
+        /**
+         * Cobro repartido en varios medios (FIN-04): una parte por medio, que
+         * suman EXACTO `amountCents`. Se guarda una fila de pago por parte,
+         * todas con el mismo `payment_group_id`, así la caja y los reportes
+         * lo ven por medio. Sin `partes`, el cobro es de un solo medio.
+         */
+        partes: z
+          .array(
+            z.object({
+              paymentMethodId: z.string().uuid().nullish(),
+              method: z.enum(PAYMENT_METHODS).default("other"),
+              amountCents: z.number().int().positive("Cada medio tiene que llevar un monto."),
+            }),
+          )
+          .max(MAX_PARTES_COBRO)
+          .optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ id: string }> => {
+    const repartido = Boolean(data.partes && data.partes.length > 0);
+    if (repartido) {
+      const motivo = validarReparto(data.amountCents, data.partes ?? []);
+      if (motivo) throw new Error(motivo);
+    }
+    const partes = repartido
+      ? (data.partes ?? [])
+      : [
+          {
+            paymentMethodId: data.paymentMethodId ?? null,
+            method: data.method,
+            amountCents: data.amountCents,
+          },
+        ];
+
     // Congela nombre y neto del medio de pago al cobrar (regla 10). No se
     // recalcula después: la retención del operador cambia con el tiempo y el
     // recibo tiene que seguir diciendo lo que efectivamente entró ese día.
-    let methodName: string | null = null;
-    let netCents: number | null = null;
-    if (data.paymentMethodId) {
-      const { data: medio } = await context.supabase
+    // El valor del enum `method` también sale del medio (FIN-07): Redcompra
+    // se guarda como débito aunque el cliente mande otra cosa.
+    const idsMedios = [
+      ...new Set(partes.map((p) => p.paymentMethodId).filter((x): x is string => Boolean(x))),
+    ];
+    const medios = new Map<
+      string,
+      { name: string; retention_pct: number; kind: string | null; legacy_key: string | null }
+    >();
+    if (idsMedios.length) {
+      const { data: filasMedios, error: errMedios } = await context.supabase
         .from("payment_methods")
-        .select("name, retention_pct")
-        .eq("id", data.paymentMethodId)
+        .select("id, name, retention_pct, kind, legacy_key")
         .eq("clinic_id", data.clinicId)
+        .in("id", idsMedios);
+      if (errMedios) throw new Error(mensajeDb(errMedios, "No pudimos leer los medios de pago."));
+      for (const m of filasMedios ?? []) medios.set(m.id, m);
+    }
+
+    // Imputación a la cuenta por cobrar del plan, si el cobro no eligió una.
+    let receivableId = data.receivableId ?? null;
+    if (!receivableId && data.treatmentPlanId) {
+      const { data: cuentaDelPlan } = await context.supabase
+        .from("receivables")
+        .select("id")
+        .eq("clinic_id", data.clinicId)
+        .eq("treatment_plan_id", data.treatmentPlanId)
+        .is("voided_at", null)
         .maybeSingle();
-      if (medio) {
-        methodName = medio.name;
-        netCents = netAfterRetention(data.amountCents, Number(medio.retention_pct) || 0);
-      }
+      receivableId = cuentaDelPlan?.id ?? null;
     }
 
     // Vínculo opcional a la caja del turno (módulo Cajas). Solo cubre el caso
@@ -1797,31 +1859,49 @@ export const registerPayment = createServerFn({ method: "POST" })
       .is("branch_id", null)
       .maybeSingle();
 
-    const { data: inserted, error } = await context.supabase
-      .from("payments")
-      .insert({
+    // ⚠️ Este `new Date()` es la hora del SERVIDOR al procesar. Un cobro
+    // capturado sin conexión a las 10:00 que sincroniza a las 15:00
+    // quedaría con la hora equivocada y rompería el cierre de caja del
+    // día. Por eso la cola offline SIEMPRE manda `paidAt` sellado en la
+    // captura; este default es solo para el camino online.
+    const paidAt = data.paidAt ?? new Date().toISOString();
+    // Varias partes = un cobro: comparten grupo. La primera fila lleva el id
+    // del cliente (idempotencia de la cola offline: un reintento choca con la
+    // PK y `filaYaCreada` lo reconoce). Un solo INSERT con todas las filas es
+    // atómico: o entra el cobro entero o nada. Todas las filas llevan `id`:
+    // en un INSERT de varias filas PostgREST manda NULL en la columna que
+    // falte en alguna, y un `id` NULL no toma el default.
+    const grupo = repartido ? (data.id ?? crypto.randomUUID()) : null;
+    const filas = partes.map((parte, i) => {
+      const medio = parte.paymentMethodId ? medios.get(parte.paymentMethodId) : undefined;
+      return {
         cash_register_id: cajaAbierta?.id ?? null,
-        ...(data.id ? { id: data.id } : {}),
+        id: i === 0 && data.id ? data.id : crypto.randomUUID(),
         clinic_id: data.clinicId,
         patient_id: data.patientId,
-        amount_cents: data.amountCents,
-        method: data.method,
-        payment_method_id: data.paymentMethodId ?? null,
-        method_name_snapshot: methodName,
-        net_cents: netCents,
+        amount_cents: parte.amountCents,
+        method: medio
+          ? metodoDelMedio(medio.kind, medio.legacy_key as PaymentMethod | null)
+          : parte.method,
+        payment_method_id: medio ? (parte.paymentMethodId ?? null) : null,
+        method_name_snapshot: medio?.name ?? null,
+        net_cents: medio
+          ? netAfterRetention(parte.amountCents, Number(medio.retention_pct) || 0)
+          : null,
         reference: data.reference || null,
-        // ⚠️ Este `new Date()` es la hora del SERVIDOR al procesar. Un cobro
-        // capturado sin conexión a las 10:00 que sincroniza a las 15:00
-        // quedaría con la hora equivocada y rompería el cierre de caja del
-        // día. Por eso la cola offline SIEMPRE manda `paidAt` sellado en la
-        // captura; este default es solo para el camino online.
-        paid_at: data.paidAt ?? new Date().toISOString(),
+        paid_at: paidAt,
         notes: data.notes || null,
         treatment_plan_id: data.treatmentPlanId ?? null,
         treatment_item_id: data.treatmentItemId ?? null,
-      })
-      .select("id")
-      .single();
+        receivable_id: receivableId,
+        payment_group_id: grupo,
+      };
+    });
+
+    const { data: insertados, error } = await context.supabase
+      .from("payments")
+      .insert(filas)
+      .select("id");
 
     if (error) {
       const yaEstaba = await filaYaCreada(
@@ -1839,7 +1919,9 @@ export const registerPayment = createServerFn({ method: "POST" })
         ),
       );
     }
-    return { id: inserted.id };
+    const primero = insertados?.[0];
+    if (!primero) throw new Error("No pudimos confirmar el pago. Recarga antes de reintentar.");
+    return { id: primero.id };
   });
 
 /**
@@ -1874,7 +1956,7 @@ export const reversePayment = createServerFn({ method: "POST" })
 
     const { data: existing, error: fetchError } = await context.supabase
       .from("payments")
-      .select("id, reversed_at")
+      .select("id, reversed_at, payment_group_id")
       .eq("id", data.id)
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
@@ -1882,15 +1964,20 @@ export const reversePayment = createServerFn({ method: "POST" })
     if (!existing) throw new Error("Ese pago no existe.");
     if (existing.reversed_at) throw new Error("Ese pago ya está reversado.");
 
-    const { error } = await context.supabase
+    // Un cobro con varios medios se reversa entero (FIN-04): reversar solo el
+    // efectivo dejaría un cobro a medias que no corresponde a nada real.
+    const consulta = context.supabase
       .from("payments")
       .update({
         reversed_at: new Date().toISOString(),
         reversed_by: context.userId,
         reversal_reason: data.reason,
       })
-      .eq("id", data.id)
-      .eq("clinic_id", data.clinicId);
+      .eq("clinic_id", data.clinicId)
+      .is("reversed_at", null);
+    const { error } = existing.payment_group_id
+      ? await consulta.eq("payment_group_id", existing.payment_group_id)
+      : await consulta.eq("id", data.id);
     if (error) throw new Error(mensajeDb(error, "No pudimos reversar el pago."));
   });
 
