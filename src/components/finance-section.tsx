@@ -90,6 +90,23 @@ import {
   ConfirmarConsumoDialog,
 } from "@/components/finance/dialogos-presupuesto";
 import { BloqueoEscritura } from "@/components/solo-lectura";
+import {
+  AgregarPaquete,
+  DescuentoGlobal,
+  SeccionesDelPresupuesto,
+  ValidezYProfesional,
+} from "@/components/presupuestos/editor-extras";
+import {
+  calcularTotalesDePresupuesto,
+  posicionesDeSecciones,
+  totalDeLinea,
+} from "@/lib/finance/calculo-presupuesto";
+import {
+  getConfiguracionPresupuestos,
+  listProfesionalesDePresupuesto,
+} from "@/lib/finance/presupuestos.functions";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { Link } from "@tanstack/react-router";
 interface Props {
   clinicId: string;
   clinicaNombre: string;
@@ -147,6 +164,9 @@ interface DraftItem {
    * vínculo (los ítems se reinsertan al guardar).
    */
   odontogramMarkId: string | null;
+  /** Paquete del que salió la línea (PLA-12). Viaja para conservar el snapshot. */
+  packageId: string | null;
+  packageNameSnapshot: string | null;
 }
 
 const emptyItem = (overrides: Partial<DraftItem> = {}): DraftItem => ({
@@ -161,11 +181,21 @@ const emptyItem = (overrides: Partial<DraftItem> = {}): DraftItem => ({
   phaseLabel: "",
   notes: "",
   odontogramMarkId: null,
+  packageId: null,
+  packageNameSnapshot: null,
   ...overrides,
 });
 
-/** DraftItem → payload del server. Compartido por crear y editar. */
-function draftToInput(it: DraftItem) {
+/**
+ * DraftItems → payload del server. Compartido por crear y editar. El orden de
+ * las secciones (PLA-04) sale del orden de la lista: `posicionesDeSecciones`
+ * numera cada sección por su primera aparición.
+ */
+function draftsToInput(items: DraftItem[]) {
+  return posicionesDeSecciones(items.filter((it) => it.nameSnapshot.trim())).map(draftToInput);
+}
+
+function draftToInput(it: DraftItem & { phasePosition: number }) {
   return {
     procedureId: it.procedureId ?? undefined,
     nameSnapshot: it.nameSnapshot.trim(),
@@ -176,8 +206,11 @@ function draftToInput(it: DraftItem) {
     discountCents: it.discountMode === "amount" ? it.discount : 0,
     discountPct: it.discountMode === "pct" ? it.discount : null,
     phaseLabel: it.phaseLabel.trim() || null,
+    phasePosition: it.phasePosition,
     notes: it.notes.trim() || undefined,
     odontogramMarkId: it.odontogramMarkId ?? undefined,
+    packageId: it.packageId ?? undefined,
+    packageNameSnapshot: it.packageNameSnapshot ?? undefined,
   };
 }
 
@@ -195,18 +228,26 @@ function quoteItemToDraft(it: Quote["items"][number]): DraftItem {
     phaseLabel: it.phaseLabel ?? "",
     notes: it.notes ?? "",
     odontogramMarkId: it.odontogramMarkId,
+    packageId: it.packageId,
+    packageNameSnapshot: it.packageNameSnapshot,
   };
 }
 
-/** Descuento de una línea en pesos, con la misma regla que el server. */
-function draftDiscountCents(it: DraftItem): number {
-  const line = it.quantity * it.unitPrice;
-  if (it.discountMode === "amount") return Math.min(it.discount, line);
-  return Math.min(Math.round((line * it.discount) / 100), line);
+/** DraftItem → línea del cálculo compartido con el servidor (calculo-presupuesto.ts). */
+function draftALinea(it: DraftItem) {
+  return {
+    procedureId: it.procedureId,
+    quantity: it.quantity,
+    unitPriceCents: it.unitPrice,
+    discountCents: it.discountMode === "amount" ? it.discount : 0,
+    discountPct: it.discountMode === "pct" ? it.discount : null,
+    phaseLabel: it.phaseLabel,
+  };
 }
 
+/** Total de una línea con la MISMA regla que el servidor. */
 function draftLineTotal(it: DraftItem): number {
-  return Math.max(0, it.quantity * it.unitPrice - draftDiscountCents(it));
+  return totalDeLinea(draftALinea(it));
 }
 
 /** Etiqueta visible arriba de cada campo de una línea del presupuesto (UX-08). */
@@ -254,11 +295,13 @@ function ayudaDePrecio(it: DraftItem, procedures: Procedure[], currency: string)
  * viable.
  */
 function QuoteItemsEditor({
+  clinicId,
   items,
   setItems,
   procedures,
   currency,
 }: {
+  clinicId: string;
   items: DraftItem[];
   setItems: React.Dispatch<React.SetStateAction<DraftItem[]>>;
   procedures: Procedure[];
@@ -288,6 +331,12 @@ function QuoteItemsEditor({
           <option key={f} value={f} />
         ))}
       </datalist>
+
+      <SeccionesDelPresupuesto
+        lineas={items.map((it) => ({ ...draftALinea(it), it }))}
+        setLineas={(next) => setItems(next.map((x) => x.it))}
+        currency={currency}
+      />
 
       {items.map((it, i) => (
         <div key={i} className="space-y-2 rounded-lg border border-hairline p-2">
@@ -325,14 +374,14 @@ function QuoteItemsEditor({
           </div>
 
           <div className="flex flex-wrap items-start gap-2">
-            <CampoDeItem etiqueta="Fase">
+            <CampoDeItem etiqueta="Sección">
               <input
                 value={it.phaseLabel}
                 onChange={(e) => patch(i, { phaseLabel: e.target.value })}
                 list="fases-presupuesto"
-                placeholder="Fase"
-                title="Bloque que agrupa este ítem. Vacío = sin fase."
-                aria-label={`Fase del ítem ${i + 1}`}
+                placeholder="Fase 1"
+                title="Sección o fase que agrupa este ítem. Vacío = sin sección."
+                aria-label={`Sección del ítem ${i + 1}`}
                 className={cn(INPUT_CLASS, "w-28")}
               />
             </CampoDeItem>
@@ -472,14 +521,39 @@ function QuoteItemsEditor({
         </div>
       ))}
 
-      <button
-        onClick={() =>
-          setItems((arr) => [...arr, emptyItem({ phaseLabel: arr.at(-1)?.phaseLabel ?? "" })])
-        }
-        className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
-      >
-        <Plus className="size-3" /> Agregar otro ítem
-      </button>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <button
+          onClick={() =>
+            setItems((arr) => [...arr, emptyItem({ phaseLabel: arr.at(-1)?.phaseLabel ?? "" })])
+          }
+          className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:underline"
+        >
+          <Plus className="size-3" /> Agregar otro ítem
+        </button>
+        <AgregarPaquete
+          clinicId={clinicId}
+          procedures={procedures}
+          onAgregar={(lineas, nombre) =>
+            setItems((arr) => [
+              // Una línea vacía (la del diálogo recién abierto) se reemplaza.
+              ...arr.filter((it) => it.nameSnapshot.trim()),
+              ...lineas.map((l) =>
+                emptyItem({
+                  procedureId: l.procedureId,
+                  nameSnapshot: l.nameSnapshot,
+                  quantity: l.quantity,
+                  unitPrice: l.unitPriceCents,
+                  discount: l.discountCents,
+                  discountMode: "amount",
+                  phaseLabel: nombre,
+                  packageId: l.packageId,
+                  packageNameSnapshot: l.packageNameSnapshot,
+                }),
+              ),
+            ])
+          }
+        />
+      </div>
     </div>
   );
 }
@@ -489,6 +563,7 @@ function QuoteStatusBadge({ status }: { status: QuoteStatus }) {
     draft: "bg-secondary text-muted-foreground",
     sent: "bg-info-soft text-info",
     accepted: "bg-success-soft text-success",
+    partially_accepted: "bg-success-soft text-success",
     converted: "bg-success-soft text-success",
     rejected: "bg-destructive/10 text-destructive",
     expired: "bg-warning-soft text-warning",
@@ -723,53 +798,82 @@ export interface PiezaSeed {
   nonce: number;
 }
 
-/** Encabezado con el total y el descuento comercial en %, compartido por ambos diálogos. */
+/**
+ * Totales del presupuesto con el descuento comercial en % o en dinero
+ * (PLA-05). La vista previa usa el MISMO cálculo que el servidor
+ * (`calcularTotalesDePresupuesto`), así que lo que se ve es lo que se guarda.
+ */
 function TotalesPresupuesto({
-  subtotal,
-  descuentoPct,
-  setDescuentoPct,
+  items,
+  modo,
+  setModo,
+  valor,
+  setValor,
   currency,
 }: {
-  subtotal: number;
-  descuentoPct: number;
-  setDescuentoPct: (v: number) => void;
+  items: DraftItem[];
+  modo: "amount" | "pct";
+  setModo: (m: "amount" | "pct") => void;
+  valor: number;
+  setValor: (v: number) => void;
   currency: string;
 }) {
-  const descuento = Math.min(Math.round((subtotal * descuentoPct) / 100), subtotal);
+  const t = calcularTotalesDePresupuesto(
+    items.filter((it) => it.nameSnapshot.trim()).map(draftALinea),
+    modo === "amount" ? valor : 0,
+    modo === "pct" && valor > 0 ? valor : null,
+  );
   return (
     <div className="space-y-1.5 border-t border-hairline pt-3 text-sm">
       <div className="flex items-center justify-end gap-3">
         <span className="text-muted-foreground">Subtotal</span>
-        <span className="w-32 text-right cifra text-xs">{formatMoney(subtotal, currency)}</span>
+        <span className="w-32 text-right cifra text-xs">{formatMoney(t.subtotal, currency)}</span>
       </div>
       <div className="flex items-center justify-end gap-3">
-        <label htmlFor="desc-comercial" className="text-muted-foreground">
-          Descuento comercial
-        </label>
-        <div className="flex items-center gap-1">
-          <input
-            id="desc-comercial"
-            type="number"
-            min={0}
-            max={100}
-            value={descuentoPct}
-            onChange={(e) => setDescuentoPct(Math.min(100, Math.max(0, Number(e.target.value))))}
-            className={cn(INPUT_CLASS, "w-16 text-right")}
-          />
-          <span className="text-xs text-muted-foreground">%</span>
-        </div>
+        <span className="text-muted-foreground">Descuento comercial</span>
+        <DescuentoGlobal
+          modo={modo}
+          setModo={setModo}
+          valor={valor}
+          setValor={setValor}
+          currency={currency}
+        />
         <span className="w-32 text-right cifra text-xs text-muted-foreground">
-          {descuento > 0 ? `− ${formatMoney(descuento, currency)}` : "—"}
+          {t.discountCents > 0 ? `− ${formatMoney(t.discountCents, currency)}` : "—"}
         </span>
       </div>
       <div className="flex items-center justify-end gap-3 pt-1">
         <span className="text-muted-foreground">Total</span>
         <span className="w-32 text-right cifra text-base font-semibold">
-          {formatMoney(Math.max(0, subtotal - descuento), currency)}
+          {formatMoney(t.total, currency)}
         </span>
       </div>
     </div>
   );
+}
+
+/** Profesionales activos y días de validez de la clínica, para los diálogos. */
+function useDatosDelPresupuesto(clinicId: string, enabled: boolean) {
+  const fetchProfesionales = useServerFn(listProfesionalesDePresupuesto);
+  const fetchConfig = useServerFn(getConfiguracionPresupuestos);
+  const { data: profesionales = [] } = useQuery({
+    queryKey: ["presupuestos-profesionales", clinicId],
+    queryFn: () => fetchProfesionales({ data: { clinicId } }),
+    enabled,
+  });
+  const { data: config } = useQuery({
+    queryKey: ["presupuestos-config", clinicId],
+    queryFn: () => fetchConfig({ data: { clinicId } }),
+    enabled,
+  });
+  return { profesionales, diasValidez: config?.diasValidez ?? null };
+}
+
+/** Lo que manda cada diálogo como descuento comercial. */
+function descuentoGlobalAInput(modo: "amount" | "pct", valor: number) {
+  return modo === "pct"
+    ? { commercialDiscountPct: valor > 0 ? valor : null, globalDiscountCents: 0 }
+    : { commercialDiscountPct: null, globalDiscountCents: valor };
 }
 
 function NuevoPresupuestoDialog({
@@ -790,11 +894,16 @@ function NuevoPresupuestoDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState("");
-  const [descuentoPct, setDescuentoPct] = useState(0);
+  const [descuentoModo, setDescuentoModo] = useState<"amount" | "pct">("pct");
+  const [descuento, setDescuento] = useState(0);
+  const [validUntil, setValidUntil] = useState("");
+  const [professionalId, setProfessionalId] = useState("");
   const [items, setItems] = useState<DraftItem[]>([emptyItem()]);
   const [seedAplicado, setSeedAplicado] = useState<number | null>(null);
   const queryClient = useQueryClient();
   const createFn = useServerFn(createQuote);
+  const zona = useZonaClinica();
+  const datos = useDatosDelPresupuesto(clinicId, open);
 
   // Abrir con la pieza precargada cuando el odontograma manda una. Se compara
   // por `nonce` y no por pieza para que clickear dos veces el mismo diente
@@ -808,11 +917,9 @@ function NuevoPresupuestoDialog({
       }),
     ]);
     setNotes("");
-    setDescuentoPct(0);
+    setDescuento(0);
     setOpen(true);
   }
-
-  const subtotal = useMemo(() => items.reduce((s, it) => s + draftLineTotal(it), 0), [items]);
 
   const cerrar = (next: boolean) => {
     setOpen(next);
@@ -826,16 +933,21 @@ function NuevoPresupuestoDialog({
           clinicId,
           patientId,
           notes: notes.trim() || undefined,
-          commercialDiscountPct: descuentoPct > 0 ? descuentoPct : null,
-          items: items.filter((it) => it.nameSnapshot.trim()).map(draftToInput),
+          validUntil: validUntil || undefined,
+          professionalId: professionalId || null,
+          ...descuentoGlobalAInput(descuentoModo, descuento),
+          items: draftsToInput(items),
         },
       }),
     onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["quotes", clinicId, patientId] });
+      queryClient.invalidateQueries({ queryKey: ["presupuestos-clinica", clinicId] });
       toast.success(`Presupuesto ${res.number} creado`);
       cerrar(false);
       setNotes("");
-      setDescuentoPct(0);
+      setDescuento(0);
+      setValidUntil("");
+      setProfessionalId("");
       setItems([emptyItem()]);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -852,7 +964,7 @@ function NuevoPresupuestoDialog({
           </Button>
         </DialogTrigger>
       </BloqueoEscritura>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nuevo presupuesto</DialogTitle>
           <DialogDescription>
@@ -888,10 +1000,21 @@ function NuevoPresupuestoDialog({
           </div>
 
           <QuoteItemsEditor
+            clinicId={clinicId}
             items={items}
             setItems={setItems}
             procedures={procedures}
             currency={currency}
+          />
+
+          <ValidezYProfesional
+            validUntil={validUntil}
+            setValidUntil={setValidUntil}
+            professionalId={professionalId}
+            setProfessionalId={setProfessionalId}
+            profesionales={datos.profesionales}
+            hoy={hoyISO(zona)}
+            diasPorDefecto={datos.diasValidez}
           />
 
           <div className="space-y-1.5">
@@ -907,9 +1030,11 @@ function NuevoPresupuestoDialog({
           </div>
 
           <TotalesPresupuesto
-            subtotal={subtotal}
-            descuentoPct={descuentoPct}
-            setDescuentoPct={setDescuentoPct}
+            items={items}
+            modo={descuentoModo}
+            setModo={setDescuentoModo}
+            valor={descuento}
+            setValor={setDescuento}
             currency={currency}
           />
         </div>
@@ -957,21 +1082,33 @@ function EditarPresupuestoDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [notes, setNotes] = useState(quote.notes ?? "");
-  const [descuentoPct, setDescuentoPct] = useState(quote.commercialDiscountPct ?? 0);
+  const descuentoInicial = () =>
+    quote.commercialDiscountPct !== null
+      ? { modo: "pct" as const, valor: Number(quote.commercialDiscountPct) }
+      : quote.discountCents > 0
+        ? { modo: "amount" as const, valor: quote.discountCents }
+        : { modo: "pct" as const, valor: 0 };
+  const [descuentoModo, setDescuentoModo] = useState<"amount" | "pct">(descuentoInicial().modo);
+  const [descuento, setDescuento] = useState(descuentoInicial().valor);
+  const [validUntil, setValidUntil] = useState(quote.validUntil ?? "");
+  const [professionalId, setProfessionalId] = useState(quote.professionalId ?? "");
   const [items, setItems] = useState<DraftItem[]>(quote.items.map(quoteItemToDraft));
   const queryClient = useQueryClient();
   const updateFn = useServerFn(updateQuote);
+  const zona = useZonaClinica();
+  const datos = useDatosDelPresupuesto(clinicId, open);
 
   function reabrirConValoresActuales(next: boolean) {
     if (next) {
       setNotes(quote.notes ?? "");
-      setDescuentoPct(quote.commercialDiscountPct ?? 0);
+      setDescuentoModo(descuentoInicial().modo);
+      setDescuento(descuentoInicial().valor);
+      setValidUntil(quote.validUntil ?? "");
+      setProfessionalId(quote.professionalId ?? "");
       setItems(quote.items.map(quoteItemToDraft));
     }
     setOpen(next);
   }
-
-  const subtotal = useMemo(() => items.reduce((s, it) => s + draftLineTotal(it), 0), [items]);
 
   const update = useMutation({
     mutationFn: () =>
@@ -980,13 +1117,15 @@ function EditarPresupuestoDialog({
           quoteId: quote.id,
           clinicId,
           notes: notes.trim() || undefined,
-          validUntil: quote.validUntil ?? undefined,
-          commercialDiscountPct: descuentoPct > 0 ? descuentoPct : null,
-          items: items.filter((it) => it.nameSnapshot.trim()).map(draftToInput),
+          validUntil: validUntil || undefined,
+          professionalId: professionalId || null,
+          ...descuentoGlobalAInput(descuentoModo, descuento),
+          items: draftsToInput(items),
         },
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["quotes", clinicId, patientId] });
+      queryClient.invalidateQueries({ queryKey: ["presupuestos-clinica", clinicId] });
       toast.success(`Presupuesto ${quote.number} actualizado`);
       setOpen(false);
     },
@@ -1002,7 +1141,7 @@ function EditarPresupuestoDialog({
           <Pencil className="size-3.5" /> Editar
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Editar presupuesto {quote.number}</DialogTitle>
           <DialogDescription>
@@ -1012,10 +1151,21 @@ function EditarPresupuestoDialog({
 
         <div className="space-y-3">
           <QuoteItemsEditor
+            clinicId={clinicId}
             items={items}
             setItems={setItems}
             procedures={procedures}
             currency={quote.currency}
+          />
+
+          <ValidezYProfesional
+            validUntil={validUntil}
+            setValidUntil={setValidUntil}
+            professionalId={professionalId}
+            setProfessionalId={setProfessionalId}
+            profesionales={datos.profesionales}
+            hoy={hoyISO(zona)}
+            diasPorDefecto={datos.diasValidez}
           />
 
           <div className="space-y-1.5">
@@ -1031,9 +1181,11 @@ function EditarPresupuestoDialog({
           </div>
 
           <TotalesPresupuesto
-            subtotal={subtotal}
-            descuentoPct={descuentoPct}
-            setDescuentoPct={setDescuentoPct}
+            items={items}
+            modo={descuentoModo}
+            setModo={setDescuentoModo}
+            valor={descuento}
+            setValor={setDescuento}
             currency={quote.currency}
           />
         </div>
@@ -1635,6 +1787,14 @@ export function FinanceSection({
                             </Button>
                           </>
                         )}
+                        <Button variant="ghost" size="sm" asChild>
+                          <Link
+                            to="/presupuestos/$presupuestoId"
+                            params={{ presupuestoId: quote.id }}
+                          >
+                            <FileText className="size-3.5" /> Ver detalle
+                          </Link>
+                        </Button>
                         <div className="ml-auto">
                           <WhatsAppButton
                             clinicId={clinicId}

@@ -1,0 +1,33 @@
+-- Ola 3 · Frente Planes · PLA-02 (parte 1 de 2): estado "aceptado parcial".
+--
+-- Va sola en su archivo a propósito: `ALTER TYPE ... ADD VALUE` no se puede
+-- usar en la misma transacción que lo agrega (`unsafe use of new enum value`),
+-- y la migración siguiente (20261024200100) lo usa en el trigger de
+-- conversión y en el guard de transiciones. Aplicar esta primero, después la
+-- otra (docs/RUNBOOK_MIGRACIONES.md, camino A o B indistinto: es una sola
+-- sentencia).
+--
+-- Aditiva y compatible con el código en producción (RUNBOOK regla 3): no
+-- quita ni renombra ningún valor. El código viejo nunca escribe
+-- 'partially_accepted', y si lo lee (después de un rollback de Vercel) lo
+-- muestra como un estado desconocido, sin romper.
+--
+-- Mapa de los seis estados de la app (src/lib/finance/estados-presupuesto.ts)
+-- sobre el enum de la base, que no cambia de nombre:
+--   borrador         = draft
+--   emitido          = sent
+--   aceptado         = accepted / converted (la base pasa accepted → converted
+--                      al crear el plan, desde 20260812210000)
+--   aceptado parcial = partially_accepted (nuevo)
+--   rechazado        = rejected
+--   vencido          = expired, o draft/sent con valid_until ya pasado
+--   (finalizado      = aceptado cuyo plan de tratamiento está 'completed';
+--                      se deriva, no es un valor del enum)
+
+ALTER TYPE public.quote_status ADD VALUE IF NOT EXISTS 'partially_accepted' AFTER 'accepted';
+
+-- ─── Cómo revertir ──────────────────────────────────────────────────────────
+-- Postgres no permite quitar un valor de un enum. Si hiciera falta, primero
+-- confirmar que ninguna fila lo usa y dejarlo sin uso:
+--   SELECT count(*) FROM public.quotes WHERE status = 'partially_accepted';  -- 0
+-- Un valor sin uso no molesta a nadie; recrear el tipo entero no vale el riesgo.

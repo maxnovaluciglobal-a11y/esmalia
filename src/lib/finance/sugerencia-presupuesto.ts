@@ -70,7 +70,13 @@ export function procedimientoSugerido(
 }
 
 /** Estados en los que un presupuesto todavía cuenta: el ítem sigue vivo. */
-const ESTADOS_VIGENTES: readonly QuoteStatus[] = ["draft", "sent", "accepted", "converted"];
+const ESTADOS_VIGENTES: readonly QuoteStatus[] = [
+  "draft",
+  "sent",
+  "accepted",
+  "partially_accepted",
+  "converted",
+];
 
 /**
  * Ids de las marcas que ya están en un presupuesto vigente (PR 11b,
