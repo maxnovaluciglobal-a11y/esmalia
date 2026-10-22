@@ -49,6 +49,7 @@ export function exportarComplianceCsv(eventos: ComplianceEvent[], ctx: ExportCon
   const encabezado = [
     "fecha_hora",
     "origen",
+    "paciente",
     "paciente_ref",
     "nota",
     "version",
@@ -61,6 +62,7 @@ export function exportarComplianceCsv(eventos: ComplianceEvent[], ctx: ExportCon
     [
       campo(formatoFechaHora(e.createdAt)),
       campo(e.source === "review" ? "Revisión" : "Auditoría"),
+      campo(e.patientName),
       campo(e.patientRef),
       campo(e.noteTitle),
       campo(e.noteVersion),
@@ -156,7 +158,7 @@ export async function exportarCompliancePdf(
     const valores = [
       formatoFechaHora(e.createdAt),
       e.source === "review" ? "Revisión" : "Auditoría",
-      e.patientRef,
+      e.patientName ?? e.patientRef,
       `${e.noteTitle ?? "—"}${e.noteVersion ? ` (v${e.noteVersion})` : ""}`,
       etiquetaAccion(e),
       e.detail ?? "—",
@@ -196,7 +198,7 @@ export async function exportarCompliancePdf(
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(140);
-    doc.text(`${ctx.clinicaNombre} · documento confidencial de compliance`, MARGEN, ALTO - 22);
+    doc.text(`${ctx.clinicaNombre} · documento confidencial de auditoría`, MARGEN, ALTO - 22);
     doc.text(`Página ${i} de ${total}`, ANCHO - MARGEN, ALTO - 22, { align: "right" });
   }
 

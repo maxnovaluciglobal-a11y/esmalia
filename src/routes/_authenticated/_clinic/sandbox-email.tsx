@@ -5,7 +5,7 @@ import { FlaskConical, ShieldAlert, ShieldCheck, Siren } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
-import { requirePermission } from "@/lib/access/route-guards";
+import { requireOwner } from "@/lib/access/route-guards";
 import {
   getEmailSandboxConfig,
   setEmailSandboxConfig,
@@ -34,16 +34,16 @@ import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
 
 export const Route = createFileRoute("/_authenticated/_clinic/sandbox-email")({
-  beforeLoad: requirePermission("team:manage"),
+  beforeLoad: requireOwner(),
   head: () => ({
     meta: [
-      { title: "Modo sandbox de email | Esmalia" },
+      { title: "Modo prueba de email | Esmalia" },
       {
         name: "description",
         content:
           "Bloquea los envíos reales y desvía todos los emails a direcciones de prueba mientras validas la entregabilidad.",
       },
-      { property: "og:title", content: "Modo sandbox de email | Esmalia" },
+      { property: "og:title", content: "Modo prueba de email | Esmalia" },
       {
         property: "og:description",
         content: "Control de envíos de prueba y bloqueo de emails reales en Esmalia.",
@@ -125,7 +125,7 @@ function SandboxEmailPage() {
         setAllowlistTexto(guardado.allowlist.join("\n"));
       })
       .catch(() => {
-        if (!cancelado) toast.error("No pudimos cargar la configuración de sandbox.");
+        if (!cancelado) toast.error("No pudimos cargar la configuración del modo prueba.");
       })
       .finally(() => {
         if (!cancelado) setListo(true);
@@ -187,7 +187,7 @@ function SandboxEmailPage() {
     resumen.tono === "peligro" ? Siren : resumen.tono === "aviso" ? ShieldAlert : ShieldCheck;
 
   return (
-    <AppShell title="Modo sandbox de email" access={access}>
+    <AppShell title="Modo prueba de email" access={access}>
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         <div className={cn("flex items-start gap-3 rounded-xl border p-5", tonoClases)}>
           <IconoResumen className="mt-0.5 size-5 shrink-0" />
@@ -211,7 +211,7 @@ function SandboxEmailPage() {
                 {[
                   {
                     valor: "sandbox" as const,
-                    titulo: "Sandbox",
+                    titulo: "Modo prueba",
                     detalle: "Envíos reales bloqueados",
                   },
                   {
@@ -240,7 +240,7 @@ function SandboxEmailPage() {
                       toast[opcion.valor === "production" ? "warning" : "success"](
                         opcion.valor === "production"
                           ? "Producción activada: los emails saldrán a destinatarios reales"
-                          : "Sandbox activado: los envíos reales quedan bloqueados",
+                          : "Modo prueba activado: los envíos reales quedan bloqueados",
                       );
                     }}
                     className={cn(
@@ -323,7 +323,7 @@ function SandboxEmailPage() {
 
         <section className="rounded-xl border border-border bg-card">
           <header className="border-b border-border p-5">
-            <h2 className="font-display text-base font-semibold">Reglas de sandbox</h2>
+            <h2 className="font-display text-base font-semibold">Reglas del modo prueba</h2>
             <p className="text-sm text-muted-foreground">
               Define a dónde va cada email mientras el sandbox está activo.
             </p>

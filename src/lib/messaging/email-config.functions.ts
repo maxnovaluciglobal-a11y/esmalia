@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { mensajeDb } from "@/lib/db-errors";
 import {
   DEFAULT_EMAIL_SANDBOX,
@@ -10,6 +11,11 @@ import {
   type EmailSandboxConfig,
 } from "@/lib/messaging/email-sandbox";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+
+/** Pruebas de email y Modo prueba de email son herramientas del propietario
+ * (UX-13): par en el servidor del `requireOwner()` de sus rutas. El envío
+ * real (`email.server.ts`) lee la config por su cuenta y no pasa por acá. */
+const SOLO_PROPIETARIO = "Solo el propietario de la clínica puede ver la configuración de email.";
 
 type EmailSandboxRow = {
   mode: string;
@@ -38,6 +44,13 @@ export const getEmailSandboxConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => z.object({ clinicId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<EmailSandboxConfig> => {
+    await requireClinicRole(
+      context.supabase,
+      data.clinicId,
+      context.userId,
+      ["owner"],
+      SOLO_PROPIETARIO,
+    );
     const { data: row, error } = await context.supabase
       .from("email_sandbox_config")
       .select(
@@ -69,6 +82,13 @@ export const setEmailSandboxConfig = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    await requireClinicRole(
+      context.supabase,
+      data.clinicId,
+      context.userId,
+      ["owner"],
+      SOLO_PROPIETARIO,
+    );
     const allowlist = Array.from(
       new Set(data.allowlist.map(normalizeEmail).filter((e) => e.length > 0)),
     );

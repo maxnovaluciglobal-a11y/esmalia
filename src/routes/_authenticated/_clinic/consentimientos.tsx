@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/consentimientos")(
   beforeLoad: requirePermission("settings:manage"),
   head: () => ({
     meta: [
-      { title: "Plantillas de consentimiento | Esmalia" },
+      { title: "Consentimientos | Esmalia" },
       {
         name: "description",
         content: "Textos reutilizables para consentimientos informados que el paciente firma.",
@@ -241,7 +241,7 @@ function ConsentimientosPage() {
 
   if (!clinicId) {
     return (
-      <AppShell title="Plantillas de consentimiento" access={access}>
+      <AppShell title="Consentimientos" access={access}>
         <p className="text-muted-foreground">Necesitas una clínica activa.</p>
       </AppShell>
     );
@@ -253,7 +253,7 @@ function ConsentimientosPage() {
   ).length;
 
   return (
-    <AppShell title="Plantillas de consentimiento" access={access}>
+    <AppShell title="Consentimientos" access={access}>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="font-display text-xl font-semibold">

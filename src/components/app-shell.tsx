@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { LifeBuoy, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
+import { ChevronLeft, LifeBuoy, LogOut, Menu, Moon, Settings, Sun } from "lucide-react";
 
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { ClinicSwitcher } from "@/components/clinic-switcher";
@@ -25,6 +25,7 @@ import {
   destinoDeRuta,
   destinosVisibles,
   esRutaDeAjustes,
+  esSubpaginaDeAjustes,
   pestanaActiva,
 } from "@/lib/access/navegacion";
 import { propsItemNav } from "@/lib/shell";
@@ -33,7 +34,7 @@ import { cn } from "@/lib/utils";
 /**
  * Barra inferior del celular (<768px, rediseño fase 5): los cinco destinos
  * del mostrador — Hoy, Agenda, Pacientes, Mensajes, Caja — con objetivos de
- * 44px+. Reportes, Ajustes y Ayuda van en "Más", para que la barra no pase
+ * 44px+. Reportes, Operación, Ajustes y Ayuda van en "Más", para que la barra no pase
  * de seis toques posibles.
  */
 const DESTINOS_BARRA = ["hoy", "agenda", "pacientes", "mensajes", "caja"] as const;
@@ -519,6 +520,19 @@ export function AppShell({
         )}
 
         <div className="flex-1 p-5 pb-28 sm:p-8 md:pb-8">
+          {/* Toda sub-página de Ajustes tiene la vuelta al índice a la vista
+              (UX-13 g): sin esto, en el celular la única salida era "Más". */}
+          {esSubpaginaDeAjustes(pathname) && (
+            <nav aria-label="Ruta" className="-mt-1 mb-5 sm:-mt-3">
+              <Link
+                to="/ajustes"
+                className="inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <ChevronLeft className="size-4" aria-hidden />
+                Ajustes
+              </Link>
+            </nav>
+          )}
           <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
         </div>
 
