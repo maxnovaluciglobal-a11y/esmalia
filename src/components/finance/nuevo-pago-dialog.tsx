@@ -33,6 +33,7 @@ export function NuevoPagoDialog({
   userId,
   plans,
   suggestedAmountCents,
+  saldoCargado = true,
   currency,
   abrirAhora,
   onAbierto,
@@ -41,16 +42,26 @@ export function NuevoPagoDialog({
   patientId: string;
   userId: string;
   plans: TreatmentPlan[];
+  /** Saldo pendiente del paciente (0 si está al día o a favor). Precarga el monto. */
   suggestedAmountCents: number;
+  /** false mientras planes o pagos cargan: el saldo todavía no es el real. */
+  saldoCargado?: boolean;
   currency: string;
   abrirAhora?: boolean;
   onAbierto?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState<number | null>(suggestedAmountCents);
+  // Si se abrió antes de tener el saldo, se precarga cuando llega, salvo que
+  // ya se haya tocado el monto.
+  const [montoEditado, setMontoEditado] = useState(false);
+  useEffect(() => {
+    if (open && saldoCargado && !montoEditado) setAmount(suggestedAmountCents);
+  }, [open, saldoCargado, montoEditado, suggestedAmountCents]);
   useEffect(() => {
     if (!abrirAhora) return;
     setAmount(suggestedAmountCents);
+    setMontoEditado(false);
     setOpen(true);
     onAbierto?.();
   }, [abrirAhora, suggestedAmountCents, onAbierto]);
@@ -123,7 +134,10 @@ export function NuevoPagoDialog({
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) setAmount(suggestedAmountCents);
+        if (o) {
+          setAmount(suggestedAmountCents);
+          setMontoEditado(false);
+        }
       }}
     >
       <BloqueoEscritura>
@@ -149,8 +163,41 @@ export function NuevoPagoDialog({
                 currency={currency}
                 min={0}
                 valueCents={amount}
-                onValueChange={setAmount}
+                onValueChange={(c) => {
+                  setAmount(c);
+                  setMontoEditado(true);
+                }}
+                aria-describedby="pay-amount-saldo"
               />
+              <p id="pay-amount-saldo" className="text-xs text-muted-foreground">
+                {!saldoCargado ? (
+                  "Calculando saldo…"
+                ) : suggestedAmountCents > 0 ? (
+                  <>
+                    Saldo pendiente:{" "}
+                    <span className="cifra text-foreground">
+                      {formatMoney(suggestedAmountCents, currency)}
+                    </span>
+                    {amount !== suggestedAmountCents && (
+                      <>
+                        {" · "}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAmount(suggestedAmountCents);
+                            setMontoEditado(false);
+                          }}
+                          className="font-medium text-brand-700 underline-offset-2 hover:underline"
+                        >
+                          Usar saldo
+                        </button>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  "Sin saldo pendiente: lo que cobres queda a favor del paciente."
+                )}
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pay-method">Método</Label>
@@ -229,8 +276,17 @@ export function NuevoPagoDialog({
             />
           </div>
         </div>
-        <DialogFooter>
-          <Button onClick={guardar} disabled={create.enCurso || (amount ?? 0) <= 0}>
+        <DialogFooter className="items-center gap-2">
+          {(amount ?? 0) <= 0 && (
+            <p id="motivo-guardar-pago" className="text-xs text-muted-foreground">
+              Ingresa un monto mayor que cero.
+            </p>
+          )}
+          <Button
+            onClick={guardar}
+            disabled={create.enCurso || (amount ?? 0) <= 0}
+            aria-describedby={(amount ?? 0) <= 0 ? "motivo-guardar-pago" : undefined}
+          >
             {create.enCurso && <Loader2 className="size-3.5 animate-spin" />}
             Guardar pago
           </Button>

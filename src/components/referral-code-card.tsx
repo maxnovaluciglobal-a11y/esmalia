@@ -14,6 +14,11 @@ interface Props {
   clinicCountry: string | null;
   patientName: string;
   referralCode: string | null;
+  /**
+   * "dato": una línea chica con el código y el botón de copiar, para el
+   * resumen de la ficha (sin el armado del link para compartir).
+   */
+  variante?: "tarjeta" | "dato";
 }
 
 /**
@@ -23,12 +28,19 @@ interface Props {
  * escribe directo a la clínica y el webhook detecta el código solo
  * (ver findReferrerByCode en api.whatsapp-webhook.ts).
  */
-export function ReferralCodeCard({ clinicId, clinicCountry, patientName, referralCode }: Props) {
+export function ReferralCodeCard({
+  clinicId,
+  clinicCountry,
+  patientName,
+  referralCode,
+  variante = "tarjeta",
+}: Props) {
   const [copiedAt, setCopiedAt] = useState<number | null>(null);
   const fetchAccount = useServerFn(getWhatsAppAccountStatus);
   const { data: account } = useQuery({
     queryKey: ["whatsapp-account", clinicId],
     queryFn: () => fetchAccount({ data: { clinicId } }),
+    enabled: variante === "tarjeta",
   });
 
   if (!referralCode) return null;
@@ -52,6 +64,30 @@ export function ReferralCodeCard({ clinicId, clinicCountry, patientName, referra
   function share() {
     if (!shareUrl) return;
     window.open(shareUrl, "_blank", "noopener,noreferrer");
+  }
+
+  if (variante === "dato") {
+    return (
+      <div className="min-w-0">
+        <span className="block text-muted-foreground">Código de referido</span>
+        <span className="flex items-center gap-1.5">
+          <code className="cifra text-sm font-semibold tracking-wide text-foreground">
+            {referralCode}
+          </code>
+          <button
+            type="button"
+            onClick={copyCode}
+            className={cn(
+              "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground outline-none hover:bg-secondary hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring",
+              copiedAt && "text-brand-700",
+            )}
+            aria-label="Copiar código de referido"
+          >
+            {copiedAt ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+          </button>
+        </span>
+      </div>
+    );
   }
 
   return (
