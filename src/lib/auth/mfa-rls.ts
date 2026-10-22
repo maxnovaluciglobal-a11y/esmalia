@@ -63,6 +63,8 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   prescriptions: "recetas: medicamentos indicados a un paciente",
   quote_items: "ítems de presupuestos",
   quotes: "presupuestos",
+  receivable_installments: "cuotas de las cuentas por cobrar de un paciente",
+  receivables: "cuentas por cobrar de un paciente",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
   treatment_plans: "planes de tratamiento",
   waitlist_entries: "lista de espera: paciente y motivo",
@@ -117,6 +119,21 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   whatsapp_accounts: "configuración del canal",
   whatsapp_credentials: "backend: solo service_role (sin políticas)",
 };
+
+/**
+ * Tablas protegidas que nacieron después de `MIGRACION_AAL2`: su política se
+ * crea en la misma migración que crea la tabla (las migraciones aplicadas no
+ * se editan, regla 5). Tabla → archivo. Orden alfabético.
+ */
+export const MIGRACION_AAL2_POSTERIOR: Readonly<Record<string, string>> = {
+  receivable_installments: "20261024300000_cuentas_por_cobrar.sql",
+  receivables: "20261024300000_cuentas_por_cobrar.sql",
+};
+
+/** Migración que crea la política de una tabla protegida. */
+export function migracionAal2De(tabla: string): string {
+  return MIGRACION_AAL2_POSTERIOR[tabla] ?? MIGRACION_AAL2;
+}
 
 /** Tablas protegidas, en orden alfabético. */
 export function tablasConAal2(): string[] {

@@ -73,6 +73,8 @@ export const TABLES = [
   "profiles",
   "quote_items",
   "quotes",
+  "receivable_installments",
+  "receivables",
   "specialties",
   "stripe_events",
   "subscriptions",
