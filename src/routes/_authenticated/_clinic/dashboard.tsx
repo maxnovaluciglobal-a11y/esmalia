@@ -35,6 +35,7 @@ import { listPatients } from "@/lib/patients/patients.functions";
 import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
 import { hora as horaActual } from "@/lib/formato-fecha";
+import { PacientesGes } from "@/components/pacientes-ges";
 
 export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
   beforeLoad: requirePermission("dashboard:view"),
@@ -830,6 +831,9 @@ function Dashboard() {
               </div>
             )}
             <ColaAccionable tareas={tareas} />
+            {clinicId && (access.clinic?.country ?? "").toUpperCase() === "CL" && (
+              <PacientesGes clinicId={clinicId} />
+            )}
             {clinicId && mostrarActivacion && <ChecklistActivacion pasos={pasosActivacion} />}
           </div>
         </div>

@@ -48,7 +48,7 @@ import {
   parseFiltroDeArchivo,
   type FiltroDeArchivo,
 } from "@/lib/patients/archivo";
-import { BloqueoEscritura } from "@/components/solo-lectura";
+import { NuevoPacienteDialog } from "@/components/nuevo-paciente-dialog";
 import {
   columnasConDatos,
   normalizarPorPagina,
@@ -59,7 +59,8 @@ import {
 } from "@/lib/patients/lista-pacientes";
 import { numero } from "@/lib/formato-fecha";
 import { leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell";
-import { useSoloLectura } from "@/hooks/use-solo-lectura";
+import { coincideNombre } from "@/lib/patients/busqueda-tolerante";
+import { ETIQUETA_FALTANTE } from "@/lib/patients/datos-ficha";
 
 interface PacientesSearch {
   q: string;
@@ -79,6 +80,8 @@ interface PacientesSearch {
   archivo?: FiltroDeArchivo;
   /** `1` abre "Nuevo paciente" al entrar (acción del ⌘K) y se borra. */
   nuevo?: typeof PEDIDO_ABRIR;
+  /** SEG-08: solo fichas a las que les falta algo (Decreto 41). */
+  incompletas?: boolean;
 }
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
@@ -95,6 +98,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
     ...(search.sinCita === true || search.sinCita === "1" ? { sinCita: true } : {}),
     ...(search.archivo ? { archivo: parseFiltroDeArchivo(search.archivo) } : {}),
     ...(leerPedidoAbrirCaja(search.nuevo) ? { nuevo: PEDIDO_ABRIR } : {}),
+    ...(search.incompletas === true || search.incompletas === "1" ? { incompletas: true } : {}),
   }),
   beforeLoad: requirePermission("patients:view"),
   head: () => ({
@@ -124,134 +128,6 @@ const filtrosDeArchivo: { value: FiltroDeArchivo; label: string }[] = (
 const estados: { value: EstadoPaciente; label: string }[] = (
   ["activo", "nuevo", "inactivo"] as EstadoPaciente[]
 ).map((e) => ({ value: e, label: etiquetaEstadoPaciente[e] }));
-
-function NuevoPacienteDialog({
-  clinicId,
-  abrirAhora = false,
-  onAbierto,
-}: {
-  clinicId: string;
-  abrirAhora?: boolean;
-  onAbierto?: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const soloLectura = useSoloLectura();
-  // Pedido del ⌘K (`?nuevo=1`): abre una vez y la página borra el pedido.
-  useEffect(() => {
-    if (!abrirAhora) return;
-    if (!soloLectura) setOpen(true);
-    onAbierto?.();
-  }, [abrirAhora, soloLectura, onAbierto]);
-  const [nombre, setNombre] = useState("");
-  const [documento, setDocumento] = useState("");
-  const [fechaNacimiento, setFechaNacimiento] = useState("");
-  const [telefono, setTelefono] = useState("");
-  const [email, setEmail] = useState("");
-
-  const queryClient = useQueryClient();
-  const createFn = useServerFn(createPatient);
-
-  const crear = useMutation({
-    mutationFn: () =>
-      createFn({
-        data: { clinicId, nombre: nombre.trim(), documento, fechaNacimiento, telefono, email },
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["patients", clinicId] });
-      toast.success("Paciente creado");
-      setOpen(false);
-      setNombre("");
-      setDocumento("");
-      setFechaNacimiento("");
-      setTelefono("");
-      setEmail("");
-    },
-    onError: (e: Error) => toast.error(mensajeDeError(e)),
-  });
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <BloqueoEscritura>
-        <DialogTrigger asChild>
-          <Button size="sm">
-            <Plus className="size-4" /> Nuevo paciente
-          </Button>
-        </DialogTrigger>
-      </BloqueoEscritura>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Nuevo paciente</DialogTitle>
-          <DialogDescription>
-            Datos básicos para crear la ficha. Podrás completarla luego.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="np-nombre">Nombre completo</Label>
-            <input
-              id="np-nombre"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              placeholder="Nombre y apellido"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="np-doc">Documento</Label>
-              <input
-                id="np-doc"
-                value={documento}
-                onChange={(e) => setDocumento(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="np-nac">Fecha de nacimiento</Label>
-              <input
-                id="np-nac"
-                type="date"
-                value={fechaNacimiento}
-                onChange={(e) => setFechaNacimiento(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="np-tel">Teléfono</Label>
-              <input
-                id="np-tel"
-                value={telefono}
-                onChange={(e) => setTelefono(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="np-email">Email</Label>
-              <input
-                id="np-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-              />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button
-            onClick={() => crear.mutate()}
-            disabled={crear.isPending || !nombre.trim() || !fechaNacimiento}
-          >
-            {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Crear paciente
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 interface FilaCsv {
   nombre: string;
@@ -575,9 +451,12 @@ function PacientesPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["patients", clinicId, archivo, "con-saldos"],
+    queryKey: ["patients", clinicId, archivo, "con-saldos", "con-completitud"],
     enabled: Boolean(clinicId),
-    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo, conSaldos: true } }),
+    queryFn: () =>
+      fetchPatients({
+        data: { clinicId: clinicId!, archivo, conSaldos: true, conCompletitud: true },
+      }),
   });
   const pacientes = useMemo(() => patientsRes?.items ?? [], [patientsRes]);
   const { data: sucursales = [] } = useQuery({
@@ -597,7 +476,13 @@ function PacientesPage() {
   const filtrados = useMemo(
     () =>
       pacientes.filter((p) => {
-        if (!coincide(search.q, p.nombre, p.documento, p.email, p.telefono, ...p.etiquetas))
+        // PAC-02: el nombre tolera tildes y errores de tipeo ("jose peres" → José
+        // Pérez); documento, email, teléfono y etiquetas, por subcadena (el RUT
+        // con o sin puntos y guion: `coincide` los ignora). Funciona sin conexión.
+        if (
+          !coincideNombre(search.q, p.nombre) &&
+          !coincide(search.q, p.documento, p.email, p.telefono, ...p.etiquetas)
+        )
           return false;
         if (search.sucursal && p.sucursalId !== search.sucursal) return false;
         if (search.profesional && p.profesionalId !== search.profesional) return false;
@@ -606,6 +491,7 @@ function PacientesPage() {
         if (search.hasta && p.ultimaVisitaISO > search.hasta) return false;
         if (!pasaFiltrosRapidos(p, { conSaldo: search.conSaldo, sinCitaFutura: search.sinCita }))
           return false;
+        if (search.incompletas && !(p.faltantes && p.faltantes.length > 0)) return false;
         return true;
       }),
     [pacientes, search],
@@ -615,7 +501,7 @@ function PacientesPage() {
   const pagina = paginar(filtrados, search.page, porPagina);
   const columnas = columnasConDatos(pagina.items, sucursales.length);
   const plantilla = plantillaDeColumnas(columnas);
-  const toggle = (clave: "conSaldo" | "sinCita") =>
+  const toggle = (clave: "conSaldo" | "sinCita" | "incompletas") =>
     set({ [clave]: search[clave] ? undefined : true });
   const activos = [
     search.q,
@@ -627,6 +513,7 @@ function PacientesPage() {
     search.archivo && search.archivo !== "activas" ? search.archivo : "",
     search.conSaldo ? "1" : "",
     search.sinCita ? "1" : "",
+    search.incompletas ? "1" : "",
   ].filter(Boolean).length;
 
   return (
@@ -638,6 +525,7 @@ function PacientesPage() {
               <ImportarPacientesDialog clinicId={clinicId} />
               <NuevoPacienteDialog
                 clinicId={clinicId}
+                pais={access.clinic?.country ?? null}
                 abrirAhora={search.nuevo === PEDIDO_ABRIR}
                 onAbierto={limpiarPedidoNuevo}
               />
@@ -668,6 +556,7 @@ function PacientesPage() {
                 archivo: undefined,
                 conSaldo: undefined,
                 sinCita: undefined,
+                incompletas: undefined,
               },
             })
           }
@@ -724,6 +613,7 @@ function PacientesPage() {
               // El saldo solo llega a quien tiene `finance:view` (el servidor lo calcula igual).
               ...(veFinanzas ? ([["conSaldo", "Con saldo"]] as const) : []),
               ["sinCita", "Sin cita futura"],
+              ["incompletas", "Fichas incompletas"],
             ] as const
           ).map(([clave, texto]) => (
             <button
@@ -802,6 +692,11 @@ function PacientesPage() {
                             .filter(Boolean)
                             .join(" · ")}
                         </p>
+                        {search.incompletas && p.faltantes && p.faltantes.length > 0 && (
+                          <p className="truncate text-xs text-warning">
+                            Falta: {p.faltantes.map((f) => ETIQUETA_FALTANTE[f]).join(", ")}
+                          </p>
+                        )}
                       </div>
                     </div>
                     {columnas.sucursal && (

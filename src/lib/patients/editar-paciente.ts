@@ -14,6 +14,8 @@ import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import type { ClinicRole } from "@/lib/access/access";
 import { hasPermission } from "@/lib/access/access";
 import { CODIGO_PAIS, esPaisTelefono, toE164 } from "@/lib/messaging/telefonos";
+import { PREVISIONES, TRAMOS_FONASA } from "@/lib/patients/datos-ficha";
+import { TIPOS_DOCUMENTO } from "@/lib/patients/rut";
 
 /** Mismas reglas que el alta (`createPatient`): formato, no futura, desde 1900. */
 export function errorDeFechaDeNacimiento(fecha: string, hoy: Date = new Date()): string | null {
@@ -32,13 +34,44 @@ const fechaDeNacimiento = z.string().superRefine((s, ctx) => {
 });
 
 /**
+ * Datos de la ficha que agregó la Ola 1 (FIC-01 a FIC-04, SEG-08). Cada
+ * grupo viaja entero (previsión, contacto, origen) para poder validar sus
+ * reglas cruzadas; las reglas en sí viven en datos-ficha.ts y rut.ts.
+ */
+export const PREVISION_SCHEMA = z.object({
+  plan: z.enum(PREVISIONES).nullable(),
+  tramo: z.enum(TRAMOS_FONASA).nullable(),
+  institucion: z.string().trim().max(80, "El nombre de la institución es muy largo.").nullable(),
+});
+
+export const CONTACTO_EMERGENCIA_SCHEMA = z.object({
+  nombre: z.string().trim().max(120, "El nombre del contacto es demasiado largo."),
+  relacion: z.string().trim().max(60, "La relación es demasiado larga."),
+  telefono: z.string().trim().max(40, "El teléfono del contacto es demasiado largo."),
+});
+
+export const ORIGEN_SCHEMA = z.object({
+  fuente: z.string().trim().max(80, "El origen es demasiado largo."),
+  detalle: z.string().trim().max(200, "El detalle es demasiado largo."),
+});
+
+export const CAMPOS_FICHA_OLA1 = z.object({
+  documentoTipo: z.enum(TIPOS_DOCUMENTO).optional(),
+  prevision: PREVISION_SCHEMA.optional(),
+  contactoEmergencia: CONTACTO_EMERGENCIA_SCHEMA.optional(),
+  origen: ORIGEN_SCHEMA.optional(),
+  direccion: z.string().trim().max(200, "La dirección es demasiado larga.").optional(),
+  comuna: z.string().trim().max(80, "La comuna es demasiado larga.").optional(),
+});
+
+/**
  * Campos que edita `updatePatient` (todos opcionales: solo se escribe lo que
  * viene). `documento: ""` y `email: ""` borran el dato; `fechaNacimiento:
  * null` también (hay fichas importadas sin fecha, y obligar a inventar una
  * para corregir el teléfono sería peor). Los ids van aparte, en la propia
  * server function, para que se vea que recibe `clinicId`.
  */
-export const CAMPOS_EDITABLES_DEL_PACIENTE = z.object({
+export const CAMPOS_EDITABLES_DEL_PACIENTE = CAMPOS_FICHA_OLA1.extend({
   nombre: z
     .string()
     .trim()
