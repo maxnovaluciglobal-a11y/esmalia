@@ -38,6 +38,23 @@ export function paginar<T>(items: T[], page: number, perPage = PER_PAGE): Pagina
   };
 }
 
+/**
+ * Números de página a mostrar: todos si son pocos; si no, la primera, la
+ * última y las vecinas de la actual, con "…" en los saltos. Con 40 páginas
+ * no se pintan 40 botones.
+ */
+export function paginasVisibles(page: number, totalPages: number): (number | "…")[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const set = new Set([1, totalPages, page - 1, page, page + 1]);
+  const nums = [...set].filter((n) => n >= 1 && n <= totalPages).sort((a, b) => a - b);
+  const salida: (number | "…")[] = [];
+  for (const [i, n] of nums.entries()) {
+    if (i > 0 && n - nums[i - 1] > 1) salida.push("…");
+    salida.push(n);
+  }
+  return salida;
+}
+
 export type GrupoResultado = "Pacientes" | "Citas" | "Tratamientos";
 
 export interface ResultadoGlobal {

@@ -4,7 +4,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
-import type { Pagina } from "@/lib/search";
+import { paginasVisibles, type Pagina } from "@/lib/search";
 
 /**
  * Barra de filtros. El primer filtro (casi siempre la búsqueda) queda a la
@@ -174,22 +174,43 @@ export function Paginacion<T>({
   pagina,
   onPage,
   etiqueta,
+  porPagina,
 }: {
   pagina: Pagina<T>;
   onPage: (p: number) => void;
   etiqueta: string;
+  /** Selector de tamaño de página (opcional). */
+  porPagina?: { valor: number; opciones: readonly number[]; onChange: (n: number) => void };
 }) {
   const { page, totalPages, total, desde, hasta } = pagina;
-  const paginas = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const paginas = paginasVisibles(page, totalPages);
 
   return (
     <nav
       aria-label={`Paginación de ${etiqueta}`}
       className="flex flex-wrap items-center justify-between gap-3 border-t border-hairline px-5 py-3"
     >
-      <p className="text-xs text-muted-foreground">
-        {total === 0 ? `Sin ${etiqueta}` : `Mostrando ${desde}–${hasta} de ${total} ${etiqueta}`}
-      </p>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <p className="text-xs text-muted-foreground">
+          {total === 0 ? `Sin ${etiqueta}` : `Mostrando ${desde}–${hasta} de ${total} ${etiqueta}`}
+        </p>
+        {porPagina && (
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            Por página
+            <select
+              value={porPagina.valor}
+              onChange={(e) => porPagina.onChange(Number(e.target.value))}
+              className="rounded-md border border-border bg-transparent px-1.5 py-1 text-xs text-foreground"
+            >
+              {porPagina.opciones.map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
       <div className="flex items-center gap-1">
         <button
           type="button"
@@ -199,22 +220,28 @@ export function Paginacion<T>({
         >
           Anterior
         </button>
-        {paginas.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => onPage(p)}
-            aria-current={p === page ? "page" : undefined}
-            className={cn(
-              "min-w-8 rounded-md px-2 py-1 text-xs transition-colors",
-              p === page
-                ? "bg-brand font-medium text-brand-foreground"
-                : "text-muted-foreground hover:bg-secondary",
-            )}
-          >
-            {p}
-          </button>
-        ))}
+        {paginas.map((p, i) =>
+          p === "…" ? (
+            <span key={`salto-${i}`} aria-hidden className="px-1 text-xs text-muted-foreground">
+              …
+            </span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPage(p)}
+              aria-current={p === page ? "page" : undefined}
+              className={cn(
+                "min-w-8 rounded-md px-2 py-1 text-xs transition-colors",
+                p === page
+                  ? "bg-brand font-medium text-brand-foreground"
+                  : "text-muted-foreground hover:bg-secondary",
+              )}
+            >
+              {p}
+            </button>
+          ),
+        )}
         <button
           type="button"
           onClick={() => onPage(page + 1)}
