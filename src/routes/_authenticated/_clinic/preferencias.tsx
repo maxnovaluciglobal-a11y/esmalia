@@ -29,7 +29,7 @@ import { mensajeDeError } from "@/lib/mensaje-error";
 export const Route = createFileRoute("/_authenticated/_clinic/preferencias")({
   head: () => ({
     meta: [
-      { title: "Preferencias de aviso | Esmalia" },
+      { title: "Preferencias | Esmalia" },
       {
         name: "description",
         content:
@@ -227,7 +227,7 @@ function PreferenciasPage() {
   const puedeGestionarConfig = hasPermission(access.role, "settings:manage");
 
   return (
-    <AppShell title="Preferencias de aviso" access={access}>
+    <AppShell title="Preferencias" access={access}>
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
         {/* SEG-01: la seguridad de la cuenta es personal, como los avisos:
             cualquier rol la gestiona para sí mismo. */}

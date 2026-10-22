@@ -1,4 +1,5 @@
 import { hasPermission, type ClinicAccess } from "@/lib/access/access";
+import { coincideTermino } from "@/lib/search";
 
 /**
  * Piezas puras del shell de la app (rediseño A+, PR 4 del plan del
@@ -43,15 +44,18 @@ export function textoConexion({ online, pendientes }: EstadoConexion): string {
 }
 
 export type AccionRapida = {
-  id: "nueva-cita" | "abrir-caja";
+  id: "nueva-cita" | "abrir-caja" | "registrar-pago" | "crear-paciente";
   label: string;
   detalle: string;
   to: string;
-  /** Parámetro de búsqueda que lleva el pedido (`nueva`, `abrir`). */
-  parametro: string;
+  /** Parámetro de búsqueda que lleva el pedido (`nueva`, `abrir`). null = la
+   *  acción solo lleva a la pantalla donde se hace (no abre un diálogo). */
+  parametro: string | null;
   /** Destino con el pedido en la URL: la ruta lo lee, abre su diálogo y lo
    *  borra (ver `interpretarNuevaCita` y `decidirAbrirCaja`). */
   href: string;
+  /** Palabras con las que alguien busca la acción ("cobrar" → Registrar pago). */
+  sinonimos: readonly string[];
 };
 
 /** Valor del parámetro que pide abrir un diálogo sin nada precargado. */
@@ -65,6 +69,7 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     to: "/agenda",
     parametro: "nueva",
     href: `/agenda?nueva=${PEDIDO_ABRIR}`,
+    sinonimos: ["agendar", "cita", "turno", "reservar hora"],
     permiso: "agenda:manage",
   },
   {
@@ -74,19 +79,42 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     to: "/cajas",
     parametro: "abrir",
     href: `/cajas?abrir=${PEDIDO_ABRIR}`,
+    sinonimos: ["caja", "turno de caja", "arqueo"],
     permiso: "cash:manage",
+  },
+  {
+    // El cobro se registra desde la ficha (o desde la cita en la agenda):
+    // esto lleva a la caja del día, donde se ve qué falta cobrar.
+    id: "registrar-pago",
+    label: "Registrar pago",
+    detalle: "Caja del día",
+    to: "/cajas",
+    parametro: null,
+    href: "/cajas",
+    sinonimos: ["cobrar", "cobro", "pago", "pagar", "abono"],
+    permiso: "cash:manage",
+  },
+  {
+    id: "crear-paciente",
+    label: "Crear paciente",
+    detalle: "En Pacientes",
+    to: "/pacientes",
+    parametro: null,
+    href: "/pacientes",
+    sinonimos: ["paciente nuevo", "nuevo paciente", "agregar paciente", "alta de paciente"],
+    permiso: "patients:manage",
   },
 ];
 
 /**
  * Grupo "Acciones" del buscador. Solo las que el rol puede hacer: la ruta
  * destino tiene su propio `requirePermission`, esto solo evita ofrecer algo
- * que después rebota.
+ * que después rebota. Lo escrito se busca en el nombre y en los sinónimos,
+ * desde el comienzo de una palabra (`coincideTermino`).
  */
 export function accionesRapidas(role: ClinicAccess["role"], termino = ""): AccionRapida[] {
-  const t = termino.trim().toLowerCase();
   return ACCIONES.filter((a) => hasPermission(role, a.permiso))
-    .filter((a) => !t || a.label.toLowerCase().includes(t))
+    .filter((a) => coincideTermino(termino, a.label, ...a.sinonimos))
     .map(({ permiso: _permiso, ...a }) => a);
 }
 
@@ -100,15 +128,33 @@ export function hrefDeAccion(
   actual: { pathname: string; searchStr: string },
 ): string {
   const ruta = actual.pathname.replace(/\/+$/, "") || "/";
+  if (!accion.parametro) return ruta === accion.to ? `${ruta}${actual.searchStr}` : accion.href;
   if (ruta !== accion.to) return accion.href;
   // Se arma a mano y no con `URLSearchParams` para no recodificar los
   // valores que el router ya serializó (lo que vuelve se lee igual).
+  const parametro = accion.parametro;
   const pares = actual.searchStr
     .replace(/^\?/, "")
     .split("&")
-    .filter((par) => par && !par.startsWith(`${accion.parametro}=`));
-  pares.push(`${accion.parametro}=${PEDIDO_ABRIR}`);
+    .filter((par) => par && !par.startsWith(`${parametro}=`));
+  pares.push(`${parametro}=${PEDIDO_ABRIR}`);
   return `${accion.to}?${pares.join("&")}`;
+}
+
+/** Una entrada de "Ir a" del buscador. */
+export type PaginaBuscable = { to: string; label: string; sinonimos?: readonly string[] };
+
+/**
+ * Páginas que coinciden con lo escrito: por nombre o sinónimo, desde el
+ * comienzo de una palabra. Sin término, las primeras `tope`.
+ */
+export function paginasQueCoinciden(
+  paginas: readonly PaginaBuscable[],
+  termino: string,
+  tope = 8,
+): PaginaBuscable[] {
+  if (!termino.trim()) return paginas.slice(0, tope);
+  return paginas.filter((p) => coincideTermino(termino, p.label, ...(p.sinonimos ?? [])));
 }
 
 /**

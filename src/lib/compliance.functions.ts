@@ -38,6 +38,10 @@ export interface ComplianceEvent {
   source: ComplianceSource;
   createdAt: string;
   patientRef: string;
+  /** Ficha a la que apunta `patientRef`, si es el id de un paciente de la
+   * clínica (UX-06: la vista ya no muestra uuids crudos). */
+  patientId: string | null;
+  patientName: string | null;
   noteId: string | null;
   noteTitle: string | null;
   noteVersion: number | null;
@@ -60,6 +64,11 @@ const filtros = z.object({
   /** Máximo de eventos devueltos por origen. */
   limit: z.number().int().min(1).max(2000).default(1000),
 });
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function esUuid(valor: string): boolean {
+  return UUID.test(valor.trim());
+}
 
 export type ComplianceFilters = z.infer<typeof filtros>;
 
@@ -143,6 +152,32 @@ export const getComplianceLog = createServerFn({ method: "GET" })
         ((notasRes.data ?? []) as Array<{ id: string; title: string }>).map((n) => [n.id, n.title]),
       );
 
+      // `patient_ref` es texto: en las notas nuevas es el id del paciente.
+      // Se resuelve a nombre con la RLS del usuario; lo que no se encuentra
+      // (ref vieja o ficha de otra clínica) queda sin nombre.
+      const refsUuid = [
+        ...new Set(
+          [...auditRows, ...reviewRows].map((r) => r.patient_ref).filter((ref) => esUuid(ref)),
+        ),
+      ];
+      const pacientesRes = refsUuid.length
+        ? await supabase
+            .from("patients")
+            .select("id, full_name")
+            .eq("clinic_id", data.clinicId)
+            .in("id", refsUuid)
+        : { data: [] as Array<{ id: string; full_name: string }> };
+      const pacientes = new Map(
+        ((pacientesRes.data ?? []) as Array<{ id: string; full_name: string }>).map((p) => [
+          p.id,
+          p.full_name,
+        ]),
+      );
+      const paciente = (ref: string) => ({
+        patientId: pacientes.has(ref) ? ref : null,
+        patientName: pacientes.get(ref) ?? null,
+      });
+
       const mapa = await nombres(supabase, [
         ...auditRows.map((r: { actor_id: string }) => r.actor_id),
         ...reviewRows.flatMap((r: { actor_id: string; reviewer_id: string | null }) => [
@@ -157,6 +192,7 @@ export const getComplianceLog = createServerFn({ method: "GET" })
           source: "audit" as const,
           createdAt: r.created_at,
           patientRef: r.patient_ref,
+          ...paciente(r.patient_ref),
           noteId: r.note_id,
           noteTitle: r.note_id ? (titulos.get(r.note_id) ?? null) : null,
           noteVersion: null,
@@ -172,6 +208,7 @@ export const getComplianceLog = createServerFn({ method: "GET" })
           source: "review" as const,
           createdAt: r.created_at,
           patientRef: r.patient_ref,
+          ...paciente(r.patient_ref),
           noteId: r.note_id,
           noteTitle: r.note_id ? (titulos.get(r.note_id) ?? null) : null,
           noteVersion: r.note_version,

@@ -1,4 +1,5 @@
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -59,26 +60,48 @@ export function ClinicSwitcher({ access }: { access: ClinicAccess }) {
 
   if (!access.clinic) return null;
 
+  // UX-03: crear otra clínica vive SOLO acá, con un texto que no se confunda
+  // con editar la actual (eso es Ajustes · Datos de la clínica). La demo no
+  // lo ofrece: su salida es "Crear mi clínica gratis" de la franja.
+  const crearOtra = access.clinic.isDemo ? null : (
+    <Link
+      to="/onboarding"
+      title="Abre el asistente para crear una clínica nueva y vacía. No cambia la clínica actual."
+      className="mt-1.5 inline-flex min-h-6 items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+    >
+      <Plus className="size-3" aria-hidden />
+      Crear otra clínica (nueva, vacía)
+    </Link>
+  );
+
   if (memberships.length < 2) {
-    return <p className="mt-2 truncate text-xs text-muted-foreground">{access.clinic.name}</p>;
+    return (
+      <div className="mt-2">
+        <p className="truncate text-xs text-muted-foreground">{access.clinic.name}</p>
+        {crearOtra}
+      </div>
+    );
   }
 
   return (
-    <label className="mt-2 block">
-      <span className="sr-only">Clínica activa</span>
-      <select
-        value={access.clinic.id}
-        onChange={(e) => {
-          if (e.target.value !== access.clinic?.id) mut.mutate(e.target.value);
-        }}
-        className="w-full truncate rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground"
-      >
-        {memberships.map((m) => (
-          <option key={m.clinicId} value={m.clinicId}>
-            {m.clinicName}
-          </option>
-        ))}
-      </select>
-    </label>
+    <div className="mt-2">
+      <label className="block">
+        <span className="sr-only">Clínica activa</span>
+        <select
+          value={access.clinic.id}
+          onChange={(e) => {
+            if (e.target.value !== access.clinic?.id) mut.mutate(e.target.value);
+          }}
+          className="w-full truncate rounded-md border border-border bg-background px-2 py-1 text-xs text-muted-foreground"
+        >
+          {memberships.map((m) => (
+            <option key={m.clinicId} value={m.clinicId}>
+              {m.clinicName}
+            </option>
+          ))}
+        </select>
+      </label>
+      {crearOtra}
+    </div>
   );
 }

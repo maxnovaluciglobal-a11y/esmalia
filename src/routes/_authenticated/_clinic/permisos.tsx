@@ -8,13 +8,13 @@ export const Route = createFileRoute("/_authenticated/_clinic/permisos")({
   beforeLoad: requirePermission("team:manage"),
   head: () => ({
     meta: [
-      { title: "Matriz de permisos | Esmalia" },
+      { title: "Permisos | Esmalia" },
       {
         name: "description",
         content:
           "Consulta qué acciones puede realizar cada rol de la clínica según el estado de la nota clínica.",
       },
-      { property: "og:title", content: "Matriz de permisos | Esmalia" },
+      { property: "og:title", content: "Permisos | Esmalia" },
       {
         property: "og:description",
         content: "Permisos por rol y por estado de la nota clínica en Esmalia.",
@@ -30,7 +30,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/permisos")({
 function PermisosPage() {
   const { access } = Route.useRouteContext();
   return (
-    <AppShell title="Matriz de permisos" access={access}>
+    <AppShell title="Permisos" access={access}>
       <PermissionsMatrix />
     </AppShell>
   );

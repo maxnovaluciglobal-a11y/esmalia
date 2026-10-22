@@ -13,7 +13,7 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
-import { requirePermission } from "@/lib/access/route-guards";
+import { requireOwner } from "@/lib/access/route-guards";
 import { useServerFn } from "@tanstack/react-start";
 import { leerVerificacion, type DnsVerification } from "@/lib/messaging/dns-email";
 import { getEmailSandboxConfig } from "@/lib/messaging/email-config.functions";
@@ -50,7 +50,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pruebas-email")({
-  beforeLoad: requirePermission("team:manage"),
+  beforeLoad: requireOwner(),
   head: () => ({
     meta: [
       { title: "Pruebas de email | Esmalia" },
@@ -308,7 +308,7 @@ function PruebasEmailPage() {
     <AppShell access={access} title="Pruebas de email">
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6">
         <header className="flex flex-col gap-2">
-          <h1 className="font-display text-2xl font-semibold text-foreground">Pruebas de email</h1>
+          <h2 className="font-display text-2xl font-semibold text-foreground">Pruebas de email</h2>
           <p className="max-w-3xl text-sm text-muted-foreground">
             Lanza envíos de prueba de cada aviso del flujo clínico, revisa cómo queda cada
             destinatario tras aplicar el sandbox y consulta los tiempos y errores de cada intento.
@@ -332,7 +332,7 @@ function PruebasEmailPage() {
           {[
             { label: "Intentos registrados", valor: String(metricas.total) },
             { label: "Errores", valor: String(metricas.errores) },
-            { label: "Bloqueados por sandbox", valor: String(metricas.bloqueados) },
+            { label: "Bloqueados por el modo prueba", valor: String(metricas.bloqueados) },
             { label: "Tiempo medio", valor: `${metricas.promedio} ms` },
           ].map((kpi) => (
             <div key={kpi.label} className="rounded-xl border border-border bg-card p-4">

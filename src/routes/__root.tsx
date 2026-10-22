@@ -9,7 +9,7 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import appCss from "../styles.css?url";
@@ -42,7 +42,43 @@ if (typeof window !== "undefined" && esRutaDeCargaDiferida(window.location.pathn
 // Idem: no-op en dev y si el navegador no soporta service workers.
 registerServiceWorker();
 
+// Diferido: arma el AppShell, que no tiene por qué viajar en el chunk de la
+// landing. Solo se pide si quien llegó al 404 tiene sesión.
+const NoEncontradaConSesion = lazy(() => import("@/components/no-encontrada"));
+
+/**
+ * 404 de una URL que no existe. Con sesión, se muestra dentro de la app (menú
+ * y "Ir a Hoy"); sin sesión, la página pública. La sesión se mira en el
+ * cliente, después de hidratar: el SSR siempre pinta la versión pública.
+ */
 function NotFoundComponent() {
+  const { queryClient } = Route.useRouteContext();
+  const [conSesion, setConSesion] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    void import("@/integrations/supabase/client")
+      .then(({ supabase }) => supabase.auth.getSession())
+      .then(({ data }) => {
+        if (vivo && data.session) setConSesion(true);
+      })
+      .catch(() => undefined);
+    return () => {
+      vivo = false;
+    };
+  }, []);
+  if (conSesion) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <Suspense fallback={<NotFoundPublico />}>
+          <NoEncontradaConSesion />
+        </Suspense>
+      </QueryClientProvider>
+    );
+  }
+  return <NotFoundPublico />;
+}
+
+function NotFoundPublico() {
   return (
     <main
       id="main-content"

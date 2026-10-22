@@ -54,7 +54,7 @@ export const MESSAGE_TEMPLATE_KIND_LABELS: Record<MessageTemplateKind, string> =
   payment_receipt: "Recibo de pago",
   nps_survey: "Encuesta NPS",
   custom: "Personalizado",
-  hygiene_recall: "Recall de higiene (6 meses)",
+  hygiene_recall: "Control periódico de higiene (6 meses)",
   review_request: "Pedido de reseña",
   payment_due: "Aviso de saldo pendiente",
   waitlist_opening: "Aviso de lista de espera",

@@ -12,6 +12,7 @@ import { ACCESS_QUERY_KEY, type ClinicAccess } from "@/lib/access/access";
 import { leerRolSimulado, puedeSimular } from "@/lib/access/role-simulation";
 import { ensureOfflineCacheHydrated } from "@/lib/offline/offline-cache";
 import { AppShell } from "@/components/app-shell";
+import { CuerpoNoEncontrada, NoEncontradaEnShell } from "@/components/no-encontrada";
 import { reportBoundaryError } from "@/lib/error-reporting";
 import { captureException } from "@/lib/sentry";
 // Geist Mono (utilidad `cifra`): solo la usa la app, así que se precarga acá
@@ -92,7 +93,16 @@ export const Route = createFileRoute("/_authenticated/_clinic")({
   },
   component: () => <Outlet />,
   errorComponent: ClinicSectionError,
+  // Un `notFound()` de cualquier pantalla de la clínica se muestra dentro del
+  // shell, con su "Ir a Hoy", en vez de la página pública.
+  notFoundComponent: ClinicNotFound,
 });
+
+function ClinicNotFound() {
+  const { access } = Route.useRouteContext();
+  if (!access) return <CuerpoNoEncontrada />;
+  return <NoEncontradaEnShell access={access} />;
+}
 
 // Auditoría de código 01-sep-2026: ninguna ruta hija de /_clinic define su
 // propio `errorComponent`, y esta ruta y `_authenticated` solo renderizan
