@@ -250,7 +250,8 @@ export async function computeQuoteConversion(
   for (const q of rows) {
     createdTotalCents += q.total_cents ?? 0;
     // 'converted' = aceptado y ya convertido en plan; cuenta como aceptado.
-    if (q.status === "accepted" || q.status === "converted") {
+    // 'partially_accepted' (Ola 3) también: el paciente dijo que sí a una parte.
+    if (q.status === "accepted" || q.status === "converted" || q.status === "partially_accepted") {
       accepted += 1;
       acceptedTotalCents += q.total_cents ?? 0;
     } else if (q.status === "rejected") {

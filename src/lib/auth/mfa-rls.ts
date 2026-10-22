@@ -12,7 +12,8 @@
 // - cada tabla creada en `supabase/migrations/` esté clasificada acá, en una
 //   de las dos listas (una tabla nueva sin clasificar deja el CI en rojo);
 // - la migración contenga, para cada tabla protegida, exactamente el SQL que
-//   genera `sqlPoliticaAal2`.
+//   genera `sqlPoliticaAal2`. Una tabla creada después de esa migración lleva
+//   el mismo SQL (y su reversa comentada) en la migración que la crea.
 //
 // No lo importa la app: solo los tests (no entra en ningún bundle).
 
@@ -61,6 +62,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   periodontal_measurements: "mediciones del periodontograma",
   portal_access_log: "accesos del paciente a su portal",
   prescriptions: "recetas: medicamentos indicados a un paciente",
+  quote_events: "historial de cada presupuesto: estados, contactos y motivos de rechazo",
   quote_items: "ítems de presupuestos",
   quotes: "presupuestos",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
@@ -107,6 +109,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   patient_document_bidx:
     "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
   payment_methods: "catálogo de medios de pago",
+  procedure_package_items: "catálogo: prestaciones de cada paquete",
+  procedure_packages: "catálogo de paquetes de prestaciones y su precio",
   procedure_price_realignments:
     "historial de realineaciones de precios de lista (sin datos de pacientes)",
   procedure_supplies: "catálogo de insumos por prestación",

@@ -29,8 +29,13 @@ import {
   type TreatmentItem,
   type TreatmentPlan,
   netAfterRetention,
-  repartirCobertura,
 } from "@/lib/finance/finance";
+import {
+  calcularTotalesDePresupuesto as computeQuoteTotals,
+  type LineaCalculada,
+} from "@/lib/finance/calculo-presupuesto";
+import { motivoTransicionInvalida, validezPorDefecto } from "@/lib/finance/estados-presupuesto";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 
 const SURFACE_ENUM = z.enum(TOOTH_SURFACES);
@@ -387,14 +392,23 @@ export const importProcedures = createServerFn({ method: "POST" })
 
 // ─── QUOTES ──────────────────────────────────────────────────────────────
 
-const QUOTE_COLUMNS =
+/** Sin las columnas de la Ola 3: la base antes de la migración 20261024200100. */
+export const QUOTE_COLUMNS_LEGACY =
   "id, number, status, currency, subtotal_cents, discount_cents, commercial_discount_pct, total_cents, agreement_id, agreement_name_snapshot, coverage_total_cents, notes, valid_until, sent_at, accepted_at, rejected_at, accepted_by_name, created_at";
-const QUOTE_ITEM_COLUMNS =
+export const QUOTE_COLUMNS =
+  QUOTE_COLUMNS_LEGACY + ", professional_id, accepted_total_cents, rejection_reason";
+/** Sin las columnas de la Ola 3 (aceptación parcial y paquetes, 20261024200100). */
+export const QUOTE_ITEM_COLUMNS_SIN_PAQUETES =
   "id, quote_id, procedure_id, name_snapshot, tooth_number, surface, quantity, unit_price_cents, discount_cents, discount_pct, total_cents, coverage_cents, patient_cents, phase_label, phase_position, position, notes, odontogram_mark_id";
+export const QUOTE_ITEM_COLUMNS =
+  QUOTE_ITEM_COLUMNS_SIN_PAQUETES + ", accepted, package_id, package_name_snapshot";
 /** Sin `odontogram_mark_id`: la base antes de la migración 20261020010000. */
-const QUOTE_ITEM_COLUMNS_LEGACY = QUOTE_ITEM_COLUMNS.replace(", odontogram_mark_id", "");
+export const QUOTE_ITEM_COLUMNS_LEGACY = QUOTE_ITEM_COLUMNS_SIN_PAQUETES.replace(
+  ", odontogram_mark_id",
+  "",
+);
 
-type QuoteRow = {
+export type QuoteRow = {
   id: string;
   number: string;
   status: string;
@@ -413,8 +427,12 @@ type QuoteRow = {
   rejected_at: string | null;
   accepted_by_name: string | null;
   created_at: string;
+  /** Ausentes antes de aplicar la migración 20261024200100. */
+  professional_id?: string | null;
+  accepted_total_cents?: number | null;
+  rejection_reason?: string | null;
 };
-type QuoteItemRow = {
+export type QuoteItemRow = {
   id: string;
   quote_id: string;
   procedure_id: string | null;
@@ -434,9 +452,13 @@ type QuoteItemRow = {
   notes: string | null;
   /** Ausente antes de aplicar la migración 20261020010000. */
   odontogram_mark_id?: string | null;
+  /** Ausentes antes de aplicar la migración 20261024200100. */
+  accepted?: boolean | null;
+  package_id?: string | null;
+  package_name_snapshot?: string | null;
 };
 
-function mapQuoteItem(row: QuoteItemRow): QuoteItem {
+export function mapQuoteItem(row: QuoteItemRow): QuoteItem {
   return {
     id: row.id,
     procedureId: row.procedure_id,
@@ -455,10 +477,13 @@ function mapQuoteItem(row: QuoteItemRow): QuoteItem {
     position: row.position,
     notes: row.notes,
     odontogramMarkId: row.odontogram_mark_id ?? null,
+    accepted: row.accepted ?? null,
+    packageId: row.package_id ?? null,
+    packageNameSnapshot: row.package_name_snapshot ?? null,
   };
 }
 
-function mapQuote(row: QuoteRow, items: QuoteItem[]): Quote {
+export function mapQuote(row: QuoteRow, items: QuoteItem[]): Quote {
   return {
     id: row.id,
     number: row.number,
@@ -477,6 +502,9 @@ function mapQuote(row: QuoteRow, items: QuoteItem[]): Quote {
     acceptedAt: row.accepted_at,
     rejectedAt: row.rejected_at,
     acceptedByName: row.accepted_by_name,
+    professionalId: row.professional_id ?? null,
+    acceptedTotalCents: row.accepted_total_cents ?? null,
+    rejectionReason: row.rejection_reason ?? null,
     createdAt: row.created_at,
     items,
   };
@@ -491,16 +519,22 @@ export const listQuotes = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<Quote[]> => {
     const { supabase } = context;
 
-    const { data: quoteRows, error } = await supabase
-      .from("quotes")
-      .select(QUOTE_COLUMNS)
-      .eq("clinic_id", data.clinicId)
-      .eq("patient_id", data.patientId)
-      .order("created_at", { ascending: false });
+    const leerQuotes = (columnas: string) =>
+      supabase
+        .from("quotes")
+        .select(columnas)
+        .eq("clinic_id", data.clinicId)
+        .eq("patient_id", data.patientId)
+        .order("created_at", { ascending: false });
+    let { data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS);
+    // Base sin la migración 20261024200100: se lee sin las columnas nuevas.
+    if (error && isUndefinedColumnError(error)) {
+      ({ data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS_LEGACY));
+    }
 
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar los presupuestos del paciente."));
-    const quotes = (quoteRows ?? []) as QuoteRow[];
+    const quotes = (quoteRows ?? []) as unknown as QuoteRow[];
     if (!quotes.length) return [];
 
     const leerItems = (columnas: string) =>
@@ -514,8 +548,12 @@ export const listQuotes = createServerFn({ method: "GET" })
         .order("phase_position", { ascending: true })
         .order("position", { ascending: true });
     let { data: itemRows, error: itemsError } = await leerItems(QUOTE_ITEM_COLUMNS);
-    // Base sin la migración 20261020010000: se lee sin el vínculo y cada ítem
-    // queda sin marca (lo que era). El deploy no rompe la pestaña de finanzas.
+    // Base sin las migraciones 20261024200100 o 20261020010000: se lee sin las
+    // columnas que falten y cada ítem queda como era. El deploy no rompe la
+    // pestaña de finanzas.
+    if (itemsError && isUndefinedColumnError(itemsError)) {
+      ({ data: itemRows, error: itemsError } = await leerItems(QUOTE_ITEM_COLUMNS_SIN_PAQUETES));
+    }
     if (itemsError && isUndefinedColumnError(itemsError)) {
       ({ data: itemRows, error: itemsError } = await leerItems(QUOTE_ITEM_COLUMNS_LEGACY));
     }
@@ -551,152 +589,19 @@ const QuoteItemInput = z.object({
    * exige que sea del mismo paciente y clínica.
    */
   odontogramMarkId: z.string().uuid().nullish(),
+  /** Paquete del que salió la línea (PLA-12): snapshot del nombre al sumarlo. */
+  packageId: z.string().uuid().nullish(),
+  packageNameSnapshot: z.string().trim().max(120).nullish(),
 });
 
 type QuoteItemDraft = z.infer<typeof QuoteItemInput>;
 
-/**
- * Resuelve el descuento de un ítem a cents, que es la única verdad contable
- * (regla 6). Cuando el usuario negoció en porcentaje, el porcentaje manda y
- * los cents se derivan; cuando cargó pesos, el porcentaje queda `null`.
- *
- * El descuento nunca puede superar la línea: un 100% deja el ítem en cero, no
- * en negativo, y el CHECK de la tabla exige `discount_cents >= 0`.
- */
-function resolveItemDiscount(item: QuoteItemDraft): {
-  discountCents: number;
-  discountPct: number | null;
-} {
-  const lineCents = item.quantity * item.unitPriceCents;
-  if (item.discountPct === null || item.discountPct === undefined) {
-    return { discountCents: Math.min(item.discountCents, lineCents), discountPct: null };
-  }
-  return {
-    discountCents: Math.min(Math.round((lineCents * item.discountPct) / 100), lineCents),
-    discountPct: item.discountPct,
-  };
-}
-
-/**
- * Totales del presupuesto a partir de sus ítems. Extraído porque `createQuote`
- * y `updateQuote` lo calculaban duplicado y ahora además tienen que resolver
- * el porcentaje por línea y el descuento comercial global.
- *
- * `position` se reasigna por índice dentro de cada fase, no sobre la lista
- * entera: así dos ítems de fases distintas pueden ambos ser el primero de su
- * bloque y el orden se lee correcto al agrupar.
- */
-function computeQuoteTotals(
-  items: QuoteItemDraft[],
-  globalDiscountCents: number,
-  commercialDiscountPct: number | null | undefined,
-  /**
-   * Cobertura del convenio del paciente, por `procedure_id`. Vacío o ausente =
-   * presupuesto particular, y todas las líneas quedan con `coverageCents` y
-   * `patientCents` en NULL (regla 11: sin convenio no es cobertura cero).
-   */
-  coberturaPorProcedimiento?: Map<
-    string,
-    { coveragePct: number | null; coverageFixedCents: number | null }
-  >,
-) {
-  const positionByPhase = new Map<string, number>();
-
-  const resolved = items.map((item) => {
-    const { discountCents, discountPct } = resolveItemDiscount(item);
-    const phaseLabel = item.phaseLabel?.trim() || null;
-    const phaseKey = phaseLabel ?? "";
-    const position = positionByPhase.get(phaseKey) ?? 0;
-    positionByPhase.set(phaseKey, position + 1);
-
-    const total = Math.max(0, item.quantity * item.unitPriceCents - discountCents);
-    // Un ítem escrito a mano (sin `procedureId`) no puede tener cobertura: el
-    // convenio cubre prestaciones de su arancel, no texto libre.
-    const cobertura = item.procedureId
-      ? coberturaPorProcedimiento?.get(item.procedureId)
-      : undefined;
-    const { coverageCents, patientCents } = repartirCobertura(total, cobertura, item.quantity);
-
-    return {
-      ...item,
-      phaseLabel,
-      phasePosition: phaseLabel ? item.phasePosition : 0,
-      discountCents,
-      discountPct,
-      position,
-      total,
-      coverageCents,
-      patientCents,
-    };
-  });
-
-  const subtotal = resolved.reduce((sum, item) => sum + item.total, 0);
-  const discount =
-    commercialDiscountPct === null || commercialDiscountPct === undefined
-      ? Math.min(globalDiscountCents, subtotal)
-      : Math.min(Math.round((subtotal * commercialDiscountPct) / 100), subtotal);
-
-  // ── El descuento comercial BAJA a las líneas ────────────────────────────
-  // Auditoría 04-sep: restarlo solo al total del presupuesto lo hacía
-  // desaparecer al aceptar. El trigger de conversión copia `total_cents` de
-  // cada línea a `treatment_items.price_cents`, y de ahí sale el saldo del
-  // paciente — así que un 20 % de descuento se veía en el presupuesto y el
-  // paciente igual terminaba debiendo el 100 %.
-  //
-  // Se prorratea proporcional al peso de cada línea. El resto de la división
-  // se le carga a la última línea con monto, para que la suma de las líneas
-  // dé EXACTAMENTE el total del presupuesto y no un peso de diferencia por
-  // redondeo.
-  if (discount > 0 && subtotal > 0) {
-    let repartido = 0;
-    const conMonto = resolved.filter((i) => i.total > 0);
-    conMonto.forEach((item, idx) => {
-      const parte =
-        idx === conMonto.length - 1
-          ? discount - repartido
-          : Math.round((item.total * discount) / subtotal);
-      repartido += parte;
-      item.total = Math.max(0, item.total - parte);
-      // El reparto convenio/paciente se recalcula sobre la línea ya
-      // descontada: si no, el convenio cubriría un porcentaje de un precio
-      // que nadie va a pagar.
-      if (item.coverageCents !== null) {
-        const cobertura = item.procedureId
-          ? coberturaPorProcedimiento?.get(item.procedureId)
-          : undefined;
-        const nuevo = repartirCobertura(item.total, cobertura, item.quantity);
-        item.coverageCents = nuevo.coverageCents;
-        item.patientCents = nuevo.patientCents;
-      }
-    });
-  }
-
-  // Total del convenio: null cuando ninguna línea tuvo cobertura, para que el
-  // presupuesto no muestre "cubre $0" en un caso particular.
-  const conCobertura = resolved.filter((i) => i.coverageCents !== null);
-  const coverageTotalCents = conCobertura.length
-    ? conCobertura.reduce((sum, i) => sum + (i.coverageCents ?? 0), 0)
-    : null;
-
-  return {
-    items: resolved,
-    subtotal,
-    discountCents: discount,
-    commercialDiscountPct: commercialDiscountPct ?? null,
-    coverageTotalCents,
-    // Suma de las líneas ya descontadas: por construcción es idéntico a
-    // `subtotal - discount`, pero se calcula desde las líneas para que si
-    // alguna vez divergen, gane lo que el paciente realmente va a ver.
-    total: resolved.reduce((sum, item) => sum + item.total, 0),
-  };
-}
+// El cálculo (descuento por línea, descuento comercial prorrateado, reparto
+// del convenio) vive en `calculo-presupuesto.ts`, puro, para que la vista
+// previa del diálogo y los tests usen exactamente la misma regla.
 
 /** Fila lista para insertar en `quote_items`, compartida por create y update. */
-function quoteItemRow(
-  item: ReturnType<typeof computeQuoteTotals>["items"][number],
-  clinicId: string,
-  quoteId: string,
-) {
+function quoteItemRow(item: LineaCalculada<QuoteItemDraft>, clinicId: string, quoteId: string) {
   return {
     clinic_id: clinicId,
     quote_id: quoteId,
@@ -718,6 +623,11 @@ function quoteItemRow(
     // Solo si viene: así un insert sin vínculo no nombra la columna y sigue
     // andando en una base sin la migración 20261020010000.
     ...(item.odontogramMarkId ? { odontogram_mark_id: item.odontogramMarkId } : {}),
+    // Igual que el vínculo: solo si viene, para no nombrar columnas de la
+    // migración 20261024200100 en una línea suelta.
+    ...(item.packageId
+      ? { package_id: item.packageId, package_name_snapshot: item.packageNameSnapshot ?? null }
+      : {}),
   };
 }
 
@@ -810,6 +720,37 @@ async function siguienteNumeroDePresupuesto(
   return `P-${year}-${String(nextValue as number).padStart(4, "0")}`;
 }
 
+const FECHA_ISO = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Fecha inválida.");
+
+/**
+ * Validez por defecto de un presupuesto nuevo (PLA-06): hoy de la clínica
+ * (regla 7) + `clinics.quote_validity_days`. Sin la columna (base antes de
+ * 20261024200100) usa los 30 días de siempre.
+ */
+async function validezPorDefectoDeLaClinica(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+): Promise<string> {
+  const conDias = await supabase
+    .from("clinics")
+    .select("timezone, quote_validity_days")
+    .eq("id", clinicId)
+    .maybeSingle();
+  let clinica: { timezone: string | null; quote_validity_days?: number | null } | null =
+    conDias.data;
+  if (conDias.error && isUndefinedColumnError(conDias.error)) {
+    ({ data: clinica } = await supabase
+      .from("clinics")
+      .select("timezone")
+      .eq("id", clinicId)
+      .maybeSingle());
+  }
+  return validezPorDefecto(
+    hoyISO(clinica?.timezone || "America/Santiago"),
+    clinica?.quote_validity_days ?? null,
+  );
+}
+
 export const createQuote = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
@@ -820,7 +761,9 @@ export const createQuote = createServerFn({ method: "POST" })
         // Sin `currency`: la fija el trigger `moneda_desde_la_clinica` desde
         // `clinics.currency`. La moneda no la decide el cliente.
         notes: z.string().trim().max(1000).optional(),
-        validUntil: z.string().optional(),
+        /** Sin fecha: la validez por defecto de la clínica (PLA-06). */
+        validUntil: FECHA_ISO.optional(),
+        professionalId: z.string().uuid().nullish(),
         globalDiscountCents: z.number().int().min(0).default(0),
         commercialDiscountPct: z.number().min(0).max(100).nullish(),
         items: z.array(QuoteItemInput).min(1, "Agrega al menos un ítem."),
@@ -831,6 +774,8 @@ export const createQuote = createServerFn({ method: "POST" })
     const { supabase } = context;
 
     const nextNumber = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
+    const validUntil =
+      data.validUntil || (await validezPorDefectoDeLaClinica(supabase, data.clinicId));
 
     const convenio = await cargarCoberturaDelPaciente(supabase, data.clinicId, data.patientId);
     const totals = computeQuoteTotals(
@@ -850,11 +795,13 @@ export const createQuote = createServerFn({ method: "POST" })
         agreement_name_snapshot: convenio.agreementName,
         coverage_total_cents: totals.coverageTotalCents,
         notes: data.notes || null,
-        valid_until: data.validUntil || null,
+        valid_until: validUntil,
         subtotal_cents: totals.subtotal,
         discount_cents: totals.discountCents,
         commercial_discount_pct: totals.commercialDiscountPct,
         total_cents: totals.total,
+        // Solo si viene: así crear sigue andando en una base sin 20261024200100.
+        ...(data.professionalId ? { professional_id: data.professionalId } : {}),
       })
       .select("id, number")
       .single();
@@ -894,7 +841,9 @@ export const updateQuote = createServerFn({ method: "POST" })
         quoteId: z.string().uuid(),
         clinicId: z.string().uuid(),
         notes: z.string().trim().max(1000).optional(),
-        validUntil: z.string().optional(),
+        validUntil: FECHA_ISO.optional(),
+        /** `undefined` = no se toca; `null` = sin asignar. */
+        professionalId: z.string().uuid().nullish(),
         globalDiscountCents: z.number().int().min(0).default(0),
         commercialDiscountPct: z.number().min(0).max(100).nullish(),
         items: z.array(QuoteItemInput).min(1, "Agrega al menos un ítem."),
@@ -952,10 +901,11 @@ export const updateQuote = createServerFn({ method: "POST" })
         agreement_id: convenio.agreementId,
         agreement_name_snapshot: convenio.agreementName,
         coverage_total_cents: totals.coverageTotalCents,
+        ...(data.professionalId !== undefined ? { professional_id: data.professionalId } : {}),
       })
       .eq("id", data.quoteId)
       .eq("clinic_id", data.clinicId);
-    if (updErr) throw new Error("No pudimos guardar el presupuesto. " + updErr.message);
+    if (updErr) throw new Error(mensajeDb(updErr, "No pudimos guardar el presupuesto."));
 
     return { ok: true };
   });
@@ -963,7 +913,13 @@ export const updateQuote = createServerFn({ method: "POST" })
 // ─── SUGERENCIA "POR REALIZAR → PRESUPUESTO" (PR 11 del rediseño A+) ─────
 
 /** Estados en los que una marca vinculada cuenta como "ya presupuestada". */
-const ESTADOS_QUE_RETIENEN_LA_MARCA = ["draft", "sent", "accepted", "converted"] as const;
+const ESTADOS_QUE_RETIENEN_LA_MARCA = [
+  "draft",
+  "sent",
+  "accepted",
+  "partially_accepted",
+  "converted",
+] as const;
 
 /** Lo que el recálculo necesita del presupuesto. */
 type PresupuestoParaRecalcular = {
@@ -992,6 +948,8 @@ function filaABorrador(row: QuoteItemRow): ItemParaRecalcular {
     phasePosition: row.phase_position,
     notes: row.notes ?? undefined,
     odontogramMarkId: row.odontogram_mark_id ?? null,
+    packageId: row.package_id ?? null,
+    packageNameSnapshot: row.package_name_snapshot ?? null,
   };
 }
 
@@ -1212,9 +1170,15 @@ export const sumarMarcaAlPresupuesto = createServerFn({ method: "POST" })
     let presupuestoCreado = false;
     if (!quote) {
       const number = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
+      const validUntil = await validezPorDefectoDeLaClinica(supabase, data.clinicId);
       const { data: nuevo, error: qErr } = await supabase
         .from("quotes")
-        .insert({ clinic_id: data.clinicId, patient_id: data.patientId, number })
+        .insert({
+          clinic_id: data.clinicId,
+          patient_id: data.patientId,
+          number,
+          valid_until: validUntil,
+        })
         .select("id, number, patient_id, commercial_discount_pct, discount_cents")
         .single();
       if (qErr) throw new Error(mensajeDb(qErr, "No pudimos crear el presupuesto."));
@@ -1345,8 +1309,13 @@ export const quitarItemSugerido = createServerFn({ method: "POST" })
   });
 
 /**
- * Cambia el estado de un presupuesto. Cuando se marca como 'accepted', el
- * trigger de base convierte el quote en un plan de tratamiento con sus ítems.
+ * Cambia el estado de un presupuesto (PLA-02). Es el ÚNICO camino de la app
+ * para hacerlo: emitir, aceptar (total o parcial), rechazar y renovar uno
+ * vencido. La base vuelve a validar la transición (`validar_transicion_de_
+ * presupuesto`) y, al aceptar, el trigger `convert_accepted_quote_to_plan`
+ * crea el plan de tratamiento: ahí se engancha la cuenta por cobrar (PLA-07,
+ * frente Cobros), no acá. El historial (quién/cuándo) lo escribe la base en
+ * `quote_events`.
  */
 export const setQuoteStatus = createServerFn({ method: "POST" })
   .middleware([requireEscrituraPorFila("quotes", "quoteId")])
@@ -1359,19 +1328,77 @@ export const setQuoteStatus = createServerFn({ method: "POST" })
         // Firma manuscrita (PNG data URL) al aceptar. Opcional: aceptar sin
         // firma sigue siendo válido (queda la evidencia de IP + nombre).
         signatureDataUrl: z.string().max(2_000_000).optional(),
+        /** Aceptación parcial: las líneas que el paciente SÍ aceptó. */
+        acceptedItemIds: z.array(z.string().uuid()).max(500).optional(),
+        /** Rechazo: el motivo que dio el paciente (opcional). */
+        rejectionReason: z.string().trim().max(500).optional(),
+        /** Emitir o renovar: nueva validez. Renovar un vencido la exige. */
+        validUntil: FECHA_ISO.optional(),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const esAceptacion = data.status === "accepted" || data.status === "partially_accepted";
+
+    const { data: actual, error: actualErr } = await supabase
+      .from("quotes")
+      .select("status, clinic_id, patient_id")
+      .eq("id", data.quoteId)
+      .maybeSingle();
+    if (actualErr) throw new Error(mensajeDb(actualErr, "No pudimos leer el presupuesto."));
+    if (!actual) throw new Error("No encontramos ese presupuesto.");
+    const motivo = motivoTransicionInvalida(actual.status, data.status);
+    if (motivo) throw new Error(motivo);
+    if (actual.status === "expired" && !data.validUntil) {
+      throw new Error("Para renovar el presupuesto, pon una nueva fecha de validez.");
+    }
+
+    // Aceptación parcial: primero se marcan las líneas (las elegidas en true,
+    // el resto en false) y después el estado; el trigger arma el plan solo
+    // con las aceptadas. Si el cambio de estado falla, las marcas quedan sin
+    // efecto: una aceptación total las ignora y otra parcial las reescribe.
+    if (data.status === "partially_accepted") {
+      const elegidas = [...new Set(data.acceptedItemIds ?? [])];
+      if (!elegidas.length) throw new Error("Marca al menos una prestación como aceptada.");
+      const { data: lineas, error: lErr } = await supabase
+        .from("quote_items")
+        .select("id")
+        .eq("quote_id", data.quoteId)
+        .eq("clinic_id", actual.clinic_id);
+      if (lErr) throw new Error(mensajeDb(lErr, "No pudimos leer las prestaciones."));
+      const ids = new Set((lineas ?? []).map((l) => l.id));
+      if (elegidas.some((id) => !ids.has(id))) {
+        throw new Error("Alguna prestación elegida no es de este presupuesto.");
+      }
+      if (elegidas.length === ids.size) {
+        throw new Error("Elegiste todas las prestaciones: usa Aceptar para una aceptación total.");
+      }
+      const noElegidas = [...ids].filter((id) => !elegidas.includes(id));
+      for (const [valor, lista] of [
+        [true, elegidas],
+        [false, noElegidas],
+      ] as const) {
+        const { error } = await supabase
+          .from("quote_items")
+          .update({ accepted: valor })
+          .eq("quote_id", data.quoteId)
+          .eq("clinic_id", actual.clinic_id)
+          .in("id", lista);
+        if (error)
+          throw new Error(mensajeDb(error, "No pudimos marcar las prestaciones aceptadas."));
+      }
+    }
+
     const now = new Date().toISOString();
     // Evidencia técnica del consentimiento (útil ante disputa de cobro):
-    // IP + user-agent del request real en el momento del "accepted", además
+    // IP + user-agent del request real en el momento de aceptar, además
     // del nombre que tipeó el staff. `getRequest()` expone la Request HTTP
     // real dentro del handler de un createServerFn (mismo patrón que
     // `logPortalAccess` en portal.functions.ts).
     let acceptedIp: string | null = null;
     let acceptedUserAgent: string | null = null;
-    if (data.status === "accepted") {
+    if (esAceptacion) {
       const req = getRequest();
       acceptedIp = req?.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
       acceptedUserAgent = req?.headers.get("user-agent") ?? null;
@@ -1380,41 +1407,29 @@ export const setQuoteStatus = createServerFn({ method: "POST" })
     // Firma manuscrita al aceptar: se sube al bucket privado clinical-documents
     // bajo {clinic_id}/{patient_id}/quote-signatures/. Path en accepted_signature_path.
     //
-    // Si la subida falla, el presupuesto igual se marca "accepted" (aceptar
-    // sigue siendo válido sin firma — queda IP + nombre como evidencia), pero
-    // NO podemos dejar que falle en silencio: `signatureUploadFailed` distingue
+    // Si la subida falla, el presupuesto igual se acepta (aceptar sigue
+    // siendo válido sin firma — queda IP + nombre como evidencia), pero NO
+    // podemos dejar que falle en silencio: `signatureUploadFailed` distingue
     // "el paciente no firmó" de "el paciente firmó y no pudimos guardarlo", y
     // el cliente lo usa para mostrar un error visible en vez de un success mudo.
     let signaturePath: string | null = null;
     let signatureUploadFailed = false;
-    if (data.status === "accepted" && data.signatureDataUrl) {
+    if (esAceptacion && data.signatureDataUrl) {
       const match = /^data:(image\/[^;]+);base64,(.+)$/.exec(data.signatureDataUrl);
       if (match) {
-        const { data: quote } = await context.supabase
-          .from("quotes")
-          .select("clinic_id, patient_id")
-          .eq("id", data.quoteId)
-          .maybeSingle();
-        if (quote) {
-          const bytes = Uint8Array.from(Buffer.from(match[2], "base64"));
-          const path = `${quote.clinic_id}/${quote.patient_id}/quote-signatures/${crypto.randomUUID()}.png`;
-          const { error: upErr } = await context.supabase.storage
-            .from("clinical-documents")
-            .upload(path, bytes, { contentType: match[1], upsert: false });
-          if (upErr) {
-            signatureUploadFailed = true;
-            console.error("[setQuoteStatus] Falló la subida de la firma a Storage", {
-              quoteId: data.quoteId,
-              message: upErr.message,
-            });
-          } else {
-            signaturePath = path;
-          }
-        } else {
+        const bytes = Uint8Array.from(Buffer.from(match[2], "base64"));
+        const path = `${actual.clinic_id}/${actual.patient_id}/quote-signatures/${crypto.randomUUID()}.png`;
+        const { error: upErr } = await supabase.storage
+          .from("clinical-documents")
+          .upload(path, bytes, { contentType: match[1], upsert: false });
+        if (upErr) {
           signatureUploadFailed = true;
-          console.error("[setQuoteStatus] No se encontró el presupuesto al subir la firma", {
+          console.error("[setQuoteStatus] Falló la subida de la firma a Storage", {
             quoteId: data.quoteId,
+            message: upErr.message,
           });
+        } else {
+          signaturePath = path;
         }
       } else {
         signatureUploadFailed = true;
@@ -1427,17 +1442,24 @@ export const setQuoteStatus = createServerFn({ method: "POST" })
     const patch = {
       status: data.status,
       ...(data.status === "sent" && { sent_at: now }),
-      ...(data.status === "accepted" && { accepted_at: now }),
-      ...(data.status === "accepted" &&
-        data.acceptedByName && { accepted_by_name: data.acceptedByName }),
-      ...(data.status === "accepted" && { accepted_ip: acceptedIp }),
-      ...(data.status === "accepted" && { accepted_user_agent: acceptedUserAgent }),
+      ...(data.validUntil && { valid_until: data.validUntil }),
+      ...(esAceptacion && { accepted_at: now }),
+      ...(esAceptacion && data.acceptedByName && { accepted_by_name: data.acceptedByName }),
+      ...(esAceptacion && { accepted_ip: acceptedIp }),
+      ...(esAceptacion && { accepted_user_agent: acceptedUserAgent }),
       ...(signaturePath && { accepted_signature_path: signaturePath }),
       ...(data.status === "rejected" && { rejected_at: now }),
+      ...(data.status === "rejected" &&
+        data.rejectionReason && { rejection_reason: data.rejectionReason }),
     };
 
-    const { error } = await context.supabase.from("quotes").update(patch).eq("id", data.quoteId);
-    if (error) throw new Error("No tienes permisos para cambiar este presupuesto.");
+    const { error } = await supabase
+      .from("quotes")
+      .update(patch)
+      .eq("id", data.quoteId)
+      .eq("clinic_id", actual.clinic_id);
+    if (error)
+      throw new Error(mensajeDb(error, "No tienes permisos para cambiar este presupuesto."));
     return { ok: true, signatureUploadFailed };
   });
 

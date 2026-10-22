@@ -1207,6 +1207,7 @@ export type Database = {
           name: string;
           onboarding_call_at: string | null;
           onboarding_completed: boolean;
+          quote_validity_days: number;
           tax_id: string | null;
           timezone: string;
           updated_at: string;
@@ -1223,6 +1224,7 @@ export type Database = {
           name: string;
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
+          quote_validity_days?: number;
           tax_id?: string | null;
           timezone?: string;
           updated_at?: string;
@@ -1239,6 +1241,7 @@ export type Database = {
           name?: string;
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
+          quote_validity_days?: number;
           tax_id?: string | null;
           timezone?: string;
           updated_at?: string;
@@ -3921,6 +3924,111 @@ export type Database = {
           },
         ];
       };
+      procedure_package_items: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          name_snapshot: string;
+          package_id: string;
+          position: number;
+          procedure_id: string | null;
+          quantity: number;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          name_snapshot: string;
+          package_id: string;
+          position?: number;
+          procedure_id?: string | null;
+          quantity?: number;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          name_snapshot?: string;
+          package_id?: string;
+          position?: number;
+          procedure_id?: string | null;
+          quantity?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_package_items_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "procedure_package_items_package_id_fkey";
+            columns: ["package_id"];
+            isOneToOne: false;
+            referencedRelation: "procedure_packages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "procedure_package_items_procedure_id_fkey";
+            columns: ["procedure_id"];
+            isOneToOne: false;
+            referencedRelation: "procedures";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      procedure_packages: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          description: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          position: number;
+          price_cents: number;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          position?: number;
+          price_cents: number;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          position?: number;
+          price_cents?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_packages_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procedure_price_realignments: {
         Row: {
           affected_count: number;
@@ -4281,8 +4389,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      quote_events: {
+        Row: {
+          actor_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          from_status: Database["public"]["Enums"]["quote_status"] | null;
+          id: string;
+          kind: string;
+          note: string | null;
+          quote_id: string;
+          to_status: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["quote_status"] | null;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          quote_id: string;
+          to_status?: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["quote_status"] | null;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          quote_id?: string;
+          to_status?: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_events_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_events_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       quote_items: {
         Row: {
+          accepted: boolean | null;
           clinic_id: string;
           coverage_cents: number | null;
           created_at: string;
@@ -4292,6 +4455,8 @@ export type Database = {
           name_snapshot: string;
           notes: string | null;
           odontogram_mark_id: string | null;
+          package_id: string | null;
+          package_name_snapshot: string | null;
           patient_cents: number | null;
           phase_label: string | null;
           phase_position: number;
@@ -4305,6 +4470,7 @@ export type Database = {
           unit_price_cents: number;
         };
         Insert: {
+          accepted?: boolean | null;
           clinic_id: string;
           coverage_cents?: number | null;
           created_at?: string;
@@ -4314,6 +4480,8 @@ export type Database = {
           name_snapshot: string;
           notes?: string | null;
           odontogram_mark_id?: string | null;
+          package_id?: string | null;
+          package_name_snapshot?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -4327,6 +4495,7 @@ export type Database = {
           unit_price_cents: number;
         };
         Update: {
+          accepted?: boolean | null;
           clinic_id?: string;
           coverage_cents?: number | null;
           created_at?: string;
@@ -4336,6 +4505,8 @@ export type Database = {
           name_snapshot?: string;
           notes?: string | null;
           odontogram_mark_id?: string | null;
+          package_id?: string | null;
+          package_name_snapshot?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -4364,6 +4535,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "quote_items_package_id_fkey";
+            columns: ["package_id"];
+            isOneToOne: false;
+            referencedRelation: "procedure_packages";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "quote_items_procedure_id_fkey";
             columns: ["procedure_id"];
             isOneToOne: false;
@@ -4385,6 +4563,7 @@ export type Database = {
           accepted_by_name: string | null;
           accepted_ip: unknown;
           accepted_signature_path: string | null;
+          accepted_total_cents: number | null;
           accepted_user_agent: string | null;
           agreement_id: string | null;
           agreement_name_snapshot: string | null;
@@ -4395,11 +4574,18 @@ export type Database = {
           created_by: string;
           currency: string;
           discount_cents: number;
+          expired_at: string | null;
           id: string;
+          last_contact_at: string | null;
+          last_contact_note: string | null;
+          next_action: string | null;
+          next_action_on: string | null;
           notes: string | null;
           number: string;
           patient_id: string;
+          professional_id: string | null;
           rejected_at: string | null;
+          rejection_reason: string | null;
           sent_at: string | null;
           status: Database["public"]["Enums"]["quote_status"];
           subtotal_cents: number;
@@ -4412,6 +4598,7 @@ export type Database = {
           accepted_by_name?: string | null;
           accepted_ip?: unknown;
           accepted_signature_path?: string | null;
+          accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
@@ -4422,11 +4609,18 @@ export type Database = {
           created_by?: string;
           currency?: string;
           discount_cents?: number;
+          expired_at?: string | null;
           id?: string;
+          last_contact_at?: string | null;
+          last_contact_note?: string | null;
+          next_action?: string | null;
+          next_action_on?: string | null;
           notes?: string | null;
           number: string;
           patient_id: string;
+          professional_id?: string | null;
           rejected_at?: string | null;
+          rejection_reason?: string | null;
           sent_at?: string | null;
           status?: Database["public"]["Enums"]["quote_status"];
           subtotal_cents?: number;
@@ -4439,6 +4633,7 @@ export type Database = {
           accepted_by_name?: string | null;
           accepted_ip?: unknown;
           accepted_signature_path?: string | null;
+          accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
@@ -4449,11 +4644,18 @@ export type Database = {
           created_by?: string;
           currency?: string;
           discount_cents?: number;
+          expired_at?: string | null;
           id?: string;
+          last_contact_at?: string | null;
+          last_contact_note?: string | null;
+          next_action?: string | null;
+          next_action_on?: string | null;
           notes?: string | null;
           number?: string;
           patient_id?: string;
+          professional_id?: string | null;
           rejected_at?: string | null;
+          rejection_reason?: string | null;
           sent_at?: string | null;
           status?: Database["public"]["Enums"]["quote_status"];
           subtotal_cents?: number;
@@ -4481,6 +4683,13 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quotes_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
             referencedColumns: ["id"];
           },
         ];
@@ -5335,6 +5544,7 @@ export type Database = {
       };
       shares_clinic_with: { Args: { _user_id: string }; Returns: boolean };
       storage_clinic_id_of: { Args: { _name: string }; Returns: string };
+      vencer_presupuestos: { Args: { p_clinic_id?: string }; Returns: number };
     };
     Enums: {
       app_role: "owner" | "admin" | "dentist" | "assistant" | "reception" | "accounting";
@@ -5372,7 +5582,8 @@ export type Database = {
       patient_status: "active" | "new" | "inactive";
       payment_method: "cash" | "debit_card" | "credit_card" | "transfer" | "other";
       periodontal_point: "mv" | "v" | "dv" | "ml" | "l" | "dl" | "whole";
-      quote_status: "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+      quote_status:
+        "draft" | "sent" | "accepted" | "partially_accepted" | "rejected" | "expired" | "converted";
       tooth_condition:
         | "sano"
         | "caries"
@@ -5570,7 +5781,15 @@ export const Constants = {
       patient_status: ["active", "new", "inactive"],
       payment_method: ["cash", "debit_card", "credit_card", "transfer", "other"],
       periodontal_point: ["mv", "v", "dv", "ml", "l", "dl", "whole"],
-      quote_status: ["draft", "sent", "accepted", "rejected", "expired", "converted"],
+      quote_status: [
+        "draft",
+        "sent",
+        "accepted",
+        "partially_accepted",
+        "rejected",
+        "expired",
+        "converted",
+      ],
       tooth_condition: [
         "sano",
         "caries",

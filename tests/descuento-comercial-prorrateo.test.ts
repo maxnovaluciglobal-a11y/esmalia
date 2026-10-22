@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { repartirCobertura } from "../src/lib/finance/finance";
+import { calcularTotalesDePresupuesto } from "../src/lib/finance/calculo-presupuesto";
 
 /**
  * Regresión del bug más caro de la auditoría del 04-sep: el descuento
@@ -9,55 +9,38 @@ import { repartirCobertura } from "../src/lib/finance/finance";
  * de descuento se veía en el presupuesto y el paciente igual terminaba
  * debiendo el 100 %.
  *
- * La lógica corregida vive en `computeQuoteTotals` (finance.functions.ts), que
- * es un módulo de server functions y arrastra el middleware de Supabase al
- * importarlo. Se reimplementa acá el prorrateo con la MISMA regla para poder
- * probarlo aislado; si cambia allá y no acá, este test deja de proteger — por
- * eso el nombre de la función es idéntico y el comentario lo advierte.
+ * Hasta la Ola 3 este test reimplementaba el prorrateo porque la lógica vivía
+ * dentro de `finance.functions.ts`. Ahora prueba el cálculo real
+ * (`calculo-presupuesto.ts`), el mismo que usan el servidor y la vista previa.
  */
+type Linea = { total: number; quantity: number; procedureId?: string };
+
 function prorratearDescuento(
-  lineas: { total: number; procedureId?: string; quantity: number }[],
+  lineas: Linea[],
   descuento: number,
   cobertura?: Map<string, { coveragePct: number | null; coverageFixedCents: number | null }>,
 ) {
-  const subtotal = lineas.reduce((s, l) => s + l.total, 0);
-  const resultado = lineas.map((l) => {
-    const c = l.procedureId ? cobertura?.get(l.procedureId) : undefined;
-    const r = repartirCobertura(l.total, c, l.quantity);
-    return { ...l, coverageCents: r.coverageCents, patientCents: r.patientCents };
-  });
-
-  if (descuento > 0 && subtotal > 0) {
-    let repartido = 0;
-    const conMonto = resultado.filter((l) => l.total > 0);
-    conMonto.forEach((l, idx) => {
-      const parte =
-        idx === conMonto.length - 1
-          ? descuento - repartido
-          : Math.round((l.total * descuento) / subtotal);
-      repartido += parte;
-      l.total = Math.max(0, l.total - parte);
-      if (l.coverageCents !== null) {
-        const c = l.procedureId ? cobertura?.get(l.procedureId) : undefined;
-        const nuevo = repartirCobertura(l.total, c, l.quantity);
-        l.coverageCents = nuevo.coverageCents;
-        l.patientCents = nuevo.patientCents;
-      }
-    });
-  }
-  return resultado;
+  // Una línea por unidad de precio: el total de la línea es su precio.
+  return calcularTotalesDePresupuesto(
+    lineas.map((l) => ({
+      procedureId: l.procedureId,
+      quantity: 1,
+      unitPriceCents: l.total,
+      discountCents: 0,
+    })),
+    descuento,
+    null,
+    cobertura,
+  ).items;
 }
 
 describe("prorrateo del descuento comercial", () => {
   it("el descuento baja a la línea: sin convenio, el paciente debe lo descontado", () => {
-    // Antes: la línea quedaba en 100.000 y el paciente debía los 20.000
-    // que se le habían bonificado.
     const [linea] = prorratearDescuento([{ total: 100_000, quantity: 1 }], 20_000);
     expect(linea.total).toBe(80_000);
   });
 
   it("la suma de las líneas es EXACTAMENTE el total, sin peso de diferencia", () => {
-    // Tres líneas que no dividen redondo: el resto va a la última.
     const lineas = prorratearDescuento(
       [
         { total: 33_333, quantity: 1 },
@@ -82,10 +65,8 @@ describe("prorrateo del descuento comercial", () => {
   });
 
   it("con convenio, la cobertura se recalcula sobre la línea YA descontada", () => {
-    // $100.000, convenio 50%, descuento comercial 20%.
-    // La línea baja a 80.000 y el convenio cubre 40.000, no 50.000: si
-    // cubriera sobre el precio de lista, pondría un porcentaje de una plata
-    // que nadie va a pagar.
+    // $100.000, convenio 50%, descuento comercial 20%. La línea baja a 80.000
+    // y el convenio cubre 40.000, no 50.000.
     const cobertura = new Map([["proc-1", { coveragePct: 50, coverageFixedCents: null }]]);
     const [linea] = prorratearDescuento(
       [{ total: 100_000, quantity: 1, procedureId: "proc-1" }],

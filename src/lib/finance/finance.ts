@@ -4,19 +4,26 @@ export const QUOTE_STATUSES = [
   "draft",
   "sent",
   "accepted",
+  "partially_accepted",
   "rejected",
   "expired",
   "converted",
 ] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 
+/**
+ * Etiqueta de cada valor del enum de la base. Los estados que ve el usuario
+ * (siete, con "finalizado" derivado del plan) están en
+ * `estados-presupuesto.ts`; esto queda para exportaciones y textos sueltos.
+ */
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   draft: "Borrador",
-  sent: "Enviado",
+  sent: "Emitido",
   accepted: "Aceptado",
+  partially_accepted: "Aceptado parcial",
   rejected: "Rechazado",
   expired: "Vencido",
-  converted: "Convertido en plan",
+  converted: "Aceptado",
 };
 
 export const TREATMENT_PLAN_STATUSES = ["active", "on_hold", "completed", "cancelled"] as const;
@@ -214,6 +221,14 @@ export interface QuoteItem {
    * mano. Sirve para no volver a sugerir una marca ya presupuestada.
    */
   odontogramMarkId: string | null;
+  /**
+   * Aceptación parcial: `false` = el paciente no aceptó esta línea. `null` =
+   * sin decisión (en una aceptación total entran todas).
+   */
+  accepted: boolean | null;
+  /** Paquete del que salió la línea (PLA-12). `null` = línea suelta. */
+  packageId: string | null;
+  packageNameSnapshot: string | null;
 }
 
 export interface Quote {
@@ -237,6 +252,11 @@ export interface Quote {
   acceptedAt: string | null;
   rejectedAt: string | null;
   acceptedByName: string | null;
+  /** Profesional a cargo. `null` = sin asignar. */
+  professionalId: string | null;
+  /** Lo que se aceptó (total o parcial). `null` = no aceptado. */
+  acceptedTotalCents: number | null;
+  rejectionReason: string | null;
   createdAt: string;
   items: QuoteItem[];
 }
