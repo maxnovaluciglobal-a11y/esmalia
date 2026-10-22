@@ -24,14 +24,15 @@ const DIA_SEMANA_CORTO: Record<string, number> = {
   Fri: 5,
   Sat: 6,
 };
+// En plural: solo se usa en "no atiende los …".
 const DIA_SEMANA_LABEL: Record<number, string> = {
-  0: "domingo",
+  0: "domingos",
   1: "lunes",
   2: "martes",
   3: "miércoles",
   4: "jueves",
   5: "viernes",
-  6: "sábado",
+  6: "sábados",
 };
 
 /** Día de la semana (0=domingo…6=sábado, igual que Date.getDay()) según lo
