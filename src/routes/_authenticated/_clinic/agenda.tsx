@@ -40,6 +40,8 @@ import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/fi
 import { AgendaGrid, AvisoDeChoques, type ArrastreGrilla } from "@/components/agenda-grid";
 import {
   boxDe,
+  boxEfectivo,
+  choquesDelMovimiento,
   conflictosDeCandidata,
   detectarConflictos,
   resumenConflictos,
@@ -62,6 +64,11 @@ import { CambiarEstadoMenu } from "@/components/cambiar-estado-cita-menu";
 import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones";
 import type { SemillaCita } from "@/components/agenda-hueco";
 import { AgendaMonth, AgendaSemanaCarriles } from "@/components/agenda-views";
+import { AgendaPorBox } from "@/components/agenda-por-box";
+import {
+  ConfirmarMovimientoConChoque,
+  type MovimientoPorConfirmar,
+} from "@/components/agenda-confirmar-choque";
 import { fechaMasAntigua } from "@/components/agenda-ocupacion";
 import { AllergyAlertIcon } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
@@ -77,7 +84,10 @@ import {
   enfocarPrimerFaltante,
   profesionalesDelSelector,
 } from "@/lib/clinic-operations/cita-formulario";
-import { getAppointmentFormDetails } from "@/lib/clinic-operations/cita-formulario.functions";
+import {
+  getAppointmentFormDetails,
+  listOperatories,
+} from "@/lib/clinic-operations/cita-formulario.functions";
 import { esAtajoGuardar, esAtajoNuevaCita, hayDialogoAbierto } from "@/lib/atajos";
 import { addDaysISO, addMonthsISO, rangoDeVista } from "@/lib/clinic-operations/agenda-fechas";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -230,6 +240,8 @@ interface AgendaSearch {
   /** Con `nueva=1`: id del paciente que el diálogo trae elegido (contrato de
    * la Ola 1, `hrefNuevaCita`). Se limpia junto con `nueva`. */
   paciente?: string;
+  /** Vista de día con un carril por box en vez de por profesional (AGE-04). */
+  carril?: "box";
 }
 
 function parseVista(v: unknown): VistaAgenda | undefined {
@@ -252,6 +264,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
     page: num(search.page, 1),
     nueva: leerNuevaCita(search.nueva),
     paciente: str(search.paciente) || undefined,
+    carril: search.carril === "box" ? "box" : undefined,
   }),
   beforeLoad: requirePermission("agenda:view"),
   head: () => ({
@@ -314,6 +327,7 @@ function useChoquesDelFormulario({
   sucursalId,
   startsAt,
   duracion,
+  boxId,
 }: {
   citas: Cita[];
   profesionales: Profesional[];
@@ -323,6 +337,8 @@ function useChoquesDelFormulario({
   sucursalId: string;
   startsAt: string;
   duracion: number;
+  /** Box elegido ("" = el del profesional). */
+  boxId: string;
 }): Conflicto[] {
   return useMemo(() => {
     const destino = destinoDeStartsAt(startsAt);
@@ -336,21 +352,36 @@ function useChoquesDelFormulario({
         fecha: destino.fecha,
         inicio: destino.inicio,
         duracion,
+        boxId: boxId || null,
       },
       citas,
       profesionales,
     );
-  }, [citas, profesionales, citaId, pacienteId, profesionalId, sucursalId, startsAt, duracion]);
+  }, [
+    citas,
+    profesionales,
+    citaId,
+    pacienteId,
+    profesionalId,
+    sucursalId,
+    startsAt,
+    duracion,
+    boxId,
+  ]);
 }
 
 function ChoquesDelFormulario({
   conflictos,
   profesionales,
   profesionalId,
+  boxId,
+  boxes,
 }: {
   conflictos: Conflicto[];
   profesionales: Profesional[];
   profesionalId: string;
+  boxId: string;
+  boxes: readonly { id: string; nombre: string }[];
 }) {
   if (conflictos.length === 0) return null;
   return (
@@ -359,7 +390,13 @@ function ChoquesDelFormulario({
       nombreProfesional={(id) =>
         profesionales.find((p) => p.id === id)?.nombre ?? "otro profesional"
       }
-      box={boxDe(profesionales.find((p) => p.id === profesionalId))}
+      box={
+        boxEfectivo(
+          { boxId: boxId || null },
+          profesionales.find((p) => p.id === profesionalId),
+          (id) => boxes.find((b) => b.id === id)?.nombre,
+        )?.nombre ?? null
+      }
       titulo={
         conflictos.length === 1
           ? "Este horario choca con otra cita"
@@ -648,6 +685,7 @@ function NuevaCitaDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -698,6 +736,8 @@ function NuevaCitaDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
               />
             </>
           }
@@ -846,6 +886,7 @@ function EditarCitaDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -877,6 +918,7 @@ function EditarCitaDialog({
           profesionales={profesionales}
           puedeAdministrarProfesionales={puedeAdministrarProfesionales}
           profesionalActualId={cita.profesionalId}
+          precargarBox={false}
           avisos={
             <>
               {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
@@ -884,6 +926,8 @@ function EditarCitaDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
               />
             </>
           }
@@ -1011,6 +1055,7 @@ function AgendarSolicitudDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -1036,6 +1081,8 @@ function AgendarSolicitudDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
               />
             </>
           }
@@ -1575,6 +1622,46 @@ function AgendaPage() {
     [reprogramar],
   );
   const [citaAMover, setCitaAMover] = useState<Cita | null>(null);
+
+  // Boxes activos (AGE-04): carriles de la vista por box y nombres en los
+  // avisos de choque. Misma consulta que el formulario de cita.
+  const fetchBoxes = useServerFn(listOperatories);
+  const { data: boxes = [] } = useQuery({
+    queryKey: ["operatories", clinicId],
+    enabled: Boolean(clinicId),
+    staleTime: 5 * 60_000,
+    queryFn: () => fetchBoxes({ data: { clinicId: clinicId! } }),
+  });
+
+  // Mover con choque (AGE-02): si el destino deja a la cita con el mismo
+  // paciente o el mismo box a la vez que otra, se pide confirmación antes.
+  // El mismo profesional ya no se puede soltar (`validarDestino`).
+  const [movimientoConChoque, setMovimientoConChoque] = useState<MovimientoPorConfirmar | null>(
+    null,
+  );
+  const moverCita = useCallback(
+    (cita: Cita, destino: Destino) => {
+      const choques = choquesDelMovimiento(cita, destino, citas, profesionales);
+      if (choques.length === 0) {
+        void reprogramar.mover(cita, destino);
+        return;
+      }
+      const conBox = choques.find((x) => x.tipo === "box");
+      setMovimientoConChoque({
+        cita,
+        destino,
+        conflictos: choques,
+        box: conBox
+          ? (boxEfectivo(
+              conBox.cita,
+              profesionales.find((p) => p.id === conBox.cita.profesionalId),
+              (id) => boxes.find((b) => b.id === id)?.nombre,
+            )?.nombre ?? null)
+          : null,
+      });
+    },
+    [citas, profesionales, boxes, reprogramar],
+  );
   const puedeSimular = puedeSimularSinConexion(esCuentaDemo(access.email));
 
   const fetchSolicitudes = useServerFn(listPendingAppointmentRequests);
@@ -1783,10 +1870,23 @@ function AgendaPage() {
           horarios={horarios}
           validar={validarMovimiento}
           onMover={(c, d) => {
-            void reprogramar.mover(c, d);
+            moverCita(c, d);
             enfocarCita(c.id);
           }}
           onClose={() => setCitaAMover(null)}
+        />
+        <ConfirmarMovimientoConChoque
+          pendiente={movimientoConChoque}
+          nombreProfesional={nombreProfesional}
+          onConfirmar={(m) => {
+            setMovimientoConChoque(null);
+            void reprogramar.mover(m.cita, m.destino);
+            enfocarCita(m.cita.id);
+          }}
+          onCancelar={() => {
+            if (movimientoConChoque) enfocarCita(movimientoConChoque.cita.id);
+            setMovimientoConChoque(null);
+          }}
         />
         <div className="flex items-center justify-end gap-2">
           {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
@@ -2019,7 +2119,36 @@ function AgendaPage() {
 
             {(vista === "dia" || vista === "semana") && (
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                {vista === "dia" && puedeGestionarAgenda ? (
+                {vista === "dia" && (
+                  <div
+                    role="group"
+                    aria-label="Carriles de la agenda"
+                    className="flex rounded-lg border border-hairline p-0.5 text-xs"
+                  >
+                    {(
+                      [
+                        [undefined, "Por profesional"],
+                        ["box", "Por box"],
+                      ] as const
+                    ).map(([valor, etiqueta]) => (
+                      <button
+                        key={etiqueta}
+                        type="button"
+                        aria-pressed={search.carril === valor}
+                        onClick={() => set({ carril: valor })}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11 pointer-coarse:px-3",
+                          search.carril === valor
+                            ? "bg-secondary text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {etiqueta}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {(vista === "semana" || search.carril !== "box") && puedeGestionarAgenda ? (
                   <p className="text-xs text-muted-foreground">
                     <span className="pointer-coarse:hidden">
                       Arrastra una cita para moverla. Con teclado:{" "}
@@ -2042,13 +2171,28 @@ function AgendaPage() {
                 />
               </div>
             )}
-            {vista === "dia" && (
+            {vista === "dia" && search.carril === "box" && (
+              <AgendaPorBox
+                citas={filtradas}
+                boxes={boxes.filter((b) => !search.sucursal || b.sucursalId === search.sucursal)}
+                profesionales={profesionales}
+                conSucursal={!search.sucursal && sucursales.length > 1}
+                nombreSucursal={(id) => sucursales.find((s) => s.id === id)?.nombre ?? ""}
+                allergyAlerts={allergyAlerts}
+                renderAcciones={accionesDeCita}
+                conflictos={conflictos}
+                nombreProfesional={nombreProfesional}
+                esHoy={fecha === hoy}
+                zonaHoraria={access.clinic?.timezone}
+              />
+            )}
+            {vista === "dia" && search.carril !== "box" && (
               <AgendaGrid
                 arrastre={
                   {
                     habilitado: puedeGestionarAgenda,
                     validar: validarMovimiento,
-                    onMover: (c, d) => void reprogramar.mover(c, d),
+                    onMover: moverCita,
                     onRechazo: rechazarMovimiento,
                     enCola,
                     horarios,
@@ -2084,6 +2228,14 @@ function AgendaPage() {
                 renderAcciones={accionesDeCita}
                 conflictos={conflictos}
                 nombreProfesional={nombreProfesional}
+                arrastre={{
+                  habilitado: puedeGestionarAgenda,
+                  validar: validarMovimiento,
+                  onMover: moverCita,
+                  onRechazo: rechazarMovimiento,
+                  enCola,
+                  horarios,
+                }}
               />
             )}
             {vista === "mes" && (

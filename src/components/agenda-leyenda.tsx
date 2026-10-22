@@ -2,6 +2,7 @@ import { AlertTriangle, CalendarX2, Info } from "lucide-react";
 
 import { iniciales } from "@/components/agenda-hueco";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import type { Profesional } from "@/lib/clinic-operations/clinic-data";
 
 /**
@@ -98,7 +99,7 @@ export function LeyendaAgenda({
                 <li key={p.id} className="flex min-w-0 items-center gap-1.5">
                   <span
                     className="w-7 shrink-0 border-t-2 pt-0.5 text-center text-[11px] font-semibold text-muted-foreground"
-                    style={{ borderTopColor: p.color }}
+                    style={{ borderTopColor: colorProfesional(p.color) }}
                   >
                     {iniciales(p.nombre)}
                   </span>
@@ -109,6 +110,27 @@ export function LeyendaAgenda({
             <p className="text-muted-foreground">
               La barra azul es la ocupación del día según el horario de atención.
             </p>
+          </div>
+        )}
+
+        {vista === "dia" && profesionales.length > 0 && (
+          <div className="space-y-1.5 border-t border-hairline pt-3">
+            <p className="font-semibold">Color de cada profesional</p>
+            <p className="text-muted-foreground">
+              El punto de cada cita es el color de su profesional (se cambia en Profesionales):
+            </p>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
+              {profesionales.map((p) => (
+                <li key={p.id} className="flex min-w-0 items-center gap-1.5">
+                  <span
+                    aria-hidden="true"
+                    className="size-2 shrink-0 rounded-full"
+                    style={{ backgroundColor: colorProfesional(p.color) }}
+                  />
+                  <span className="truncate">{p.nombre}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </PopoverContent>

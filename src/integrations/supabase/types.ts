@@ -312,6 +312,7 @@ export type Database = {
           is_priority: boolean;
           notes: string | null;
           operatory_id: string | null;
+          operatory_name: string | null;
           patient_confirmed_at: string | null;
           patient_confirmed_via: string | null;
           patient_id: string;
@@ -340,6 +341,7 @@ export type Database = {
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
+          operatory_name?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id: string;
@@ -368,6 +370,7 @@ export type Database = {
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
+          operatory_name?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id?: string;
@@ -2337,6 +2340,7 @@ export type Database = {
           id: string;
           is_active: boolean;
           name: string;
+          position: number;
         };
         Insert: {
           branch_id: string;
@@ -2345,6 +2349,7 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name: string;
+          position?: number;
         };
         Update: {
           branch_id?: string;
@@ -2353,6 +2358,7 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name?: string;
+          position?: number;
         };
         Relationships: [
           {

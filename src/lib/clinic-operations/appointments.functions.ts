@@ -65,6 +65,8 @@ type AppointmentRow = {
   status: string;
   is_priority: boolean;
   patient_confirmed_at: string | null;
+  operatory_id: string | null;
+  operatory_name: string | null;
 };
 
 function fechaLocal(iso: string, timeZone: string): string {
@@ -105,11 +107,13 @@ function mapAppointmentRow(row: AppointmentRow, pacienteNombre: string, timeZone
     estado: row.status as EstadoCita,
     prioridad: row.is_priority || undefined,
     pacienteConfirmo: row.patient_confirmed_at ? true : undefined,
+    boxId: row.operatory_id,
+    box: row.operatory_name,
   };
 }
 
 const APPOINTMENT_COLUMNS =
-  "id, patient_id, professional_id, branch_id, treatment_label, starts_at, ends_at, status, is_priority, patient_confirmed_at";
+  "id, patient_id, professional_id, branch_id, treatment_label, starts_at, ends_at, status, is_priority, patient_confirmed_at, operatory_id, operatory_name";
 
 /**
  * Tope de fila del listado. El filtro de fecha lo sigue aplicando la UI (así

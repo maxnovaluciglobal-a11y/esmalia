@@ -34,12 +34,15 @@ import { claseEstadoBadge, etiquetaBloqueCita, rangoHorarioCita } from "@/compon
 import { buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { cn } from "@/lib/utils";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { QUERY_MOVIL, QUERY_TACTIL, useMediaQuery } from "@/hooks/use-media-query";
 import {
   boxDe,
+  boxEfectivo,
   describirConflicto,
+  nombreBoxDe,
   resumenConflictos,
   type Conflicto,
 } from "@/components/agenda-conflictos";
@@ -478,7 +481,7 @@ export function AgendaGrid({
  * Adentro del botón solo va contenido de frase (`<span>`): un `<div>` o un
  * `<p>` dentro de `<button>` es HTML inválido.
  */
-function BloqueCita({
+export function BloqueCita({
   cita: c,
   profesional: p,
   desde,
@@ -495,6 +498,7 @@ function BloqueCita({
   onPointerDown,
   clicDeArrastre,
   onKeyDown,
+  conProfesional = false,
 }: {
   cita: Cita;
   profesional: Profesional;
@@ -515,10 +519,17 @@ function BloqueCita({
   onPointerDown?: (e: PointerEvent<HTMLButtonElement>) => void;
   clicDeArrastre?: () => boolean;
   onKeyDown?: (e: KeyboardEvent<HTMLButtonElement>) => void;
+  /** Vista por box: el carril no dice el profesional, lo dice el bloque. */
+  conProfesional?: boolean;
 }) {
   const corta = c.duracion < 30;
   const choque = resumenConflictos(conflictos);
-  const etiqueta = [etiquetaBloqueCita(c), choque, enCola ? "Cambio en cola" : ""]
+  const etiqueta = [
+    etiquetaBloqueCita(c),
+    conProfesional ? p.nombre : "",
+    choque,
+    enCola ? "Cambio en cola" : "",
+  ]
     .filter(Boolean)
     .join(". ");
   const boton = (
@@ -529,7 +540,9 @@ function BloqueCita({
       aria-describedby={arrastrable ? ID_AYUDA_ARRASTRE : undefined}
       title={
         conflictos?.length
-          ? conflictos.map((x) => describirConflicto(x, nombreProfesional, boxDe(p))).join("\n")
+          ? conflictos
+              .map((x) => describirConflicto(x, nombreProfesional, nombreBoxDe(c, p)))
+              .join("\n")
           : undefined
       }
       onPointerDown={arrastrable ? onPointerDown : undefined}
@@ -566,7 +579,7 @@ function BloqueCita({
           <span
             aria-hidden="true"
             className="mt-[5px] size-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: p.color }}
+            style={{ backgroundColor: colorProfesional(p.color) }}
           />
           {/* ≥30 min hay alto para dos líneas: el apellido no se pierde
               en columnas angostas. */}
@@ -603,7 +616,10 @@ function BloqueCita({
           </span>
         </span>
       </span>
-      {c.duracion >= 45 && (
+      {conProfesional && c.duracion >= 30 && (
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{p.nombre}</span>
+      )}
+      {c.duracion >= (conProfesional ? 60 : 45) && (
         <span className="mt-0.5 block truncate text-[11px]">{c.tratamiento}</span>
       )}
       {c.prioridad && c.duracion >= 60 && (
@@ -671,10 +687,12 @@ export function DetalleCita({
           <span
             aria-hidden="true"
             className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: p.color }}
+            style={{ backgroundColor: colorProfesional(p.color) }}
           />
           <span className="truncate">{p.nombre}</span>
         </dd>
+        <dt className="text-muted-foreground">Box</dt>
+        <dd className="break-words">{textoBox(c, p)}</dd>
         <dt className="text-muted-foreground">Estado</dt>
         <dd className="flex flex-wrap items-center gap-1.5">
           <EstadoCitaPastilla cita={{ estado: c.estado }} />
@@ -685,7 +703,7 @@ export function DetalleCita({
         <AvisoDeChoques
           conflictos={conflictos}
           nombreProfesional={nombreProfesional ?? (() => "otro profesional")}
-          box={boxDe(p)}
+          box={nombreBoxDe(c, p)}
           titulo="Choque de horario"
         />
       )}
@@ -702,6 +720,13 @@ export function DetalleCita({
       </div>
     </>
   );
+}
+
+/** "Box 2", "Box 1 (del profesional)" o "Sin box". */
+function textoBox(c: Cita, p: Profesional): string {
+  const box = boxEfectivo(c, p);
+  if (!box) return "Sin box";
+  return box.propio ? box.nombre : `${box.nombre} (del profesional)`;
 }
 
 /**
@@ -748,21 +773,25 @@ export function AvisoDeChoques({
  * antes de soltar. Si no se puede soltar ahí, lo dice (y en rojo, con
  * borde punteado y texto: no solo color).
  */
-function FantasmaCita({
+export function FantasmaCita({
   fantasma: f,
   desde,
   pxPorMinuto = PIXELES_POR_MINUTO,
+  compacto = false,
 }: {
   fantasma: Fantasma;
   desde: number;
   pxPorMinuto?: number;
+  /** Carril angosto (semana): sin márgenes y con el motivo en un globo encima. */
+  compacto?: boolean;
 }) {
   const ok = f.veredicto.ok || f.veredicto.motivo === "sin-cambio";
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute left-1.5 right-1.5 z-30 overflow-hidden rounded-md border-2 border-dashed px-2 py-1 text-[11px] leading-tight shadow-lg",
+        "pointer-events-none absolute z-30 rounded-md border-2 border-dashed text-[11px] leading-tight shadow-lg",
+        compacto ? "inset-x-0 px-0.5" : "left-1.5 right-1.5 overflow-hidden px-2 py-1",
         ok
           ? "border-brand-700 bg-brand/10 text-foreground"
           : "border-destructive bg-destructive/10 text-destructive",
@@ -776,7 +805,15 @@ function FantasmaCita({
         {horaDeMinutos(f.destino.inicio)}–{horaDeMinutos(f.destino.inicio + f.duracion)}
       </span>
       {!f.veredicto.ok && f.veredicto.motivo !== "sin-cambio" && (
-        <span className="line-clamp-2">{f.veredicto.mensaje}</span>
+        <span
+          className={
+            compacto
+              ? "absolute left-0 top-full mt-1 w-48 rounded-md border border-destructive bg-card px-2 py-1 text-destructive shadow-md"
+              : "line-clamp-2"
+          }
+        >
+          {f.veredicto.mensaje}
+        </span>
       )}
     </div>
   );

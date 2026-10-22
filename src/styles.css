@@ -340,6 +340,19 @@
   --petrol: #0f5e63;
   --petrol-foreground: #f1ece4;
 
+  /* Color por profesional en la agenda (AGE-06): borde y punto de sus citas,
+     nunca texto. Todos pasan 3:1 sobre la tarjeta y el fondo (WCAG 1.4.11).
+     Los mismos valores viven en lib/clinic-operations/color-profesional.ts,
+     y tests/color-profesional.test.ts verifica que coincidan. */
+  --prof-1: #8f621e;
+  --prof-2: #0f5e63;
+  --prof-3: #a4452a;
+  --prof-4: #4f6b2a;
+  --prof-5: #7a3f73;
+  --prof-6: #4a4f9c;
+  --prof-7: #4d5a66;
+  --prof-8: #a63d5c;
+
   /* Esquema de superficies del odontograma (sobre la tarjeta, no sobre el
      marfil del diente): mismos colores clínicos que COLORES_SIMBOLOGIA. */
   --odonto-neutro: #e4e1dc;
@@ -468,6 +481,15 @@
   /* 6,8:1 sobre la tarjeta; tinta sobre petróleo 7,3:1. */
   --petrol: #5fb3b8;
   --petrol-foreground: #1a1714;
+  /* Color por profesional, sobre tinta (3:1 o más sobre tarjeta y fondo). */
+  --prof-1: #e1ad66;
+  --prof-2: #5fb3b8;
+  --prof-3: #ec9474;
+  --prof-4: #a9c27a;
+  --prof-5: #d39acb;
+  --prof-6: #a5abee;
+  --prof-7: #a9b5c0;
+  --prof-8: #ee8fa8;
 }
 
 /* Sidebar en tinta del shell: lleva `.dark` para que lo de adentro se lea

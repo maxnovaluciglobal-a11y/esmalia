@@ -179,3 +179,36 @@ export function enfocarPrimerFaltante(
   }
   return false;
 }
+
+/**
+ * Box que queda en el formulario al cambiar de profesional (AGE-04).
+ *
+ * Se precarga el box por defecto del profesional nuevo, salvo que alguien
+ * haya elegido otro box a mano: eso se respeta. "A mano" = el box actual no
+ * está vacío y no es el box por defecto del profesional anterior (que lo
+ * había puesto este mismo formulario). El box por defecto solo vale si es
+ * un box activo de la sucursal elegida; si no, queda "Sin box".
+ */
+export function boxAlCambiarProfesional({
+  boxActual,
+  anterior,
+  nuevo,
+  boxes,
+  sucursalId,
+}: {
+  /** "" = sin box. */
+  boxActual: string;
+  anterior: { boxId?: string | null } | undefined;
+  nuevo: { boxId?: string | null } | undefined;
+  /** Boxes activos de la clínica. */
+  boxes: readonly { id: string; sucursalId: string }[];
+  sucursalId: string;
+}): string {
+  const elegidoAMano = boxActual !== "" && boxActual !== (anterior?.boxId ?? null);
+  if (elegidoAMano) return boxActual;
+  const porDefecto = nuevo?.boxId;
+  if (porDefecto && boxes.some((b) => b.id === porDefecto && b.sucursalId === sucursalId)) {
+    return porDefecto;
+  }
+  return "";
+}

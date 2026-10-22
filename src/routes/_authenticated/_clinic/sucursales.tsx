@@ -6,7 +6,7 @@ import { Loader2, MapPin, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
-import { Badge } from "@/components/ui/badge";
+import { BoxesSucursalDialog } from "@/components/boxes-sucursal";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +27,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  addOperatory,
   createBranch,
   getBranchComparison,
   listBranchesDetailed,
@@ -304,7 +303,6 @@ function NuevaSucursalDialog({ clinicId }: { clinicId: string }) {
 }
 
 function EditarSucursalDialog({ clinicId, branch }: { clinicId: string; branch: BranchDetail }) {
-  const fid = useId();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(branch.name);
   const [address, setAddress] = useState(branch.address ?? "");
@@ -313,11 +311,9 @@ function EditarSucursalDialog({ clinicId, branch }: { clinicId: string; branch: 
   const [opensAt, setOpensAt] = useState(branch.opensAt.slice(0, 5));
   const [closesAt, setClosesAt] = useState(branch.closesAt.slice(0, 5));
   const [isActive, setIsActive] = useState(branch.isActive);
-  const [nuevoBox, setNuevoBox] = useState("");
 
   const queryClient = useQueryClient();
   const updateFn = useServerFn(updateBranch);
-  const addOpFn = useServerFn(addOperatory);
 
   const invalidar = () =>
     queryClient.invalidateQueries({ queryKey: ["branches-detailed", clinicId] });
@@ -341,16 +337,6 @@ function EditarSucursalDialog({ clinicId, branch }: { clinicId: string; branch: 
       invalidar();
       toast.success("Sucursal actualizada.");
       setOpen(false);
-    },
-    onError: (e: Error) => toast.error(mensajeDeError(e)),
-  });
-
-  const agregarBox = useMutation({
-    mutationFn: () => addOpFn({ data: { clinicId, branchId: branch.id, name: nuevoBox } }),
-    onSuccess: () => {
-      invalidar();
-      setNuevoBox("");
-      toast.success("Box agregado.");
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
@@ -436,40 +422,10 @@ function EditarSucursalDialog({ clinicId, branch }: { clinicId: string; branch: 
             Sucursal activa (desmarcar = dar de baja, no borra el historial)
           </label>
 
-          <div
-            role="group"
-            aria-labelledby={`${fid}-boxes-actuales`}
-            className="space-y-1.5 border-t border-hairline pt-3"
-          >
-            <Label id={`${fid}-boxes-actuales`}>Boxes actuales</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {branch.operatories.length === 0 && (
-                <p className="text-xs text-muted-foreground">Sin boxes cargados.</p>
-              )}
-              {branch.operatories.map((op) => (
-                <Badge key={op.id} variant="secondary">
-                  {op.name}
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2 pt-1">
-              <input
-                value={nuevoBox}
-                onChange={(e) => setNuevoBox(e.target.value)}
-                className={inputClass()}
-                placeholder="Box nuevo"
-              />
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => agregarBox.mutate()}
-                disabled={agregarBox.isPending || !nuevoBox.trim()}
-              >
-                Agregar
-              </Button>
-            </div>
-          </div>
+          <p className="border-t border-hairline pt-3 text-xs text-muted-foreground">
+            Los boxes ({branch.operatories.length}) se crean, renombran, ordenan y desactivan desde
+            el botón Boxes de la lista.
+          </p>
         </div>
         <DialogFooter>
           <Button
@@ -564,7 +520,15 @@ function SucursalesPage() {
                   {branch.operatories.length} box{branch.operatories.length === 1 ? "" : "es"}
                 </p>
               </div>
-              <EditarSucursalDialog clinicId={clinicId} branch={branch} />
+              <div className="flex flex-wrap gap-2">
+                <BoxesSucursalDialog
+                  clinicId={clinicId}
+                  branchId={branch.id}
+                  branchName={branch.name}
+                  boxes={branch.boxes}
+                />
+                <EditarSucursalDialog clinicId={clinicId} branch={branch} />
+              </div>
             </div>
           ))}
         </section>

@@ -14,7 +14,17 @@ export type BranchDetail = {
   opensAt: string;
   closesAt: string;
   isActive: boolean;
+  /** Boxes activos, en el orden de la agenda. */
   operatories: { id: string; name: string }[];
+  /** Todos los boxes (activos y desactivados), en orden (ADM-06). */
+  boxes: BoxDeSucursal[];
+};
+
+export type BoxDeSucursal = {
+  id: string;
+  name: string;
+  isActive: boolean;
+  position: number;
 };
 
 const branchInputSchema = z.object({
@@ -44,17 +54,17 @@ export const listBranchesDetailed = createServerFn({ method: "GET" })
     const branchIds = (branches ?? []).map((b) => b.id);
     const { data: operatories, error: opError } = await context.supabase
       .from("operatories")
-      .select("id, name, branch_id")
+      .select("id, name, branch_id, is_active, position")
       .in("branch_id", branchIds.length ? branchIds : [""])
-      .eq("is_active", true)
+      .order("position", { ascending: true })
       .order("name", { ascending: true });
     if (opError)
       throw new Error(mensajeDb(opError, "No pudimos cargar los boxes de las sucursales."));
 
-    const opsByBranch = new Map<string, { id: string; name: string }[]>();
+    const opsByBranch = new Map<string, BoxDeSucursal[]>();
     for (const op of operatories ?? []) {
       const list = opsByBranch.get(op.branch_id) ?? [];
-      list.push({ id: op.id, name: op.name });
+      list.push({ id: op.id, name: op.name, isActive: op.is_active, position: op.position });
       opsByBranch.set(op.branch_id, list);
     }
 
@@ -67,7 +77,10 @@ export const listBranchesDetailed = createServerFn({ method: "GET" })
       opensAt: b.opens_at,
       closesAt: b.closes_at,
       isActive: b.is_active,
-      operatories: opsByBranch.get(b.id) ?? [],
+      operatories: (opsByBranch.get(b.id) ?? [])
+        .filter((o) => o.isActive)
+        .map((o) => ({ id: o.id, name: o.name })),
+      boxes: opsByBranch.get(b.id) ?? [],
     }));
   });
 
@@ -108,10 +121,11 @@ export const createBranch = createServerFn({ method: "POST" })
       throw new Error(mensajeDb(branchError, "No se pudo crear la sucursal."));
 
     const { error: opError } = await supabase.from("operatories").insert(
-      data.branch.operatories.map((name) => ({
+      data.branch.operatories.map((name, position) => ({
         clinic_id: data.clinicId,
         branch_id: branch.id,
         name: name.trim(),
+        position,
       })),
     );
     if (opError) throw new Error(mensajeDb(opError, "No pudimos crear los boxes de la sucursal."));
@@ -157,7 +171,7 @@ export const updateBranch = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-/** Agrega un box/operatorio a una sucursal existente. */
+/** Agrega un box/operatorio a una sucursal existente, al final del orden. */
 export const addOperatory = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
@@ -170,12 +184,92 @@ export const addOperatory = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
+    const { data: ultimo, error: posError } = await context.supabase
+      .from("operatories")
+      .select("position")
+      .eq("clinic_id", data.clinicId)
+      .eq("branch_id", data.branchId)
+      .order("position", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (posError) throw new Error(mensajeDb(posError, "No pudimos leer los boxes."));
     const { error } = await context.supabase.from("operatories").insert({
       clinic_id: data.clinicId,
       branch_id: data.branchId,
       name: data.name.trim(),
+      position: ultimo ? Math.min(ultimo.position + 1, 32_000) : 0,
     });
     if (error) throw new Error("No tienes permisos para agregar boxes en esta sucursal.");
+    return { ok: true };
+  });
+
+/**
+ * Renombra, desactiva o reactiva un box (ADM-06). Desactivar no borra: las
+ * citas que ya lo tienen lo conservan (el trigger `appointments_box_de_la_cita`
+ * solo exige un box activo al elegirlo) y deja de ofrecerse en el formulario
+ * y en la agenda. La RLS (`operatories_update`, `can_manage_clinic`) decide
+ * quién puede: sin permiso, el UPDATE no toca ninguna fila y se avisa.
+ */
+export const updateOperatory = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        operatoryId: z.string().uuid(),
+        name: z.string().trim().min(1, "Escribe un nombre.").max(60).optional(),
+        isActive: z.boolean().optional(),
+      })
+      .refine((d) => d.name !== undefined || d.isActive !== undefined, "Nada que cambiar.")
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: filas, error } = await context.supabase
+      .from("operatories")
+      .update({
+        ...(data.name !== undefined ? { name: data.name.trim() } : {}),
+        ...(data.isActive !== undefined ? { is_active: data.isActive } : {}),
+      })
+      .eq("id", data.operatoryId)
+      .eq("clinic_id", data.clinicId)
+      .select("id");
+    if (error || !filas?.length) throw new Error("No tienes permisos para editar este box.");
+    return { ok: true };
+  });
+
+/**
+ * Orden de los boxes de una sucursal (ADM-06): el de la agenda por box y el
+ * del selector de la cita. `orden` trae todos los ids de la sucursal en el
+ * orden nuevo; uno que no sea de la sucursal se ignora (el filtro por
+ * clínica y sucursal va en cada UPDATE).
+ */
+export const reorderOperatories = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        branchId: z.string().uuid(),
+        orden: z.array(z.string().uuid()).min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const resultados = await Promise.all(
+      data.orden.map((id, position) =>
+        context.supabase
+          .from("operatories")
+          .update({ position })
+          .eq("id", id)
+          .eq("clinic_id", data.clinicId)
+          .eq("branch_id", data.branchId)
+          .select("id"),
+      ),
+    );
+    const tocadas = resultados.reduce((n, r) => n + (r.data?.length ?? 0), 0);
+    if (resultados.some((r) => r.error) || tocadas === 0) {
+      throw new Error("No tienes permisos para ordenar los boxes de esta sucursal.");
+    }
     return { ok: true };
   });
 
