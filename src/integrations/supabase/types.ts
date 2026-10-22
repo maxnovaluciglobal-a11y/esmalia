@@ -556,6 +556,47 @@ export type Database = {
           },
         ];
       };
+      clinic_patient_options: {
+        Row: {
+          active: boolean;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          kind: string;
+          label: string;
+          position: number;
+        };
+        Insert: {
+          active?: boolean;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind: string;
+          label: string;
+          position?: number;
+        };
+        Update: {
+          active?: boolean;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          label?: string;
+          position?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_patient_options_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinical_access_log: {
         Row: {
           accessed_at: string;
@@ -2409,6 +2450,42 @@ export type Database = {
           },
         ];
       };
+      patient_document_bidx: {
+        Row: {
+          clinic_id: string;
+          document_bidx: string;
+          patient_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          document_bidx: string;
+          patient_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          document_bidx?: string;
+          patient_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_document_bidx_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_document_bidx_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: true;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_documents: {
         Row: {
           archived_at: string | null;
@@ -2916,6 +2993,9 @@ export type Database = {
       };
       patients: {
         Row: {
+          acquisition_source: string | null;
+          acquisition_source_detail: string | null;
+          address: string | null;
           agreement_id: string | null;
           agreement_member_id: string | null;
           ai_summary: string | null;
@@ -2927,13 +3007,21 @@ export type Database = {
           birth_date: string | null;
           branch_id: string | null;
           clinic_id: string;
+          commune: string | null;
           created_at: string;
           created_by: string;
           document_id: string | null;
           document_id_enc: string | null;
           document_id_hash: string | null;
+          document_type: string | null;
           email: string | null;
+          emergency_contact_name: string | null;
+          emergency_contact_phone: string | null;
+          emergency_contact_relationship: string | null;
           full_name: string;
+          health_plan: string | null;
+          health_plan_institution: string | null;
+          health_plan_tier: string | null;
           id: string;
           merged_at: string | null;
           merged_into: string | null;
@@ -2943,6 +3031,7 @@ export type Database = {
           portal_revoked_at: string | null;
           primary_professional_id: string | null;
           referral_code: string | null;
+          referred_by_patient_id: string | null;
           status: Database["public"]["Enums"]["patient_status"];
           tags: string[];
           updated_at: string;
@@ -2952,6 +3041,9 @@ export type Database = {
           wa_opt_out_at: string | null;
         };
         Insert: {
+          acquisition_source?: string | null;
+          acquisition_source_detail?: string | null;
+          address?: string | null;
           agreement_id?: string | null;
           agreement_member_id?: string | null;
           ai_summary?: string | null;
@@ -2963,13 +3055,21 @@ export type Database = {
           birth_date?: string | null;
           branch_id?: string | null;
           clinic_id: string;
+          commune?: string | null;
           created_at?: string;
           created_by?: string;
           document_id?: string | null;
           document_id_enc?: string | null;
           document_id_hash?: string | null;
+          document_type?: string | null;
           email?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          emergency_contact_relationship?: string | null;
           full_name: string;
+          health_plan?: string | null;
+          health_plan_institution?: string | null;
+          health_plan_tier?: string | null;
           id?: string;
           merged_at?: string | null;
           merged_into?: string | null;
@@ -2979,6 +3079,7 @@ export type Database = {
           portal_revoked_at?: string | null;
           primary_professional_id?: string | null;
           referral_code?: string | null;
+          referred_by_patient_id?: string | null;
           status?: Database["public"]["Enums"]["patient_status"];
           tags?: string[];
           updated_at?: string;
@@ -2988,6 +3089,9 @@ export type Database = {
           wa_opt_out_at?: string | null;
         };
         Update: {
+          acquisition_source?: string | null;
+          acquisition_source_detail?: string | null;
+          address?: string | null;
           agreement_id?: string | null;
           agreement_member_id?: string | null;
           ai_summary?: string | null;
@@ -2999,13 +3103,21 @@ export type Database = {
           birth_date?: string | null;
           branch_id?: string | null;
           clinic_id?: string;
+          commune?: string | null;
           created_at?: string;
           created_by?: string;
           document_id?: string | null;
           document_id_enc?: string | null;
           document_id_hash?: string | null;
+          document_type?: string | null;
           email?: string | null;
+          emergency_contact_name?: string | null;
+          emergency_contact_phone?: string | null;
+          emergency_contact_relationship?: string | null;
           full_name?: string;
+          health_plan?: string | null;
+          health_plan_institution?: string | null;
+          health_plan_tier?: string | null;
           id?: string;
           merged_at?: string | null;
           merged_into?: string | null;
@@ -3015,6 +3127,7 @@ export type Database = {
           portal_revoked_at?: string | null;
           primary_professional_id?: string | null;
           referral_code?: string | null;
+          referred_by_patient_id?: string | null;
           status?: Database["public"]["Enums"]["patient_status"];
           tags?: string[];
           updated_at?: string;
@@ -3057,6 +3170,13 @@ export type Database = {
             columns: ["primary_professional_id"];
             isOneToOne: false;
             referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patients_referred_by_patient_id_fkey";
+            columns: ["referred_by_patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
             referencedColumns: ["id"];
           },
         ];
@@ -4658,6 +4778,20 @@ export type Database = {
         };
         Returns: undefined;
       };
+      buscar_pacientes_por_documento: {
+        Args: { p_clinic_id: string; p_documento: string };
+        Returns: string[];
+      };
+      buscar_pacientes_por_nombre: {
+        Args: { p_clinic_id: string; p_limite?: number; p_termino: string };
+        Returns: {
+          document_id: string;
+          full_name: string;
+          id: string;
+          phone: string;
+          similitud: number;
+        }[];
+      };
       can_confirm_appointment: {
         Args: { p_clinic_id: string; p_professional_id: string };
         Returns: boolean;
@@ -4762,6 +4896,8 @@ export type Database = {
         Args: { p_clinic_id: string; p_kind: string; p_year: number };
         Returns: number;
       };
+      normalizar_busqueda: { Args: { p_texto: string }; Returns: string };
+      normalizar_documento: { Args: { p_documento: string }; Returns: string };
       outreach_patient_visits: {
         Args: { p_clinic_id: string };
         Returns: { has_future: boolean; last_visit_at: string; patient_id: string }[];
@@ -4797,6 +4933,7 @@ export type Database = {
         Returns: undefined;
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
+      rut_es_valido: { Args: { p_rut: string }; Returns: boolean };
       set_patient_document_id: {
         Args: { p_document_id: string; p_patient_id: string };
         Returns: undefined;
