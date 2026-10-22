@@ -34,7 +34,7 @@ export async function generarPdfFicha(contenido: ContenidoFicha): Promise<Uint8A
 
   lienzo.franjaSuperior();
   texto(contenido.clinicaNombre, { size: 16, bold: true, espacio: 2 });
-  texto("Ficha clínica del paciente", { size: 9, gris: true, espacio: 10 });
+  texto(contenido.subtitulo ?? "Ficha clínica del paciente", { size: 9, gris: true, espacio: 10 });
   texto(contenido.pacienteNombre, { size: 13, bold: true, espacio: 2 });
   for (const linea of contenido.encabezado) texto(linea, { size: 9, gris: true, espacio: 1 });
 

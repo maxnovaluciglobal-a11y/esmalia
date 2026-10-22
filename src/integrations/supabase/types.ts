@@ -1507,6 +1507,135 @@ export type Database = {
           },
         ];
       };
+      data_subject_request_events: {
+        Row: {
+          actor_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          event: string;
+          id: string;
+          note: string | null;
+          request_id: string;
+        };
+        Insert: {
+          actor_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          event: string;
+          id?: string;
+          note?: string | null;
+          request_id: string;
+        };
+        Update: {
+          actor_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          event?: string;
+          id?: string;
+          note?: string | null;
+          request_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "data_subject_request_events_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "data_subject_request_events_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "data_subject_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      data_subject_requests: {
+        Row: {
+          channel: string;
+          clinic_id: string;
+          created_at: string;
+          detail: string | null;
+          due_date: string;
+          extended_at: string | null;
+          extended_by: string | null;
+          extended_due_date: string | null;
+          extension_reason: string | null;
+          id: string;
+          kind: string;
+          patient_id: string;
+          received_at: string;
+          registered_by: string | null;
+          responded_at: string | null;
+          responded_by: string | null;
+          response: string | null;
+          response_message_id: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          channel: string;
+          clinic_id: string;
+          created_at?: string;
+          detail?: string | null;
+          due_date?: string;
+          extended_at?: string | null;
+          extended_by?: string | null;
+          extended_due_date?: string | null;
+          extension_reason?: string | null;
+          id?: string;
+          kind: string;
+          patient_id: string;
+          received_at?: string;
+          registered_by?: string | null;
+          responded_at?: string | null;
+          responded_by?: string | null;
+          response?: string | null;
+          response_message_id?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          channel?: string;
+          clinic_id?: string;
+          created_at?: string;
+          detail?: string | null;
+          due_date?: string;
+          extended_at?: string | null;
+          extended_by?: string | null;
+          extended_due_date?: string | null;
+          extension_reason?: string | null;
+          id?: string;
+          kind?: string;
+          patient_id?: string;
+          received_at?: string;
+          registered_by?: string | null;
+          responded_at?: string | null;
+          responded_by?: string | null;
+          response?: string | null;
+          response_message_id?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "data_subject_requests_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "data_subject_requests_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       document_template_versions: {
         Row: {
           body: string;
@@ -5207,6 +5336,152 @@ export type Database = {
             columns: ["treatment_plan_id"];
             isOneToOne: false;
             referencedRelation: "treatment_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      security_incident_updates: {
+        Row: {
+          affected_subjects_estimate: number | null;
+          agency_notified_at: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          data_categories: string[] | null;
+          id: string;
+          incident_id: string;
+          measures: string | null;
+          note: string;
+          notification_reason: string | null;
+          notify_agency: string | null;
+          notify_subjects: string | null;
+          risk_assessment: string | null;
+          risk_level: string | null;
+          status: string | null;
+          subjects_notified_at: string | null;
+        };
+        Insert: {
+          affected_subjects_estimate?: number | null;
+          agency_notified_at?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          data_categories?: string[] | null;
+          id?: string;
+          incident_id: string;
+          measures?: string | null;
+          note: string;
+          notification_reason?: string | null;
+          notify_agency?: string | null;
+          notify_subjects?: string | null;
+          risk_assessment?: string | null;
+          risk_level?: string | null;
+          status?: string | null;
+          subjects_notified_at?: string | null;
+        };
+        Update: {
+          affected_subjects_estimate?: number | null;
+          agency_notified_at?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          data_categories?: string[] | null;
+          id?: string;
+          incident_id?: string;
+          measures?: string | null;
+          note?: string;
+          notification_reason?: string | null;
+          notify_agency?: string | null;
+          notify_subjects?: string | null;
+          risk_assessment?: string | null;
+          risk_level?: string | null;
+          status?: string | null;
+          subjects_notified_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "security_incident_updates_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "security_incident_updates_incident_id_fkey";
+            columns: ["incident_id"];
+            isOneToOne: false;
+            referencedRelation: "security_incidents";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      security_incidents: {
+        Row: {
+          affected_subjects_estimate: number | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          data_categories: string[];
+          description: string;
+          detected_at: string;
+          id: string;
+          measures: string | null;
+          notification_reason: string | null;
+          notify_agency: string;
+          notify_subjects: string;
+          occurred_at: string | null;
+          responsible_name: string;
+          risk_assessment: string | null;
+          risk_level: string;
+          status: string;
+          title: string;
+        };
+        Insert: {
+          affected_subjects_estimate?: number | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          data_categories?: string[];
+          description: string;
+          detected_at: string;
+          id?: string;
+          measures?: string | null;
+          notification_reason?: string | null;
+          notify_agency?: string;
+          notify_subjects?: string;
+          occurred_at?: string | null;
+          responsible_name: string;
+          risk_assessment?: string | null;
+          risk_level?: string;
+          status?: string;
+          title: string;
+        };
+        Update: {
+          affected_subjects_estimate?: number | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          data_categories?: string[];
+          description?: string;
+          detected_at?: string;
+          id?: string;
+          measures?: string | null;
+          notification_reason?: string | null;
+          notify_agency?: string;
+          notify_subjects?: string;
+          occurred_at?: string | null;
+          responsible_name?: string;
+          risk_assessment?: string | null;
+          risk_level?: string;
+          status?: string;
+          title?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "security_incidents_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
         ];

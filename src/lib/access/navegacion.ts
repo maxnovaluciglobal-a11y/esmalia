@@ -279,6 +279,20 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         permisos: ["team:manage"],
         sinonimos: ["compliance", "registro"],
       },
+      {
+        to: "/derechos-de-pacientes",
+        label: "Derechos de los pacientes",
+        detalle: "Solicitudes sobre sus datos y su plazo legal",
+        permisos: ["team:manage"],
+        sinonimos: ["ley 21.719", "acceso", "rectificación", "supresión", "portabilidad", "arco"],
+      },
+      {
+        to: "/incidentes-de-seguridad",
+        label: "Incidentes de seguridad",
+        detalle: "Registro de brechas de datos",
+        permisos: ["team:manage"],
+        sinonimos: ["brecha", "filtración", "vulneración", "incidente"],
+      },
     ],
   },
   {
