@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
 import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
 import { AgendaGrid, AvisoDeChoques, type ArrastreGrilla } from "@/components/agenda-grid";
@@ -1821,6 +1822,11 @@ function AgendaPage() {
             />
           )}
         </div>
+
+        {/* PAN-05: componente aparte, encima de la grilla. */}
+        {clinicId && hasPermission(access.role, "agenda:manage") && (
+          <AvisoCitasPasadas clinicId={clinicId} timezone={access.clinic?.timezone} />
+        )}
 
         {appointmentsRes?.truncated && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">

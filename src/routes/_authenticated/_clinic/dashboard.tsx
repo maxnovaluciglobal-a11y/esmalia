@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { CalendarPlus, Check, Lock, Sparkles, UserPlus } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { ColaConfirmacion } from "@/components/cola-confirmacion";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
 import { PanelDesempeno } from "@/components/panel-desempeno";
@@ -636,6 +637,11 @@ function Dashboard() {
             )}
           </div>
         </header>
+
+        {/* PAN-05: citas que ya terminaron y nadie cerró. Solo si hay. */}
+        {clinicId && gestionaAgenda && (
+          <AvisoCitasPasadas clinicId={clinicId} timezone={clinicTz} />
+        )}
 
         <div className="max-md:order-1">
           <FilaKpis kpis={kpis} cargando={isLoading} />

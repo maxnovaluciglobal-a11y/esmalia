@@ -146,6 +146,13 @@ export const DESTINOS: readonly Destino[] = [
       { to: "/morosidad", label: "Morosidad", permisos: ["finance:view"], sinonimos: ["deudas"] },
       { to: "/comisiones", label: "Comisiones", permisos: ["finance:view", "commission:view-own"] },
       { to: "/efectividad", label: "Efectividad", permisos: ["dashboard:view"] },
+      {
+        to: "/resultados-del-piloto",
+        label: "Resultados del piloto",
+        // Solo owner/admin: es la conversación de cierre del piloto (INF-14).
+        permisos: ["settings:manage"],
+        sinonimos: ["piloto", "resultados", "cierre del piloto"],
+      },
     ],
   },
   {
