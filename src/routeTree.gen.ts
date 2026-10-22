@@ -76,6 +76,7 @@ import { Route as AuthenticatedClinicArancelesRouteImport } from './routes/_auth
 import { Route as AuthenticatedClinicCajasRouteImport } from './routes/_authenticated/_clinic/cajas'
 import { Route as AuthenticatedClinicComisionesRouteImport } from './routes/_authenticated/_clinic/comisiones'
 import { Route as AuthenticatedClinicComplianceRouteImport } from './routes/_authenticated/_clinic/compliance'
+import { Route as AuthenticatedClinicConfiguracionDeAgendaRouteImport } from './routes/_authenticated/_clinic/configuracion-de-agenda'
 import { Route as AuthenticatedClinicConsentimientosRouteImport } from './routes/_authenticated/_clinic/consentimientos'
 import { Route as AuthenticatedClinicConveniosRouteImport } from './routes/_authenticated/_clinic/convenios'
 import { Route as AuthenticatedClinicConversacionesRouteImport } from './routes/_authenticated/_clinic/conversaciones'
@@ -459,6 +460,12 @@ const AuthenticatedClinicComplianceRoute =
     path: '/compliance',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicConfiguracionDeAgendaRoute =
+  AuthenticatedClinicConfiguracionDeAgendaRouteImport.update({
+    id: '/configuracion-de-agenda',
+    path: '/configuracion-de-agenda',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicConsentimientosRoute =
   AuthenticatedClinicConsentimientosRouteImport.update({
     id: '/consentimientos',
@@ -756,6 +763,7 @@ export interface FileRoutesByFullPath {
   '/cajas': typeof AuthenticatedClinicCajasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -860,6 +868,7 @@ export interface FileRoutesByTo {
   '/cajas': typeof AuthenticatedClinicCajasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -969,6 +978,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/cajas': typeof AuthenticatedClinicCajasRoute
   '/_authenticated/_clinic/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/_authenticated/_clinic/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/_authenticated/_clinic/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/_authenticated/_clinic/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/_authenticated/_clinic/convenios': typeof AuthenticatedClinicConveniosRoute
   '/_authenticated/_clinic/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -1077,6 +1087,7 @@ export interface FileRouteTypes {
     | '/cajas'
     | '/comisiones'
     | '/compliance'
+    | '/configuracion-de-agenda'
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
@@ -1181,6 +1192,7 @@ export interface FileRouteTypes {
     | '/cajas'
     | '/comisiones'
     | '/compliance'
+    | '/configuracion-de-agenda'
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
@@ -1289,6 +1301,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/cajas'
     | '/_authenticated/_clinic/comisiones'
     | '/_authenticated/_clinic/compliance'
+    | '/_authenticated/_clinic/configuracion-de-agenda'
     | '/_authenticated/_clinic/consentimientos'
     | '/_authenticated/_clinic/convenios'
     | '/_authenticated/_clinic/conversaciones'
@@ -1852,6 +1865,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicComplianceRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/configuracion-de-agenda': {
+      id: '/_authenticated/_clinic/configuracion-de-agenda'
+      path: '/configuracion-de-agenda'
+      fullPath: '/configuracion-de-agenda'
+      preLoaderRoute: typeof AuthenticatedClinicConfiguracionDeAgendaRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/consentimientos': {
       id: '/_authenticated/_clinic/consentimientos'
       path: '/consentimientos'
@@ -2135,6 +2155,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicCajasRoute: typeof AuthenticatedClinicCajasRoute
   AuthenticatedClinicComisionesRoute: typeof AuthenticatedClinicComisionesRoute
   AuthenticatedClinicComplianceRoute: typeof AuthenticatedClinicComplianceRoute
+  AuthenticatedClinicConfiguracionDeAgendaRoute: typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   AuthenticatedClinicConsentimientosRoute: typeof AuthenticatedClinicConsentimientosRoute
   AuthenticatedClinicConveniosRoute: typeof AuthenticatedClinicConveniosRoute
   AuthenticatedClinicConversacionesRoute: typeof AuthenticatedClinicConversacionesRoute
@@ -2179,6 +2200,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicCajasRoute: AuthenticatedClinicCajasRoute,
     AuthenticatedClinicComisionesRoute: AuthenticatedClinicComisionesRoute,
     AuthenticatedClinicComplianceRoute: AuthenticatedClinicComplianceRoute,
+    AuthenticatedClinicConfiguracionDeAgendaRoute:
+      AuthenticatedClinicConfiguracionDeAgendaRoute,
     AuthenticatedClinicConsentimientosRoute:
       AuthenticatedClinicConsentimientosRoute,
     AuthenticatedClinicConveniosRoute: AuthenticatedClinicConveniosRoute,

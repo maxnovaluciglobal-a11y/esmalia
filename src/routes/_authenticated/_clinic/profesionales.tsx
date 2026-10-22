@@ -43,6 +43,7 @@ import {
 import { formatMoney, fromCents, toCents } from "@/lib/finance/finance";
 import { requirePermission } from "@/lib/access/route-guards";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { cn } from "@/lib/utils";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -493,16 +494,26 @@ function ComisionDialog({
   );
 }
 
+type TramoEditable = { start: string; end: string; branchId: string };
+
+/**
+ * Horario semanal del profesional. Cada día puede tener varios tramos (mañana
+ * y tarde: entre los dos está la colación) y, desde la Ola 2 (AGE-23), cada
+ * tramo dice en qué sucursal atiende. "Cualquier sucursal" es lo de antes.
+ */
 function HorarioDialog({
   clinicId,
   professional,
+  sucursales,
 }: {
   clinicId: string;
   professional: ProfessionalDetail;
+  sucursales: { id: string; nombre: string }[];
 }) {
   const [open, setOpen] = useState(false);
-  // Map día → bloque activo o null (no atiende ese día).
-  const [dias, setDias] = useState<Record<number, { start: string; end: string } | null>>({});
+  // Día → tramos (vacío = no atiende ese día).
+  const [dias, setDias] = useState<Record<number, TramoEditable[]>>({});
+  const conSucursal = sucursales.length > 1;
 
   const fetchSchedule = useServerFn(getProfessionalSchedule);
   const scheduleQuery = useQuery({
@@ -513,10 +524,14 @@ function HorarioDialog({
 
   useEffect(() => {
     if (!scheduleQuery.data) return;
-    const next: Record<number, { start: string; end: string } | null> = {};
-    for (const d of DAYS) next[d.value] = null;
+    const next: Record<number, TramoEditable[]> = {};
+    for (const d of DAYS) next[d.value] = [];
     for (const block of scheduleQuery.data as ScheduleBlock[]) {
-      next[block.dayOfWeek] = { start: block.startTime, end: block.endTime };
+      next[block.dayOfWeek].push({
+        start: block.startTime,
+        end: block.endTime,
+        branchId: block.branchId ?? "",
+      });
     }
     setDias(next);
   }, [scheduleQuery.data]);
@@ -526,27 +541,53 @@ function HorarioDialog({
 
   const guardar = useMutation({
     mutationFn: () => {
-      const blocks = DAYS.filter((d) => dias[d.value]).map((d) => ({
-        dayOfWeek: d.value,
-        startTime: dias[d.value]!.start,
-        endTime: dias[d.value]!.end,
-      }));
+      const blocks = DAYS.flatMap((d) =>
+        (dias[d.value] ?? []).map((t) => ({
+          dayOfWeek: d.value,
+          startTime: t.start,
+          endTime: t.end,
+          branchId: t.branchId || null,
+        })),
+      );
       return saveFn({ data: { clinicId, professionalId: professional.id, blocks } });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["professional-schedule", clinicId, professional.id],
       });
+      // La agenda y el formulario de cita leen todos los horarios juntos.
+      queryClient.invalidateQueries({ queryKey: ["professional-schedules", clinicId] });
       toast.success("Horario actualizado.");
       setOpen(false);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
-  const invalido = DAYS.some((d) => {
-    const b = dias[d.value];
-    return b && b.start >= b.end;
-  });
+  const invalido = DAYS.some((d) =>
+    (dias[d.value] ?? []).some((t) => !t.start || t.start >= t.end),
+  );
+
+  function cambiarTramo(dia: number, i: number, cambio: Partial<TramoEditable>) {
+    setDias((prev) => ({
+      ...prev,
+      [dia]: (prev[dia] ?? []).map((t, j) => (j === i ? { ...t, ...cambio } : t)),
+    }));
+  }
+
+  function agregarTramo(dia: number) {
+    setDias((prev) => {
+      const actuales = prev[dia] ?? [];
+      const ultimo = actuales[actuales.length - 1];
+      const nuevo: TramoEditable = ultimo
+        ? { start: ultimo.end, end: ultimo.end < "18:00" ? "18:00" : "20:00", branchId: "" }
+        : { start: "09:00", end: "18:00", branchId: professional.branchId ?? "" };
+      return { ...prev, [dia]: [...actuales, nuevo] };
+    });
+  }
+
+  function quitarTramo(dia: number, i: number) {
+    setDias((prev) => ({ ...prev, [dia]: (prev[dia] ?? []).filter((_, j) => j !== i) }));
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -555,13 +596,14 @@ function HorarioDialog({
           <Clock className="size-3.5" /> Horario
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[92dvh] max-w-xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Horario — {professional.fullName}</DialogTitle>
           <DialogDescription>
-            Sin ningún día marcado, no hay restricción: se puede agendar cualquier día/hora dentro
-            del horario de la sucursal, como hasta ahora. Un día sin marcar aquí significa que no
-            atiende ese día.
+            Sin ningún día marcado, no hay restricción: se puede agendar cualquier día y hora, como
+            hasta ahora. Un día sin marcar significa que no atiende ese día.
+            {conSucursal &&
+              " Si atiende en varias sucursales, elige en cuál está cada tramo: el formulario de cita lo mostrará en esa sucursal."}
           </DialogDescription>
         </DialogHeader>
         {scheduleQuery.isLoading ? (
@@ -569,47 +611,81 @@ function HorarioDialog({
             <Loader2 className="size-4 animate-spin" /> Cargando horario…
           </p>
         ) : (
-          <div className="space-y-2">
+          <ul className="space-y-3">
             {DAYS.map((d) => {
-              const bloque = dias[d.value];
+              const tramos = dias[d.value] ?? [];
               return (
-                <div key={d.value} className="flex items-center gap-3">
-                  <label className="flex w-28 shrink-0 items-center gap-2 text-sm">
+                <li key={d.value} className="space-y-1.5">
+                  <label className="flex items-center gap-2 text-sm font-medium">
                     <input
                       type="checkbox"
-                      checked={Boolean(bloque)}
+                      checked={tramos.length > 0}
                       onChange={(e) =>
-                        setDias({
-                          ...dias,
-                          [d.value]: e.target.checked ? { start: "09:00", end: "18:00" } : null,
-                        })
+                        e.target.checked
+                          ? agregarTramo(d.value)
+                          : setDias((prev) => ({ ...prev, [d.value]: [] }))
                       }
                     />
                     {d.label}
                   </label>
-                  <input
-                    type="time"
-                    value={bloque?.start ?? ""}
-                    disabled={!bloque}
-                    onChange={(e) =>
-                      setDias({ ...dias, [d.value]: { ...bloque!, start: e.target.value } })
-                    }
-                    className={inputClass() + " disabled:opacity-40"}
-                  />
-                  <span className="text-xs text-muted-foreground">a</span>
-                  <input
-                    type="time"
-                    value={bloque?.end ?? ""}
-                    disabled={!bloque}
-                    onChange={(e) =>
-                      setDias({ ...dias, [d.value]: { ...bloque!, end: e.target.value } })
-                    }
-                    className={inputClass() + " disabled:opacity-40"}
-                  />
-                </div>
+                  {tramos.map((t, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2 pl-6">
+                      <input
+                        type="time"
+                        aria-label={`${d.label}, tramo ${i + 1}: desde`}
+                        value={t.start}
+                        onChange={(e) => cambiarTramo(d.value, i, { start: e.target.value })}
+                        className={cn(inputClass(), "w-32")}
+                      />
+                      <span className="text-xs text-muted-foreground">a</span>
+                      <input
+                        type="time"
+                        aria-label={`${d.label}, tramo ${i + 1}: hasta`}
+                        value={t.end}
+                        onChange={(e) => cambiarTramo(d.value, i, { end: e.target.value })}
+                        className={cn(inputClass(), "w-32")}
+                      />
+                      {conSucursal && (
+                        <select
+                          aria-label={`${d.label}, tramo ${i + 1}: sucursal`}
+                          value={t.branchId}
+                          onChange={(e) => cambiarTramo(d.value, i, { branchId: e.target.value })}
+                          className={cn(inputClass(), "w-auto min-w-0 flex-1 basis-40")}
+                        >
+                          <option value="">Cualquier sucursal</option>
+                          {sucursales.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {tramos.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => quitarTramo(d.value, i)}
+                          aria-label={`Quitar el tramo ${i + 1} del ${d.label.toLowerCase()}`}
+                        >
+                          Quitar
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                  {tramos.length > 0 && tramos.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={() => agregarTramo(d.value)}
+                      className="ml-6 text-xs font-medium text-brand-700 hover:underline"
+                    >
+                      + Otro tramo el {d.label.toLowerCase()}
+                    </button>
+                  )}
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
         <DialogFooter>
           <Button onClick={() => guardar.mutate()} disabled={guardar.isPending || invalido}>
@@ -723,7 +799,11 @@ function ProfesionalesPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
-                <HorarioDialog clinicId={clinicId} professional={professional} />
+                <HorarioDialog
+                  clinicId={clinicId}
+                  professional={professional}
+                  sucursales={branches.map((b) => ({ id: b.id, nombre: b.nombre }))}
+                />
                 <ComisionDialog
                   clinicId={clinicId}
                   professional={professional}

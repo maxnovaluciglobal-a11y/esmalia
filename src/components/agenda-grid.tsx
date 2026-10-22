@@ -47,6 +47,17 @@ import {
   type Conflicto,
 } from "@/components/agenda-conflictos";
 import { PanelCita } from "@/components/agenda-panel-cita";
+import { CapaDisponibilidad } from "@/components/agenda-disponibilidad";
+import type { DisponibilidadGrilla } from "@/hooks/use-disponibilidad-agenda";
+import {
+  aperturasComoRango,
+  filtrarHuecosAgendables,
+  restarTramos,
+  tramosDeApertura,
+  tramosNoAgendables,
+  type FranjaDisponibilidad,
+  type Tramo,
+} from "@/lib/clinic-operations/disponibilidad";
 import {
   colaciones,
   destinoPorTeclado,
@@ -108,6 +119,7 @@ export function AgendaGrid({
   arrastre,
   conflictos,
   nombreProfesional,
+  disponibilidad,
 }: {
   compacta?: boolean;
   citas: Cita[];
@@ -133,8 +145,22 @@ export function AgendaGrid({
   conflictos?: Map<string, Conflicto[]>;
   /** id → nombre, para describir el choque (la otra cita puede ser de otro profesional). */
   nombreProfesional?: (id: string) => string;
+  /** Bloqueos, aperturas, sucursal cerrada e intervalo de la grilla (Ola 2). */
+  disponibilidad?: DisponibilidadGrilla;
 }) {
-  const { desde, hasta } = rangoDeGrilla(citas);
+  // Capa de disponibilidad (Ola 2): franjas por columna, calculadas una vez.
+  const franjasPorProfesional = useMemo(() => {
+    const map = new Map<string, FranjaDisponibilidad[]>();
+    if (!disponibilidad) return map;
+    for (const p of profesionales) map.set(p.id, disponibilidad.franjasDe(p));
+    return map;
+  }, [disponibilidad, profesionales]);
+  const paso = disponibilidad?.pasoMin ?? PASO_HUECO_MIN;
+  // Una apertura excepcional fuera de la jornada base estira la grilla.
+  const { desde, hasta } = rangoDeGrilla([
+    ...citas,
+    ...[...franjasPorProfesional.values()].flatMap(aperturasComoRango),
+  ]);
   const horas = (hasta - desde) / 60;
   // Celular: la cita se abre en una hoja desde abajo (el popover lateral
   // quedaba fuera de la pantalla) y la grilla se desplaza adentro de su
@@ -143,7 +169,7 @@ export function AgendaGrid({
   const movil = useMediaQuery(QUERY_MOVIL);
   const tactil = useMediaQuery(QUERY_TACTIL);
   const ppm = tactil ? PIXELES_POR_MINUTO_TACTIL : PIXELES_POR_MINUTO;
-  const altoHueco = PASO_HUECO_MIN * ppm;
+  const altoHueco = paso * ppm;
   const alto = (hasta - desde) * ppm;
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
   const seleccionada = movil && seleccionId ? citas.find((c) => c.id === seleccionId) : undefined;
@@ -190,10 +216,21 @@ export function AgendaGrid({
     const map = new Map<string, number[]>();
     if (!huecosHabilitados) return map;
     for (const p of profesionales) {
-      map.set(p.id, huecosLibres(citasPorProfesional.get(p.id) ?? [], hasta, desde));
+      const libres = huecosLibres(citasPorProfesional.get(p.id) ?? [], hasta, desde, paso);
+      // Sin huecos clicables en un bloqueo ni con la sucursal cerrada.
+      const noAgendables = tramosNoAgendables(franjasPorProfesional.get(p.id) ?? []);
+      map.set(p.id, filtrarHuecosAgendables(libres, paso, noAgendables));
     }
     return map;
-  }, [huecosHabilitados, profesionales, citasPorProfesional, desde, hasta]);
+  }, [
+    huecosHabilitados,
+    profesionales,
+    citasPorProfesional,
+    desde,
+    hasta,
+    paso,
+    franjasPorProfesional,
+  ]);
 
   // Roving tabindex: toda la capa de huecos es UNA parada de Tab (si no,
   // serían ~28 por profesional antes de llegar al listado). Adentro se navega
@@ -247,7 +284,7 @@ export function AgendaGrid({
 
   function agendarEnHueco(e: MouseEvent<HTMLButtonElement>, p: Profesional, minutos: number) {
     if (!onAgendarHueco || !fecha) return;
-    onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p }), e.currentTarget);
+    onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p, paso }), e.currentTarget);
   }
 
   // ── Arrastre ──
@@ -381,8 +418,16 @@ export function AgendaGrid({
                     desde={desde}
                     hasta={hasta}
                     pxPorMinuto={ppm}
+                    aperturas={tramosDeApertura(franjasPorProfesional.get(p.id) ?? [])}
                   />
                 )}
+
+                <CapaDisponibilidad
+                  franjas={franjasPorProfesional.get(p.id) ?? []}
+                  desde={desde}
+                  hasta={hasta}
+                  pxPorMinuto={ppm}
+                />
 
                 {(huecosPorProfesional.get(p.id) ?? []).map((m) => {
                   const clave = claveHueco(p.id, m);
@@ -830,25 +875,31 @@ export function FranjasDeHorario({
   desde,
   hasta,
   pxPorMinuto = PIXELES_POR_MINUTO,
+  aperturas = [],
 }: {
   bloques: BloqueHorario[] | undefined;
   fecha: string;
   desde: number;
   hasta: number;
   pxPorMinuto?: number;
+  /** Aperturas excepcionales (AGE-08): ahí no se dibuja "fuera de horario". */
+  aperturas?: Tramo[];
 }) {
   const horario = horarioDelDia(bloques, fecha);
   if (!horario.declarado) return null;
-  const franjas: { inicio: number; fin: number; tipo: "fuera" | "colacion" }[] = [];
+  const crudas: { inicio: number; fin: number; tipo: "fuera" | "colacion" }[] = [];
   if (horario.tramos.length === 0) {
-    franjas.push({ inicio: desde, fin: hasta, tipo: "fuera" });
+    crudas.push({ inicio: desde, fin: hasta, tipo: "fuera" });
   } else {
     const primero = horario.tramos[0];
     const ultimo = horario.tramos[horario.tramos.length - 1];
-    if (primero.inicio > desde) franjas.push({ inicio: desde, fin: primero.inicio, tipo: "fuera" });
-    for (const c of colaciones(horario)) franjas.push({ ...c, tipo: "colacion" });
-    if (ultimo.fin < hasta) franjas.push({ inicio: ultimo.fin, fin: hasta, tipo: "fuera" });
+    if (primero.inicio > desde) crudas.push({ inicio: desde, fin: primero.inicio, tipo: "fuera" });
+    for (const c of colaciones(horario)) crudas.push({ ...c, tipo: "colacion" });
+    if (ultimo.fin < hasta) crudas.push({ inicio: ultimo.fin, fin: hasta, tipo: "fuera" });
   }
+  const franjas = crudas.flatMap((f) =>
+    restarTramos([f], aperturas).map((t) => ({ ...t, tipo: f.tipo })),
+  );
   return (
     <>
       {franjas.map((f) => {

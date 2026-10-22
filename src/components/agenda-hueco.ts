@@ -49,9 +49,10 @@ export function rangoDeGrilla(citas: { inicio: number; duracion: number }[]): Ra
  * estar ocupada). Puede ser negativo (antes de HORA_INICIO, si la grilla se
  * estiró hacia arriba), pero nunca antes de las 00:00.
  */
-export function redondearACuarto(minutos: number): number {
+export function redondearACuarto(minutos: number, paso: number = PASO_HUECO_MIN): number {
   if (!Number.isFinite(minutos)) return 0;
-  return Math.max(-HORA_INICIO * 60, Math.floor(minutos / PASO_HUECO_MIN) * PASO_HUECO_MIN);
+  // El paso sale de la configuración de la agenda (AGE-10: 10, 15, 20 o 30).
+  return Math.max(-HORA_INICIO * 60, Math.floor(minutos / paso) * paso);
 }
 
 /** Minutos desde HORA_INICIO → "HH:mm" (hora de pared). */
@@ -75,15 +76,18 @@ export function semillaDeHueco({
   fecha,
   minutos,
   profesional,
+  paso = PASO_HUECO_MIN,
 }: {
   /** ISO yyyy-mm-dd de la vista. */
   fecha: string;
   /** Minutos desde HORA_INICIO donde cayó el clic (se redondean). */
   minutos: number;
   profesional: { id: string; sucursalId?: string | null };
+  /** Intervalo de la grilla (AGE-10). */
+  paso?: number;
 }): SemillaCita {
   return {
-    startsAt: `${fecha}T${horaDeMinutos(redondearACuarto(minutos))}`,
+    startsAt: `${fecha}T${horaDeMinutos(redondearACuarto(minutos, paso))}`,
     profesionalId: profesional.id,
     sucursalId: profesional.sucursalId ?? "",
   };
@@ -98,10 +102,11 @@ export function huecosLibres(
   citas: { inicio: number; duracion: number }[],
   hasta = MINUTOS_VISIBLES,
   desde = 0,
+  paso: number = PASO_HUECO_MIN,
 ): number[] {
   const libres: number[] = [];
-  for (let s = desde; s + PASO_HUECO_MIN <= hasta; s += PASO_HUECO_MIN) {
-    const fin = s + PASO_HUECO_MIN;
+  for (let s = desde; s + paso <= hasta; s += paso) {
+    const fin = s + paso;
     const ocupado = citas.some((c) => c.inicio < fin && c.inicio + c.duracion > s);
     if (!ocupado) libres.push(s);
   }
