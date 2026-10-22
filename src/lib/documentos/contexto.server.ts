@@ -31,6 +31,9 @@ export interface ProfesionalQueEmite {
   firmaSha256: string | null;
 }
 
+const COLUMNAS_PROFESIONAL =
+  "id, full_name, license_number, sis_registry_number, specialty_id, branch_id, signature_storage_path, signature_sha256";
+
 export async function profesionalDelUsuario(
   supabase: Cliente,
   clinicId: string,
@@ -38,9 +41,7 @@ export async function profesionalDelUsuario(
 ): Promise<ProfesionalQueEmite | null> {
   const { data, error } = await supabase
     .from("professionals")
-    .select(
-      "id, full_name, license_number, sis_registry_number, specialty_id, branch_id, signature_storage_path, signature_sha256",
-    )
+    .select(COLUMNAS_PROFESIONAL)
     .eq("clinic_id", clinicId)
     .eq("user_id", userId)
     .eq("is_active", true)
@@ -48,7 +49,42 @@ export async function profesionalDelUsuario(
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(mensajeDb(error, "No pudimos cargar tu ficha de profesional."));
-  if (!data) return null;
+  return data ? conEspecialidad(supabase, data) : null;
+}
+
+/**
+ * Un profesional puntual de la clínica (Ola 4): el profesional a cargo de un
+ * presupuesto firma su PDF (PLA-11) aunque lo descargue o envíe otra persona,
+ * y la demo emite su documento de ejemplo a nombre de su profesional.
+ */
+export async function profesionalPorId(
+  supabase: Cliente,
+  clinicId: string,
+  professionalId: string,
+): Promise<ProfesionalQueEmite | null> {
+  const { data, error } = await supabase
+    .from("professionals")
+    .select(COLUMNAS_PROFESIONAL)
+    .eq("clinic_id", clinicId)
+    .eq("id", professionalId)
+    .maybeSingle();
+  if (error) throw new Error(mensajeDb(error, "No pudimos cargar la ficha del profesional."));
+  return data ? conEspecialidad(supabase, data) : null;
+}
+
+async function conEspecialidad(
+  supabase: Cliente,
+  data: {
+    id: string;
+    full_name: string;
+    license_number: string | null;
+    sis_registry_number: string | null;
+    specialty_id: string | null;
+    branch_id: string | null;
+    signature_storage_path: string | null;
+    signature_sha256: string | null;
+  },
+): Promise<ProfesionalQueEmite> {
   let especialidad: string | null = null;
   if (data.specialty_id) {
     const { data: esp } = await supabase
@@ -89,6 +125,10 @@ function tipoBoleta(v: string | null): TipoBoleta | null {
  * Todo lo que el motor necesita, sin los campos que se completan al emitir
  * (`campos` vacío: lo llena quien llama). `periodo` solo se usa si viene
  * completo y válido.
+ *
+ * `profesionalId` (opcional, Ola 4): sin él, el profesional es el del
+ * usuario (quien emite). Con un id, ese profesional de la clínica (el del
+ * presupuesto, o el de la demo); con `null`, ninguno.
  */
 export async function cargarDatosParaDocumento(
   supabase: Cliente,
@@ -97,8 +137,15 @@ export async function cargarDatosParaDocumento(
     patientId: string;
     userId: string;
     periodo?: { desde: string; hasta: string } | null;
+    profesionalId?: string | null;
   },
 ): Promise<{ datos: DatosParaDocumento; profesional: ProfesionalQueEmite | null }> {
+  const cargarProfesional = () =>
+    args.profesionalId === undefined
+      ? profesionalDelUsuario(supabase, args.clinicId, args.userId)
+      : args.profesionalId === null
+        ? Promise.resolve(null)
+        : profesionalPorId(supabase, args.clinicId, args.profesionalId);
   const [clinica, paciente, profesional] = await Promise.all([
     supabase
       .from("clinics")
@@ -115,7 +162,7 @@ export async function cargarDatosParaDocumento(
       .eq("id", args.patientId)
       .eq("clinic_id", args.clinicId)
       .maybeSingle(),
-    profesionalDelUsuario(supabase, args.clinicId, args.userId),
+    cargarProfesional(),
   ]);
   if (clinica.error || !clinica.data) {
     throw new Error(mensajeDb(clinica.error, "No pudimos cargar los datos de la clínica."));

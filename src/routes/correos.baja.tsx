@@ -8,7 +8,9 @@ import { confirmarBajaDeCorreos, revisarTokenDeBaja } from "@/lib/email/baja.fun
 
 /**
  * Página pública del enlace "Dejar de recibir este resumen" del correo
- * semanal. No exige sesión: el token firmado identifica a la persona.
+ * semanal y, desde la Ola 4, del enlace de baja de los correos que una
+ * clínica le manda a un paciente (presupuesto, documentos). No exige
+ * sesión: el token firmado identifica a la persona.
  *
  * La baja se aplica al confirmar, no al abrir: algunos filtros de correo
  * abren los enlaces solos para revisarlos. La baja de un clic sin página
@@ -31,12 +33,17 @@ function BajaDeCorreos() {
   const revisar = useServerFn(revisarTokenDeBaja);
   const confirmar = useServerFn(confirmarBajaDeCorreos);
   const [estado, setEstado] = useState<Estado>(token ? "revisando" : "invalido");
+  const [esPaciente, setEsPaciente] = useState(false);
 
   useEffect(() => {
     if (!token) return;
     let cancelado = false;
     revisar({ data: { token } })
-      .then((r) => !cancelado && setEstado(r.valido ? "listo-para-confirmar" : "invalido"))
+      .then((r) => {
+        if (cancelado) return;
+        setEsPaciente(r.grupo === "correos_paciente");
+        setEstado(r.valido ? "listo-para-confirmar" : "invalido");
+      })
       .catch(() => !cancelado && setEstado("error"));
     return () => {
       cancelado = true;
@@ -69,7 +76,24 @@ function BajaDeCorreos() {
           </p>
         )}
 
-        {(estado === "listo-para-confirmar" || estado === "enviando") && (
+        {(estado === "listo-para-confirmar" || estado === "enviando") && esPaciente && (
+          <>
+            <h1 className="font-display text-3xl font-semibold leading-tight">
+              Dejar de recibir correos de tu clínica
+            </h1>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Si confirmas, tu clínica no podrá enviarte más correos desde Esmalia: presupuestos,
+              copias de documentos ni recordatorios por correo. Para volver a recibirlos, pídeselo a
+              la clínica.
+            </p>
+            <Button className="mt-6" onClick={onConfirmar} disabled={estado === "enviando"}>
+              {estado === "enviando" && <Loader2 className="size-4 animate-spin" />}
+              Confirmar la baja
+            </Button>
+          </>
+        )}
+
+        {(estado === "listo-para-confirmar" || estado === "enviando") && !esPaciente && (
           <>
             <h1 className="font-display text-3xl font-semibold leading-tight">
               Dejar de recibir el resumen semanal
@@ -86,7 +110,17 @@ function BajaDeCorreos() {
           </>
         )}
 
-        {estado === "hecho" && (
+        {estado === "hecho" && esPaciente && (
+          <>
+            <h1 className="font-display text-3xl font-semibold leading-tight">Listo</h1>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Ya no recibirás correos de tu clínica desde Esmalia. Si cambias de opinión, pídele a
+              la clínica que los vuelva a activar.
+            </p>
+          </>
+        )}
+
+        {estado === "hecho" && !esPaciente && (
           <>
             <h1 className="font-display text-3xl font-semibold leading-tight">Listo</h1>
             <p className="mt-4 leading-relaxed text-muted-foreground">

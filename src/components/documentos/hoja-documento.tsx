@@ -148,7 +148,13 @@ function BloqueDocumento({
                 </tr>
               ) : (
                 b.filas.map((f, i) => (
-                  <tr key={i} className="border-b border-hairline">
+                  <tr
+                    key={i}
+                    className={cn(
+                      "border-b border-hairline",
+                      b.destacadas?.includes(i) && "bg-muted/40 font-semibold",
+                    )}
+                  >
                     {f.map((v, j) => (
                       <td
                         key={j}

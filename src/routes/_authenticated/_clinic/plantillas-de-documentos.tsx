@@ -74,6 +74,8 @@ const GRUPOS: GrupoVariable[] = [
   // MKT-05 · receta
   "receta",
 ];
+/** Las variables del presupuesto solo tienen dato en la plantilla del presupuesto (PLA-08). */
+const GRUPOS_PRESUPUESTO: GrupoVariable[] = ["paciente", "clinica", "documento", "presupuesto"];
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -456,7 +458,7 @@ function EditorPlantilla({
             )}
           </div>
 
-          <VariablesInsertables onInsertar={insertar} />
+          <VariablesInsertables onInsertar={insertar} kind={borrador.kind} />
         </form>
 
         <div className="min-w-0 space-y-2">
@@ -472,14 +474,21 @@ function EditorPlantilla({
   );
 }
 
-function VariablesInsertables({ onInsertar }: { onInsertar: (v: string) => void }) {
+function VariablesInsertables({
+  onInsertar,
+  kind,
+}: {
+  onInsertar: (v: string) => void;
+  kind: TipoDeDocumento;
+}) {
+  const esPresupuesto = kind === "presupuesto";
   return (
     <details className="rounded-md border border-border" open>
       <summary className="cursor-pointer px-3 py-2 text-sm font-medium">
         Variables para insertar
       </summary>
       <div className="space-y-4 border-t border-border px-3 py-3">
-        {GRUPOS.map((g) => (
+        {(esPresupuesto ? GRUPOS_PRESUPUESTO : GRUPOS).map((g) => (
           <div key={g} className="space-y-1.5">
             <p className="kicker">{ETIQUETA_GRUPO[g]}</p>
             <div className="flex flex-wrap gap-1.5">
@@ -497,22 +506,25 @@ function VariablesInsertables({ onInsertar }: { onInsertar: (v: string) => void 
             </div>
           </div>
         ))}
-        <div className="space-y-1.5">
-          <p className="kicker">{ETIQUETA_GRUPO.campo}</p>
-          <div className="flex flex-wrap gap-1.5">
-            {CAMPOS.map((c) => (
-              <button
-                key={c.nombre}
-                type="button"
-                onClick={() => onInsertar(`${PREFIJO_CAMPO}${c.nombre}`)}
-                title={`{{${PREFIJO_CAMPO}${c.nombre}}}`}
-                className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-ring"
-              >
-                {c.etiqueta}
-              </button>
-            ))}
+        {/* El presupuesto no pide campos: se arma solo con sus datos. */}
+        {!esPresupuesto && (
+          <div className="space-y-1.5">
+            <p className="kicker">{ETIQUETA_GRUPO.campo}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {CAMPOS.map((c) => (
+                <button
+                  key={c.nombre}
+                  type="button"
+                  onClick={() => onInsertar(`${PREFIJO_CAMPO}${c.nombre}`)}
+                  title={`{{${PREFIJO_CAMPO}${c.nombre}}}`}
+                  className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-ring"
+                >
+                  {c.etiqueta}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </details>
   );

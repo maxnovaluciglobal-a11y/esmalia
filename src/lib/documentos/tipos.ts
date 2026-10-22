@@ -52,6 +52,11 @@ export type Bloque =
       pie?: string[];
       /** Texto a mostrar si no hay filas. */
       vacia?: string;
+      /**
+       * Índices de filas que son encabezado de sección (el presupuesto agrupa
+       * sus líneas por sección): se imprimen en negrita y con fondo.
+       */
+      destacadas?: number[];
     }
   | {
       /** Firma del profesional: la agrega el motor al emitir, no la plantilla. */
@@ -95,6 +100,9 @@ export const TIPOS_DE_DOCUMENTO = [
   "informe",
   "consentimiento",
   "reembolso",
+  // Ola 4 · PLA-08: la plantilla del PDF del presupuesto. No se emite desde
+  // la ficha: se descarga o se envía desde el presupuesto.
+  "presupuesto",
   // MKT-05 · receta: se emite desde la tarjeta Recetas, no desde "Emitir documento".
   "receta",
   "otro",
@@ -109,12 +117,17 @@ export const ETIQUETA_TIPO_DE_DOCUMENTO: Record<TipoDeDocumento, string> = {
   informe: "Informe odontológico",
   consentimiento: "Declaración o consentimiento",
   reembolso: "Reembolso de seguro complementario",
+  presupuesto: "Presupuesto",
   receta: "Receta",
   otro: "Otro documento",
 };
 
-/** Tipos que tienen su propio flujo de emisión (no salen en "Emitir documento"). */
-export const TIPOS_CON_FLUJO_PROPIO: readonly TipoDeDocumento[] = ["receta"];
+/**
+ * Tipos con su propio flujo: no salen en "Emitir documento" de la ficha.
+ * La receta se emite desde la tarjeta Recetas (MKT-05); el presupuesto se
+ * descarga o se envía desde el presupuesto (PLA-08).
+ */
+export const TIPOS_CON_FLUJO_PROPIO: readonly TipoDeDocumento[] = ["presupuesto", "receta"];
 
 export function esTipoDeDocumento(valor: unknown): valor is TipoDeDocumento {
   return typeof valor === "string" && (TIPOS_DE_DOCUMENTO as readonly string[]).includes(valor);

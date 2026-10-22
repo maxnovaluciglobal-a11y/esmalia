@@ -94,7 +94,8 @@ export function EmitirDocumentoDialog({
     queryFn: () => listar({ data: { clinicId } }),
     enabled: abierto,
   });
-  // MKT-05: la receta se emite desde la tarjeta Recetas (vademécum y alergias).
+  // Tipos con flujo propio: la receta se emite desde la tarjeta Recetas
+  // (MKT-05) y el presupuesto se descarga o se envía desde el presupuesto (PLA-08).
   const activas = (plantillas.data ?? []).filter(
     (p) => p.active && p.version && !TIPOS_CON_FLUJO_PROPIO.includes(p.kind),
   );

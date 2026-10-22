@@ -10,6 +10,12 @@
  *
  * Recorre los mismos bloques que pinta la pantalla: lo que se ve es lo que
  * se descarga.
+ *
+ * `construirHojaPdf` es la diagramación común (encabezado de la clínica,
+ * bloques, firma y pie). La usan el documento emitido (`construirDocumentoPdf`)
+ * y el presupuesto (PLA-08), que no tiene folio ni huella porque no es un
+ * documento emitido. También corre en el servidor: el correo al paciente
+ * (PLA-09, DOC-07) adjunta este mismo PDF.
  */
 import type { jsPDF } from "jspdf";
 
@@ -37,22 +43,29 @@ export interface DocumentoParaPdf {
   signatureUrl: string | null;
 }
 
+/** Bytes → base64, sin FileReader (corre igual en el navegador y en Node). */
+function base64DeBytes(bytes: Uint8Array): string {
+  let binario = "";
+  const trozo = 0x8000;
+  for (let i = 0; i < bytes.length; i += trozo) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + trozo));
+  }
+  return btoa(binario);
+}
+
 async function imagenComoDataUrl(
   url: string,
 ): Promise<{ dataUrl: string; formato: string } | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    const blob = await res.blob();
-    const formato =
-      blob.type === "image/jpeg" ? "JPEG" : blob.type === "image/webp" ? "WEBP" : "PNG";
-    const dataUrl = await new Promise<string | null>((resolve) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-    return dataUrl ? { dataUrl, formato } : null;
+    const tipo = (res.headers.get("content-type") ?? "").split(";")[0].trim();
+    const formato = tipo === "image/jpeg" ? "JPEG" : tipo === "image/webp" ? "WEBP" : "PNG";
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (!bytes.length) return null;
+    const mime =
+      formato === "JPEG" ? "image/jpeg" : formato === "WEBP" ? "image/webp" : "image/png";
+    return { dataUrl: `data:${mime};base64,${base64DeBytes(bytes)}`, formato };
   } catch {
     return null;
   }
@@ -182,7 +195,8 @@ function dibujarTabla(
   if (b.filas.length === 0) {
     fila([b.vacia ?? "Sin datos.", ...Array(Math.max(0, n - 1)).fill("")], {});
   }
-  for (const f of b.filas) fila(f, {});
+  const destacadas = new Set(b.destacadas ?? []);
+  b.filas.forEach((f, i) => fila(f, destacadas.has(i) ? { negrita: true, fondo: true } : {}));
   if (b.pie) fila(b.pie, { negrita: true });
   lienzo.y += 6;
 }
@@ -203,44 +217,75 @@ export async function descargarDocumentoPdf(d: DocumentoParaPdf): Promise<void> 
   doc.save(nombreDeArchivoPdf(d));
 }
 
+/**
+ * Lo que necesita la diagramación común: el encabezado de la clínica, los
+ * bloques y el pie. Serializable (viaja del servidor al navegador).
+ */
+export interface HojaParaPdf {
+  clinicName: string;
+  /** Líneas grises bajo el nombre: datos tributarios, dirección, contacto. */
+  lineasEncabezado: string[];
+  /** Línea de referencia: "N.º 2026-0007 · Emitido el …" o "Presupuesto P-12 · …". */
+  referencia: string;
+  /** Aviso en rojo bajo el encabezado (documento anulado). */
+  aviso: { titulo: string; detalle: string | null } | null;
+  bloques: Bloque[];
+  /** URL (firmada) o data URL de la imagen de la firma. */
+  signatureUrl: string | null;
+  /** Texto del pie de cada página (se le suma "Página i de n"). */
+  pie: string;
+}
+
+/** Encabezado, aviso y pie de un documento emitido. */
+export function hojaDeDocumento(d: DocumentoParaPdf): HojaParaPdf {
+  const folio = folioDocumento(d.year, d.number);
+  const fiscal = [d.clinicLegalName, d.clinicTaxId ? `RUT ${d.clinicTaxId}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  const contacto = [d.clinicAddress, d.clinicPhone].filter(Boolean).join(" · ");
+  return {
+    clinicName: d.clinicName,
+    lineasEncabezado: [fiscal, contacto].filter(Boolean),
+    referencia: `${folio} · Emitido el ${fechaDocumento(d.issuedAt, d.timezone)}`,
+    aviso: d.voidedAt
+      ? {
+          titulo: `DOCUMENTO ANULADO el ${fechaHora(d.voidedAt, d.timezone)}`,
+          detalle: d.voidReason ? `Motivo: ${d.voidReason}` : null,
+        }
+      : null,
+    bloques: d.bloques,
+    signatureUrl: d.signatureUrl,
+    pie: `${folio} · Huella SHA-256 ${huellaCorta(d.contentSha256, 24)} · Firma simple (Ley 19.799)`,
+  };
+}
+
 /** Arma el PDF (sin descargarlo): lo usan la descarga y los tests. */
 export async function construirDocumentoPdf(d: DocumentoParaPdf): Promise<jsPDF> {
+  return construirHojaPdf(hojaDeDocumento(d));
+}
+
+/** Diagramación común: encabezado de la clínica, bloques, firma y pie numerado. */
+export async function construirHojaPdf(h: HojaParaPdf): Promise<jsPDF> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const lienzo = crearLienzo(doc);
   const { texto, separador } = lienzo;
-  const folio = folioDocumento(d.year, d.number);
 
   // Encabezado: la clínica tal como quedó al emitir.
   lienzo.franjaSuperior();
-  texto(d.clinicName, { size: 14, bold: true, espacio: 2 });
-  const fiscal = [d.clinicLegalName, d.clinicTaxId ? `RUT ${d.clinicTaxId}` : null]
-    .filter(Boolean)
-    .join(" · ");
-  if (fiscal) texto(fiscal, { size: 9, gris: true, espacio: 1 });
-  const contacto = [d.clinicAddress, d.clinicPhone].filter(Boolean).join(" · ");
-  if (contacto) texto(contacto, { size: 9, gris: true, espacio: 1 });
-  texto(`${folio} · Emitido el ${fechaDocumento(d.issuedAt, d.timezone)}`, {
-    size: 9,
-    gris: true,
-    espacio: 2,
-  });
+  texto(h.clinicName, { size: 14, bold: true, espacio: 2 });
+  for (const linea of h.lineasEncabezado) texto(linea, { size: 9, gris: true, espacio: 1 });
+  texto(h.referencia, { size: 9, gris: true, espacio: 2 });
 
-  if (d.voidedAt) {
+  if (h.aviso) {
     lienzo.y += 4;
-    texto(`DOCUMENTO ANULADO el ${fechaHora(d.voidedAt, d.timezone)}`, {
-      size: 12,
-      bold: true,
-      rojo: true,
-      espacio: 1,
-    });
-    if (d.voidReason) texto(`Motivo: ${d.voidReason}`, { size: 9, rojo: true, espacio: 2 });
+    texto(h.aviso.titulo, { size: 12, bold: true, rojo: true, espacio: 1 });
+    if (h.aviso.detalle) texto(h.aviso.detalle, { size: 9, rojo: true, espacio: 2 });
   }
   separador();
 
-  const firma = d.signatureUrl ? await imagenComoDataUrl(d.signatureUrl) : null;
-
-  for (const b of d.bloques) {
+  const firma = h.signatureUrl ? await imagenComoDataUrl(h.signatureUrl) : null;
+  for (const b of h.bloques) {
     switch (b.tipo) {
       case "titulo":
         lienzo.y += b.nivel === 1 ? 4 : 6;
@@ -289,12 +334,11 @@ export async function construirDocumentoPdf(d: DocumentoParaPdf): Promise<jsPDF>
     }
   }
 
-  const pie = `${folio} · Huella SHA-256 ${huellaCorta(d.contentSha256, 24)} · Firma simple (Ley 19.799)`;
   lienzo.enCadaPagina((i, paginas) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7);
     doc.setTextColor(140);
-    doc.text(`${pie} · Página ${i} de ${paginas}`, MARGEN, ALTO - 24);
+    doc.text(`${h.pie} · Página ${i} de ${paginas}`, MARGEN, ALTO - 24);
   });
 
   return doc;

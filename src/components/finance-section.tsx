@@ -19,6 +19,10 @@ import { Button } from "@/components/ui/button";
 import { captureMessage } from "@/lib/sentry";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import {
+  DescargarPdfPresupuestoBoton,
+  EnviarPresupuestoCorreoBoton,
+} from "@/components/presupuestos/pdf-y-correo-presupuesto";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -1826,6 +1830,25 @@ export function FinanceSection({
                               <FileText className="size-3.5" /> Ver detalle
                             </Link>
                           </Button>
+                        )}
+                        {/* PLA-08/PLA-09: el servidor repite el gate (finance:view o
+                            patients:manage para descargar; patients:manage para enviar). */}
+                        {(puedeEditar || puedeReversarPagos) && (
+                          <DescargarPdfPresupuestoBoton
+                            clinicId={clinicId}
+                            quoteId={quote.id}
+                            variant="ghost"
+                          />
+                        )}
+                        {puedeEditar && (
+                          <EnviarPresupuestoCorreoBoton
+                            clinicId={clinicId}
+                            quoteId={quote.id}
+                            patientId={patientId}
+                            numero={quote.number}
+                            puedeReactivar={puedeEditar}
+                            variant="ghost"
+                          />
                         )}
                         <div className="ml-auto">
                           <WhatsAppButton

@@ -11,6 +11,7 @@
  *   {{fecha}}          hoy en la zona horaria de la clínica
  *   {{campo.*}}        lo que se completa al emitir (motivo, días de reposo…)
  *   {{reembolso.*}}    prestaciones y pagos de un período (MKT-04)
+ *   {{presupuesto.*}}  líneas, totales y condiciones de un presupuesto (PLA-08)
  *   {{receta.*}}       medicamentos, alergias e indicaciones (MKT-05, receta.ts)
  *
  * Los frentes siguientes (presupuesto, receta) suman su propio grupo acá
@@ -21,6 +22,13 @@ import { fecha as fechaCorta, fechaDocumento } from "@/lib/formato-fecha";
 import { textoPrevision, type DatosPrevision } from "@/lib/patients/datos-ficha";
 import { ETIQUETA_TIPO_DOCUMENTO, esTipoDocumento, formatearRut } from "@/lib/patients/rut";
 import type { TablaDeContexto } from "@/lib/documentos/tipos";
+import {
+  PRESUPUESTO_DE_EJEMPLO,
+  tablaDePrestaciones,
+  tablaDeTotales,
+  valoresDePresupuesto,
+  type DatosPresupuesto,
+} from "@/lib/documentos/presupuesto";
 // MKT-05 · receta
 import {
   contextoDeReceta,
@@ -36,6 +44,8 @@ export type GrupoVariable =
   | "documento"
   | "campo"
   | "reembolso"
+  // Ola 4 · PLA-08
+  | "presupuesto"
   // MKT-05 · receta
   | "receta";
 
@@ -46,6 +56,7 @@ export const ETIQUETA_GRUPO: Record<GrupoVariable, string> = {
   documento: "Documento",
   campo: "Se completa al emitir",
   reembolso: "Reembolso",
+  presupuesto: "Presupuesto",
   // MKT-05 · receta
   receta: "Receta",
 };
@@ -210,6 +221,82 @@ export const VARIABLES: readonly DefinicionVariable[] = [
     grupo: "reembolso",
     etiqueta: "Período",
     ejemplo: "1 de septiembre de 2026 al 30 de septiembre de 2026",
+  },
+  // ─── Presupuesto (Ola 4 · PLA-08) ──────────────────────────────────────────
+  {
+    clave: "presupuesto.numero",
+    grupo: "presupuesto",
+    etiqueta: "Número",
+    ejemplo: "P-2026-0012",
+  },
+  {
+    clave: "presupuesto.fecha",
+    grupo: "presupuesto",
+    etiqueta: "Fecha del presupuesto",
+    ejemplo: "22 de octubre de 2026",
+  },
+  {
+    clave: "presupuesto.validez",
+    grupo: "presupuesto",
+    etiqueta: "Validez",
+    ejemplo: "hasta el 21 de noviembre de 2026",
+  },
+  {
+    clave: "presupuesto.profesional",
+    grupo: "presupuesto",
+    etiqueta: "Profesional tratante",
+    ejemplo: "Dra. Carolina Rodríguez",
+  },
+  {
+    clave: "presupuesto.prestaciones",
+    grupo: "presupuesto",
+    etiqueta: "Tabla de prestaciones (por sección)",
+    ejemplo: "(tabla)",
+    bloque: true,
+  },
+  {
+    clave: "presupuesto.totales",
+    grupo: "presupuesto",
+    etiqueta: "Tabla de totales (descuento, convenio y copago)",
+    ejemplo: "(tabla)",
+    bloque: true,
+  },
+  {
+    clave: "presupuesto.subtotal",
+    grupo: "presupuesto",
+    etiqueta: "Subtotal",
+    ejemplo: "$475.000",
+  },
+  {
+    clave: "presupuesto.descuento",
+    grupo: "presupuesto",
+    etiqueta: "Descuento comercial",
+    ejemplo: "$23.750",
+  },
+  { clave: "presupuesto.total", grupo: "presupuesto", etiqueta: "Total", ejemplo: "$451.250" },
+  {
+    clave: "presupuesto.convenio",
+    grupo: "presupuesto",
+    etiqueta: "Convenio",
+    ejemplo: "Convenio Seguros Vida Sur",
+  },
+  {
+    clave: "presupuesto.cobertura",
+    grupo: "presupuesto",
+    etiqueta: "Cubre el convenio",
+    ejemplo: "$90.000",
+  },
+  {
+    clave: "presupuesto.copago",
+    grupo: "presupuesto",
+    etiqueta: "Paga el paciente",
+    ejemplo: "$361.250",
+  },
+  {
+    clave: "presupuesto.notas",
+    grupo: "presupuesto",
+    etiqueta: "Observaciones",
+    ejemplo: "Incluye radiografía de control.",
   },
   // MKT-05 · receta
   ...VARIABLES_RECETA,
@@ -402,6 +489,8 @@ export interface DatosParaDocumento {
   receta?: DatosReceta;
   /** Lo completado al emitir: nombre del campo → texto (fechas como YYYY-MM-DD). */
   campos: Readonly<Record<string, string>>;
+  /** Solo para el PDF del presupuesto (PLA-08). */
+  presupuesto?: DatosPresupuesto;
 }
 
 export const TIPOS_BOLETA = ["exenta", "afecta"] as const;
@@ -549,6 +638,11 @@ export function construirContexto(datos: DatosParaDocumento): {
     valores["reembolso.periodo"] =
       `${fechaDocumento(desde, zona)} al ${fechaDocumento(hasta, zona)}`;
   }
+  if (datos.presupuesto) {
+    Object.assign(valores, valoresDePresupuesto(datos.presupuesto, zona));
+    tablas["presupuesto.prestaciones"] = tablaDePrestaciones(datos.presupuesto);
+    tablas["presupuesto.totales"] = tablaDeTotales(datos.presupuesto);
+  }
   // MKT-05 · receta
   if (datos.receta) {
     const receta = contextoDeReceta(datos.receta);
@@ -568,6 +662,7 @@ export function contextoDeEjemplo(): {
   for (const c of CAMPOS) {
     valores[`${PREFIJO_CAMPO}${c.nombre}`] = textoDeCampo(c.nombre, c.ejemplo, "America/Santiago");
   }
+  Object.assign(valores, valoresDePresupuesto(PRESUPUESTO_DE_EJEMPLO, "America/Santiago"));
   // MKT-05 · receta
   const receta = contextoDeReceta(RECETA_DE_EJEMPLO);
   Object.assign(valores, receta.valores);
@@ -596,6 +691,8 @@ export function contextoDeEjemplo(): {
         "CLP",
         "America/Santiago",
       ),
+      "presupuesto.prestaciones": tablaDePrestaciones(PRESUPUESTO_DE_EJEMPLO),
+      "presupuesto.totales": tablaDeTotales(PRESUPUESTO_DE_EJEMPLO),
     },
   };
 }

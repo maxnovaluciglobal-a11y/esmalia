@@ -35,6 +35,12 @@ export async function sendEmail(
     to: string;
     subject: string;
     html: string;
+    /** Texto plano alternativo (opcional). */
+    text?: string;
+    /** Adjuntos: el PDF del presupuesto o de un documento (Ola 4). */
+    attachments?: { filename: string; content: Uint8Array }[];
+    /** Responder a (el correo de la clínica, si lo tiene). */
+    replyTo?: string;
   },
   sandboxConfig: EmailSandboxConfig = DEFAULT_EMAIL_SANDBOX,
 ): Promise<SendEmailResult> {
@@ -64,6 +70,16 @@ export async function sendEmail(
     to: recipient,
     subject,
     html: params.html,
+    ...(params.text ? { text: params.text } : {}),
+    ...(params.replyTo ? { replyTo: params.replyTo } : {}),
+    ...(params.attachments?.length
+      ? {
+          attachments: params.attachments.map((a) => ({
+            filename: a.filename,
+            content: Buffer.from(a.content),
+          })),
+        }
+      : {}),
   });
 
   if (error) {

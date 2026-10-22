@@ -2519,6 +2519,7 @@ export type Database = {
           error: string | null;
           external_id: string | null;
           id: string;
+          issued_document_id: string | null;
           patient_id: string;
           quote_id: string | null;
           read_at: string | null;
@@ -2540,6 +2541,7 @@ export type Database = {
           error?: string | null;
           external_id?: string | null;
           id?: string;
+          issued_document_id?: string | null;
           patient_id: string;
           quote_id?: string | null;
           read_at?: string | null;
@@ -2561,6 +2563,7 @@ export type Database = {
           error?: string | null;
           external_id?: string | null;
           id?: string;
+          issued_document_id?: string | null;
           patient_id?: string;
           quote_id?: string | null;
           read_at?: string | null;
@@ -2584,6 +2587,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "messages_issued_document_id_fkey";
+            columns: ["issued_document_id"];
+            isOneToOne: false;
+            referencedRelation: "issued_documents";
             referencedColumns: ["id"];
           },
           {
@@ -3554,6 +3564,7 @@ export type Database = {
           document_id_hash: string | null;
           document_type: string | null;
           email: string | null;
+          email_opt_out_at: string | null;
           emergency_contact_name: string | null;
           emergency_contact_phone: string | null;
           emergency_contact_relationship: string | null;
@@ -3602,6 +3613,7 @@ export type Database = {
           document_id_hash?: string | null;
           document_type?: string | null;
           email?: string | null;
+          email_opt_out_at?: string | null;
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           emergency_contact_relationship?: string | null;
@@ -3650,6 +3662,7 @@ export type Database = {
           document_id_hash?: string | null;
           document_type?: string | null;
           email?: string | null;
+          email_opt_out_at?: string | null;
           emergency_contact_name?: string | null;
           emergency_contact_phone?: string | null;
           emergency_contact_relationship?: string | null;
@@ -4760,6 +4773,7 @@ export type Database = {
           from_status: Database["public"]["Enums"]["quote_status"] | null;
           id: string;
           kind: string;
+          message_id: string | null;
           note: string | null;
           quote_id: string;
           to_status: Database["public"]["Enums"]["quote_status"] | null;
@@ -4772,6 +4786,7 @@ export type Database = {
           from_status?: Database["public"]["Enums"]["quote_status"] | null;
           id?: string;
           kind: string;
+          message_id?: string | null;
           note?: string | null;
           quote_id: string;
           to_status?: Database["public"]["Enums"]["quote_status"] | null;
@@ -4784,6 +4799,7 @@ export type Database = {
           from_status?: Database["public"]["Enums"]["quote_status"] | null;
           id?: string;
           kind?: string;
+          message_id?: string | null;
           note?: string | null;
           quote_id?: string;
           to_status?: Database["public"]["Enums"]["quote_status"] | null;
@@ -4795,6 +4811,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_events_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
             referencedColumns: ["id"];
           },
           {
@@ -6027,6 +6050,10 @@ export type Database = {
       receivable_paid_totals: {
         Args: { p_clinic_id: string; p_receivable_ids?: string[] };
         Returns: { last_paid_at: string; paid_cents: number; receivable_id: string }[];
+      };
+      registrar_envio_de_presupuesto: {
+        Args: { p_message_id: string; p_redirigido_a?: string };
+        Returns: undefined;
       };
       registrar_evento_de_nota: {
         Args: {

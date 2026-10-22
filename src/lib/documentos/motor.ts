@@ -362,9 +362,13 @@ export function bloquesAHtml(bloques: readonly Bloque[]): string {
       case "tabla": {
         const der = b.columnas.map((c) => c.alineacion === "derecha");
         const cabeza = `<thead><tr>${b.columnas.map((c, i) => celda("th", c.titulo, der[i])).join("")}</tr></thead>`;
+        const destacadas = new Set(b.destacadas ?? []);
         const cuerpo = b.filas.length
           ? b.filas
-              .map((f) => `<tr>${f.map((v, i) => celda("td", v, der[i])).join("")}</tr>`)
+              .map(
+                (f, j) =>
+                  `<tr${destacadas.has(j) ? ' class="seccion"' : ""}>${f.map((v, i) => celda("td", v, der[i])).join("")}</tr>`,
+              )
               .join("")
           : `<tr><td colspan="${b.columnas.length}">${escaparHtml(b.vacia ?? "Sin datos.")}</td></tr>`;
         const pie = b.pie

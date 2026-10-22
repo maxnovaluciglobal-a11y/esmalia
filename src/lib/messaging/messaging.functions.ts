@@ -344,7 +344,7 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
         await Promise.all([
           supabase
             .from("patients")
-            .select("full_name, email, birth_date")
+            .select("full_name, email, birth_date, email_opt_out_at")
             .eq("clinic_id", data.clinicId)
             .eq("id", data.patientId)
             .maybeSingle(),
@@ -355,6 +355,11 @@ export const sendEmailFromTemplate = createServerFn({ method: "POST" })
       if (clinicErr)
         throw new Error(mensajeDb(clinicErr, "No pudimos obtener los datos de la clínica."));
       if (!patient) throw new Error("Paciente no encontrado.");
+      // Baja de correos del paciente (Ola 4, enlace del pie de los correos de
+      // la clínica): el servidor no le escribe más por correo.
+      if (patient.email_opt_out_at) {
+        throw new Error("El paciente se dio de baja de los correos de la clínica.");
+      }
 
       // Paciente menor con tutor vigente: el correo va al tutor (CLI-11).
       const destinatario = await resolverDestinatario(supabase, {

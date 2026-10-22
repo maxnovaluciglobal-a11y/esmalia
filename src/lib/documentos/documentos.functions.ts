@@ -367,7 +367,11 @@ export const emitirDocumentoDelPaciente = createServerFn({ method: "POST" })
       .eq("clinic_id", data.clinicId)
       .maybeSingle();
     if (t && esTipoDeDocumento(t.kind) && TIPOS_CON_FLUJO_PROPIO.includes(t.kind)) {
-      throw new Error("Las recetas se emiten desde la tarjeta Recetas de la ficha.");
+      throw new Error(
+        t.kind === "presupuesto"
+          ? "El presupuesto se descarga o se envía desde el presupuesto del paciente."
+          : "Las recetas se emiten desde la tarjeta Recetas de la ficha.",
+      );
     }
     return emitirDocumento(supabase, {
       clinicId: data.clinicId,
