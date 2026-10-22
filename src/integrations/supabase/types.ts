@@ -4956,9 +4956,40 @@ export type Database = {
         Args: { p_clinic_id: string };
         Returns: { has_future: boolean; last_visit_at: string; patient_id: string }[];
       };
+      patient_appointment_counters: {
+        Args: { p_clinic_id: string; p_patient_id: string };
+        Returns: {
+          attended: number;
+          cancelled: number;
+          last_visit_at: string | null;
+          next_at: string | null;
+          no_show: number;
+          past_open: number;
+          upcoming: number;
+        }[];
+      };
       patient_balances: {
         Args: { p_clinic_id: string; p_patient_ids?: string[] };
         Returns: { billed_cents: number; paid_cents: number; patient_id: string }[];
+      };
+      pilot_results: {
+        Args: { p_clinic_id: string; p_desde: string; p_hasta: string };
+        Returns: {
+          appointments_attended: number;
+          appointments_cancelled: number;
+          appointments_no_show: number;
+          appointments_scheduled: number;
+          collected_cents: number;
+          currency: string | null;
+          patients_by_source: Json;
+          patients_new: number;
+          payments_count: number;
+          quotes_accepted: number;
+          quotes_accepted_cents: number;
+          quotes_issued: number;
+          quotes_issued_cents: number;
+          reminders_sent: number;
+        }[];
       };
       procedimientos_frecuentes: {
         Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
