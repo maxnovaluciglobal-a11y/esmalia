@@ -43,7 +43,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
         name: "description",
         content: "Esmalia: KPIs en vivo y agenda del día de tu clínica dental.",
       },
-      { property: "og:title", content: "Dashboard clínico | Esmalia" },
+      { property: "og:title", content: "Hoy | Esmalia" },
       {
         property: "og:description",
         content: "KPIs en vivo y agenda del día de tu clínica dental.",
