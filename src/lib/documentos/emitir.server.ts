@@ -27,6 +27,7 @@ import {
   bloquesAHtml,
   renderPlantilla,
 } from "@/lib/documentos/motor";
+import { TIPOS_SIN_EMISION_DESDE_LA_FICHA } from "@/lib/documentos/tipos";
 import { construirContexto, definicionCampo } from "@/lib/documentos/variables";
 import { mensajeDb } from "@/lib/db-errors";
 
@@ -101,6 +102,23 @@ export async function emitirDocumento(
   },
 ): Promise<DocumentoEmitido> {
   const version = await cargarVersion(supabase, args);
+
+  // El presupuesto (PLA-08) usa el motor pero no se emite desde la ficha: se
+  // descarga o se envía desde el presupuesto, con sus líneas y totales.
+  const { data: plantilla } = await supabase
+    .from("document_templates")
+    .select("kind")
+    .eq("id", version.templateId)
+    .eq("clinic_id", args.clinicId)
+    .maybeSingle();
+  if (
+    plantilla &&
+    (TIPOS_SIN_EMISION_DESDE_LA_FICHA as readonly string[]).includes(plantilla.kind)
+  ) {
+    throw new Error(
+      "Esta plantilla es la del presupuesto: descárgalo o envíalo desde el presupuesto del paciente.",
+    );
+  }
 
   const analisis = analizarPlantilla(version.body);
   if (analisis.problemas.length) {

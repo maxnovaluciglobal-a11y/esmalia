@@ -2,11 +2,21 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Ban, Download, Loader2, Printer, ShieldCheck, ShieldAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  Download,
+  Loader2,
+  Mail,
+  Printer,
+  ShieldCheck,
+  ShieldAlert,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { AnularDocumentoDialog } from "@/components/documentos/anular-documento-dialog";
+import { EnviarPorCorreoDialog } from "@/components/documentos/enviar-por-correo-dialog";
 import documentoImpresionCss from "@/components/documentos/documento-impresion.css?url";
 import { HojaDocumento } from "@/components/documentos/hoja-documento";
 import { ErrorDeCarga } from "@/components/estado-error";
@@ -18,6 +28,12 @@ import {
   getDocumentoEmitido,
   type DocumentoEmitidoCompleto,
 } from "@/lib/documentos/documentos.functions";
+import {
+  enviarDocumentoPorCorreo,
+  getCorreoDeDocumento,
+  listEnviosDelDocumento,
+  type EnvioDeDocumento,
+} from "@/lib/documentos/envios.functions";
 import { huellaCorta, huellaDocumento } from "@/lib/documentos/huella";
 import { bloquesAHtml, folioDocumento } from "@/lib/documentos/motor";
 import { fechaDocumento, fechaHora } from "@/lib/formato-fecha";
@@ -92,7 +108,19 @@ function DocumentoPage() {
   const integridad = useIntegridad(d);
   const [anulando, setAnulando] = useState(false);
   const [descargando, setDescargando] = useState(false);
+  const [enviando, setEnviando] = useState(false);
   useImpresionEnClaro();
+
+  // DOC-07: copia al paciente por correo. La envía quien puede emitir
+  // (clinical:write); el servidor repite el gate.
+  const puedeEnviar = hasPermission(access.role, "clinical:write");
+  const vistaCorreo = useServerFn(getCorreoDeDocumento);
+  const enviarCorreo = useServerFn(enviarDocumentoPorCorreo);
+  const listarEnvios = useServerFn(listEnviosDelDocumento);
+  const envios = useQuery({
+    queryKey: ["documento-envios", clinicId, documentoId],
+    queryFn: () => listarEnvios({ data: { clinicId, documentId: documentoId } }),
+  });
 
   // La base vuelve a exigirlo: quien lo emitió, o un administrador.
   const puedeAnular =
@@ -144,6 +172,13 @@ function DocumentoPage() {
             )}
             Descargar PDF
           </Button>
+          {d && !d.voidedAt && puedeEnviar && (
+            <BloqueoEscritura>
+              <Button variant="outline" size="sm" onClick={() => setEnviando(true)}>
+                <Mail aria-hidden /> Enviar al paciente
+              </Button>
+            </BloqueoEscritura>
+          )}
           {d && !d.voidedAt && puedeAnular && (
             <BloqueoEscritura>
               <Button variant="outline" size="sm" onClick={() => setAnulando(true)}>
@@ -189,6 +224,26 @@ function DocumentoPage() {
                 No podemos mostrar este documento: su contenido guardado no tiene la forma esperada.
               </p>
             )}
+            <EnviosDelDocumento
+              envios={envios.data ?? []}
+              timezone={d.timezone}
+              cargando={envios.isLoading}
+            />
+            <EnviarPorCorreoDialog
+              abierto={enviando}
+              onCerrar={() => setEnviando(false)}
+              titulo="Enviar una copia al paciente"
+              adjunto={`${d.title} ${folioDocumento(d.year, d.number)} (PDF)`}
+              clinicId={clinicId}
+              patientId={d.patientId}
+              puedeReactivar={hasPermission(access.role, "patients:manage")}
+              queryKey={["correo-documento", clinicId, documentoId]}
+              cargarVista={() => vistaCorreo({ data: { clinicId, documentId: documentoId } })}
+              enviar={(texto) =>
+                enviarCorreo({ data: { clinicId, documentId: documentoId, ...texto } })
+              }
+              onEnviado={() => envios.refetch()}
+            />
             <AnularDocumentoDialog
               abierto={anulando}
               onCerrar={() => setAnulando(false)}
@@ -252,5 +307,38 @@ function Pie({ d, integridad }: { d: DocumentoEmitidoCompleto; integridad: Integ
         )}
       </p>
     </footer>
+  );
+}
+
+/** DOC-07: quién envió una copia al paciente, cuándo y a qué correo. */
+function EnviosDelDocumento({
+  envios,
+  timezone,
+  cargando,
+}: {
+  envios: EnvioDeDocumento[];
+  timezone: string;
+  cargando: boolean;
+}) {
+  if (cargando || envios.length === 0) return null;
+  return (
+    <section className="no-imprimir card-clinical space-y-2 p-4 sm:p-5">
+      <h3 className="font-display text-base font-semibold">Copias enviadas al paciente</h3>
+      <ul className="divide-y divide-hairline text-sm">
+        {envios.map((e) => (
+          <li key={e.id} className="flex flex-wrap items-baseline justify-between gap-x-3 py-2">
+            <span className="min-w-0 break-all">
+              {e.estado === "fallido" ? "No salió: " : "Por correo a "}
+              {e.destinatario}
+              {e.enviadoPor && <span className="text-muted-foreground"> · {e.enviadoPor}</span>}
+              {e.motivo && <span className="block text-xs text-destructive">{e.motivo}</span>}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {fechaHora(e.createdAt, timezone)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

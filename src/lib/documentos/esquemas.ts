@@ -37,6 +37,7 @@ const BloqueSchema = z.discriminatedUnion("tipo", [
     filas: z.array(z.array(z.string().max(500)).max(8)).max(500),
     pie: z.array(z.string().max(200)).max(8).optional(),
     vacia: z.string().max(200).optional(),
+    destacadas: z.array(z.number().int().min(0).max(499)).max(500).optional(),
   }),
   z.object({
     tipo: z.literal("firma"),

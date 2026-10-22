@@ -50,6 +50,11 @@ export type Bloque =
       pie?: string[];
       /** Texto a mostrar si no hay filas. */
       vacia?: string;
+      /**
+       * Índices de filas que son encabezado de sección (el presupuesto agrupa
+       * sus líneas por sección): se imprimen en negrita y con fondo.
+       */
+      destacadas?: number[];
     }
   | {
       /** Firma del profesional: la agrega el motor al emitir, no la plantilla. */
@@ -93,6 +98,9 @@ export const TIPOS_DE_DOCUMENTO = [
   "informe",
   "consentimiento",
   "reembolso",
+  // Ola 4 · PLA-08: la plantilla del PDF del presupuesto. No se emite desde
+  // la ficha: se descarga o se envía desde el presupuesto.
+  "presupuesto",
   "otro",
 ] as const;
 export type TipoDeDocumento = (typeof TIPOS_DE_DOCUMENTO)[number];
@@ -105,8 +113,12 @@ export const ETIQUETA_TIPO_DE_DOCUMENTO: Record<TipoDeDocumento, string> = {
   informe: "Informe odontológico",
   consentimiento: "Declaración o consentimiento",
   reembolso: "Reembolso de seguro complementario",
+  presupuesto: "Presupuesto",
   otro: "Otro documento",
 };
+
+/** Tipos que no se emiten desde la ficha del paciente (tienen su propio lugar). */
+export const TIPOS_SIN_EMISION_DESDE_LA_FICHA: readonly TipoDeDocumento[] = ["presupuesto"];
 
 export function esTipoDeDocumento(valor: unknown): valor is TipoDeDocumento {
   return typeof valor === "string" && (TIPOS_DE_DOCUMENTO as readonly string[]).includes(valor);

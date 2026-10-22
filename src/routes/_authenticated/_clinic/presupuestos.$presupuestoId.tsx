@@ -24,6 +24,10 @@ import {
   SeguimientoDialog,
 } from "@/components/presupuestos/dialogos-estado";
 import { AvisoValidez, ChipEstadoPlan } from "@/components/presupuestos/estado-plan";
+import {
+  DescargarPdfPresupuestoBoton,
+  EnviarPresupuestoCorreoBoton,
+} from "@/components/presupuestos/pdf-y-correo-presupuesto";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppButton } from "@/components/whatsapp-button";
@@ -649,6 +653,28 @@ function Documentos({
   const aceptado = q.acceptedAt !== null;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <section className="card-clinical flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5 lg:col-span-2">
+        <div className="min-w-0 space-y-0.5">
+          <h3 className="font-display text-base font-semibold">PDF del presupuesto</h3>
+          <p className="text-sm text-muted-foreground">
+            Con los datos de la clínica, las prestaciones por sección, los totales y la firma de{" "}
+            {d.professionalName ?? "el profesional a cargo"}. El texto se edita en Clínica →
+            Plantillas de documentos.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <DescargarPdfPresupuestoBoton clinicId={d.clinicId} quoteId={q.id} />
+          {puedeEnviar && (
+            <EnviarPresupuestoCorreoBoton
+              clinicId={d.clinicId}
+              quoteId={q.id}
+              patientId={d.patientId}
+              numero={q.number}
+              puedeReactivar={puedeEnviar}
+            />
+          )}
+        </div>
+      </section>
       <section className="card-clinical space-y-3 p-4 sm:p-5">
         <h3 className="font-display text-base font-semibold">Aceptación</h3>
         {!aceptado ? (
@@ -724,6 +750,8 @@ function textoDeEvento(e: EventoDePresupuesto): string {
       return e.validUntil ? `Validez cambiada al ${fecha(e.validUntil)}` : "Validez quitada";
     case "contacto":
       return "Contacto con el paciente";
+    case "envio":
+      return "Enviado por correo";
     case "estado": {
       if (e.fromStatus === "expired" && e.toStatus === "sent") {
         return e.validUntil ? `Renovado hasta el ${fecha(e.validUntil)}` : "Renovado";

@@ -6,7 +6,11 @@ import { SignJWT, jwtVerify } from "jose";
  * Mismo patrón que `portal-token.server.ts` (JWT HS256 con `jose`), con su
  * propio secreto, emisor y audiencia: un token del portal nunca sirve como
  * baja ni al revés. Lleva el usuario y el grupo de correos ("reporte
- * semanal" hoy), así que la baja no necesita iniciar sesión.
+ * semanal"), así que la baja no necesita iniciar sesión.
+ *
+ * Desde la Ola 4 también firma la baja de un PACIENTE de los correos que su
+ * clínica le manda (presupuesto, copia de documentos): grupo
+ * `correos_paciente`, y el sujeto es el id del paciente (no un usuario).
  *
  * Secreto: `EMAIL_UNSUBSCRIBE_SECRET` (32+ bytes al azar). Sin él:
  *  - en desarrollo se usa uno al azar por proceso (los enlaces no sobreviven
@@ -21,7 +25,7 @@ const AUDIENCE = "esmalia:baja";
 /** Un año: un enlace de baja viejo tiene que seguir funcionando. */
 const TTL = "365d";
 
-export const GRUPOS_DE_BAJA = ["reporte_semanal"] as const;
+export const GRUPOS_DE_BAJA = ["reporte_semanal", "correos_paciente"] as const;
 export type GrupoDeBaja = (typeof GRUPOS_DE_BAJA)[number];
 
 let devSecret: Uint8Array | null = null;
@@ -40,6 +44,7 @@ export function bajaDisponible(): boolean {
   return secreto() !== null;
 }
 
+/** `userId`: el usuario, o el paciente en el grupo `correos_paciente`. */
 export async function firmarTokenDeBaja(userId: string, grupo: GrupoDeBaja): Promise<string> {
   const s = secreto();
   if (!s) throw new Error("EMAIL_UNSUBSCRIBE_SECRET no configurada.");

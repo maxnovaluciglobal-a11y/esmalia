@@ -202,7 +202,7 @@ export const listPresupuestosDeClinica = createServerFn({ method: "GET" })
 
 export type EventoDePresupuesto = {
   id: string;
-  kind: "creado" | "estado" | "contacto" | "validez";
+  kind: "creado" | "estado" | "contacto" | "validez" | "envio";
   fromStatus: QuoteStatus | null;
   toStatus: QuoteStatus | null;
   validUntil: string | null;

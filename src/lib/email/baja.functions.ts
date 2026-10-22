@@ -17,7 +17,12 @@ export const confirmarBajaDeCorreos = createServerFn({ method: "POST" })
 /** ¿El enlace sigue siendo válido? Para mostrar el mensaje correcto antes de confirmar. */
 export const revisarTokenDeBaja = createServerFn({ method: "GET" })
   .validator((input: unknown) => z.object({ token: z.string().max(4000) }).parse(input))
-  .handler(async ({ data }): Promise<{ valido: boolean }> => {
-    const { verificarTokenDeBaja } = await import("@/lib/email/baja-token.server");
-    return { valido: (await verificarTokenDeBaja(data.token)) !== null };
-  });
+  .handler(
+    async ({
+      data,
+    }): Promise<{ valido: boolean; grupo: "reporte_semanal" | "correos_paciente" | null }> => {
+      const { verificarTokenDeBaja } = await import("@/lib/email/baja-token.server");
+      const datos = await verificarTokenDeBaja(data.token);
+      return { valido: datos !== null, grupo: datos?.grupo ?? null };
+    },
+  );

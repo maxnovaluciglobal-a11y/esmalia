@@ -162,7 +162,11 @@ describe("motor de documentos en la base", () => {
       `SELECT t.seed_key, v.version, t.title, v.title AS vtitle
          FROM public.document_templates t
          JOIN public.document_template_versions v ON v.id = t.current_version_id
-        WHERE t.clinic_id = $1 ORDER BY t.seed_key`,
+        WHERE t.clinic_id = $1
+          -- Las de otros frentes tienen su propia siembra y su propio test
+          -- (presupuesto: tests/presupuesto-envio-db.test.ts).
+          AND t.kind <> 'presupuesto'
+        ORDER BY t.seed_key`,
       [clinicId],
     );
     expect(r.rows.map((x) => x.seed_key)).toEqual([

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import type { Json } from "@/integrations/supabase/types";
 import { cronAutorizado } from "@/lib/cron-auth.server";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
 
@@ -59,6 +60,17 @@ export const Route = createFileRoute("/api/demo-reset")({
           await crearCuentasDeLaDemo(supabaseAdmin);
         } catch (e) {
           console.error("[demo-reset] no se pudieron crear las cuentas por cobrar", e);
+        }
+
+        // Ola 4: un documento emitido de ejemplo (certificado de atención) en
+        // la ficha de Valentina, para que la demo muestre la pestaña
+        // Documentos, la página del documento, su PDF y la impresión. La
+        // semilla SQL no lo puede crear (el motor arma el texto en la app).
+        // Un error no tumba el reset.
+        try {
+          await crearDocumentoDeLaDemo(supabaseAdmin);
+        } catch (e) {
+          console.error("[demo-reset] no se pudo crear el documento de ejemplo", e);
         }
 
         return new Response("ok", { status: 200 });
@@ -171,5 +183,111 @@ async function crearCuentasDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
     }));
   if (filas.length === 0) return;
   const { error } = await supabaseAdmin.from("receivables").insert(filas);
+  if (error) throw new Error(error.message);
+}
+
+/** Registro SIS ficticio: se lee como ejemplo en el documento impreso. */
+const REGISTRO_SIS_DEMO = "EJEMPLO-000000";
+const PACIENTE_DOCUMENTO_DEMO = "Valentina Muñoz Soto";
+
+/**
+ * Un certificado de atención emitido con el motor de documentos, firmado por
+ * la profesional de la demo vinculada al usuario dueño (con un registro de la
+ * Superintendencia de Salud claramente ficticio). Corre con el rol de
+ * servicio: `issued_documents_emitir` lo acepta solo en la clínica demo y a
+ * nombre del usuario de esa ficha (migración 20261025200200). Idempotente:
+ * si la demo ya tiene un documento, no hace nada.
+ */
+async function crearDocumentoDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
+  const { data: clinica } = await supabaseAdmin
+    .from("clinics")
+    .select("id, timezone")
+    .eq("is_demo", true)
+    .limit(1)
+    .maybeSingle();
+  if (!clinica) return;
+
+  const { count } = await supabaseAdmin
+    .from("issued_documents")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", clinica.id);
+  if ((count ?? 0) > 0) return;
+
+  const [{ data: profesional }, { data: pacientes }, { data: plantilla }] = await Promise.all([
+    supabaseAdmin
+      .from("professionals")
+      .select("id")
+      .eq("clinic_id", clinica.id)
+      .eq("user_id", DEMO_USER_ID)
+      .limit(1)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("patients")
+      .select("id, full_name")
+      .eq("clinic_id", clinica.id)
+      .order("created_at", { ascending: true }),
+    supabaseAdmin
+      .from("document_templates")
+      .select("id, current_version_id")
+      .eq("clinic_id", clinica.id)
+      .eq("seed_key", "certificado-atencion")
+      .maybeSingle(),
+  ]);
+  const paciente =
+    (pacientes ?? []).find((p) => p.full_name === PACIENTE_DOCUMENTO_DEMO) ?? (pacientes ?? [])[0];
+  if (!profesional || !paciente || !plantilla?.current_version_id) return;
+
+  const { error: errSis } = await supabaseAdmin
+    .from("professionals")
+    .update({ sis_registry_number: REGISTRO_SIS_DEMO })
+    .eq("id", profesional.id)
+    .eq("clinic_id", clinica.id);
+  if (errSis) throw new Error(errSis.message);
+
+  const { data: version } = await supabaseAdmin
+    .from("document_template_versions")
+    .select("id, body")
+    .eq("id", plantilla.current_version_id)
+    .maybeSingle();
+  if (!version) return;
+
+  const [{ cargarDatosParaDocumento }, motor, { construirContexto }] = await Promise.all([
+    import("@/lib/documentos/contexto.server"),
+    import("@/lib/documentos/motor"),
+    import("@/lib/documentos/variables"),
+  ]);
+  const { datos } = await cargarDatosParaDocumento(supabaseAdmin, {
+    clinicId: clinica.id,
+    patientId: paciente.id,
+    userId: DEMO_USER_ID,
+    profesionalId: profesional.id,
+  });
+  if (!datos.profesional) return;
+
+  // Atención de hace una semana, en el día civil de la clínica.
+  const haceUnaSemana = new Intl.DateTimeFormat("en-CA", {
+    timeZone: clinica.timezone || "America/Santiago",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+  const campos = {
+    fecha_atencion: haceUnaSemana,
+    motivo: "Control y limpieza. Documento de ejemplo de la demo de Esmalia.",
+  };
+  const render = motor.renderPlantilla(version.body, construirContexto({ ...datos, campos }), {
+    firma: motor.bloqueDeFirma(datos.profesional),
+  });
+
+  const { error } = await supabaseAdmin.from("issued_documents").insert({
+    clinic_id: clinica.id,
+    patient_id: paciente.id,
+    template_version_id: version.id,
+    professional_id: profesional.id,
+    fields: campos,
+    content_blocks: render.bloques as unknown as Json,
+    content_html: motor.bloquesAHtml(render.bloques),
+    issued_by: DEMO_USER_ID,
+  });
   if (error) throw new Error(error.message);
 }
