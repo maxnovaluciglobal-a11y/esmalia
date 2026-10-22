@@ -239,8 +239,8 @@ function EfectividadPage() {
                     <span>
                       Cuenta la fecha en que se creó la cita, sin las canceladas. Los mensajes de
                       los últimos {data.diasParaVolver} días quedan “en curso” hasta que cierre su
-                      ventana. Tampoco es un experimento: quien recibe un recall quizá iba a llamar
-                      igual.
+                      ventana. Tampoco es un experimento: quien recibe un llamado a control quizá
+                      iba a llamar igual.
                     </span>
                   </p>
                 </Tarjeta>

@@ -203,7 +203,7 @@ function SandboxEmailPage() {
             <div className="flex-1">
               <h2 className="font-display text-base font-semibold">Estado del entorno</h2>
               <p className="text-sm text-muted-foreground">
-                En sandbox ningún email puede llegar a un paciente o profesional real. Actívalo
+                En modo prueba ningún email puede llegar a un paciente o profesional real. Actívalo
                 durante toda la validación y pásalo a producción solo cuando la entregabilidad esté
                 confirmada.
               </p>
@@ -330,7 +330,7 @@ function SandboxEmailPage() {
           <header className="border-b border-border p-5">
             <h2 className="font-display text-base font-semibold">Reglas del modo prueba</h2>
             <p className="text-sm text-muted-foreground">
-              Define a dónde va cada email mientras el sandbox está activo.
+              Define a dónde va cada email mientras el modo prueba está activo.
             </p>
           </header>
 
@@ -400,13 +400,13 @@ function SandboxEmailPage() {
 
           <div className="flex items-start justify-between gap-4 p-5">
             <div>
-              <p className="text-sm font-medium">Marcar el asunto con [SANDBOX]</p>
+              <p className="text-sm font-medium">Marcar el asunto con [PRUEBA]</p>
               <p className="text-sm text-muted-foreground">
                 Distingue de un vistazo los correos de validación en tu bandeja.
               </p>
             </div>
             <Switch
-              label="Marcar el asunto con SANDBOX"
+              label="Marcar el asunto con PRUEBA"
               checked={config.prefixSubject}
               disabled={!listo || config.mode === "production"}
               onChange={(v) => actualizar({ prefixSubject: v })}
@@ -441,8 +441,8 @@ function SandboxEmailPage() {
         </section>
 
         <p className="text-sm text-muted-foreground">
-          El sandbox ya está aplicado como puerta de salida: cuando conectes el dominio de envío,
-          ningún email podrá despacharse sin pasar por estas reglas.
+          El modo prueba ya está aplicado como puerta de salida: cuando conectes el dominio de
+          envío, ningún email podrá despacharse sin pasar por estas reglas.
         </p>
       </div>
     </AppShell>

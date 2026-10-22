@@ -113,8 +113,8 @@ function checksConexion(input: PreflightInput): PreflightCheck[] {
         ? modoCoherente
           ? "Modo producción con dominio verificado vigente."
           : "Modo producción activo sin verificación DNS vigente."
-        : "Modo sandbox: los envíos reales quedan contenidos.",
-    fix: modoCoherente ? undefined : "Vuelve a sandbox o revalida el dominio antes de enviar.",
+        : "Modo prueba: los envíos reales quedan contenidos.",
+    fix: modoCoherente ? undefined : "Vuelve al modo prueba o revalida el dominio antes de enviar.",
   });
 
   return checks;
@@ -261,13 +261,13 @@ function checksVariables(input: PreflightInput): {
   checks.push({
     id: "destinatarios-sandbox",
     group: "variables",
-    label: "Política de sandbox aplicada",
+    label: "Reglas del modo prueba aplicadas",
     state: todosBloqueados ? "fail" : bloqueados > 0 ? "warn" : "pass",
     detail: todosBloqueados
-      ? "El sandbox bloquearía todos los destinatarios: no saldría ningún correo."
+      ? "El modo prueba bloquearía todos los destinatarios: no saldría ningún correo."
       : bloqueados > 0
-        ? `${bloqueados} de ${validos.length} destinatario(s) quedarían bloqueados por el sandbox.`
-        : "Todos los destinatarios pasan la política de sandbox.",
+        ? `${bloqueados} de ${validos.length} destinatario(s) quedarían bloqueados por el modo prueba.`
+        : "Todos los destinatarios pasan las reglas del modo prueba.",
     fix: todosBloqueados
       ? "Activa la redirección o agrega las direcciones a la lista permitida."
       : undefined,

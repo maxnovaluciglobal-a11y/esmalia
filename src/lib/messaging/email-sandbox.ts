@@ -23,7 +23,7 @@ export type EmailSandboxConfig = {
    * `redirectTo`. Si está inactivo, el envío se bloquea por completo.
    */
   redirectEnabled: boolean;
-  /** Antepone `[SANDBOX]` al asunto para distinguir los correos de prueba. */
+  /** Antepone `[PRUEBA]` al asunto para distinguir los correos de prueba. */
   prefixSubject: boolean;
   /**
    * Número mínimo de emails de prueba entregados correctamente que se exigen
@@ -45,7 +45,7 @@ export const MAX_ENTREGAS_PRODUCCION = 50;
 
 const STORAGE_KEY = "esmalia:email-sandbox";
 
-export const SANDBOX_SUBJECT_PREFIX = "[SANDBOX]";
+export const SANDBOX_SUBJECT_PREFIX = "[PRUEBA]";
 
 export function clampMinEntregas(valor: unknown): number {
   const n = Math.round(Number(valor));

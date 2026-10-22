@@ -138,8 +138,8 @@ function DominioEmailPage() {
           </h1>
           <p className="text-sm text-muted-foreground">
             Configura los tres registros que autentican tu dominio y valida en DNS real que están
-            publicados. Hasta que la verificación pase, el sandbox de email mantiene bloqueados los
-            envíos a destinatarios reales.
+            publicados. Hasta que la verificación pase, el modo prueba de email mantiene bloqueados
+            los envíos a destinatarios reales.
           </p>
         </header>
 

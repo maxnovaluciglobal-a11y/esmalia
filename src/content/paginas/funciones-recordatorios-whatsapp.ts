@@ -124,7 +124,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "Recall de higiene a quien lleva unos 6 meses sin venir.",
+            "Llamado a control de higiene a quien lleva unos 6 meses sin venir.",
             "Pedido de reseña después de una visita.",
             "Aviso de saldo pendiente.",
             "Seguimiento de un presupuesto enviado que lleva 7 días sin respuesta.",

@@ -7,7 +7,7 @@ export const pagina: PaginaContenido = {
   path: "/plantillas/whatsapp-clinica-dental",
   titulo: "Plantillas de WhatsApp para clínica dental | Esmalia",
   descripcion:
-    "28 mensajes de WhatsApp para copiar en tu clínica dental: confirmación 48 h, recordatorio 3 h, lista de espera, presupuestos, recall y cobranza.",
+    "28 mensajes de WhatsApp para copiar en tu clínica dental: confirmación 48 h, recordatorio 3 h, lista de espera, presupuestos, llamados a control y cobranza.",
   kicker: "Plantillas",
   h1: "28 plantillas de WhatsApp para tu clínica dental",
   resumen:
@@ -322,5 +322,5 @@ export const pagina: PaginaContenido = {
     "/plantillas/presupuesto-dental",
   ],
   enUnaLinea:
-    "28 mensajes de WhatsApp para copiar: confirmación, recordatorio, reprogramación, lista de espera, presupuestos, post-tratamiento, cumpleaños, recall y cobranza.",
+    "28 mensajes de WhatsApp para copiar: confirmación, recordatorio, reprogramación, lista de espera, presupuestos, post-tratamiento, cumpleaños, llamados a control y cobranza.",
 };

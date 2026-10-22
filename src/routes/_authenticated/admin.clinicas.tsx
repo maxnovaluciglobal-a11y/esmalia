@@ -73,7 +73,7 @@ function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
           to="/dashboard"
           className="inline-block rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12"
         >
-          Volver al dashboard
+          Volver al panel
         </Link>
         {/* SEG-01: acá NO se ofrece activar el factor (revisión del PR #65):
             con una contraseña robada de staff, eso alcanzaba para inscribir
@@ -330,7 +330,7 @@ function AdminClinicasPage() {
             to="/dashboard"
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
-            Volver al dashboard
+            Volver al panel
           </Link>
         </header>
 
