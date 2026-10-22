@@ -100,6 +100,13 @@ export function calcularPresupuestosSinRespuesta(args: {
   pacientes: PacienteContactable[];
   /** Último `quote_follow_up` por presupuesto (cualquier canal), ISO. */
   ultimoSeguimientoPorPresupuesto: Map<string, string>;
+  /**
+   * Último `quote_follow_up` por paciente (UX-11). /recordatorios agrupa los
+   * presupuestos de un paciente en un solo mensaje que los nombra a todos:
+   * mientras corre el cooldown de ese mensaje, ninguno de sus presupuestos
+   * vuelve a ofrecerse.
+   */
+  ultimoSeguimientoPorPaciente?: Map<string, string>;
   ahora: number;
   /** `YYYY-MM-DD` de hoy en el huso de la clínica, para comparar con `valid_until`. */
   hoy: string;
@@ -126,6 +133,13 @@ export function calcularPresupuestosSinRespuesta(args: {
 
     const ultimo = args.ultimoSeguimientoPorPresupuesto.get(q.id);
     if (ultimo && args.ahora - new Date(ultimo).getTime() < COOLDOWN_SEGUIMIENTO_MS) continue;
+    const ultimoAlPaciente = args.ultimoSeguimientoPorPaciente?.get(q.patientId);
+    if (
+      ultimoAlPaciente &&
+      args.ahora - new Date(ultimoAlPaciente).getTime() < COOLDOWN_SEGUIMIENTO_MS
+    ) {
+      continue;
+    }
 
     const motivo = motivoSinWhatsApp(paciente);
     filas.push({

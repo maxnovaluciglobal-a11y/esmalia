@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Cake,
+  ChevronDown,
   Clock,
   MessageCircleMore,
   Receipt,
@@ -18,6 +19,7 @@ import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { EmailButton } from "@/components/email-button";
+import { EnviarTodos, type PasoDeEnvio } from "@/components/recordatorios/enviar-todos";
 import { requirePermission } from "@/lib/access/route-guards";
 import {
   listPendingOutreach,
@@ -31,6 +33,15 @@ import {
   OPCIONES_DE_DIAS_SIN_RESPUESTA,
   type PresupuestoSinRespuesta,
 } from "@/lib/messaging/presupuestos-sin-respuesta";
+import {
+  agruparPorPaciente,
+  agruparRecordatorios,
+  unirConY,
+  variablesDeRecordatorio,
+  type EnvioDeRecordatorio,
+  type FilaDePaciente,
+  type GrupoPorPaciente,
+} from "@/lib/messaging/recordatorios-agrupados";
 import type { OutreachTemplateKind } from "@/lib/messaging/messaging";
 import { formatMoney } from "@/lib/finance/finance";
 import { cn } from "@/lib/utils";
@@ -67,18 +78,12 @@ function leerDiasPresupuesto(): number {
   return DIAS_SIN_RESPUESTA_POR_DEFECTO;
 }
 
-function filaClass(kind: PendingReminder["reminderKind"]) {
-  return kind === "appointment_checkin"
-    ? "bg-warning-soft text-warning"
-    : "bg-brand-soft text-brand-700";
-}
-
 const OUTREACH_META: Record<
   OutreachTemplateKind,
   { label: string; icon: typeof Sparkles; badgeClass: string }
 > = {
   hygiene_recall: {
-    label: "Recall de higiene",
+    label: "Control periódico",
     icon: Sparkles,
     badgeClass: "bg-brand-soft text-brand-700",
   },
@@ -118,6 +123,17 @@ const OUTREACH_META: Record<
     badgeClass: "bg-brand-soft text-brand-700",
   },
 };
+
+const KINDS_DE_OUTREACH = Object.keys(OUTREACH_META) as OutreachTemplateKind[];
+
+/** Orden de urgencia: la primera sección con algo pendiente arranca abierta. */
+type IdSeccion = "aviso3h" | "recordatorio48h" | "presupuestos" | OutreachTemplateKind;
+const ORDEN_DE_SECCIONES: IdSeccion[] = [
+  "aviso3h",
+  "recordatorio48h",
+  "presupuestos",
+  ...KINDS_DE_OUTREACH,
+];
 
 function RecordatoriosPage() {
   const { access } = Route.useRouteContext();
@@ -176,26 +192,36 @@ function RecordatoriosPage() {
     queryFn: () => fetchPresupuestos({ data: { clinicId: clinicId!, dias: diasPresupuesto } }),
   });
 
-  const { aviso3h, recordatorio48h } = useMemo(() => {
-    const aviso3h = recordatorios.filter((r) => r.reminderKind === "appointment_checkin");
-    const recordatorio48h = recordatorios.filter((r) => r.reminderKind === "appointment_reminder");
-    return { aviso3h, recordatorio48h };
-  }, [recordatorios]);
-
+  // UX-11: una fila por paciente (y un recordatorio por paciente y día).
+  const { aviso3h, recordatorio48h } = useMemo(
+    () => agruparRecordatorios(recordatorios),
+    [recordatorios],
+  );
+  const presupuestosPorPaciente = useMemo(() => agruparPorPaciente(presupuestos), [presupuestos]);
   const outreachByKind = useMemo(() => {
-    const groups: Record<OutreachTemplateKind, PendingOutreachItem[]> = {
-      hygiene_recall: [],
-      review_request: [],
-      payment_due: [],
-      quote_follow_up: [],
-      birthday_greeting: [],
-      treatment_followup: [],
-      referral_invite: [],
-      nps_survey: [],
-    };
+    const groups = Object.fromEntries(KINDS_DE_OUTREACH.map((k) => [k, []])) as unknown as Record<
+      OutreachTemplateKind,
+      PendingOutreachItem[]
+    >;
     for (const item of outreach) groups[item.kind].push(item);
-    return groups;
+    return Object.fromEntries(
+      KINDS_DE_OUTREACH.map((k) => [k, agruparPorPaciente(groups[k])]),
+    ) as Record<OutreachTemplateKind, GrupoPorPaciente<PendingOutreachItem>[]>;
   }, [outreach]);
+
+  const conteo: Record<IdSeccion, number> = {
+    aviso3h: aviso3h.length,
+    recordatorio48h: recordatorio48h.length,
+    presupuestos: presupuestosPorPaciente.length,
+    ...(Object.fromEntries(KINDS_DE_OUTREACH.map((k) => [k, outreachByKind[k].length])) as Record<
+      OutreachTemplateKind,
+      number
+    >),
+  };
+  const masUrgente = ORDEN_DE_SECCIONES.find((id) => conteo[id] > 0) ?? null;
+  const [abiertas, setAbiertas] = useState<Partial<Record<IdSeccion, boolean>>>({});
+  const abierta = (id: IdSeccion) => abiertas[id] ?? id === masUrgente;
+  const alternar = (id: IdSeccion) => setAbiertas((prev) => ({ ...prev, [id]: !abierta(id) }));
 
   const invalidar = () => {
     queryClient.invalidateQueries({ queryKey: ["pending-reminders", clinicId] });
@@ -222,12 +248,12 @@ function RecordatoriosPage() {
 
   return (
     <AppShell title="Recordatorios" access={access}>
-      <div className="space-y-6">
+      <div className="space-y-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
           Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
-          presupuestos que siguen sin respuesta y pacientes candidatos a un recall, un pedido de
-          reseña o un aviso de saldo. Se manda por WhatsApp o email con un click — tú revisas antes
-          de que salga nada.
+          presupuestos que siguen sin respuesta y pacientes candidatos a un control periódico, un
+          pedido de reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes
+          mandar de a uno o con «Enviar todos»: tú revisas antes de que salga nada.
         </p>
 
         {(isLoading || isLoadingOutreach) && (
@@ -244,7 +270,7 @@ function RecordatoriosPage() {
         {outreachConError && (
           <ErrorDeCarga
             onReintentar={reintentarOutreach}
-            mensaje="No pudimos cargar los pacientes candidatos a recall, reseña o saldo."
+            mensaje="No pudimos cargar los pacientes candidatos a control periódico, reseña o saldo."
           />
         )}
 
@@ -261,83 +287,125 @@ function RecordatoriosPage() {
             <p className="text-sm font-medium">No hay nada pendiente ahora mismo.</p>
             <p className="mt-1 text-xs text-muted-foreground">
               Esta lista se arma sola a medida que las citas entran a la ventana de 48h/3h, o
-              aparecen pacientes candidatos a recall, reseña o saldo.
+              aparecen pacientes candidatos a control periódico, reseña o saldo.
             </p>
           </div>
         )}
 
-        {!isLoading && aviso3h.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="flex items-center gap-1.5 font-display text-lg font-semibold">
-              <Clock className="size-4 text-warning" /> Aviso de 3h
-              <span className="rounded-full bg-warning-soft px-2 py-0.5 text-xs font-semibold text-warning">
-                {aviso3h.length}
-              </span>
-            </h2>
+        {clinicId && !isLoading && aviso3h.length > 0 && (
+          <Seccion
+            icono={<Clock className="size-4 text-warning" aria-hidden />}
+            titulo="Aviso de 3h"
+            conteo={aviso3h.length}
+            badgeClass="bg-warning-soft text-warning"
+            abierta={abierta("aviso3h")}
+            onAlternar={() => alternar("aviso3h")}
+            acciones={
+              <EnviarTodos
+                clinicId={clinicId}
+                titulo="Enviar todos los avisos de 3h"
+                pasos={pasosDeRecordatorios(aviso3h, clinicaNombre)}
+                onSent={invalidar}
+              />
+            }
+          >
             <ReminderList
-              items={aviso3h}
-              clinicId={clinicId!}
+              filas={aviso3h}
+              clinicId={clinicId}
               clinica={clinicaNombre}
               onSent={invalidar}
             />
-          </section>
+          </Seccion>
         )}
 
-        {!isLoading && recordatorio48h.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="flex items-center gap-1.5 font-display text-lg font-semibold">
-              <Clock className="size-4 text-brand" /> Recordatorio de 48h
-              <span className="rounded-full bg-brand-soft px-2 py-0.5 text-xs font-semibold text-brand-700">
-                {recordatorio48h.length}
-              </span>
-            </h2>
+        {clinicId && !isLoading && recordatorio48h.length > 0 && (
+          <Seccion
+            icono={<Clock className="size-4 text-brand" aria-hidden />}
+            titulo="Recordatorio de 48h"
+            conteo={recordatorio48h.length}
+            badgeClass="bg-brand-soft text-brand-700"
+            abierta={abierta("recordatorio48h")}
+            onAlternar={() => alternar("recordatorio48h")}
+            acciones={
+              <EnviarTodos
+                clinicId={clinicId}
+                titulo="Enviar todos los recordatorios de 48h"
+                pasos={pasosDeRecordatorios(recordatorio48h, clinicaNombre)}
+                onSent={invalidar}
+              />
+            }
+          >
             <ReminderList
-              items={recordatorio48h}
-              clinicId={clinicId!}
+              filas={recordatorio48h}
+              clinicId={clinicId}
               clinica={clinicaNombre}
               onSent={invalidar}
             />
-          </section>
+          </Seccion>
         )}
 
         {!isLoadingPresupuestos && !presupuestosConError && clinicId && (
-          <PresupuestosSinRespuesta
-            items={presupuestos}
-            dias={diasPresupuesto}
-            onCambiarDias={cambiarDiasPresupuesto}
-            clinicId={clinicId}
-            clinica={clinicaNombre}
-            onSent={invalidarPresupuestos}
-          />
+          <Seccion
+            icono={<Receipt className="size-4 text-info" aria-hidden />}
+            titulo="Presupuestos sin respuesta"
+            conteo={presupuestosPorPaciente.length}
+            badgeClass="bg-info-soft text-info"
+            abierta={abierta("presupuestos")}
+            onAlternar={() => alternar("presupuestos")}
+            acciones={
+              <>
+                <SelectorDeDias dias={diasPresupuesto} onCambiar={cambiarDiasPresupuesto} />
+                <EnviarTodos
+                  clinicId={clinicId}
+                  titulo="Seguimiento de todos los presupuestos"
+                  pasos={pasosDePresupuestos(presupuestosPorPaciente, clinicaNombre)}
+                  onSent={invalidarPresupuestos}
+                />
+              </>
+            }
+          >
+            <PresupuestosSinRespuesta
+              grupos={presupuestosPorPaciente}
+              dias={diasPresupuesto}
+              clinicId={clinicId}
+              clinica={clinicaNombre}
+              onSent={invalidarPresupuestos}
+            />
+          </Seccion>
         )}
 
-        {!isLoadingOutreach &&
-          (Object.keys(OUTREACH_META) as OutreachTemplateKind[]).map((kind) => {
-            const items = outreachByKind[kind];
-            if (items.length === 0) return null;
+        {clinicId &&
+          !isLoadingOutreach &&
+          KINDS_DE_OUTREACH.map((kind) => {
+            const grupos = outreachByKind[kind];
+            if (grupos.length === 0) return null;
             const meta = OUTREACH_META[kind];
             const Icon = meta.icon;
             return (
-              <section key={kind} className="space-y-3">
-                <h2 className="flex items-center gap-1.5 font-display text-lg font-semibold">
-                  <Icon className="size-4" />
-                  {meta.label}
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-xs font-semibold",
-                      meta.badgeClass,
-                    )}
-                  >
-                    {items.length}
-                  </span>
-                </h2>
+              <Seccion
+                key={kind}
+                icono={<Icon className="size-4" aria-hidden />}
+                titulo={meta.label}
+                conteo={grupos.length}
+                badgeClass={meta.badgeClass}
+                abierta={abierta(kind)}
+                onAlternar={() => alternar(kind)}
+                acciones={
+                  <EnviarTodos
+                    clinicId={clinicId}
+                    titulo={`${meta.label}: enviar a todos`}
+                    pasos={pasosDeOutreach(grupos, clinicaNombre)}
+                    onSent={invalidarOutreach}
+                  />
+                }
+              >
                 <OutreachList
-                  items={items}
-                  clinicId={clinicId!}
+                  grupos={grupos}
+                  clinicId={clinicId}
                   clinica={clinicaNombre}
                   onSent={invalidarOutreach}
                 />
-              </section>
+              </Seccion>
             );
           })}
       </div>
@@ -345,88 +413,209 @@ function RecordatoriosPage() {
   );
 }
 
+/**
+ * Sección plegable con su cuenta a la vista. Plegada, la página entera entra
+ * en una pantalla; antes medía casi 5000px con todo desplegado.
+ */
+function Seccion({
+  icono,
+  titulo,
+  conteo,
+  badgeClass,
+  abierta,
+  onAlternar,
+  acciones,
+  children,
+}: {
+  icono: React.ReactNode;
+  titulo: string;
+  conteo: number;
+  badgeClass: string;
+  abierta: boolean;
+  onAlternar: () => void;
+  acciones?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section aria-labelledby={`${id}-titulo`} className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-hairline pb-2">
+        <h2 id={`${id}-titulo`} className="font-display text-lg font-semibold">
+          <button
+            type="button"
+            onClick={onAlternar}
+            aria-expanded={abierta}
+            aria-controls={`${id}-contenido`}
+            className="flex min-h-11 items-center gap-1.5 rounded-md text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            <ChevronDown
+              className={cn(
+                "size-4 shrink-0 text-muted-foreground transition-transform",
+                !abierta && "-rotate-90",
+              )}
+              aria-hidden
+            />
+            {icono}
+            {titulo}
+            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", badgeClass)}>
+              {conteo}
+            </span>
+          </button>
+        </h2>
+        {acciones && <div className="flex flex-wrap items-center gap-2">{acciones}</div>}
+      </div>
+      {abierta && <div id={`${id}-contenido`}>{children}</div>}
+    </section>
+  );
+}
+
+function SelectorDeDias({ dias, onCambiar }: { dias: number; onCambiar: (d: number) => void }) {
+  return (
+    <div
+      role="group"
+      aria-label="Días sin respuesta"
+      className="inline-flex items-center gap-0.5 rounded-lg border border-hairline p-0.5"
+    >
+      <span className="px-2 text-xs text-muted-foreground">Sin respuesta hace</span>
+      {OPCIONES_DE_DIAS_SIN_RESPUESTA.map((opcion) => (
+        <button
+          key={opcion}
+          type="button"
+          aria-pressed={opcion === dias}
+          onClick={() => onCambiar(opcion)}
+          className={cn(
+            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            opcion === dias
+              ? "bg-brand-soft text-brand-700"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {opcion}+ días
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ─── Recordatorios de cita ────────────────────────────────────────────────
+
+function detalleDeEnvio(envio: EnvioDeRecordatorio<PendingReminder>): string {
+  const citas = envio.citas
+    .map((c) => `${c.hora} ${c.treatmentLabel} (${c.professionalName})`)
+    .join(" · ");
+  return `${envio.principal.fechaLarga} · ${citas}`;
+}
+
+function pasosDeRecordatorios(
+  filas: FilaDePaciente<PendingReminder>[],
+  clinica: string,
+): PasoDeEnvio[] {
+  return filas.flatMap((fila) =>
+    fila.envios.map((envio) => {
+      const base = {
+        templateKind: envio.kind,
+        variables: variablesDeRecordatorio(envio, clinica),
+        appointmentId: envio.principal.appointmentId,
+      };
+      return {
+        clave: envio.clave,
+        patientId: fila.patientId,
+        patientName: fila.patientName,
+        detalle: detalleDeEnvio(envio),
+        whatsapp: envio.whatsappPendiente ? base : null,
+        email: envio.emailPendiente ? base : null,
+      };
+    }),
+  );
+}
+
 function ReminderList({
-  items,
+  filas,
   clinicId,
   clinica,
   onSent,
 }: {
-  items: PendingReminder[];
+  filas: FilaDePaciente<PendingReminder>[];
   clinicId: string;
   clinica: string;
   onSent: () => void;
 }) {
   return (
     <div className="card-clinical divide-y divide-hairline overflow-hidden">
-      {items.map((r) => (
-        <div
-          key={r.appointmentId}
-          className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-        >
-          <div className="min-w-0">
+      {filas.map((fila) => {
+        const citas = fila.envios.reduce((n, e) => n + e.citas.length, 0);
+        return (
+          <div key={fila.patientId} className="space-y-2 px-5 py-4">
             <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-medium">{r.patientName}</p>
-              <span
-                className={cn(
-                  "shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium",
-                  filaClass(r.reminderKind),
-                )}
-              >
-                {r.reminderKind === "appointment_checkin" ? "3h" : "48h"}
-              </span>
+              <p className="truncate text-sm font-medium">{fila.patientName}</p>
+              {citas > 1 && (
+                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                  {citas} citas
+                </span>
+              )}
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              {r.treatmentLabel} · {r.professionalName} · {r.fechaLarga} {r.hora}
-            </p>
-            {!r.patientPhone && !r.patientEmail && (
-              <p className="mt-1 text-xs text-destructive">
+            {fila.envios.map((envio) => {
+              const variables = variablesDeRecordatorio(envio, clinica);
+              return (
+                <div
+                  key={envio.clave}
+                  className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
+                >
+                  <p className="min-w-0 text-xs text-muted-foreground">
+                    <span
+                      className={cn(
+                        "mr-1.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium",
+                        envio.kind === "appointment_checkin"
+                          ? "bg-warning-soft text-warning"
+                          : "bg-brand-soft text-brand-700",
+                      )}
+                    >
+                      {envio.kind === "appointment_checkin" ? "3h" : "48h"}
+                    </span>
+                    {detalleDeEnvio(envio)}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {envio.whatsappPendiente && (
+                      <WhatsAppButton
+                        clinicId={clinicId}
+                        patientId={fila.patientId}
+                        appointmentId={envio.principal.appointmentId}
+                        templateKind={envio.kind}
+                        variant="full"
+                        label="WhatsApp"
+                        variables={variables}
+                        onSent={onSent}
+                      />
+                    )}
+                    {envio.emailPendiente && (
+                      <EmailButton
+                        clinicId={clinicId}
+                        patientId={fila.patientId}
+                        appointmentId={envio.principal.appointmentId}
+                        templateKind={envio.kind}
+                        variant="full"
+                        label="Email"
+                        variables={variables}
+                        onSent={onSent}
+                      />
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {!fila.patientPhone && !fila.patientEmail && (
+              <p className="text-xs text-destructive">
                 Sin teléfono ni email cargados — no se puede enviar.
               </p>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {!r.whatsappSent && r.patientPhone && (
-              <WhatsAppButton
-                clinicId={clinicId}
-                patientId={r.patientId}
-                appointmentId={r.appointmentId}
-                templateKind={r.reminderKind}
-                variant="full"
-                label="WhatsApp"
-                variables={{
-                  tratamiento: r.treatmentLabel,
-                  fecha_larga: r.fechaLarga,
-                  hora: r.hora,
-                  profesional: r.professionalName,
-                  clinica,
-                }}
-                onSent={onSent}
-              />
-            )}
-            {!r.emailSent && r.patientEmail && (
-              <EmailButton
-                clinicId={clinicId}
-                patientId={r.patientId}
-                appointmentId={r.appointmentId}
-                templateKind={r.reminderKind}
-                variant="full"
-                label="Email"
-                variables={{
-                  tratamiento: r.treatmentLabel,
-                  fecha_larga: r.fechaLarga,
-                  hora: r.hora,
-                  profesional: r.professionalName,
-                  clinica,
-                }}
-                onSent={onSent}
-              />
-            )}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
+
+// ─── Outreach ─────────────────────────────────────────────────────────────
 
 /** Detalle de cada item según el kind — solo cambia la línea secundaria. */
 function outreachDetail(item: PendingOutreachItem): string {
@@ -452,6 +641,16 @@ function outreachDetail(item: PendingOutreachItem): string {
     case "nps_survey":
       return item.treatmentLabel ? `Tratamiento: ${item.treatmentLabel}` : "Tratamiento reciente";
   }
+}
+
+/** Una línea por paciente: con varias visitas, las nombra todas. */
+function detalleDeGrupo(grupo: GrupoPorPaciente<PendingOutreachItem>): string {
+  if (grupo.items.length === 1) return outreachDetail(grupo.principal);
+  if (grupo.principal.kind === "review_request") {
+    const visitas = unirConY(grupo.items.map((i) => i.treatmentLabel ?? "Consulta"));
+    return `${grupo.items.length} visitas recientes: ${visitas}. Se pide una sola reseña.`;
+  }
+  return `${outreachDetail(grupo.principal)} (y ${grupo.items.length - 1} más)`;
 }
 
 /** Variables que necesita cada plantilla — todas comparten {paciente}/{clinica}, agregadas por WhatsAppButton/sendWhatsAppFromTemplate. */
@@ -492,186 +691,215 @@ function outreachVariables(item: PendingOutreachItem): Record<string, string> {
   }
 }
 
+function pasosDeOutreach(
+  grupos: GrupoPorPaciente<PendingOutreachItem>[],
+  clinica: string,
+): PasoDeEnvio[] {
+  return grupos.map((g) => ({
+    clave: `${g.principal.kind}-${g.patientId}`,
+    patientId: g.patientId,
+    patientName: g.principal.patientName,
+    detalle: detalleDeGrupo(g),
+    whatsapp: g.principal.patientPhone
+      ? {
+          templateKind: g.principal.kind,
+          variables: { ...outreachVariables(g.principal), clinica },
+          appointmentId: g.principal.appointmentId,
+          quoteId: g.principal.quoteId,
+        }
+      : null,
+    email: null,
+  }));
+}
+
 function OutreachList({
-  items,
+  grupos,
   clinicId,
   clinica,
   onSent,
 }: {
-  items: PendingOutreachItem[];
+  grupos: GrupoPorPaciente<PendingOutreachItem>[];
   clinicId: string;
   clinica: string;
   onSent: () => void;
 }) {
   return (
     <div className="card-clinical divide-y divide-hairline overflow-hidden">
-      {items.map((item) => (
-        <div
-          key={`${item.kind}-${item.patientId}-${item.appointmentId ?? item.quoteId ?? ""}`}
-          className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{item.patientName}</p>
-            <p className="truncate text-xs text-muted-foreground">{outreachDetail(item)}</p>
-            {!item.patientPhone && (
-              <p className="mt-1 text-xs text-destructive">
-                Sin teléfono cargado — no se puede enviar.
-              </p>
+      {grupos.map((g) => {
+        const item = g.principal;
+        return (
+          <div
+            key={`${item.kind}-${g.patientId}`}
+            className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{item.patientName}</p>
+              <p className="text-xs text-muted-foreground">{detalleDeGrupo(g)}</p>
+              {!item.patientPhone && (
+                <p className="mt-1 text-xs text-destructive">
+                  Sin teléfono cargado — no se puede enviar.
+                </p>
+              )}
+            </div>
+            {item.patientPhone && (
+              <WhatsAppButton
+                clinicId={clinicId}
+                patientId={g.patientId}
+                appointmentId={item.appointmentId}
+                quoteId={item.quoteId}
+                templateKind={item.kind}
+                variant="full"
+                label="Enviar"
+                variables={{ ...outreachVariables(item), clinica }}
+                onSent={onSent}
+              />
             )}
           </div>
-          <WhatsAppButton
-            clinicId={clinicId}
-            patientId={item.patientId}
-            appointmentId={item.appointmentId}
-            quoteId={item.quoteId}
-            templateKind={item.kind}
-            variant="full"
-            label="Enviar"
-            variables={{ ...outreachVariables(item), clinica }}
-            onSent={onSent}
-          />
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
+
+// ─── Presupuestos sin respuesta ───────────────────────────────────────────
 
 function hace(dias: number): string {
   return dias === 1 ? "hace 1 día" : `hace ${dias} días`;
 }
 
+/** Un mensaje por paciente que nombra todos sus presupuestos abiertos. */
+function variablesDePresupuestos(
+  grupo: GrupoPorPaciente<PresupuestoSinRespuesta>,
+  clinica: string,
+): Record<string, string> {
+  const total = grupo.items.reduce((s, q) => s + q.quoteTotalCents, 0);
+  return {
+    numero_presupuesto: unirConY(grupo.items.map((q) => q.quoteNumber)),
+    total: formatMoney(total, grupo.principal.currency),
+    clinica,
+  };
+}
+
+function pasosDePresupuestos(
+  grupos: GrupoPorPaciente<PresupuestoSinRespuesta>[],
+  clinica: string,
+): PasoDeEnvio[] {
+  return grupos.map((g) => {
+    const base = {
+      templateKind: "quote_follow_up" as const,
+      variables: variablesDePresupuestos(g, clinica),
+      quoteId: g.principal.quoteId,
+    };
+    const total = g.items.reduce((s, q) => s + q.quoteTotalCents, 0);
+    return {
+      clave: `quote-${g.patientId}`,
+      patientId: g.patientId,
+      patientName: g.principal.patientName,
+      detalle: `Presupuesto ${unirConY(g.items.map((q) => q.quoteNumber))} · ${formatMoney(total, g.principal.currency)}`,
+      whatsapp: g.principal.puedeWhatsApp ? base : null,
+      email: g.principal.puedeEmail ? base : null,
+    };
+  });
+}
+
 function PresupuestosSinRespuesta({
-  items,
+  grupos,
   dias,
-  onCambiarDias,
   clinicId,
   clinica,
   onSent,
 }: {
-  items: PresupuestoSinRespuesta[];
+  grupos: GrupoPorPaciente<PresupuestoSinRespuesta>[];
   dias: number;
-  onCambiarDias: (dias: number) => void;
   clinicId: string;
   clinica: string;
   onSent: () => void;
 }) {
+  if (grupos.length === 0) {
+    return (
+      <p className="card-clinical px-5 py-4 text-sm text-muted-foreground">
+        Ningún presupuesto lleva {dias} días o más sin aceptarse.
+      </p>
+    );
+  }
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="flex items-center gap-1.5 font-display text-lg font-semibold">
-          <Receipt className="size-4 text-info" /> Presupuestos sin respuesta
-          <span className="rounded-full bg-info-soft px-2 py-0.5 text-xs font-semibold text-info">
-            {items.length}
-          </span>
-        </h2>
-        <div
-          role="group"
-          aria-label="Días sin respuesta"
-          className="inline-flex items-center gap-0.5 rounded-lg border border-hairline p-0.5"
-        >
-          <span className="px-2 text-xs text-muted-foreground">Sin respuesta hace</span>
-          {OPCIONES_DE_DIAS_SIN_RESPUESTA.map((opcion) => (
-            <button
-              key={opcion}
-              type="button"
-              aria-pressed={opcion === dias}
-              onClick={() => onCambiarDias(opcion)}
-              className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                opcion === dias
-                  ? "bg-brand-soft text-brand-700"
-                  : "text-muted-foreground hover:text-foreground",
+    <div className="card-clinical divide-y divide-hairline overflow-hidden">
+      {grupos.map((g) => {
+        const item = g.principal;
+        const variables = variablesDePresupuestos(g, clinica);
+        const sinCanal = !item.puedeWhatsApp && !item.puedeEmail;
+        const hayBorrador = g.items.some((q) => q.estado === "draft");
+        return (
+          <div
+            key={g.patientId}
+            className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{item.patientName}</p>
+              {g.items.map((q) => (
+                <p key={q.quoteId} className="text-xs text-muted-foreground">
+                  Presupuesto {q.quoteNumber} ·{" "}
+                  <span className="cifra">{formatMoney(q.quoteTotalCents, q.currency)}</span> ·{" "}
+                  {q.estado === "draft" ? "creado" : "enviado"} {hace(q.diasSinRespuesta)}
+                  {q.estado === "draft" && (
+                    <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                      Borrador
+                    </span>
+                  )}
+                </p>
+              ))}
+              {g.items.length > 1 && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Un solo mensaje nombra los {g.items.length} presupuestos.
+                </p>
               )}
-            >
-              {opcion}+ días
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {items.length === 0 ? (
-        <p className="card-clinical px-5 py-4 text-sm text-muted-foreground">
-          Ningún presupuesto lleva {dias} días o más sin aceptarse.
-        </p>
-      ) : (
-        <div className="card-clinical divide-y divide-hairline overflow-hidden">
-          {items.map((item) => {
-            const variables = {
-              numero_presupuesto: item.quoteNumber,
-              total: formatMoney(item.quoteTotalCents, item.currency),
-              clinica,
-            };
-            const sinCanal = !item.puedeWhatsApp && !item.puedeEmail;
-            return (
-              <div
-                key={item.quoteId}
-                className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{item.patientName}</p>
-                    {item.estado === "draft" && (
-                      <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                        Borrador
-                      </span>
-                    )}
-                  </div>
-                  <p className="truncate text-xs text-muted-foreground">
-                    Presupuesto {item.quoteNumber} ·{" "}
-                    <span className="cifra">
-                      {formatMoney(item.quoteTotalCents, item.currency)}
-                    </span>{" "}
-                    · {item.estado === "draft" ? "creado" : "enviado"} {hace(item.diasSinRespuesta)}
+              {hayBorrador && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Un borrador no figura como enviado: confirma que el paciente lo recibió antes de
+                  escribirle.
+                </p>
+              )}
+              {sinCanal ? (
+                <p className="mt-1 text-xs text-destructive">
+                  {item.motivoSinWhatsApp} Sin email cargado — no se puede enviar.
+                </p>
+              ) : (
+                !item.puedeWhatsApp && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    WhatsApp no disponible: {item.motivoSinWhatsApp}
                   </p>
-                  {item.estado === "draft" && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      No figura como enviado: confirma que el paciente lo recibió antes de
-                      escribirle.
-                    </p>
-                  )}
-                  {sinCanal ? (
-                    <p className="mt-1 text-xs text-destructive">
-                      {item.motivoSinWhatsApp} Sin email cargado — no se puede enviar.
-                    </p>
-                  ) : (
-                    !item.puedeWhatsApp && (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        WhatsApp no disponible: {item.motivoSinWhatsApp}
-                      </p>
-                    )
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {item.puedeWhatsApp && (
-                    <WhatsAppButton
-                      clinicId={clinicId}
-                      patientId={item.patientId}
-                      quoteId={item.quoteId}
-                      templateKind="quote_follow_up"
-                      variant="full"
-                      label="WhatsApp"
-                      variables={variables}
-                      onSent={onSent}
-                    />
-                  )}
-                  {item.puedeEmail && (
-                    <EmailButton
-                      clinicId={clinicId}
-                      patientId={item.patientId}
-                      quoteId={item.quoteId}
-                      templateKind="quote_follow_up"
-                      variant="full"
-                      label="Email"
-                      variables={variables}
-                      onSent={onSent}
-                    />
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
+                )
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {item.puedeWhatsApp && (
+                <WhatsAppButton
+                  clinicId={clinicId}
+                  patientId={g.patientId}
+                  quoteId={item.quoteId}
+                  templateKind="quote_follow_up"
+                  variant="full"
+                  label="WhatsApp"
+                  variables={variables}
+                  onSent={onSent}
+                />
+              )}
+              {item.puedeEmail && (
+                <EmailButton
+                  clinicId={clinicId}
+                  patientId={g.patientId}
+                  quoteId={item.quoteId}
+                  templateKind="quote_follow_up"
+                  variant="full"
+                  label="Email"
+                  variables={variables}
+                  onSent={onSent}
+                />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
   );
 }

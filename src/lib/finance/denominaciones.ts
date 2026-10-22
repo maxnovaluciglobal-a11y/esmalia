@@ -157,6 +157,17 @@ export function totalDeConteo(conteo: Conteo, currency: string): number {
   }, 0);
 }
 
+/**
+ * Lo contado, o `null` mientras no se anotó ninguna fila. Un conteo vacío no
+ * es "$0 en el cajón": antes la pantalla decía "Faltan $100.000" en rojo
+ * antes de que nadie tocara un billete (UX-07). Tocar una fila, aunque quede
+ * en cero, sí cuenta: "conté y no había" es un dato.
+ */
+export function contadoDeConteo(conteo: Conteo, currency: string): number | null {
+  if (Object.keys(conteo).length === 0) return null;
+  return totalDeConteo(conteo, currency);
+}
+
 /** Subtotal de una fila (valor × cantidad). */
 export function subtotal(d: Denominacion, cantidad: number): number {
   return d.valorCents * cantidad;

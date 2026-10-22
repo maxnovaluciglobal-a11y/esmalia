@@ -30,6 +30,7 @@ import { getFinanceSummary } from "@/lib/finance/finance-reports.functions";
 import { formatMoney } from "@/lib/finance/finance";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
+import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupados";
 import { listPatients } from "@/lib/patients/patients.functions";
 import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
@@ -524,7 +525,8 @@ function Dashboard() {
             to: "/conversaciones",
           },
           {
-            n: recordatorios.length + (outreach?.total ?? 0),
+            // Filas por paciente, como las muestra /recordatorios (UX-11).
+            n: contarFilasDeRecordatorios(recordatorios) + (outreach?.total ?? 0),
             titulo: "Avisos para despachar",
             detalle: "Recordatorios, controles y presupuestos",
             cta: "Avisar",

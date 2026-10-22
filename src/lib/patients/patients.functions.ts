@@ -20,6 +20,7 @@ import { CAMPOS_EDITABLES_DEL_PACIENTE } from "@/lib/patients/editar-paciente";
 import { actualizarPaciente } from "@/lib/patients/editar-paciente.server";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
   active: "activo",
@@ -180,11 +181,18 @@ export const listPatients = createServerFn({ method: "GET" })
         clinicId: z.string().uuid(),
         /** LEG-08: las fichas archivadas no aparecen salvo que se pidan. */
         archivo: z.enum(FILTROS_DE_ARCHIVO).default("activas"),
+        /**
+         * UX-15: saldo real por paciente (RPC `patient_balances`) para el
+         * listado de /pacientes. Solo lo pide esa pantalla (las demás no lo
+         * usan y no pagan la consulta) y solo se calcula para quien tiene
+         * `finance:view`: a los demás el saldo les llega `null`.
+         */
+        conSaldos: z.boolean().default(false),
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ items: Paciente[]; truncated: boolean }> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
 
     // Una consulta nueva por página: los builders de supabase-js acumulan
     // parámetros si se reusan.
@@ -233,8 +241,32 @@ export const listPatients = createServerFn({ method: "GET" })
       apptRows.map((r) => [(r as ApptSummary).patient_id, r as ApptSummary]),
     );
 
+    // `patients.balance_cents` quedó del esquema original y no se mantiene:
+    // el saldo real sale de `fetchPatientBalances`, como en la ficha.
+    let saldos: Map<string, { billedCents: number; paidCents: number }> | null = null;
+    if (data.conSaldos) {
+      const { data: membership } = await supabase
+        .from("clinic_members")
+        .select("role")
+        .eq("clinic_id", data.clinicId)
+        .eq("user_id", userId)
+        .maybeSingle();
+      const veFinanzas = membership?.role
+        ? permissionsForRole(membership.role as ClinicRole).includes("finance:view")
+        : false;
+      if (veFinanzas) saldos = await fetchPatientBalances(supabase, data.clinicId);
+    }
+
     const items = rows.map((row) => {
       const s = summaryByPatient.get(row.id);
+      if (data.conSaldos) {
+        const saldo = saldos?.get(row.id);
+        // Regla 11: sin movimientos es `null`, no "$0".
+        (row as PatientRow).balance_cents =
+          saldo && (saldo.billedCents !== 0 || saldo.paidCents !== 0)
+            ? saldo.billedCents - saldo.paidCents
+            : null;
+      }
       return mapPatientRow(row as PatientRow, {
         ultimaVisita: s?.last_appointment_at
           ? formatoFecha(s.last_appointment_at.slice(0, 10))

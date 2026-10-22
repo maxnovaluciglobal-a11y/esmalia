@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, FileUp, Loader2, Plus } from "lucide-react";
+import { AlertTriangle, Check, FileUp, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -49,6 +49,14 @@ import {
   type FiltroDeArchivo,
 } from "@/lib/patients/archivo";
 import { BloqueoEscritura } from "@/components/solo-lectura";
+import {
+  columnasConDatos,
+  normalizarPorPagina,
+  OPCIONES_POR_PAGINA,
+  pasaFiltrosRapidos,
+  POR_PAGINA_POR_DEFECTO,
+  type ColumnasVisibles,
+} from "@/lib/patients/lista-pacientes";
 
 interface PacientesSearch {
   q: string;
@@ -58,6 +66,12 @@ interface PacientesSearch {
   desde: string;
   hasta: string;
   page: number;
+  /** 25, 50 o 100 (UX-15). */
+  porPagina?: number;
+  /** Filtro rápido: solo quien debe algo. */
+  conSaldo?: boolean;
+  /** Filtro rápido: solo quien no tiene una cita futura agendada. */
+  sinCita?: boolean;
   /** LEG-08: sin valor = solo fichas activas (las archivadas no se listan). */
   archivo?: FiltroDeArchivo;
 }
@@ -71,6 +85,9 @@ export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
     desde: str(search.desde),
     hasta: str(search.hasta),
     page: num(search.page, 1),
+    ...(search.porPagina ? { porPagina: normalizarPorPagina(search.porPagina) } : {}),
+    ...(search.conSaldo === true || search.conSaldo === "1" ? { conSaldo: true } : {}),
+    ...(search.sinCita === true || search.sinCita === "1" ? { sinCita: true } : {}),
     ...(search.archivo ? { archivo: parseFiltroDeArchivo(search.archivo) } : {}),
   }),
   beforeLoad: requirePermission("patients:view"),
@@ -522,6 +539,7 @@ function PacientesPage() {
   const clinicId = access.clinic?.id;
 
   const fetchPatients = useServerFn(listPatients);
+  const veFinanzas = hasPermission(access.role, "finance:view");
   const fetchBranches = useServerFn(listBranches);
   const archivo: FiltroDeArchivo = search.archivo ?? "activas";
   const fetchProfessionals = useServerFn(listProfessionals);
@@ -532,9 +550,9 @@ function PacientesPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["patients", clinicId, archivo],
+    queryKey: ["patients", clinicId, archivo, "con-saldos"],
     enabled: Boolean(clinicId),
-    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo } }),
+    queryFn: () => fetchPatients({ data: { clinicId: clinicId!, archivo, conSaldos: true } }),
   });
   const pacientes = useMemo(() => patientsRes?.items ?? [], [patientsRes]);
   const { data: sucursales = [] } = useQuery({
@@ -561,12 +579,19 @@ function PacientesPage() {
         if (search.estado && p.estado !== search.estado) return false;
         if (search.desde && p.ultimaVisitaISO < search.desde) return false;
         if (search.hasta && p.ultimaVisitaISO > search.hasta) return false;
+        if (!pasaFiltrosRapidos(p, { conSaldo: search.conSaldo, sinCitaFutura: search.sinCita }))
+          return false;
         return true;
       }),
     [pacientes, search],
   );
 
-  const pagina = paginar(filtrados, search.page);
+  const porPagina = search.porPagina ?? POR_PAGINA_POR_DEFECTO;
+  const pagina = paginar(filtrados, search.page, porPagina);
+  const columnas = columnasConDatos(pagina.items, sucursales.length);
+  const plantilla = plantillaDeColumnas(columnas);
+  const toggle = (clave: "conSaldo" | "sinCita") =>
+    set({ [clave]: search[clave] ? undefined : true });
   const activos = [
     search.q,
     search.sucursal,
@@ -575,6 +600,8 @@ function PacientesPage() {
     search.desde,
     search.hasta,
     search.archivo && search.archivo !== "activas" ? search.archivo : "",
+    search.conSaldo ? "1" : "",
+    search.sinCita ? "1" : "",
   ].filter(Boolean).length;
 
   return (
@@ -608,7 +635,10 @@ function PacientesPage() {
                 desde: "",
                 hasta: "",
                 page: 1,
+                porPagina: search.porPagina,
                 archivo: undefined,
+                conSaldo: undefined,
+                sinCita: undefined,
               },
             })
           }
@@ -659,14 +689,43 @@ function PacientesPage() {
           />
         </FilterBar>
 
+        <div role="group" aria-label="Filtros rápidos" className="flex flex-wrap gap-2">
+          {(
+            [
+              // El saldo solo llega a quien tiene `finance:view` (el servidor lo calcula igual).
+              ...(veFinanzas ? ([["conSaldo", "Con saldo"]] as const) : []),
+              ["sinCita", "Sin cita futura"],
+            ] as const
+          ).map(([clave, texto]) => (
+            <button
+              key={clave}
+              type="button"
+              aria-pressed={Boolean(search[clave])}
+              onClick={() => toggle(clave)}
+              className={cn(
+                "inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-xs font-medium transition-colors",
+                search[clave]
+                  ? "border-brand bg-brand-soft text-brand-700"
+                  : "border-hairline text-muted-foreground hover:border-brand hover:text-foreground",
+              )}
+            >
+              {search[clave] && <Check className="size-3.5" aria-hidden />}
+              {texto}
+            </button>
+          ))}
+        </div>
+
         <div className="card-clinical overflow-hidden">
-          <div className="hidden grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] gap-4 border-b border-hairline bg-secondary/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground md:grid">
+          <div
+            className="hidden gap-4 border-b border-hairline bg-secondary/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground md:grid"
+            style={{ gridTemplateColumns: plantilla }}
+          >
             <span>Paciente</span>
-            <span>Sucursal</span>
-            <span>Última visita</span>
+            {columnas.sucursal && <span>Sucursal</span>}
+            {columnas.ultimaVisita && <span>Última visita</span>}
             <span>Estado</span>
-            <span>Saldo</span>
-            <span>Riesgo</span>
+            {columnas.saldo && <span>Saldo</span>}
+            {columnas.riesgo && <span>Riesgo</span>}
           </div>
 
           <div className="divide-y divide-hairline">
@@ -685,9 +744,10 @@ function PacientesPage() {
                     key={p.id}
                     to="/pacientes/$pacienteId"
                     params={{ pacienteId: p.id }}
-                    className="grid gap-2 px-5 py-4 transition-colors hover:bg-secondary/50 md:grid-cols-[2fr_1fr_1fr_1fr_1fr_auto] md:items-center md:gap-4"
+                    className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 transition-colors hover:bg-secondary/50 md:grid-cols-[var(--columnas)] md:items-center md:gap-y-2"
+                    style={{ "--columnas": plantilla } as React.CSSProperties}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="col-span-2 flex items-center gap-3 md:col-span-1">
                       {p.foto ? (
                         <img
                           src={p.foto}
@@ -708,55 +768,83 @@ function PacientesPage() {
                       )}
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium">{p.nombre}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.documento} · {profesional?.nombre ?? "Sin profesional asignado"}
+                        <p className="truncate text-xs text-muted-foreground">
+                          {[p.documento, profesional?.nombre ?? "Sin profesional asignado"]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">{sucursal?.nombre ?? "—"}</span>
-                    <span className="text-xs text-muted-foreground">{p.ultimaVisita}</span>
-                    <span
-                      className={cn(
-                        "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
-                        p.archivadaEl
-                          ? "bg-secondary text-muted-foreground"
-                          : p.estado === "activo"
-                            ? "bg-success-soft text-success"
-                            : p.estado === "nuevo"
-                              ? "bg-info-soft text-info"
-                              : "bg-secondary text-muted-foreground",
-                      )}
-                    >
-                      {p.archivadaEl ? "Archivada" : etiquetaEstadoPaciente[p.estado]}
-                    </span>
-                    <span
-                      className={cn(
-                        "text-xs",
-                        p.saldo != null && p.saldo > 0
-                          ? "font-medium text-warning"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {p.saldo == null
-                        ? "Sin movimientos"
-                        : p.saldo > 0
-                          ? formatMoney(p.saldo, currency)
-                          : "Al día"}
-                    </span>
-                    <span
-                      className={cn(
-                        "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
-                        p.riesgoAusencia == null
-                          ? "bg-secondary text-muted-foreground"
-                          : p.riesgoAusencia > 50
-                            ? "bg-destructive/10 text-destructive"
-                            : p.riesgoAusencia > 25
-                              ? "bg-warning-soft text-warning"
-                              : "bg-success-soft text-success",
-                      )}
-                    >
-                      {p.riesgoAusencia == null ? "Sin calcular" : `${p.riesgoAusencia}% ausencia`}
-                    </span>
+                    {columnas.sucursal && (
+                      <Celda etiqueta="Sucursal">
+                        <span className="text-xs text-muted-foreground">
+                          {sucursal?.nombre ?? <SinDato />}
+                        </span>
+                      </Celda>
+                    )}
+                    {columnas.ultimaVisita && (
+                      <Celda etiqueta="Última visita">
+                        <span className="text-xs text-muted-foreground">
+                          {p.ultimaVisitaISO ? p.ultimaVisita : <SinDato />}
+                        </span>
+                      </Celda>
+                    )}
+                    <Celda etiqueta="Estado">
+                      <span
+                        className={cn(
+                          "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
+                          p.archivadaEl
+                            ? "bg-secondary text-muted-foreground"
+                            : p.estado === "activo"
+                              ? "bg-success-soft text-success"
+                              : p.estado === "nuevo"
+                                ? "bg-info-soft text-info"
+                                : "bg-secondary text-muted-foreground",
+                        )}
+                      >
+                        {p.archivadaEl ? "Archivada" : etiquetaEstadoPaciente[p.estado]}
+                      </span>
+                    </Celda>
+                    {columnas.saldo && (
+                      <Celda etiqueta="Saldo">
+                        <span
+                          className={cn(
+                            "text-xs",
+                            p.saldo != null && p.saldo > 0
+                              ? "font-medium text-warning"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {p.saldo == null ? (
+                            <SinDato />
+                          ) : p.saldo > 0 ? (
+                            formatMoney(p.saldo, currency)
+                          ) : (
+                            "Al día"
+                          )}
+                        </span>
+                      </Celda>
+                    )}
+                    {columnas.riesgo && (
+                      <Celda etiqueta="Riesgo">
+                        {p.riesgoAusencia == null ? (
+                          <SinDato />
+                        ) : (
+                          <span
+                            className={cn(
+                              "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
+                              p.riesgoAusencia > 50
+                                ? "bg-destructive/10 text-destructive"
+                                : p.riesgoAusencia > 25
+                                  ? "bg-warning-soft text-warning"
+                                  : "bg-success-soft text-success",
+                            )}
+                          >
+                            {`${p.riesgoAusencia}% ausencia`}
+                          </span>
+                        )}
+                      </Celda>
+                    )}
                   </Link>
                 );
               })}
@@ -782,9 +870,48 @@ function PacientesPage() {
             pagina={pagina}
             etiqueta="pacientes"
             onPage={(page) => navigate({ search: (p: PacientesSearch) => ({ ...p, page }) })}
+            porPagina={{
+              valor: porPagina,
+              opciones: OPCIONES_POR_PAGINA,
+              onChange: (n) =>
+                set({ porPagina: n === POR_PAGINA_POR_DEFECTO ? undefined : n, page: 1 }),
+            }}
           />
         </div>
       </div>
     </AppShell>
+  );
+}
+
+/** Columnas de la grilla según lo que se muestra: la de "Paciente" se lleva el resto. */
+function plantillaDeColumnas(columnas: ColumnasVisibles): string {
+  return [
+    "minmax(0,2fr)",
+    columnas.sucursal && "minmax(0,1fr)",
+    columnas.ultimaVisita && "minmax(0,1fr)",
+    "minmax(0,1fr)",
+    columnas.saldo && "minmax(0,1fr)",
+    columnas.riesgo && "minmax(0,1fr)",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** Celda con su etiqueta visible solo en el teléfono (en escritorio la da el encabezado). */
+function Celda({ etiqueta, children }: { etiqueta: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <span className="text-[11px] text-muted-foreground md:hidden">{etiqueta}</span>
+      {children}
+    </div>
+  );
+}
+
+/** Sin dato: un guion tenue, no una frase repetida en cada fila. */
+function SinDato() {
+  return (
+    <span className="text-muted-foreground" title="Sin datos">
+      —
+    </span>
   );
 }

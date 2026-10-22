@@ -6,6 +6,7 @@ import { motivoFaltante, MOTIVO_MINIMO } from "@/lib/finance/cash-registers";
 import {
   ajustarCantidad,
   claveDenominacion,
+  contadoDeConteo,
   denominacionesDe,
   detalleDeConteo,
   leerDetalle,
@@ -18,6 +19,20 @@ import { TABLAS_EXPORTACION } from "@/lib/exportacion/exportacion-clinica";
 
 const clave = (valorCents: number, tipo: "billete" | "moneda" = "billete") =>
   claveDenominacion({ valorCents, tipo });
+
+describe("contadoDeConteo (UX-07: sin contar no hay diferencia)", () => {
+  it("devuelve null mientras no se anotó ninguna fila", () => {
+    expect(contadoDeConteo({}, "CLP")).toBeNull();
+  });
+
+  it("una fila tocada que quedó en cero sí es un conteo: $0", () => {
+    expect(contadoDeConteo({ [clave(20000)]: 0 }, "CLP")).toBe(0);
+  });
+
+  it("suma lo anotado", () => {
+    expect(contadoDeConteo({ [clave(20000)]: 2, [clave(500, "moneda")]: 3 }, "CLP")).toBe(41500);
+  });
+});
 
 describe("denominaciones por moneda", () => {
   it("cubre las monedas del mercado de Esmalia", () => {

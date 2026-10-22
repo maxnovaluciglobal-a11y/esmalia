@@ -7,7 +7,9 @@ import {
   ClipboardList,
   History,
   Loader2,
+  MoreHorizontal,
   Package,
+  Pencil,
   Plus,
   Repeat,
 } from "lucide-react";
@@ -26,6 +28,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -74,6 +82,26 @@ const MOVEMENT_LABELS: Record<InventoryMovementKind, string> = {
  * inventory_movements) — mismo set que la policy `inventory_movements_insert_clinical`.
  * reception queda afuera aunque sí puede ver inventario. */
 const MOVEMENT_ROLES = new Set(["owner", "admin", "dentist", "assistant"]);
+
+type DialogoControlado = {
+  /** Abierto desde el menú de acciones de la fila: el diálogo no pinta su botón. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+/** Estado propio del diálogo, o el de quien lo controla (el menú de la fila). */
+function useAbierto({
+  open,
+  onOpenChange,
+}: DialogoControlado): [boolean, (open: boolean) => void, boolean] {
+  const [propio, setPropio] = useState(false);
+  const controlado = open !== undefined;
+  return [
+    controlado ? open : propio,
+    controlado ? (onOpenChange ?? (() => {})) : setPropio,
+    controlado,
+  ];
+}
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -314,13 +342,14 @@ function EditarItemDialog({
   item,
   currency,
   sucursales,
+  ...control
 }: {
   clinicId: string;
   item: InventoryItem;
   currency: string;
   sucursales: Sucursal[];
-}) {
-  const [open, setOpen] = useState(false);
+} & DialogoControlado) {
+  const [open, setOpen, controlado] = useAbierto(control);
   const [name, setName] = useState(item.name);
   const [unit, setUnit] = useState(item.unit);
   const [minStock, setMinStock] = useState(item.minStock == null ? "" : String(item.minStock));
@@ -363,11 +392,13 @@ function EditarItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          Editar
-        </Button>
-      </DialogTrigger>
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            Editar
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar {item.name}</DialogTitle>
@@ -680,12 +711,13 @@ function ConteoFisicoDialog({
   clinicId,
   item,
   bodegas,
+  ...control
 }: {
   clinicId: string;
   item: InventoryItem;
   bodegas: Warehouse[];
-}) {
-  const [open, setOpen] = useState(false);
+} & DialogoControlado) {
+  const [open, setOpen, controlado] = useAbierto(control);
   const [warehouseId, setWarehouseId] = useState("");
   const [countedQuantity, setCountedQuantity] = useState("");
   const [notes, setNotes] = useState("");
@@ -725,11 +757,13 @@ function ConteoFisicoDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <ClipboardList className="size-3.5" /> Conteo físico
-        </Button>
-      </DialogTrigger>
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            <ClipboardList className="size-3.5" /> Conteo físico
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Conteo físico — {item.name}</DialogTitle>
@@ -800,8 +834,12 @@ function ConteoFisicoDialog({
   );
 }
 
-function HistorialMovimientosDialog({ clinicId, item }: { clinicId: string; item: InventoryItem }) {
-  const [open, setOpen] = useState(false);
+function HistorialMovimientosDialog({
+  clinicId,
+  item,
+  ...control
+}: { clinicId: string; item: InventoryItem } & DialogoControlado) {
+  const [open, setOpen, controlado] = useAbierto(control);
   const fetchMovements = useServerFn(listInventoryMovements);
 
   const movementsQuery = useQuery({
@@ -812,11 +850,13 @@ function HistorialMovimientosDialog({ clinicId, item }: { clinicId: string; item
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <History className="size-3.5" /> Historial
-        </Button>
-      </DialogTrigger>
+      {!controlado && (
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline">
+            <History className="size-3.5" /> Historial
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Historial — {item.name}</DialogTitle>
@@ -908,6 +948,99 @@ export const Route = createFileRoute("/_authenticated/_clinic/inventario")({
   }),
   component: InventarioPage,
 });
+
+/**
+ * Acciones de una fila: la principal a la vista (registrar un movimiento) y
+ * el resto en un menú. Antes eran cuatro botones por fila que se partían en
+ * dos renglones en cuanto la tabla se angostaba.
+ */
+function AccionesDeItem({
+  clinicId,
+  item,
+  bodegas,
+  currency,
+  sucursales,
+  puedeRegistrarMovimiento,
+  puedeGestionar,
+}: {
+  clinicId: string;
+  item: InventoryItem;
+  bodegas: Warehouse[];
+  currency: string;
+  sucursales: Sucursal[];
+  puedeRegistrarMovimiento: boolean;
+  puedeGestionar: boolean;
+}) {
+  const [abierto, setAbierto] = useState<"historial" | "conteo" | "editar" | null>(null);
+  const cerrarSi = (cual: typeof abierto) => (open: boolean) => {
+    if (!open && abierto === cual) setAbierto(null);
+  };
+
+  return (
+    <div className="flex items-center justify-end gap-2">
+      {puedeRegistrarMovimiento ? (
+        <RegistrarMovimientoDialog clinicId={clinicId} item={item} bodegas={bodegas} />
+      ) : (
+        <HistorialMovimientosDialog clinicId={clinicId} item={item} />
+      )}
+      {(puedeRegistrarMovimiento || puedeGestionar) && (
+        // modal={false}: el menú se cierra antes de abrir el diálogo y no
+        // deja el `pointer-events: none` del body pegado.
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="outline" aria-label={`Más acciones: ${item.name}`}>
+              <MoreHorizontal className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {puedeRegistrarMovimiento && (
+              <DropdownMenuItem onSelect={() => setAbierto("historial")}>
+                <History className="size-4" aria-hidden /> Historial
+              </DropdownMenuItem>
+            )}
+            {puedeRegistrarMovimiento && (
+              <DropdownMenuItem onSelect={() => setAbierto("conteo")}>
+                <ClipboardList className="size-4" aria-hidden /> Conteo físico
+              </DropdownMenuItem>
+            )}
+            {puedeGestionar && (
+              <DropdownMenuItem onSelect={() => setAbierto("editar")}>
+                <Pencil className="size-4" aria-hidden /> Editar
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {puedeRegistrarMovimiento && (
+        <>
+          <HistorialMovimientosDialog
+            clinicId={clinicId}
+            item={item}
+            open={abierto === "historial"}
+            onOpenChange={cerrarSi("historial")}
+          />
+          <ConteoFisicoDialog
+            clinicId={clinicId}
+            item={item}
+            bodegas={bodegas}
+            open={abierto === "conteo"}
+            onOpenChange={cerrarSi("conteo")}
+          />
+        </>
+      )}
+      {puedeGestionar && (
+        <EditarItemDialog
+          clinicId={clinicId}
+          item={item}
+          currency={currency}
+          sucursales={sucursales}
+          open={abierto === "editar"}
+          onOpenChange={cerrarSi("editar")}
+        />
+      )}
+    </div>
+  );
+}
 
 function InventarioPage() {
   const { access } = Route.useRouteContext();
@@ -1164,31 +1297,15 @@ function InventarioPage() {
                         </TableCell>
                       )}
                       <TableCell>
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <HistorialMovimientosDialog clinicId={clinicId} item={item} />
-                          {puedeRegistrarMovimiento && (
-                            <>
-                              <RegistrarMovimientoDialog
-                                clinicId={clinicId}
-                                item={item}
-                                bodegas={bodegas}
-                              />
-                              <ConteoFisicoDialog
-                                clinicId={clinicId}
-                                item={item}
-                                bodegas={bodegas}
-                              />
-                            </>
-                          )}
-                          {puedeGestionar && (
-                            <EditarItemDialog
-                              clinicId={clinicId}
-                              item={item}
-                              currency={currency}
-                              sucursales={sucursales}
-                            />
-                          )}
-                        </div>
+                        <AccionesDeItem
+                          clinicId={clinicId}
+                          item={item}
+                          bodegas={bodegas}
+                          currency={currency}
+                          sucursales={sucursales}
+                          puedeRegistrarMovimiento={puedeRegistrarMovimiento}
+                          puedeGestionar={puedeGestionar}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

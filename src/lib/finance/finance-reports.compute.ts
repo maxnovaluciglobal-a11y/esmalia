@@ -17,6 +17,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { mensajeDb } from "@/lib/db-errors";
 import { agingBucketFor, type AccountsReceivableAgingRow } from "@/lib/finance/finance";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
+import { agruparPorMetodo } from "@/lib/finance/reportes-lectura";
 
 type Cliente = SupabaseClient<Database>;
 
@@ -104,18 +105,10 @@ export async function computeFinanceSummary(
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([date, dayTotalCents]) => ({ date, totalCents: dayTotalCents }));
 
-  // Agrupa por el nombre configurado cuando el pago lo tiene (G-6) y cae al
-  // valor del enum para los pagos viejos: así "Tarjeta de crédito" y
-  // "credit_card" no aparecen como dos filas distintas si la clínica no
-  // renombró el medio, pero un "Klap - Crédito" propio se ve con su nombre.
-  const byMethodMap = new Map<string, { totalCents: number; count: number }>();
-  for (const p of rows) {
-    const clave = p.method_name_snapshot ?? p.method;
-    const cur = byMethodMap.get(clave) ?? { totalCents: 0, count: 0 };
-    cur.totalCents += p.amount_cents;
-    cur.count += 1;
-    byMethodMap.set(clave, cur);
-  }
+  // Agrupa por el nombre del medio normalizado (ver agruparPorMetodo):
+  // antes un pago viejo con `transfer` y uno nuevo con "Transferencia"
+  // aparecían como dos filas iguales.
+  const byMethod = agruparPorMetodo(rows);
 
   // Neto y retención: solo sobre los pagos que TIENEN net_cents. Si ninguno
   // lo tiene, ambos quedan null y la UI no promete un neto que no calculó.
@@ -125,9 +118,6 @@ export async function computeFinanceSummary(
       rows.filter((p) => p.net_cents === null).reduce((sum, p) => sum + p.amount_cents, 0)
     : null;
   const retentionCents = netCents === null ? null : totalCents - netCents;
-  const byMethod = [...byMethodMap.entries()]
-    .map(([method, v]) => ({ method, ...v }))
-    .sort((a, b) => b.totalCents - a.totalCents);
 
   const { data: items, error: itemsError } = await supabase
     .from("treatment_items")

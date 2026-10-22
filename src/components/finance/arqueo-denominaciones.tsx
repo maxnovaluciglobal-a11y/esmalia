@@ -12,11 +12,11 @@ import { motivoFaltante, MOTIVO_MINIMO } from "@/lib/finance/cash-registers";
 import {
   ajustarCantidad,
   claveDenominacion,
+  contadoDeConteo,
   denominacionesDe,
   detalleDeConteo,
   MAX_PIEZAS_POR_DENOMINACION,
   subtotal,
-  totalDeConteo,
   type Conteo,
   type FilaDeConteo,
 } from "@/lib/finance/denominaciones";
@@ -46,8 +46,8 @@ function veredicto(
   }
   if (diff < 0) {
     return {
-      titulo: `Faltan ${formatMoney(-diff, currency)}.`,
-      detalle: "Revisa el cajón o deja el motivo en el cierre.",
+      titulo: `Faltan ${formatMoney(-diff, currency)} en el cajón.`,
+      detalle: "Contaste menos de lo esperado. Revisa el cajón o deja el motivo en el cierre.",
       tono: "danger",
     };
   }
@@ -92,7 +92,9 @@ export function ArqueoDenominaciones({
   const soloLectura = useSoloLectura();
   const motivoRef = useRef<HTMLTextAreaElement>(null);
 
-  const contado = modo === "billetes" ? totalDeConteo(conteo, currency) : totalManual;
+  // Sin nada anotado, lo contado es "—" y no hay veredicto: un cajón sin
+  // contar no "falta" nada todavía (UX-07).
+  const contado = modo === "billetes" ? contadoDeConteo(conteo, currency) : totalManual;
   const diff = expectedCents !== null && contado !== null ? contado - expectedCents : null;
   const lectura = diff === null ? null : veredicto(diff, currency);
   const faltaMotivo = diff !== null && motivoFaltante(diff, motivo);
@@ -265,7 +267,9 @@ export function ArqueoDenominaciones({
           <p className="text-sm text-muted-foreground">
             {expectedCents === null
               ? "Calculando lo esperado…"
-              : "Anota el total para ver si cuadra."}
+              : modo === "billetes"
+                ? "Cuenta el cajón: la diferencia aparece al anotar el primer billete o moneda."
+                : "Anota el total para ver si cuadra."}
           </p>
         )}
         {diff === 0 && <SelloCuadra etiqueta={etiquetaSello} />}

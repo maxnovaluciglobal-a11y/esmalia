@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { formatMoney } from "@/lib/finance/finance";
 import { getPanelDesempeno, type PanelMes } from "@/lib/finance/finance-reports.functions";
+import { lecturaCobradoVsProducido, recortarSerieMensual } from "@/lib/finance/reportes-lectura";
 import { cn } from "@/lib/utils";
 
 /**
@@ -50,7 +51,16 @@ function Indicador({
  * ~90 KB al bundle — y ya hubo un incidente con `Object.freeze` y Recharts en
  * este repo (ver la auditoría de agosto).
  */
-function SerieMensual({ serie, currency }: { serie: PanelMes[]; currency: string }) {
+function SerieMensual({ serie: serieCompleta, currency }: { serie: PanelMes[]; currency: string }) {
+  // Sin los meses vacíos de antes de que la clínica empezara a trabajar.
+  const serie = useMemo(() => recortarSerieMensual(serieCompleta), [serieCompleta]);
+  // En pantallas angostas el gráfico de muchos meses se desplaza: arranca
+  // mostrando el final (el mes en curso), no enero.
+  const desplazable = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = desplazable.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [serie.length]);
   const max = Math.max(1, ...serie.flatMap((m) => [m.ventasCents, m.recaudacionCents]));
   const alto = 120;
   const anchoBarra = 100 / (serie.length * 2 + serie.length);
@@ -62,6 +72,17 @@ function SerieMensual({ serie, currency }: { serie: PanelMes[]; currency: string
     ];
   };
 
+  const mesLargo = (mes: string) => {
+    const [anio, m] = mes.split("-").map(Number);
+    return new Intl.DateTimeFormat("es", { month: "long", timeZone: "UTC" }).format(
+      new Date(Date.UTC(anio, m - 1, 15)),
+    );
+  };
+  const periodo =
+    serie.length === serieCompleta.length
+      ? `${serie.length} meses`
+      : `desde ${mesLargo(serie[0]?.mes ?? "")}`;
+
   const totalVentas = serie.reduce((s, m) => s + m.ventasCents, 0);
   const totalRecaudacion = serie.reduce((s, m) => s + m.recaudacionCents, 0);
 
@@ -69,9 +90,9 @@ function SerieMensual({ serie, currency }: { serie: PanelMes[]; currency: string
     <div className="card-clinical p-5">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Ventas y recaudación · 12 meses
+          Ventas y recaudación · {periodo}
         </p>
-        <div className="flex gap-4 text-xs">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
           <span className="inline-flex items-center gap-1.5">
             <span className="size-2.5 rounded-sm bg-brand" aria-hidden />
             Producción {formatMoney(totalVentas, currency)}
@@ -85,19 +106,20 @@ function SerieMensual({ serie, currency }: { serie: PanelMes[]; currency: string
 
       {totalVentas === 0 && totalRecaudacion === 0 ? (
         <p className="py-8 text-center text-sm text-muted-foreground">
-          Todavía no hay producción ni cobros en los últimos doce meses.
+          Todavía no hay producción ni cobros en los últimos {serieCompleta.length} meses.
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div ref={desplazable} className="overflow-x-auto">
           {/* min-w en el wrapper, no en el svg: el svg y la fila de meses
            * tienen que compartir el mismo ancho para que el scroll horizontal
-           * no los desalinee. */}
-          <div className="min-w-[32rem]">
+           * no los desalinee. Con pocos meses no hace falta: entra en un
+           * teléfono sin cortar el mes en curso. */}
+          <div style={{ minWidth: serie.length > 6 ? `${serie.length * 2.75}rem` : undefined }}>
             <svg
               viewBox={`0 0 100 ${alto}`}
               className="h-32 w-full"
               role="img"
-              aria-label={`Producción y cobros de los últimos doce meses. Producción total ${formatMoney(totalVentas, currency)}, cobrado ${formatMoney(totalRecaudacion, currency)}.`}
+              aria-label={`Producción y cobros, ${periodo}. Producción total ${formatMoney(totalVentas, currency)}, cobrado ${formatMoney(totalRecaudacion, currency)}.`}
               preserveAspectRatio="none"
             >
               {serie.map((m, i) => {
@@ -232,6 +254,12 @@ export function PanelDesempeno({
 
   if (!data) return null;
 
+  const cobradoVsProducido = lecturaCobradoVsProducido(
+    data.ventasCents,
+    data.recaudacionCents,
+    data.currency,
+  );
+
   return (
     <div className="space-y-5">
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -248,13 +276,9 @@ export function PanelDesempeno({
           destacado
         />
         <Indicador
-          label="Diferencia"
-          valor={formatMoney(data.ventasCents - data.recaudacionCents, data.currency)}
-          nota={
-            data.ventasCents > data.recaudacionCents
-              ? "Trabajo hecho que falta cobrar"
-              : "Cobrado por sobre lo producido"
-          }
+          label={cobradoVsProducido.etiqueta}
+          valor={cobradoVsProducido.valor}
+          nota={cobradoVsProducido.nota}
           destacado
         />
       </section>

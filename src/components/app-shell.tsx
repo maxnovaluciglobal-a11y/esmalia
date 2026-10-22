@@ -17,6 +17,7 @@ import { useSincronizacionAutomatica } from "@/hooks/use-offline-mutation";
 import { leerCola, pendientes } from "@/lib/offline/offline-queue";
 import { hasPermission, ROLE_LABELS, type ClinicAccess } from "@/lib/access/access";
 import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
+import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupados";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { AyudaMenu } from "@/components/ayuda-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -256,7 +257,9 @@ export function AppShell({
     refetchInterval: 5 * 60_000,
     staleTime: 5 * 60_000,
   });
-  const recordatoriosBadge = recordatoriosPendientes.length + (outreachPendiente?.total ?? 0);
+  // Filas por paciente, como las muestra /recordatorios (UX-11).
+  const recordatoriosBadge =
+    contarFilasDeRecordatorios(recordatoriosPendientes) + (outreachPendiente?.total ?? 0);
 
   // Badge de "Conversaciones": cuántos hilos terminan con un mensaje del
   // paciente. Query propia y liviana (no comparte cache con la pantalla) —
