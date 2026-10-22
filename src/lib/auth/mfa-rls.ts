@@ -78,11 +78,14 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
  * pacientes, o tablas de backend solo para `service_role`.
  */
 export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
+  agenda_exceptions: "bloqueos y aperturas de la agenda: horarios del equipo, sin pacientes",
   agreement_coverage: "catálogo de coberturas de convenios",
   agreements: "catálogo de convenios",
   appointment_statuses: "catálogo de estados de cita",
   appointment_types: "catálogo de tipos de cita",
+  branch_hours: "horario de atención de las sucursales",
   branches: "estructura de la clínica",
+  clinic_agenda_settings: "configuración de la agenda",
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",
   clinic_members: "membresía: la app la lee antes y durante la verificación",
@@ -108,6 +111,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   payment_methods: "catálogo de medios de pago",
   procedure_package_items: "catálogo: prestaciones de cada paquete",
   procedure_packages: "catálogo de paquetes de prestaciones y su precio",
+  procedure_price_realignments:
+    "historial de realineaciones de precios de lista (sin datos de pacientes)",
   procedure_supplies: "catálogo de insumos por prestación",
   procedures: "catálogo de prestaciones y precios de lista",
   professional_schedules: "horarios del equipo",

@@ -149,13 +149,25 @@ export function atiendePacientes(rolDelUsuario: string | null | undefined): bool
  * Profesionales del selector: los que atienden y, en la sucursal elegida. Al
  * editar, el profesional que ya tiene la cita se mantiene en la lista aunque
  * no cumpla, para no vaciar el selector.
+ *
+ * AGE-23: un profesional atiende en una sucursal si es la de su ficha o si su
+ * horario semanal tiene algún bloque en ella (`sucursalesDeProfesional`).
  */
 export function profesionalesDelSelector<
   P extends { id: string; sucursalId: string; atiende?: boolean },
->(profesionales: readonly P[], sucursalId: string, actualId?: string): P[] {
+>(
+  profesionales: readonly P[],
+  sucursalId: string,
+  actualId?: string,
+  sucursalesDeProfesional?: Readonly<Record<string, readonly string[]>>,
+): P[] {
   return profesionales.filter(
     (p) =>
-      p.id === actualId || (p.atiende !== false && (!sucursalId || p.sucursalId === sucursalId)),
+      p.id === actualId ||
+      (p.atiende !== false &&
+        (!sucursalId ||
+          p.sucursalId === sucursalId ||
+          Boolean(sucursalesDeProfesional?.[p.id]?.includes(sucursalId)))),
   );
 }
 

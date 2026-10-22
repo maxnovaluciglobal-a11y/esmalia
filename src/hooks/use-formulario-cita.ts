@@ -16,6 +16,12 @@ import {
   listOperatories,
 } from "@/lib/clinic-operations/cita-formulario.functions";
 import { listProcedures } from "@/lib/finance/finance.functions";
+import {
+  useAjustesAgenda,
+  useExcepcionesAgenda,
+  useHorariosProfesionales,
+} from "@/hooks/use-disponibilidad-agenda";
+import { sucursalesPorProfesional } from "@/lib/clinic-operations/disponibilidad";
 
 /**
  * Estado del formulario de cita compartido por Nueva cita, Editar cita y
@@ -111,6 +117,24 @@ export function useFormularioCita({ clinicId, abierto }: { clinicId: string; abi
     queryFn: () => fetchBoxes({ data: { clinicId } }),
   });
 
+  // Ola 2 · Disponibilidad: duración por defecto y sobrecupos (AGE-10),
+  // sucursales donde atiende cada profesional (AGE-23) y bloqueos del día
+  // elegido (AGE-07). Los ajustes se cargan siempre (una fila): al abrir el
+  // diálogo la duración por defecto ya tiene que estar.
+  const ajustes = useAjustesAgenda(clinicId);
+  const horarios = useHorariosProfesionales(clinicId, abierto);
+  const sucursalesDeProfesional = useMemo(
+    () => sucursalesPorProfesional(horarios ?? {}),
+    [horarios],
+  );
+  const fechaElegida = valores.startsAt.slice(0, 10);
+  const excepcionesDelDia = useExcepcionesAgenda(
+    clinicId,
+    fechaElegida,
+    fechaElegida,
+    abierto && /^\d{4}-\d{2}-\d{2}$/.test(fechaElegida),
+  );
+
   const procedimientos = useMemo(() => procedimientosQ.data ?? [], [procedimientosQ.data]);
   const favoritos = useMemo(() => new Set(frecuentesQ.data?.favoritos ?? []), [frecuentesQ.data]);
   const frecuentes = useMemo(
@@ -154,7 +178,7 @@ export function useFormularioCita({ clinicId, abierto }: { clinicId: string; abi
 
   /** Vuelve a los valores dados (al abrir o al cerrar el diálogo). */
   function reiniciar(nuevos: Partial<ValoresCita> = {}) {
-    setValores({ ...VALORES_VACIOS, ...nuevos });
+    setValores({ ...VALORES_VACIOS, duracion: ajustes.duracionPorDefecto, ...nuevos });
     setDuracionManual(false);
     setDuracionLibre(false);
   }
@@ -176,6 +200,9 @@ export function useFormularioCita({ clinicId, abierto }: { clinicId: string; abi
     favoritos,
     tipos: tiposQ.data ?? [],
     boxes: boxesQ.data ?? [],
+    ajustes,
+    sucursalesDeProfesional,
+    excepcionesDelDia,
   };
 }
 

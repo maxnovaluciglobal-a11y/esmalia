@@ -2,7 +2,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Boxes, Download, Loader2, Pencil, Plus, Star, Upload } from "lucide-react";
+import {
+  BookOpen,
+  Boxes,
+  Download,
+  History,
+  Layers,
+  Loader2,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Star,
+  TrendingUp,
+  Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -17,8 +30,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { SearchField, FilterBar, SelectField } from "@/components/filters";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { CatalogoDialog } from "@/components/arancel/catalogo-dialog";
+import { EspecialidadesDialog } from "@/components/arancel/especialidades-dialog";
+import { HistorialPreciosDialog } from "@/components/arancel/historial-precios-dialog";
+import { RealinearDialog } from "@/components/arancel/realinear-dialog";
+import { asegurarEspecialidades, listEspecialidades } from "@/lib/arancel/arancel.functions";
+import { posicionEnRango } from "@/lib/arancel/catalogo-chile";
+import {
+  agruparPorEspecialidad,
+  SIN_ESPECIALIDAD,
+  type Especialidad,
+} from "@/lib/arancel/especialidades";
 import { MoneyInput } from "@/components/money-input";
 import { requirePermission } from "@/lib/access/route-guards";
 import { formatMoney, fromCents, toCents, type Procedure } from "@/lib/finance/finance";
@@ -52,12 +83,15 @@ import { mensajeDeError } from "@/lib/mensaje-error";
 interface ArancelesSearch {
   q: string;
   categoria: string;
+  /** id de la especialidad, o "sin" para las prestaciones sin especialidad. */
+  especialidad: string;
 }
 
 export const Route = createFileRoute("/_authenticated/_clinic/aranceles")({
   validateSearch: (search: Record<string, unknown>): ArancelesSearch => ({
     q: str(search.q),
     categoria: str(search.categoria),
+    especialidad: str(search.especialidad),
   }),
   beforeLoad: requirePermission("settings:manage"),
   head: () => ({
@@ -66,7 +100,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/aranceles")({
       {
         name: "description",
         content:
-          "Lista de prestaciones de la clínica con precio, valor referencial, costo de laboratorio e importación desde CSV.",
+          "Lista de prestaciones de la clínica por especialidad, con precio, valor referencial, costo de laboratorio, catálogo chileno, realineación de precios e importación desde CSV.",
       },
     ],
   }),
@@ -86,6 +120,12 @@ interface Draft {
   labCost: number | null;
   durationMin: number | null;
   allowsDiscount: boolean;
+  specialtyId: string;
+  fonasaCode: string;
+  isMai: boolean;
+  /** Rango de referencia en cents; vacío = sin dato (regla 11). */
+  suggestedMin: number | null;
+  suggestedMax: number | null;
 }
 
 const draftVacio = (): Draft => ({
@@ -97,6 +137,11 @@ const draftVacio = (): Draft => ({
   labCost: null,
   durationMin: null,
   allowsDiscount: true,
+  specialtyId: "",
+  fonasaCode: "",
+  isMai: false,
+  suggestedMin: null,
+  suggestedMax: null,
 });
 
 /** Campo de dinero que distingue vacío ("sin dato") de cero — regla 11. */
@@ -165,12 +210,17 @@ function PrestacionDialog({
   currency,
   procedure,
   categorias,
+  especialidades,
+  especialidadInicial,
 }: {
   clinicId: string;
   currency: string;
   /** Sin `procedure` el diálogo crea; con él, edita. */
   procedure?: Procedure;
   categorias: string[];
+  especialidades: Especialidad[];
+  /** Al crear con un filtro de especialidad puesto, la propone. */
+  especialidadInicial?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [d, setD] = useState<Draft>(() =>
@@ -184,14 +234,24 @@ function PrestacionDialog({
           labCost: procedure.labCostCents,
           durationMin: procedure.durationMin,
           allowsDiscount: procedure.allowsDiscount,
+          specialtyId: procedure.specialtyId ?? "",
+          fonasaCode: procedure.fonasaCode ?? "",
+          isMai: procedure.isMai ?? false,
+          suggestedMin: procedure.suggestedMinCents ?? null,
+          suggestedMax: procedure.suggestedMaxCents ?? null,
         }
-      : draftVacio(),
+      : { ...draftVacio(), specialtyId: especialidadInicial ?? "" },
   );
   const queryClient = useQueryClient();
   const createFn = useServerFn(createProcedure);
   const updateFn = useServerFn(updateProcedure);
 
   const patch = (cambios: Partial<Draft>) => setD((prev) => ({ ...prev, ...cambios }));
+  const motivoGuardar = !d.name.trim()
+    ? "Escribe el nombre de la prestación."
+    : d.suggestedMin !== null && d.suggestedMax !== null && d.suggestedMin > d.suggestedMax
+      ? "El mínimo del rango no puede ser mayor que el máximo."
+      : null;
 
   const guardar = useMutation({
     mutationFn: () => {
@@ -206,6 +266,11 @@ function PrestacionDialog({
         referencePriceCents: d.referencePrice,
         labCostCents: d.labCost,
         position: procedure?.position ?? 0,
+        specialtyId: d.specialtyId || null,
+        fonasaCode: d.fonasaCode.trim() || null,
+        isMai: d.isMai,
+        suggestedMinCents: d.suggestedMin,
+        suggestedMaxCents: d.suggestedMax,
       };
       // create devuelve {id} y update {ok}; acá solo importa que terminó bien.
       return procedure
@@ -216,7 +281,7 @@ function PrestacionDialog({
       queryClient.invalidateQueries({ queryKey: ["procedures", clinicId] });
       toast.success(procedure ? "Prestación actualizada" : "Prestación creada");
       setOpen(false);
-      if (!procedure) setD(draftVacio());
+      if (!procedure) setD({ ...draftVacio(), specialtyId: especialidadInicial ?? "" });
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
@@ -234,7 +299,7 @@ function PrestacionDialog({
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[92vh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{procedure ? "Editar prestación" : "Nueva prestación"}</DialogTitle>
           <DialogDescription>
@@ -253,6 +318,25 @@ function PrestacionDialog({
               placeholder="Ej: Destartraje supragingival"
               className={INPUT}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="p-esp">Especialidad</Label>
+            <select
+              id="p-esp"
+              value={d.specialtyId}
+              onChange={(e) => patch({ specialtyId: e.target.value })}
+              className={INPUT}
+            >
+              <option value="">{SIN_ESPECIALIDAD}</option>
+              {especialidades
+                .filter((e) => e.isActive || e.id === d.specialtyId)
+                .map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -319,6 +403,55 @@ function PrestacionDialog({
               onChange={(durationMin) => patch({ durationMin })}
             />
           </div>
+          <p className="-mt-1 text-xs text-muted-foreground">
+            La duración se propone sola al agendar una cita con esta prestación.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="p-fonasa">Código Fonasa</Label>
+              <input
+                id="p-fonasa"
+                value={d.fonasaCode}
+                onChange={(e) => patch({ fonasaCode: e.target.value })}
+                placeholder="Opcional"
+                maxLength={20}
+                className={INPUT}
+              />
+            </div>
+            <label className="flex items-end gap-2 pb-2 text-sm">
+              <input
+                type="checkbox"
+                checked={d.isMai}
+                onChange={(e) => patch({ isMai: e.target.checked })}
+                className="size-4 rounded border-hairline"
+              />
+              Tiene equivalente MAI (Fonasa institucional)
+            </label>
+          </div>
+
+          <fieldset className="space-y-1.5">
+            <legend className="text-sm font-medium">Rango de referencia</legend>
+            <p className="text-xs text-muted-foreground">
+              Solo para orientarte: se muestra junto al precio y nunca se impone.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <MontoOpcional
+                id="p-rmin"
+                label="Mínimo"
+                currency={currency}
+                value={d.suggestedMin}
+                onChange={(suggestedMin) => patch({ suggestedMin })}
+              />
+              <MontoOpcional
+                id="p-rmax"
+                label="Máximo"
+                currency={currency}
+                value={d.suggestedMax}
+                onChange={(suggestedMax) => patch({ suggestedMax })}
+              />
+            </div>
+          </fieldset>
 
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -332,10 +465,12 @@ function PrestacionDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => guardar.mutate()} disabled={!d.name.trim() || guardar.isPending}>
-            {guardar.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            {procedure ? "Guardar cambios" : "Crear prestación"}
-          </Button>
+          <AccionDeshabilitada motivo={motivoGuardar}>
+            <Button onClick={() => guardar.mutate()} disabled={guardar.isPending}>
+              {guardar.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              {procedure ? "Guardar cambios" : "Crear prestación"}
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -723,11 +858,17 @@ function ArancelesPage() {
   const navigate = Route.useNavigate();
   const clinicId = access.clinic?.id;
   const currency = access.clinic?.currency ?? "CLP";
+  const zona = access.clinic?.timezone;
   const queryClient = useQueryClient();
+  const [herramienta, setHerramienta] = useState<
+    "catalogo" | "realinear" | "especialidades" | "historial" | null
+  >(null);
 
   const fetchProcedures = useServerFn(listProcedures);
   const setActiveFn = useServerFn(setProcedureActive);
   const fetchInventoryItems = useServerFn(listInventoryItems);
+  const fetchEspecialidades = useServerFn(listEspecialidades);
+  const asegurarFn = useServerFn(asegurarEspecialidades);
 
   const {
     data: procedures = [],
@@ -738,6 +879,22 @@ function ArancelesPage() {
     queryKey: ["procedures", clinicId, "todas"],
     enabled: Boolean(clinicId),
     queryFn: () => fetchProcedures({ data: { clinicId: clinicId!, incluirInactivas: true } }),
+  });
+
+  // ADM-02: la primera vez (o después del reset de la demo) siembra las
+  // especialidades estándar; es idempotente y no pisa nombres de la clínica.
+  // Si falla, el arancel se ve igual, agrupado como "Sin especialidad".
+  const { data: especialidades = [] } = useQuery({
+    queryKey: ["especialidades", clinicId],
+    enabled: Boolean(clinicId),
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const sembradas = await asegurarFn({ data: { clinicId: clinicId! } })
+        .then((r) => r.sembradas)
+        .catch(() => 0);
+      if (sembradas > 0) void queryClient.invalidateQueries({ queryKey: ["procedures", clinicId] });
+      return fetchEspecialidades({ data: { clinicId: clinicId! } });
+    },
   });
 
   // Cargado una vez a nivel página, no por diálogo — todas las filas de
@@ -786,30 +943,54 @@ function ArancelesPage() {
       [...new Set(procedures.map((p) => p.category).filter((c): c is string => Boolean(c)))].sort(),
     [procedures],
   );
+  const especialidadPorId = useMemo(
+    () => new Map(especialidades.map((e) => [e.id, e])),
+    [especialidades],
+  );
+  const conteoPorEspecialidad = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of procedures)
+      if (p.specialtyId) m.set(p.specialtyId, (m.get(p.specialtyId) ?? 0) + 1);
+    return m;
+  }, [procedures]);
 
   const filtradas = useMemo(
     () =>
       procedures.filter((p) => {
         if (search.categoria && (p.category ?? "") !== search.categoria) return false;
-        if (search.q && !coincide(search.q, p.name, p.code, p.category)) return false;
+        if (search.especialidad) {
+          const tiene = Boolean(p.specialtyId && especialidadPorId.has(p.specialtyId));
+          if (search.especialidad === "sin" ? tiene : p.specialtyId !== search.especialidad)
+            return false;
+        }
+        if (search.q && !coincide(search.q, p.name, p.code, p.category, p.fonasaCode)) return false;
         return true;
       }),
-    [procedures, search.q, search.categoria],
+    [procedures, search.q, search.categoria, search.especialidad, especialidadPorId],
   );
 
-  // Agrupa por categoría para que el arancel se lea como la lista de precios
-  // que es, y no como una tabla plana de 300 filas.
-  const porCategoria = useMemo(() => {
-    const map = new Map<string, Procedure[]>();
-    for (const p of filtradas) {
-      const key = p.category ?? "Sin categoría";
-      map.set(key, [...(map.get(key) ?? []), p]);
-    }
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b));
-  }, [filtradas]);
+  // Agrupa por especialidad (ADM-02) para que el arancel se lea como la lista
+  // de precios que es, y no como una tabla plana de 300 filas.
+  const grupos = useMemo(
+    () => agruparPorEspecialidad(filtradas, especialidades),
+    [filtradas, especialidades],
+  );
 
   const set = (patch: Partial<ArancelesSearch>) =>
     navigate({ search: (prev: ArancelesSearch) => ({ ...prev, ...patch }) });
+
+  const especialidadInicial =
+    search.especialidad && search.especialidad !== "sin" ? search.especialidad : undefined;
+  const nuevaPrestacion = (
+    <PrestacionDialog
+      clinicId={clinicId!}
+      currency={currency}
+      categorias={categorias}
+      especialidades={especialidades}
+      especialidadInicial={especialidadInicial}
+    />
+  );
+  const vigentes = procedures.filter((p) => p.isActive);
 
   return (
     <AppShell title="Arancel de precios" access={access}>
@@ -820,49 +1001,95 @@ function ArancelesPage() {
             de baja
           </p>
           <div className="flex flex-wrap gap-2">
-            {procedures.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  exportarCsv<Procedure>(
-                    filtradas,
-                    [
-                      { header: "Código", value: (p) => p.code },
-                      { header: "Nombre", value: (p) => p.name },
-                      { header: "Categoría", value: (p) => p.category },
-                      { header: "Precio", value: (p) => p.defaultPriceCents },
-                      { header: "Valor referencial", value: (p) => p.referencePriceCents },
-                      { header: "Costo laboratorio", value: (p) => p.labCostCents },
-                      { header: "Duración", value: (p) => p.durationMin },
-                      {
-                        header: "Permite descuento",
-                        value: (p) => (p.allowsDiscount ? "Sí" : "No"),
-                      },
-                      { header: "Activa", value: (p) => (p.isActive ? "Sí" : "No") },
-                    ],
-                    "arancel",
-                    hoyISO(access.clinic?.timezone),
-                  )
-                }
-              >
-                <Download className="size-4" /> Exportar CSV
+            <Button variant="outline" size="sm" onClick={() => setHerramienta("catalogo")}>
+              <BookOpen className="size-4" aria-hidden /> Catálogo
+            </Button>
+            <AccionDeshabilitada
+              motivo={vigentes.length === 0 ? "Primero agrega prestaciones al arancel." : null}
+              como="globo"
+            >
+              <Button variant="outline" size="sm" onClick={() => setHerramienta("realinear")}>
+                <TrendingUp className="size-4" aria-hidden /> Realinear precios
               </Button>
-            )}
+            </AccionDeshabilitada>
             <ImportarCsvDialog clinicId={clinicId!} currency={currency} />
-            <PrestacionDialog clinicId={clinicId!} currency={currency} categorias={categorias} />
+            <DropdownMenu modal={false}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" aria-label="Más acciones del arancel">
+                  <MoreHorizontal className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onSelect={() => setHerramienta("especialidades")}>
+                  <Layers className="size-4" aria-hidden /> Especialidades
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => setHerramienta("historial")}>
+                  <History className="size-4" aria-hidden /> Historial de precios
+                </DropdownMenuItem>
+                {procedures.length > 0 && (
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      exportarCsv<Procedure>(
+                        filtradas,
+                        [
+                          { header: "Código", value: (p) => p.code },
+                          { header: "Nombre", value: (p) => p.name },
+                          {
+                            header: "Especialidad",
+                            value: (p) =>
+                              (p.specialtyId && especialidadPorId.get(p.specialtyId)?.name) || null,
+                          },
+                          { header: "Categoría", value: (p) => p.category },
+                          { header: "Precio", value: (p) => p.defaultPriceCents },
+                          { header: "Valor referencial", value: (p) => p.referencePriceCents },
+                          { header: "Costo laboratorio", value: (p) => p.labCostCents },
+                          { header: "Duración", value: (p) => p.durationMin },
+                          {
+                            header: "Permite descuento",
+                            value: (p) => (p.allowsDiscount ? "Sí" : "No"),
+                          },
+                          { header: "Código Fonasa", value: (p) => p.fonasaCode ?? null },
+                          { header: "MAI", value: (p) => (p.isMai ? "Sí" : "No") },
+                          { header: "Rango mínimo", value: (p) => p.suggestedMinCents ?? null },
+                          { header: "Rango máximo", value: (p) => p.suggestedMaxCents ?? null },
+                          { header: "Activa", value: (p) => (p.isActive ? "Sí" : "No") },
+                        ],
+                        "arancel",
+                        hoyISO(access.clinic?.timezone),
+                      )
+                    }
+                  >
+                    <Download className="size-4" aria-hidden /> Exportar CSV
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {nuevaPrestacion}
           </div>
         </div>
 
         <FilterBar
-          activos={[search.q, search.categoria].filter(Boolean).length}
-          onReset={() => set({ q: "", categoria: "" })}
+          activos={[search.q, search.categoria, search.especialidad].filter(Boolean).length}
+          onReset={() => set({ q: "", categoria: "", especialidad: "" })}
         >
           <SearchField
             label="Buscar"
             value={search.q}
             onChange={(q) => set({ q })}
-            placeholder="Nombre o código"
+            placeholder="Nombre, código o código Fonasa"
+          />
+          <SelectField
+            label="Especialidad"
+            value={search.especialidad}
+            onChange={(especialidad) => set({ especialidad })}
+            allLabel="Todas las especialidades"
+            options={[
+              ...[...especialidades]
+                .filter((e) => conteoPorEspecialidad.has(e.id))
+                .sort((a, b) => a.position - b.position || a.name.localeCompare(b.name, "es"))
+                .map((e) => ({ value: e.id, label: e.name })),
+              { value: "sin", label: SIN_ESPECIALIDAD },
+            ]}
           />
           <SelectField
             label="Categoría"
@@ -882,27 +1109,50 @@ function ArancelesPage() {
             <p className="mb-1 font-display text-lg font-semibold">Tu arancel está vacío</p>
             <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
               Carga tu lista de precios una vez y después presupuestas eligiendo de aquí, sin
-              escribir el nombre y el monto en cada presupuesto. Si ya la tienes en una planilla,
-              impórtala.
+              escribir el nombre y el monto en cada presupuesto. Parte desde el catálogo de Esmalia
+              o, si ya la tienes en una planilla, impórtala.
             </p>
-            <div className="flex justify-center gap-2">
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button size="sm" onClick={() => setHerramienta("catalogo")}>
+                <BookOpen className="size-4" aria-hidden /> Agregar desde el catálogo
+              </Button>
               <ImportarCsvDialog clinicId={clinicId!} currency={currency} />
-              <PrestacionDialog clinicId={clinicId!} currency={currency} categorias={categorias} />
+              {nuevaPrestacion}
             </div>
           </div>
         )}
 
         {!isLoading &&
-          porCategoria.map(([categoria, items]) => (
-            <section key={categoria} className="card-clinical overflow-hidden">
+          grupos.map(({ especialidad, titulo, items }) => (
+            <section
+              key={especialidad?.id ?? "sin"}
+              aria-label={titulo}
+              className="card-clinical overflow-hidden"
+            >
               <div className="flex items-center justify-between gap-3 border-b border-hairline bg-secondary/40 px-4 py-2">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {categoria}
+                  {titulo}
+                  {especialidad && !especialidad.isActive && (
+                    <span className="ml-2 font-normal normal-case tracking-normal">
+                      (desactivada)
+                    </span>
+                  )}
                 </h2>
                 <span className="text-xs text-muted-foreground">{items.length}</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[46rem] text-sm">
+                {/* Anchos fijos: las columnas quedan alineadas entre grupos. */}
+                <table className="w-full min-w-[72rem] table-fixed text-sm">
+                  <colgroup>
+                    <col />
+                    <col className="w-24" />
+                    <col className="w-44" />
+                    <col className="w-24" />
+                    <col className="w-24" />
+                    <col className="w-20" />
+                    <col className="w-16" />
+                    <col className="w-72" />
+                  </colgroup>
                   <thead>
                     <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Prestación</th>
@@ -910,98 +1160,31 @@ function ArancelesPage() {
                       <th className="px-3 py-2 text-right font-medium">Precio</th>
                       <th className="px-3 py-2 text-right font-medium">V. ref.</th>
                       <th className="px-3 py-2 text-right font-medium">Lab.</th>
+                      <th className="px-3 py-2 text-right font-medium">Duración</th>
                       <th className="px-3 py-2 text-center font-medium">Dscto</th>
                       <th className="px-3 py-2" />
                     </tr>
                   </thead>
                   <tbody>
                     {items.map((p) => (
-                      <tr
+                      <FilaPrestacion
                         key={p.id}
-                        className={cn(
-                          "border-b border-hairline last:border-0",
-                          !p.isActive && "opacity-50",
-                        )}
-                      >
-                        <td className="px-4 py-2">
-                          <span className="inline-flex items-center gap-1.5">
-                            <button
-                              type="button"
-                              aria-pressed={favoritos.has(p.id)}
-                              aria-label={
-                                favoritos.has(p.id)
-                                  ? `Quitar ${p.name} de favoritas`
-                                  : `Marcar ${p.name} como favorita`
-                              }
-                              title="Favorita: aparece primero al agendar una cita"
-                              disabled={setFavorito.isPending || !p.isActive}
-                              onClick={() =>
-                                setFavorito.mutate({
-                                  procedureId: p.id,
-                                  favorito: !favoritos.has(p.id),
-                                })
-                              }
-                              className={cn(
-                                "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-secondary disabled:opacity-40 pointer-coarse:size-11",
-                                favoritos.has(p.id) ? "text-brand-700" : "text-muted-foreground",
-                              )}
-                            >
-                              <Star
-                                className={cn("size-3.5", favoritos.has(p.id) && "fill-current")}
-                                aria-hidden
-                              />
-                            </button>
-                            {p.name}
-                          </span>
-                          {!p.isActive && (
-                            <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">
-                              De baja
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
-                          {p.code ?? "—"}
-                        </td>
-                        <td className="px-3 py-2 text-right cifra">
-                          {formatMoney(p.defaultPriceCents, p.currency)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
-                          {p.referencePriceCents === null
-                            ? "—"
-                            : formatMoney(p.referencePriceCents, p.currency)}
-                        </td>
-                        <td className="px-3 py-2 text-right text-xs cifra text-muted-foreground">
-                          {p.labCostCents === null ? "—" : formatMoney(p.labCostCents, p.currency)}
-                        </td>
-                        <td className="px-3 py-2 text-center text-xs text-muted-foreground">
-                          {p.allowsDiscount ? "Sí" : "No"}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          <div className="flex justify-end gap-1">
-                            <RecetaDialog
-                              clinicId={clinicId!}
-                              procedure={p}
-                              items={inventoryItems}
-                            />
-                            <PrestacionDialog
-                              clinicId={clinicId!}
-                              currency={currency}
-                              procedure={p}
-                              categorias={categorias}
-                            />
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={setActive.isPending}
-                              onClick={() =>
-                                setActive.mutate({ procedureId: p.id, isActive: !p.isActive })
-                              }
-                            >
-                              {p.isActive ? "Dar de baja" : "Reactivar"}
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
+                        p={p}
+                        clinicId={clinicId!}
+                        currency={currency}
+                        categorias={categorias}
+                        especialidades={especialidades}
+                        favorita={favoritos.has(p.id)}
+                        favoritoPendiente={setFavorito.isPending}
+                        onFavorito={() =>
+                          setFavorito.mutate({ procedureId: p.id, favorito: !favoritos.has(p.id) })
+                        }
+                        activoPendiente={setActive.isPending}
+                        onActivo={() =>
+                          setActive.mutate({ procedureId: p.id, isActive: !p.isActive })
+                        }
+                        inventoryItems={inventoryItems}
+                      />
                     ))}
                   </tbody>
                 </table>
@@ -1017,9 +1200,153 @@ function ArancelesPage() {
 
         <p className="text-xs text-muted-foreground">
           Precios en {currency}. Dar de baja no borra la prestación: los presupuestos y tratamientos
-          que la usaron siguen mostrándola.
+          que la usaron siguen mostrándola. Realinear precios tampoco cambia los presupuestos ya
+          emitidos.
         </p>
       </div>
+
+      {clinicId && (
+        <>
+          <CatalogoDialog
+            clinicId={clinicId}
+            currency={currency}
+            procedures={procedures}
+            open={herramienta === "catalogo"}
+            onOpenChange={(v) => setHerramienta(v ? "catalogo" : null)}
+          />
+          <RealinearDialog
+            clinicId={clinicId}
+            currency={currency}
+            procedures={vigentes}
+            especialidades={especialidades}
+            open={herramienta === "realinear"}
+            onOpenChange={(v) => setHerramienta(v ? "realinear" : null)}
+          />
+          <EspecialidadesDialog
+            clinicId={clinicId}
+            especialidades={especialidades}
+            conteo={conteoPorEspecialidad}
+            open={herramienta === "especialidades"}
+            onOpenChange={(v) => setHerramienta(v ? "especialidades" : null)}
+          />
+          <HistorialPreciosDialog
+            clinicId={clinicId}
+            zona={zona}
+            open={herramienta === "historial"}
+            onOpenChange={(v) => setHerramienta(v ? "historial" : null)}
+          />
+        </>
+      )}
     </AppShell>
+  );
+}
+
+/** Una fila del arancel. */
+function FilaPrestacion({
+  p,
+  clinicId,
+  currency,
+  categorias,
+  especialidades,
+  favorita,
+  favoritoPendiente,
+  onFavorito,
+  activoPendiente,
+  onActivo,
+  inventoryItems,
+}: {
+  p: Procedure;
+  clinicId: string;
+  currency: string;
+  categorias: string[];
+  especialidades: Especialidad[];
+  favorita: boolean;
+  favoritoPendiente: boolean;
+  onFavorito: () => void;
+  activoPendiente: boolean;
+  onActivo: () => void;
+  inventoryItems: InventoryItem[];
+}) {
+  const rango = posicionEnRango(p.defaultPriceCents, p.suggestedMinCents, p.suggestedMaxCents);
+  return (
+    <tr className={cn("border-b border-hairline last:border-0", !p.isActive && "opacity-50")}>
+      <td className="px-4 py-2">
+        <span className="inline-flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-pressed={favorita}
+            aria-label={
+              favorita ? `Quitar ${p.name} de favoritas` : `Marcar ${p.name} como favorita`
+            }
+            title="Favorita: aparece primero al agendar una cita"
+            disabled={favoritoPendiente || !p.isActive}
+            onClick={onFavorito}
+            className={cn(
+              "inline-flex size-6 shrink-0 items-center justify-center rounded-md transition-colors hover:bg-secondary disabled:opacity-40 pointer-coarse:size-11",
+              favorita ? "text-brand-700" : "text-muted-foreground",
+            )}
+          >
+            <Star className={cn("size-3.5", favorita && "fill-current")} aria-hidden />
+          </button>
+          {p.name}
+        </span>
+        {!p.isActive && (
+          <span className="ml-2 rounded bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground">
+            De baja
+          </span>
+        )}
+        {(p.category || p.fonasaCode || p.isMai) && (
+          <span className="mt-0.5 flex flex-wrap gap-1.5 pl-7 text-[11px] text-muted-foreground">
+            {p.category && <span>{p.category}</span>}
+            {p.fonasaCode && <span className="cifra">Fonasa {p.fonasaCode}</span>}
+            {p.isMai && <span className="rounded bg-secondary px-1">MAI</span>}
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">{p.code ?? "—"}</td>
+      <td className="px-3 py-2 text-right">
+        <span className="cifra">{formatMoney(p.defaultPriceCents, p.currency)}</span>
+        {rango !== "sin-rango" && (
+          // Solo informa: el rango de referencia nunca se impone.
+          <span
+            className="block whitespace-nowrap text-[11px] text-muted-foreground"
+            title="Rango de referencia: solo orienta, no se impone"
+          >
+            {rango === "debajo" ? "bajo " : rango === "encima" ? "sobre " : "ref. "}
+            <span className="cifra">
+              {p.suggestedMinCents != null ? formatMoney(p.suggestedMinCents, p.currency) : "…"}–
+              {p.suggestedMaxCents != null ? formatMoney(p.suggestedMaxCents, p.currency) : "…"}
+            </span>
+          </span>
+        )}
+      </td>
+      <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+        {p.referencePriceCents === null ? "—" : formatMoney(p.referencePriceCents, p.currency)}
+      </td>
+      <td className="px-3 py-2 text-right text-xs cifra text-muted-foreground">
+        {p.labCostCents === null ? "—" : formatMoney(p.labCostCents, p.currency)}
+      </td>
+      <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+        {p.durationMin == null ? "—" : `${p.durationMin} min`}
+      </td>
+      <td className="px-3 py-2 text-center text-xs text-muted-foreground">
+        {p.allowsDiscount ? "Sí" : "No"}
+      </td>
+      <td className="px-3 py-2 text-right">
+        <div className="flex justify-end gap-1">
+          <RecetaDialog clinicId={clinicId} procedure={p} items={inventoryItems} />
+          <PrestacionDialog
+            clinicId={clinicId}
+            currency={currency}
+            procedure={p}
+            categorias={categorias}
+            especialidades={especialidades}
+          />
+          <Button variant="ghost" size="sm" disabled={activoPendiente} onClick={onActivo}>
+            {p.isActive ? "Dar de baja" : "Reactivar"}
+          </Button>
+        </div>
+      </td>
+    </tr>
   );
 }

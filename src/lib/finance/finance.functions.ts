@@ -57,8 +57,10 @@ const TOOTH_NUMBER_OPT = z
 
 // ─── PROCEDURES ──────────────────────────────────────────────────────────
 
-const PROCEDURE_COLUMNS =
+const PROCEDURE_COLUMNS_LEGACY =
   "id, code, name, category, default_price_cents, currency, duration_min, is_active, allows_discount, reference_price_cents, lab_cost_cents, position";
+/** Con las columnas del arancel de la Ola 3 (migración 20261024100000). */
+const PROCEDURE_COLUMNS = `${PROCEDURE_COLUMNS_LEGACY}, specialty_id, fonasa_code, is_mai, suggested_min_cents, suggested_max_cents, catalog_key`;
 
 type ProcedureRow = {
   id: string;
@@ -73,6 +75,13 @@ type ProcedureRow = {
   reference_price_cents: number | null;
   lab_cost_cents: number | null;
   position: number;
+  /** Ausentes antes de aplicar la migración 20261024100000. */
+  specialty_id?: string | null;
+  fonasa_code?: string | null;
+  is_mai?: boolean;
+  suggested_min_cents?: number | null;
+  suggested_max_cents?: number | null;
+  catalog_key?: string | null;
 };
 
 function mapProcedure(row: ProcedureRow): Procedure {
@@ -89,6 +98,12 @@ function mapProcedure(row: ProcedureRow): Procedure {
     referencePriceCents: row.reference_price_cents,
     labCostCents: row.lab_cost_cents,
     position: row.position,
+    specialtyId: row.specialty_id ?? null,
+    fonasaCode: row.fonasa_code ?? null,
+    isMai: row.is_mai ?? false,
+    suggestedMinCents: row.suggested_min_cents ?? null,
+    suggestedMaxCents: row.suggested_max_cents ?? null,
+    catalogKey: row.catalog_key ?? null,
   };
 }
 
@@ -108,19 +123,27 @@ export const listProcedures = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<Procedure[]> => {
-    let query = context.supabase
-      .from("procedures")
-      .select(PROCEDURE_COLUMNS)
-      .eq("clinic_id", data.clinicId);
-    if (!data.incluirInactivas) query = query.eq("is_active", true);
-    const { data: rows, error } = await query
-      .order("category", { ascending: true, nullsFirst: true })
-      .order("position", { ascending: true })
-      .order("name", { ascending: true });
+    const consultar = (columnas: string) => {
+      let query = context.supabase
+        .from("procedures")
+        .select(columnas)
+        .eq("clinic_id", data.clinicId);
+      if (!data.incluirInactivas) query = query.eq("is_active", true);
+      return query
+        .order("category", { ascending: true, nullsFirst: true })
+        .order("position", { ascending: true })
+        .order("name", { ascending: true })
+        .returns<ProcedureRow[]>();
+    };
+    let { data: rows, error } = await consultar(PROCEDURE_COLUMNS);
+    // Base sin la migración 20261024100000 (un preview contra producción
+    // antes de aplicarla): se lee lo de siempre y los campos nuevos quedan en null.
+    if (isUndefinedColumnError(error))
+      ({ data: rows, error } = await consultar(PROCEDURE_COLUMNS_LEGACY));
 
     if (error)
       throw new Error(mensajeDb(error, "No pudimos cargar el catálogo de procedimientos."));
-    return (rows ?? []).map((r) => mapProcedure(r as ProcedureRow));
+    return (rows ?? []).map((r) => mapProcedure(r));
   });
 
 /** Campos editables de una prestación del arancel. Compartido por create y update. */
@@ -136,6 +159,26 @@ const ProcedureFields = {
   referencePriceCents: z.number().int().min(0).nullish(),
   labCostCents: z.number().int().min(0).nullish(),
   position: z.number().int().min(0).max(9999).default(0),
+  // Ola 3 (ADM-02/03). Opcionales: quien no los manda (el CSV, un caller
+  // viejo) no los pisa. `null` explícito sí los borra.
+  specialtyId: z.string().uuid().nullish(),
+  fonasaCode: z.string().trim().max(20).nullish(),
+  isMai: z.boolean().optional(),
+  suggestedMinCents: z.number().int().min(0).nullish(),
+  suggestedMaxCents: z.number().int().min(0).nullish(),
+};
+
+/** El rango de referencia, si viene completo, tiene que estar ordenado. */
+function rangoOrdenado(d: {
+  suggestedMinCents?: number | null;
+  suggestedMaxCents?: number | null;
+}) {
+  return d.suggestedMinCents == null || d.suggestedMaxCents == null
+    ? true
+    : d.suggestedMinCents <= d.suggestedMaxCents;
+}
+const RANGO_DESORDENADO = {
+  message: "El mínimo del rango de referencia no puede ser mayor que el máximo.",
 };
 
 /** DTO → fila de `procedures`. `?? null` y no `|| null`: un 0 es un valor. */
@@ -149,6 +192,11 @@ function procedureRow(d: {
   referencePriceCents?: number | null;
   labCostCents?: number | null;
   position: number;
+  specialtyId?: string | null;
+  fonasaCode?: string | null;
+  isMai?: boolean;
+  suggestedMinCents?: number | null;
+  suggestedMaxCents?: number | null;
 }) {
   return {
     name: d.name,
@@ -160,13 +208,22 @@ function procedureRow(d: {
     reference_price_cents: d.referencePriceCents ?? null,
     lab_cost_cents: d.labCostCents ?? null,
     position: d.position,
+    // Solo si vinieron: `undefined` = no tocar (CSV, callers viejos).
+    ...(d.specialtyId !== undefined ? { specialty_id: d.specialtyId } : {}),
+    ...(d.fonasaCode !== undefined ? { fonasa_code: d.fonasaCode?.trim() || null } : {}),
+    ...(d.isMai !== undefined ? { is_mai: d.isMai } : {}),
+    ...(d.suggestedMinCents !== undefined ? { suggested_min_cents: d.suggestedMinCents } : {}),
+    ...(d.suggestedMaxCents !== undefined ? { suggested_max_cents: d.suggestedMaxCents } : {}),
   };
 }
 
 export const createProcedure = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
-    z.object({ clinicId: z.string().uuid(), ...ProcedureFields }).parse(input),
+    z
+      .object({ clinicId: z.string().uuid(), ...ProcedureFields })
+      .refine(rangoOrdenado, RANGO_DESORDENADO)
+      .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ id: string }> => {
     const { data: inserted, error } = await context.supabase
@@ -194,6 +251,7 @@ export const updateProcedure = createServerFn({ method: "POST" })
         procedureId: z.string().uuid(),
         ...ProcedureFields,
       })
+      .refine(rangoOrdenado, RANGO_DESORDENADO)
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
