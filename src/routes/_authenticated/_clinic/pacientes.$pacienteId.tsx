@@ -878,13 +878,12 @@ function PacienteDetalle() {
                 clinicId={clinicId}
                 patientId={paciente.id}
                 patientDocument={paciente.documento || null}
-                allergies={medicalHistoryQuery.data?.allergies ?? []}
                 timezone={access.clinic?.timezone ?? "America/Santiago"}
-                myProfessionalId={access.myProfessionalId ?? null}
                 puedeEmitir={
                   puedeEscribirClinico &&
                   (access.role === "owner" || access.role === "admin" || access.role === "dentist")
                 }
+                esAdministrador={access.role === "owner" || access.role === "admin"}
               />
             </TabsContent>
           )}

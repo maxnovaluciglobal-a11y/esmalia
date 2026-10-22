@@ -738,6 +738,71 @@ export type Database = {
           },
         ];
       };
+      clinic_medications: {
+        Row: {
+          active: boolean;
+          active_ingredient: string;
+          atc_code: string | null;
+          clinic_id: string;
+          concentration: string | null;
+          created_at: string;
+          created_by: string | null;
+          dose: string | null;
+          duration: string | null;
+          form: string | null;
+          frequency: string | null;
+          id: string;
+          instructions: string | null;
+          pharmacological_group: string | null;
+          route: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          active_ingredient: string;
+          atc_code?: string | null;
+          clinic_id: string;
+          concentration?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          dose?: string | null;
+          duration?: string | null;
+          form?: string | null;
+          frequency?: string | null;
+          id?: string;
+          instructions?: string | null;
+          pharmacological_group?: string | null;
+          route?: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          active_ingredient?: string;
+          atc_code?: string | null;
+          clinic_id?: string;
+          concentration?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          dose?: string | null;
+          duration?: string | null;
+          form?: string | null;
+          frequency?: string | null;
+          id?: string;
+          instructions?: string | null;
+          pharmacological_group?: string | null;
+          route?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_medications_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinic_members: {
         Row: {
           clinic_id: string;
@@ -4100,19 +4165,24 @@ export type Database = {
           clinic_name_snapshot: string;
           clinic_phone_snapshot: string | null;
           clinic_tax_id_snapshot: string | null;
+          allergy_alerts: Json | null;
           content_sha256: string;
           id: string;
           instructions: string | null;
           issued_at: string;
           issued_by: string;
+          issued_document_id: string | null;
           items: Json;
           number: number;
           patient_birth_date_snapshot: string | null;
+          patient_document_id_snapshot: string | null;
+          patient_document_type_snapshot: string | null;
           patient_id: string;
           patient_name_snapshot: string;
           professional_id: string | null;
           professional_license_snapshot: string;
           professional_name_snapshot: string;
+          professional_sis_snapshot: string | null;
           professional_specialty_snapshot: string | null;
           signature_sha256: string | null;
           signature_storage_path: string | null;
@@ -4128,19 +4198,24 @@ export type Database = {
           clinic_name_snapshot?: string;
           clinic_phone_snapshot?: string | null;
           clinic_tax_id_snapshot?: string | null;
+          allergy_alerts?: Json | null;
           content_sha256?: string;
           id?: string;
           instructions?: string | null;
           issued_at?: string;
           issued_by?: string;
+          issued_document_id?: string | null;
           items: Json;
           number?: number;
           patient_birth_date_snapshot?: string | null;
+          patient_document_id_snapshot?: string | null;
+          patient_document_type_snapshot?: string | null;
           patient_id: string;
           patient_name_snapshot?: string;
           professional_id?: string | null;
           professional_license_snapshot?: string;
           professional_name_snapshot?: string;
+          professional_sis_snapshot?: string | null;
           professional_specialty_snapshot?: string | null;
           signature_sha256?: string | null;
           signature_storage_path?: string | null;
@@ -4156,19 +4231,24 @@ export type Database = {
           clinic_name_snapshot?: string;
           clinic_phone_snapshot?: string | null;
           clinic_tax_id_snapshot?: string | null;
+          allergy_alerts?: Json | null;
           content_sha256?: string;
           id?: string;
           instructions?: string | null;
           issued_at?: string;
           issued_by?: string;
+          issued_document_id?: string | null;
           items?: Json;
           number?: number;
           patient_birth_date_snapshot?: string | null;
+          patient_document_id_snapshot?: string | null;
+          patient_document_type_snapshot?: string | null;
           patient_id?: string;
           patient_name_snapshot?: string;
           professional_id?: string | null;
           professional_license_snapshot?: string;
           professional_name_snapshot?: string;
+          professional_sis_snapshot?: string | null;
           professional_specialty_snapshot?: string | null;
           signature_sha256?: string | null;
           signature_storage_path?: string | null;
@@ -4183,6 +4263,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "prescriptions_issued_document_id_fkey";
+            columns: ["issued_document_id"];
+            isOneToOne: false;
+            referencedRelation: "issued_documents";
             referencedColumns: ["id"];
           },
           {
@@ -5810,6 +5897,21 @@ export type Database = {
       definir_cuotas: {
         Args: { p_cuotas: Json; p_receivable_id: string };
         Returns: undefined;
+      };
+      emitir_receta: {
+        Args: {
+          p_allergy_alerts: Json;
+          p_clinic_id: string;
+          p_content_blocks: Json;
+          p_content_html: string;
+          p_fields: Json;
+          p_instructions: string;
+          p_items: Json;
+          p_patient_id: string;
+          p_professional_id: string;
+          p_template_version_id: string;
+        };
+        Returns: Json;
       };
       extender_prueba_de_la_clinica: {
         Args: {

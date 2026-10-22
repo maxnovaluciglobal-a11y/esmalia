@@ -152,7 +152,7 @@ describe("motor de documentos en la base", () => {
 
   // ─── DOC-02 ────────────────────────────────────────────────────────────────
 
-  it("una clínica nueva nace con sus siete plantillas, cada una con su versión 1", async () => {
+  it("una clínica nueva nace con sus plantillas base, cada una con su versión 1", async () => {
     const r = await client.query<{
       seed_key: string;
       version: number;
@@ -175,6 +175,8 @@ describe("motor de documentos en la base", () => {
       "consentimiento-simple",
       "derivacion",
       "informe",
+      // MKT-05 · receta (migración 20261025300200, su propia siembra).
+      "receta",
       "reembolso-seguro",
       "reposo",
     ]);

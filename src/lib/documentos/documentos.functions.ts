@@ -25,6 +25,7 @@ import { CamposSchema, leerBloques } from "@/lib/documentos/esquemas";
 import { analizarPlantilla } from "@/lib/documentos/motor";
 import {
   esTipoDeDocumento,
+  TIPOS_CON_FLUJO_PROPIO,
   TIPOS_DE_DOCUMENTO,
   type Bloque,
   type TipoDeDocumento,
@@ -358,6 +359,20 @@ export const emitirDocumentoDelPaciente = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // MKT-05: una receta se emite desde su tarjeta (con la receta estructurada).
+    const { data: t } = await supabase
+      .from("document_templates")
+      .select("kind")
+      .eq("id", data.templateId)
+      .eq("clinic_id", data.clinicId)
+      .maybeSingle();
+    if (t && esTipoDeDocumento(t.kind) && TIPOS_CON_FLUJO_PROPIO.includes(t.kind)) {
+      throw new Error(
+        t.kind === "presupuesto"
+          ? "El presupuesto se descarga o se envía desde el presupuesto del paciente."
+          : "Las recetas se emiten desde la tarjeta Recetas de la ficha.",
+      );
+    }
     return emitirDocumento(supabase, {
       clinicId: data.clinicId,
       patientId: data.patientId,

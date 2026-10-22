@@ -12,6 +12,7 @@
  *   {{campo.*}}        lo que se completa al emitir (motivo, días de reposo…)
  *   {{reembolso.*}}    prestaciones y pagos de un período (MKT-04)
  *   {{presupuesto.*}}  líneas, totales y condiciones de un presupuesto (PLA-08)
+ *   {{receta.*}}       medicamentos, alergias e indicaciones (MKT-05, receta.ts)
  *
  * Los frentes siguientes (presupuesto, receta) suman su propio grupo acá
  * (`presupuesto.*`, `receta.*`) y su función de contexto, sin tocar el motor.
@@ -28,6 +29,13 @@ import {
   valoresDePresupuesto,
   type DatosPresupuesto,
 } from "@/lib/documentos/presupuesto";
+// MKT-05 · receta
+import {
+  contextoDeReceta,
+  RECETA_DE_EJEMPLO,
+  VARIABLES_RECETA,
+  type DatosReceta,
+} from "@/lib/documentos/receta";
 
 export type GrupoVariable =
   | "paciente"
@@ -37,7 +45,9 @@ export type GrupoVariable =
   | "campo"
   | "reembolso"
   // Ola 4 · PLA-08
-  | "presupuesto";
+  | "presupuesto"
+  // MKT-05 · receta
+  | "receta";
 
 export const ETIQUETA_GRUPO: Record<GrupoVariable, string> = {
   paciente: "Paciente",
@@ -47,6 +57,8 @@ export const ETIQUETA_GRUPO: Record<GrupoVariable, string> = {
   campo: "Se completa al emitir",
   reembolso: "Reembolso",
   presupuesto: "Presupuesto",
+  // MKT-05 · receta
+  receta: "Receta",
 };
 
 export interface DefinicionVariable {
@@ -286,6 +298,8 @@ export const VARIABLES: readonly DefinicionVariable[] = [
     etiqueta: "Observaciones",
     ejemplo: "Incluye radiografía de control.",
   },
+  // MKT-05 · receta
+  ...VARIABLES_RECETA,
 ];
 
 /**
@@ -471,6 +485,8 @@ export interface DatosParaDocumento {
     filas: FilaReembolso[];
     totalPagadoCents: number;
   };
+  // MKT-05 · receta: solo al emitir una receta (tarjeta Recetas de la ficha).
+  receta?: DatosReceta;
   /** Lo completado al emitir: nombre del campo → texto (fechas como YYYY-MM-DD). */
   campos: Readonly<Record<string, string>>;
   /** Solo para el PDF del presupuesto (PLA-08). */
@@ -627,6 +643,12 @@ export function construirContexto(datos: DatosParaDocumento): {
     tablas["presupuesto.prestaciones"] = tablaDePrestaciones(datos.presupuesto);
     tablas["presupuesto.totales"] = tablaDeTotales(datos.presupuesto);
   }
+  // MKT-05 · receta
+  if (datos.receta) {
+    const receta = contextoDeReceta(datos.receta);
+    Object.assign(valores, receta.valores);
+    Object.assign(tablas, receta.tablas);
+  }
   return { valores, tablas };
 }
 
@@ -641,9 +663,13 @@ export function contextoDeEjemplo(): {
     valores[`${PREFIJO_CAMPO}${c.nombre}`] = textoDeCampo(c.nombre, c.ejemplo, "America/Santiago");
   }
   Object.assign(valores, valoresDePresupuesto(PRESUPUESTO_DE_EJEMPLO, "America/Santiago"));
+  // MKT-05 · receta
+  const receta = contextoDeReceta(RECETA_DE_EJEMPLO);
+  Object.assign(valores, receta.valores);
   return {
     valores,
     tablas: {
+      ...receta.tablas,
       "reembolso.prestaciones": tablaDeReembolso(
         [
           {

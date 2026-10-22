@@ -31,7 +31,13 @@ const BloqueSchema = z.discriminatedUnion("tipo", [
   z.object({
     tipo: z.literal("tabla"),
     columnas: z
-      .array(z.object({ titulo: z.string().max(80), alineacion: z.enum(["izquierda", "derecha"]) }))
+      .array(
+        z.object({
+          titulo: z.string().max(80),
+          alineacion: z.enum(["izquierda", "derecha"]),
+          peso: z.number().positive().max(10).optional(),
+        }),
+      )
       .min(1)
       .max(8),
     filas: z.array(z.array(z.string().max(500)).max(8)).max(500),

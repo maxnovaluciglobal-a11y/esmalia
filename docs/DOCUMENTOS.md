@@ -17,7 +17,7 @@ plantilla (texto con {{variables}})            document_template_versions.body
 
 - **Bloques** (`tipos.ts`): título, párrafo (con negrita y saltos), lista, tabla y firma. Son lo único que se dibuja: la pantalla los pinta con React (sin `innerHTML`), el PDF los recorre con jsPDF y el HTML canónico sale de ellos. Ni una plantilla ni un dato de la ficha pueden inyectar markup.
 - **Formato de plantilla:** `# Título`, `## Subtítulo`, `**negrita**`, `- ítem`, línea en blanco entre párrafos. Una variable de bloque (`{{reembolso.prestaciones}}`) va sola en su línea y se imprime como tabla.
-- **Variables** (`variables.ts`): `paciente.*`, `clinica.*`, `profesional.*`, `fecha`, `fecha_corta`, `reembolso.*` y `campo.*` (lo que se completa al emitir; los conocidos tienen etiqueta y tipo, y una plantilla puede pedir campos propios). Sin dato, se imprime una línea para completar a mano y la vista previa lo avisa.
+- **Variables** (`variables.ts`): `paciente.*`, `clinica.*`, `profesional.*`, `fecha`, `fecha_corta`, `reembolso.*`, `receta.*` (`receta.ts`) y `campo.*` (lo que se completa al emitir; los conocidos tienen etiqueta y tipo, y una plantilla puede pedir campos propios). Sin dato, se imprime una línea para completar a mano y la vista previa lo avisa.
 - **Versiones:** editar una plantilla inserta una versión nueva (la numera la base) y la deja vigente; una versión no se edita. El documento emitido guarda `template_version_id`.
 - **Huella:** `sha256(content_html || U+001F || coalesce(signature_sha256, ''))`, la calcula el trigger `issued_documents_emitir`; `huella.ts` es el par en TypeScript y la página del documento la verifica en el navegador.
 - **Firma (DOC-06):** imagen en el bucket privado `professional-signatures/<clinic>/<professional>/<uuid>`, registrada por el propio profesional con `registrar_mi_firma` (también guarda su número de la Superintendencia de Salud, `professionals.sis_registry_number`). Al emitir, la base copia la ruta y el sha256 de la firma vigente. Una firma nueva es un archivo nuevo: la anterior queda para los documentos que la usaron. Firma simple (Ley 19.799), no avanzada.
@@ -50,6 +50,10 @@ cargarDatosParaDocumento(supabase, { clinicId, patientId, userId, periodo? }): P
 ```
 
 Para sumar un documento nuevo (por ejemplo el presupuesto): agregar su grupo de variables al catálogo (`presupuesto.*`, con sus tablas como variables de bloque), extender `DatosParaDocumento` y `construirContexto`, y sembrar su plantilla con un `kind` nuevo (CHECK de `document_templates.kind`). El motor no cambia.
+
+## Receta (MKT-05)
+
+La receta es un documento del motor con flujo propio: plantilla `kind = 'receta'` (sembrada por clínica, editable), grupo `receta.*` (tabla de medicamentos, alergias, indicaciones generales) y emisión desde la tarjeta Recetas de la ficha, que además guarda la receta estructurada en `prescriptions` (`emitir_receta`, una transacción). No aparece en "Emitir documento" (`TIPOS_CON_FLUJO_PROPIO`). Una tabla puede traer `peso` por columna para el ancho en el PDF. Detalle, vademécum y mapeo a FHIR: `docs/RECETA_FHIR.md`.
 
 ## Presupuesto en PDF y envíos por correo (Ola 4 · PLA-08, PLA-09, PLA-11, DOC-07)
 

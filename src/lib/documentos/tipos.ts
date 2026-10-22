@@ -36,6 +36,8 @@ export type AlineacionColumna = "izquierda" | "derecha";
 export interface ColumnaTabla {
   titulo: string;
   alineacion: AlineacionColumna;
+  /** Ancho relativo en el PDF (opcional; sin peso, el criterio de siempre). */
+  peso?: number;
 }
 
 export type Bloque =
@@ -101,6 +103,8 @@ export const TIPOS_DE_DOCUMENTO = [
   // Ola 4 · PLA-08: la plantilla del PDF del presupuesto. No se emite desde
   // la ficha: se descarga o se envía desde el presupuesto.
   "presupuesto",
+  // MKT-05 · receta: se emite desde la tarjeta Recetas, no desde "Emitir documento".
+  "receta",
   "otro",
 ] as const;
 export type TipoDeDocumento = (typeof TIPOS_DE_DOCUMENTO)[number];
@@ -114,11 +118,16 @@ export const ETIQUETA_TIPO_DE_DOCUMENTO: Record<TipoDeDocumento, string> = {
   consentimiento: "Declaración o consentimiento",
   reembolso: "Reembolso de seguro complementario",
   presupuesto: "Presupuesto",
+  receta: "Receta",
   otro: "Otro documento",
 };
 
-/** Tipos que no se emiten desde la ficha del paciente (tienen su propio lugar). */
-export const TIPOS_SIN_EMISION_DESDE_LA_FICHA: readonly TipoDeDocumento[] = ["presupuesto"];
+/**
+ * Tipos con su propio flujo: no salen en "Emitir documento" de la ficha.
+ * La receta se emite desde la tarjeta Recetas (MKT-05); el presupuesto se
+ * descarga o se envía desde el presupuesto (PLA-08).
+ */
+export const TIPOS_CON_FLUJO_PROPIO: readonly TipoDeDocumento[] = ["presupuesto", "receta"];
 
 export function esTipoDeDocumento(valor: unknown): valor is TipoDeDocumento {
   return typeof valor === "string" && (TIPOS_DE_DOCUMENTO as readonly string[]).includes(valor);

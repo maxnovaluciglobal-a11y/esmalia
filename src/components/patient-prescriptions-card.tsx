@@ -1,10 +1,14 @@
 import { useId, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Download, Loader2, Pill, Plus, Trash2 } from "lucide-react";
+import { Ban, BookOpen, Download, FileJson, Loader2, Pill } from "lucide-react";
 import { toast } from "sonner";
 
-import { SignaturePad } from "@/components/signature-pad";
+import { EmitirRecetaDialog } from "@/components/recetas/emitir-receta-dialog";
+import { VademecumDialog } from "@/components/recetas/vademecum-dialog";
+import { BloqueoEscritura } from "@/components/solo-lectura";
+import { TituloSeccion } from "@/components/titulo-seccion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,81 +18,70 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  issuePrescription,
+  getRecetaFhir,
   listPatientPrescriptions,
-  listProfesionalesClinicos,
   voidPrescription,
   type RecetaDeFicha,
 } from "@/lib/clinical/prescriptions.functions";
 import {
-  alertasDeAlergia,
   edadEnAnios,
   folioReceta,
   lineaDePosologia,
-  MAX_MEDICAMENTOS,
   nombreConPresentacion,
-  RecetaItemsSchema,
-  VADEMECUM,
-  type RecetaItem,
 } from "@/lib/clinical/recetas";
-import { fecha, fechaHora } from "@/lib/formato-fecha";
-import { TituloSeccion } from "@/components/titulo-seccion";
+import { getDocumentoEmitido } from "@/lib/documentos/documentos.functions";
+import { folioDocumento } from "@/lib/documentos/motor";
+import { diaISO, fecha, fechaHora } from "@/lib/formato-fecha";
+import { mensajeDeError } from "@/lib/mensaje-error";
+import { cn } from "@/lib/utils";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
 }
 
-const ITEM_VACIO: RecetaItem = {
-  medication: "",
-  presentation: "",
-  dose: "",
-  frequency: "",
-  duration: "",
-  instructions: "",
-};
-
-function fechaEnZona(iso: string, timeZone: string, conHora = false): string {
-  return conHora ? fechaHora(iso, timeZone) : fecha(iso, timeZone);
+/** El folio con el que se imprimió: el del documento (MKT-05) o el propio (recetas anteriores). */
+function folioDe(r: RecetaDeFicha): string {
+  return r.documento
+    ? folioDocumento(r.documento.year, r.documento.number)
+    : folioReceta(r.year, r.number);
 }
 
-/** YYYY-MM-DD de una fecha en la zona de la clínica (para calcular la edad). */
-function diaEnZona(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date(iso));
-}
-
+/**
+ * Recetas del paciente (CLI-13 + MKT-05), en la pestaña Documentos de la
+ * ficha. Desde MKT-05 una receta se emite con el motor de documentos
+ * (plantilla "Receta", vademécum, alergias, RUT y registro SIS): se abre,
+ * se imprime y se descarga como cualquier documento, y además queda
+ * estructurada para FHIR. Las recetas anteriores conservan su PDF propio.
+ */
 export function PatientPrescriptionsCard({
   clinicId,
   patientId,
   patientDocument,
-  allergies,
   timezone,
-  myProfessionalId,
   puedeEmitir,
+  esAdministrador,
 }: {
   clinicId: string;
   patientId: string;
   patientDocument: string | null;
-  allergies: string[];
   timezone: string;
-  myProfessionalId: string | null;
-  /** owner/admin/dentist con escritura clínica. La base exige además la ficha propia. */
+  /** owner/admin/dentist con escritura clínica (el servidor y la base lo vuelven a exigir). */
   puedeEmitir: boolean;
+  /** owner o admin: anulan cualquier receta; el resto, solo las propias (lo exige la base). */
+  esAdministrador: boolean;
 }) {
   const fid = useId();
   const queryClient = useQueryClient();
   const fetchRecetas = useServerFn(listPatientPrescriptions);
-  const fetchProfesionales = useServerFn(listProfesionalesClinicos);
-  const doIssue = useServerFn(issuePrescription);
+  const cargarDocumento = useServerFn(getDocumentoEmitido);
+  const cargarFhir = useServerFn(getRecetaFhir);
   const doVoid = useServerFn(voidPrescription);
 
-  const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<RecetaItem[]>([{ ...ITEM_VACIO }]);
-  const [instructions, setInstructions] = useState("");
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null);
+  const [emitiendo, setEmitiendo] = useState(false);
+  const [viendoVademecum, setViendoVademecum] = useState(false);
   const [anular, setAnular] = useState<RecetaDeFicha | null>(null);
   const [motivo, setMotivo] = useState("");
   const [descargando, setDescargando] = useState<string | null>(null);
@@ -99,273 +92,144 @@ export function PatientPrescriptionsCard({
     queryFn: () => fetchRecetas({ data: { clinicId, patientId } }),
   });
 
-  const profesionalesQuery = useQuery({
-    queryKey: ["profesionales-clinicos", clinicId],
-    queryFn: () => fetchProfesionales({ data: { clinicId } }),
-    enabled: open && Boolean(myProfessionalId),
-  });
-  const yo = profesionalesQuery.data?.find((p) => p.id === myProfessionalId) ?? null;
-
-  const validacion = RecetaItemsSchema.safeParse(items);
-  const problema = !myProfessionalId
-    ? "Tu cuenta no está vinculada a una ficha de profesional (Equipo)."
-    : profesionalesQuery.isSuccess && !yo?.licenseNumber
-      ? "Carga tu número de registro profesional en Equipo antes de emitir recetas."
-      : validacion.success
-        ? null
-        : (validacion.error.issues[0]?.message ?? "Revisa los medicamentos.");
-
-  const issueMutation = useMutation({
-    mutationFn: () =>
-      doIssue({
-        data: {
-          clinicId,
-          patientId,
-          professionalId: myProfessionalId!,
-          items,
-          instructions,
-          signatureDataUrl: signatureDataUrl ?? undefined,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Receta emitida y guardada en la ficha.");
-      queryClient.invalidateQueries({ queryKey });
-      setOpen(false);
-      setItems([{ ...ITEM_VACIO }]);
-      setInstructions("");
-      setSignatureDataUrl(null);
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo emitir la receta."),
-  });
-
   const voidMutation = useMutation({
     mutationFn: (params: { id: string; reason: string }) =>
       doVoid({ data: { clinicId, prescriptionId: params.id, reason: params.reason } }),
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("Receta anulada.");
-      queryClient.invalidateQueries({ queryKey });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey }),
+        queryClient.invalidateQueries({ queryKey: ["documentos-emitidos", clinicId] }),
+      ]);
       setAnular(null);
       setMotivo("");
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "No se pudo anular la receta."),
+    onError: (e) => toast.error(mensajeDeError(e)),
   });
 
   async function descargar(r: RecetaDeFicha) {
     setDescargando(r.id);
     try {
+      if (r.documento) {
+        const documentId = r.documento.id;
+        const d = await queryClient.fetchQuery({
+          queryKey: ["documento-emitido", clinicId, documentId],
+          queryFn: () => cargarDocumento({ data: { clinicId, documentId } }),
+        });
+        if (!d.bloques) throw new Error("No podemos generar el PDF de esta receta.");
+        const { descargarDocumentoPdf } = await import("@/lib/documentos/pdf");
+        await descargarDocumentoPdf({ ...d, bloques: d.bloques });
+        return;
+      }
+      // Receta anterior a MKT-05: su PDF propio.
       const { descargarRecetaPdf } = await import("@/lib/clinical/receta-pdf");
       await descargarRecetaPdf({
         receta: r,
-        fecha: fechaEnZona(r.issuedAt, timezone),
-        edad: edadEnAnios(r.patientBirthDate, diaEnZona(r.issuedAt, timezone)),
-        documentoPaciente: patientDocument,
+        fecha: fecha(r.issuedAt, timezone),
+        edad: edadEnAnios(r.patientBirthDate, diaISO(r.issuedAt, timezone) ?? ""),
+        documentoPaciente: r.patientDocument ?? patientDocument,
         firmaUrl: r.signatureUrl,
       });
-    } catch {
-      toast.error("No se pudo generar el PDF.");
+    } catch (e) {
+      toast.error(mensajeDeError(e));
     } finally {
       setDescargando(null);
     }
   }
 
-  function cambiarItem(i: number, campo: keyof RecetaItem, valor: string) {
-    setItems((prev) => prev.map((it, j) => (j === i ? { ...it, [campo]: valor } : it)));
+  async function descargarFhir(r: RecetaDeFicha) {
+    try {
+      const { nombre, json } = await cargarFhir({ data: { clinicId, prescriptionId: r.id } });
+      const url = URL.createObjectURL(new Blob([json], { type: "application/fhir+json" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = nombre;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(mensajeDeError(e));
+    }
   }
 
   const data = recetasQuery.data;
   const recetas = data?.recetas ?? [];
 
   return (
-    <div className="card-clinical p-6">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <section className="card-clinical p-6" aria-labelledby={`${fid}-titulo`}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
-          <TituloSeccion>Recetas</TituloSeccion>
+          <TituloSeccion id={`${fid}-titulo`}>Recetas</TituloSeccion>
           <p className="text-xs text-muted-foreground">
+            Con el vademécum, el aviso de alergias y tu registro de la Superintendencia de Salud.
             Una receta emitida no se edita: si hay un error, se anula y se emite otra.
           </p>
         </div>
-        {puedeEmitir && data?.disponible && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline">
-                <Pill className="size-3.5" /> Nueva receta
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Emitir receta</DialogTitle>
-                <DialogDescription>
-                  Sale con tus datos y tu registro profesional, y los de la clínica. Revisa la dosis
-                  antes de emitir: después no se puede editar.
-                </DialogDescription>
-              </DialogHeader>
-
-              {allergies.length > 0 && (
-                <p className="flex items-start gap-2 rounded-lg border border-warning-border bg-warning-soft px-3 py-2 text-xs text-warning">
-                  <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
-                  <span>Alergias anotadas en la anamnesis: {allergies.join(", ")}.</span>
-                </p>
-              )}
-
-              <datalist id={`${fid}-vademecum`}>
-                {VADEMECUM.map((v) => (
-                  <option key={v.nombre} value={v.nombre} />
-                ))}
-              </datalist>
-
-              <div className="space-y-4">
-                {items.map((item, i) => {
-                  const avisos = alertasDeAlergia(item.medication, allergies);
-                  return (
-                    <fieldset key={i} className="space-y-2 rounded-xl border border-hairline p-3">
-                      <div className="flex items-center justify-between">
-                        <legend className="text-sm font-medium">Medicamento {i + 1}</legend>
-                        {items.length > 1 && (
-                          <button
-                            type="button"
-                            aria-label={`Quitar medicamento ${i + 1}`}
-                            onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))}
-                            className="text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
-                          >
-                            <Trash2 className="size-4" />
-                          </button>
-                        )}
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-2">
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-med-${i}`}>Medicamento</Label>
-                          <input
-                            id={`${fid}-med-${i}`}
-                            list={`${fid}-vademecum`}
-                            value={item.medication}
-                            onChange={(e) => cambiarItem(i, "medication", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. Ibuprofeno"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-pres-${i}`}>Presentación (opcional)</Label>
-                          <input
-                            id={`${fid}-pres-${i}`}
-                            value={item.presentation ?? ""}
-                            onChange={(e) => cambiarItem(i, "presentation", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. 400 mg, comprimidos"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-dosis-${i}`}>Dosis</Label>
-                          <input
-                            id={`${fid}-dosis-${i}`}
-                            value={item.dose}
-                            onChange={(e) => cambiarItem(i, "dose", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. 1 comprimido"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-frec-${i}`}>Frecuencia</Label>
-                          <input
-                            id={`${fid}-frec-${i}`}
-                            value={item.frequency}
-                            onChange={(e) => cambiarItem(i, "frequency", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. cada 8 horas"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-dur-${i}`}>Duración</Label>
-                          <input
-                            id={`${fid}-dur-${i}`}
-                            value={item.duration}
-                            onChange={(e) => cambiarItem(i, "duration", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. por 3 días"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label htmlFor={`${fid}-ind-${i}`}>Indicaciones (opcional)</Label>
-                          <input
-                            id={`${fid}-ind-${i}`}
-                            value={item.instructions ?? ""}
-                            onChange={(e) => cambiarItem(i, "instructions", e.target.value)}
-                            className={inputClass()}
-                            placeholder="Ej. después de las comidas"
-                          />
-                        </div>
-                      </div>
-                      {avisos.map((aviso) => (
-                        <p key={aviso} role="alert" className="text-xs text-destructive">
-                          {aviso}
-                        </p>
-                      ))}
-                    </fieldset>
-                  );
-                })}
-                {items.length < MAX_MEDICAMENTOS && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setItems((prev) => [...prev, { ...ITEM_VACIO }])}
-                  >
-                    <Plus className="size-3.5" /> Agregar medicamento
-                  </Button>
-                )}
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-indicaciones`}>Indicaciones generales (opcional)</Label>
-                  <textarea
-                    id={`${fid}-indicaciones`}
-                    value={instructions}
-                    onChange={(e) => setInstructions(e.target.value)}
-                    rows={3}
-                    className={inputClass()}
-                    placeholder="Ej. Dieta blanda y fría las primeras 24 horas."
-                  />
-                </div>
-                <SignaturePad label="Tu firma (opcional)" onChange={setSignatureDataUrl} />
-                <p className="text-xs text-muted-foreground">
-                  Sin firma dibujada, el PDF deja la línea para firmar y timbrar a mano al imprimir.
-                </p>
-              </div>
-              <DialogFooter className="items-center gap-3">
-                {problema && <p className="text-xs text-muted-foreground">{problema}</p>}
-                <Button
-                  onClick={() => issueMutation.mutate()}
-                  disabled={issueMutation.isPending || problema !== null}
-                >
-                  {issueMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
-                  Emitir receta
+        {data?.disponible && (
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setViendoVademecum(true)}>
+              <BookOpen aria-hidden /> Vademécum
+            </Button>
+            {puedeEmitir && (
+              <BloqueoEscritura>
+                <Button size="sm" onClick={() => setEmitiendo(true)}>
+                  <Pill aria-hidden /> Nueva receta
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </BloqueoEscritura>
+            )}
+          </div>
         )}
       </div>
 
       {recetasQuery.isLoading ? (
-        <p className="text-xs text-muted-foreground">Cargando…</p>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" aria-hidden /> Cargando…
+        </p>
       ) : recetasQuery.isError ? (
-        <p className="text-xs text-destructive">No pudimos cargar las recetas.</p>
+        <p className="text-sm text-destructive">No pudimos cargar las recetas.</p>
       ) : data && !data.disponible ? (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Las recetas se activan cuando se aplique la actualización de la base de datos.
         </p>
       ) : recetas.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Sin recetas emitidas todavía.</p>
+        <p className="text-sm text-muted-foreground">Sin recetas emitidas todavía.</p>
       ) : (
-        <div className="space-y-2">
-          {recetas.map((r) => (
-            <div key={r.id} className="rounded-xl border border-hairline p-3">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
+        <ul className="divide-y divide-hairline border-y border-border">
+          {recetas.map((r) => {
+            const folio = folioDe(r);
+            return (
+              <li key={r.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 py-3">
+                <Pill className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+                <div className="min-w-0 flex-1">
                   <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                    Receta {folioReceta(r.year, r.number)}
-                    {r.voidedAt && <Badge variant="destructive">Anulada</Badge>}
+                    {r.documento ? (
+                      <Link
+                        to="/documentos/$documentoId"
+                        params={{ documentoId: r.documento.id }}
+                        className={cn(
+                          "hover:underline",
+                          r.voidedAt && "text-muted-foreground line-through",
+                        )}
+                      >
+                        Receta <span className="cifra">{folio}</span>
+                      </Link>
+                    ) : (
+                      <span className={cn(r.voidedAt && "text-muted-foreground line-through")}>
+                        Receta <span className="cifra">{folio}</span>
+                      </span>
+                    )}
+                    {r.voidedAt && <Badge variant="outline">Anulada</Badge>}
+                    {r.allergyAlerts.length > 0 && (
+                      <Badge variant="outline" title={r.allergyAlerts.join("\n")}>
+                        Alergia confirmada
+                      </Badge>
+                    )}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {fechaEnZona(r.issuedAt, timezone, true)} · {r.professionalName} · Reg.{" "}
-                    {r.professionalLicense}
+                    {fechaHora(r.issuedAt, timezone)} · {r.professionalName} ·{" "}
+                    {r.professionalSis
+                      ? `Reg. SIS ${r.professionalSis}`
+                      : `Reg. ${r.professionalLicense}`}
+                    {r.deOtraFicha ? " · de una ficha fusionada" : ""}
                   </p>
                   <ul className="mt-1 space-y-0.5 text-xs">
                     {r.items.map((it, i) => (
@@ -375,39 +239,78 @@ export function PatientPrescriptionsCard({
                       </li>
                     ))}
                   </ul>
-                  {r.voidedAt && r.voidReason && (
-                    <p className="mt-1 text-xs text-muted-foreground">Motivo: {r.voidReason}</p>
+                  {r.voidedAt && (
+                    <p className="mt-1 text-xs text-destructive">
+                      Anulada el {fecha(r.voidedAt, timezone)}
+                      {r.voidReason ? `: ${r.voidReason}` : ""}
+                    </p>
                   )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex flex-wrap gap-1.5">
+                  {r.documento && (
+                    <Button asChild variant="outline" size="sm">
+                      <Link to="/documentos/$documentoId" params={{ documentoId: r.documento.id }}>
+                        Ver e imprimir
+                      </Link>
+                    </Button>
+                  )}
                   <Button
-                    size="sm"
                     variant="outline"
-                    onClick={() => descargar(r)}
+                    size="sm"
+                    onClick={() => void descargar(r)}
                     disabled={descargando === r.id}
+                    aria-label={`Descargar PDF de la receta ${folio}`}
                   >
                     {descargando === r.id ? (
-                      <Loader2 className="size-3.5 animate-spin" />
+                      <Loader2 className="animate-spin" aria-hidden />
                     ) : (
-                      <Download className="size-3.5" />
+                      <Download aria-hidden />
                     )}
                     PDF
                   </Button>
-                  {puedeEmitir && !r.voidedAt && (
-                    <button
-                      type="button"
-                      onClick={() => setAnular(r)}
-                      className="text-xs text-muted-foreground hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50"
+                  {r.documento && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => void descargarFhir(r)}
+                      aria-label={`Descargar la receta ${folio} en formato FHIR`}
                     >
-                      Anular
-                    </button>
+                      <FileJson aria-hidden /> FHIR
+                    </Button>
+                  )}
+                  {puedeEmitir && !r.voidedAt && (esAdministrador || r.emitidaPorMi) && (
+                    <BloqueoEscritura>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAnular(r)}
+                        aria-label={`Anular la receta ${folio}`}
+                      >
+                        <Ban aria-hidden /> Anular
+                      </Button>
+                    </BloqueoEscritura>
                   )}
                 </div>
-              </div>
-            </div>
-          ))}
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
+
+      {puedeEmitir && (
+        <EmitirRecetaDialog
+          abierto={emitiendo}
+          onCerrar={() => setEmitiendo(false)}
+          clinicId={clinicId}
+          patientId={patientId}
+        />
+      )}
+      <VademecumDialog
+        abierto={viendoVademecum}
+        onCerrar={() => setViendoVademecum(false)}
+        clinicId={clinicId}
+        puedeEditar={puedeEmitir}
+      />
 
       <Dialog
         open={anular !== null}
@@ -420,11 +323,10 @@ export function PatientPrescriptionsCard({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              Anular receta {anular ? folioReceta(anular.year, anular.number) : ""}
-            </DialogTitle>
+            <DialogTitle>Anular receta {anular ? folioDe(anular) : ""}</DialogTitle>
             <DialogDescription>
-              La receta queda en la ficha marcada como anulada, con el motivo. No se borra.
+              La receta queda en la ficha marcada como anulada, con el motivo, y su documento
+              también. No se borra.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-1.5">
@@ -435,6 +337,7 @@ export function PatientPrescriptionsCard({
               onChange={(e) => setMotivo(e.target.value)}
               className={inputClass()}
               placeholder="Ej. Error en la dosis"
+              maxLength={300}
             />
           </div>
           <DialogFooter>
@@ -443,12 +346,12 @@ export function PatientPrescriptionsCard({
               disabled={voidMutation.isPending || motivo.trim().length < 3}
               onClick={() => anular && voidMutation.mutate({ id: anular.id, reason: motivo })}
             >
-              {voidMutation.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              {voidMutation.isPending && <Loader2 className="animate-spin" aria-hidden />}
               Anular receta
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 }

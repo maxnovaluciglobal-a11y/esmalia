@@ -152,9 +152,10 @@ function dibujarTabla(
   const alto = size * 1.35;
   const pad = 4;
   const n = b.columnas.length;
-  // La columna más ancha se lleva el resto (la de la prestación).
-  const pesos = b.columnas.map((c, i) =>
-    i === 1 && n > 2 ? 3 : c.alineacion === "derecha" ? 1.3 : 1,
+  // La columna más ancha se lleva el resto (la de la prestación), salvo que
+  // la tabla traiga sus propios pesos (la receta).
+  const pesos = b.columnas.map(
+    (c, i) => c.peso ?? (i === 1 && n > 2 ? 3 : c.alineacion === "derecha" ? 1.3 : 1),
   );
   const total = pesos.reduce((a, x) => a + x, 0);
   const anchos = pesos.map((p) => (UTIL * p) / total);

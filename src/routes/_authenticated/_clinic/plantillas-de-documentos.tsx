@@ -65,7 +65,15 @@ const PLANTILLA_NUEVA = `# Título del documento
 Certifico que **{{paciente.nombre}}**, {{paciente.tipo_documento}} {{paciente.rut}}, …
 `;
 
-const GRUPOS: GrupoVariable[] = ["paciente", "clinica", "profesional", "documento", "reembolso"];
+const GRUPOS: GrupoVariable[] = [
+  "paciente",
+  "clinica",
+  "profesional",
+  "documento",
+  "reembolso",
+  // MKT-05 · receta
+  "receta",
+];
 /** Las variables del presupuesto solo tienen dato en la plantilla del presupuesto (PLA-08). */
 const GRUPOS_PRESUPUESTO: GrupoVariable[] = ["paciente", "clinica", "documento", "presupuesto"];
 

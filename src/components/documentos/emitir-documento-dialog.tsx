@@ -31,10 +31,7 @@ import {
   renderPlantilla,
 } from "@/lib/documentos/motor";
 import { periodoValido } from "@/lib/documentos/reembolso";
-import {
-  ETIQUETA_TIPO_DE_DOCUMENTO,
-  TIPOS_SIN_EMISION_DESDE_LA_FICHA,
-} from "@/lib/documentos/tipos";
+import { ETIQUETA_TIPO_DE_DOCUMENTO, TIPOS_CON_FLUJO_PROPIO } from "@/lib/documentos/tipos";
 import {
   construirContexto,
   definicionCampo,
@@ -97,9 +94,10 @@ export function EmitirDocumentoDialog({
     queryFn: () => listar({ data: { clinicId } }),
     enabled: abierto,
   });
-  // El presupuesto se descarga o se envía desde el presupuesto (PLA-08).
+  // Tipos con flujo propio: la receta se emite desde la tarjeta Recetas
+  // (MKT-05) y el presupuesto se descarga o se envía desde el presupuesto (PLA-08).
   const activas = (plantillas.data ?? []).filter(
-    (p) => p.active && p.version && !TIPOS_SIN_EMISION_DESDE_LA_FICHA.includes(p.kind),
+    (p) => p.active && p.version && !TIPOS_CON_FLUJO_PROPIO.includes(p.kind),
   );
 
   const [templateId, setTemplateId] = useState<string>("");
