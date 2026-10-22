@@ -58,6 +58,9 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   patient_guardians_audit: "cambios del tutor del paciente",
   patient_medical_history: "anamnesis",
   patient_medical_history_audit: "cambios de la anamnesis",
+  patient_signature_events: "bitácora de la firma a distancia: IP y dispositivo del paciente",
+  patient_signature_requests:
+    "firma a distancia: documento firmado por el paciente, su RUT enmascarado y la evidencia",
   patient_vital_signs: "signos vitales",
   patients: "identidad, contacto y alertas clínicas del paciente",
   payments: "pagos de pacientes",

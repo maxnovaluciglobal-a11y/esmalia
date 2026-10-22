@@ -22,6 +22,7 @@ Disallow: /dominio-email
 Disallow: /pruebas-email
 Disallow: /configuracion
 Disallow: /portal
+Disallow: /firmar
 Disallow: /onboarding
 
 # Archivo estático: no puede leer PUBLIC_APP_URL como sitemap.xml.ts.

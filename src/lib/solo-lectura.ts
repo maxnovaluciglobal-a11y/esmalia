@@ -144,6 +144,14 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   registrarBrecha: "Registrar un incidente de seguridad o brecha de datos (obligación legal).",
   agregarSeguimientoBrecha:
     "Seguimiento de un incidente de seguridad o brecha de datos (obligación legal).",
+
+  abrirFirmaADistancia: "Firma a distancia (sin login): el paciente abre el link de la clínica.",
+  verificarRutParaFirmar:
+    "Firma a distancia (sin login): el paciente confirma su identidad con el RUT.",
+  enviarCodigoParaFirmar:
+    "Firma a distancia (sin login): el paciente pide su código de verificación.",
+  firmarDocumentoADistancia:
+    "Firma a distancia (sin login): el paciente firma un documento que la clínica ya le mandó.",
   submitMarketingLead: "Formulario público de la web.",
   ensureDemoClinicFresh: "Clínica demo pública (ya es de solo lectura por trigger).",
 

@@ -20,6 +20,7 @@ import { EnviarPorCorreoDialog } from "@/components/documentos/enviar-por-correo
 import documentoImpresionCss from "@/components/documentos/documento-impresion.css?url";
 import { HojaDocumento } from "@/components/documentos/hoja-documento";
 import { ErrorDeCarga } from "@/components/estado-error";
+import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-distancia";
 import { BloqueoEscritura } from "@/components/solo-lectura";
 import { Button } from "@/components/ui/button";
 import { hasPermission } from "@/lib/access/access";
@@ -228,6 +229,20 @@ function DocumentoPage() {
               envios={envios.data ?? []}
               timezone={d.timezone}
               cargando={envios.isLoading}
+            />
+            {/* DOC-05: el paciente firma en su celular (consentimientos y
+                plantillas marcadas). La base vuelve a exigir el permiso. */}
+            <FirmasADistanciaCard
+              clinicId={clinicId}
+              timezone={d.timezone}
+              filtro={{ issuedDocumentId: d.id }}
+              objetivo={
+                d.requiereFirmaDelPaciente && puedeEnviar
+                  ? { tipo: "documento", id: d.id }
+                  : undefined
+              }
+              puedeGestionar={() => puedeEnviar}
+              motivoNoPedir={d.voidedAt ? "El documento está anulado." : null}
             />
             <EnviarPorCorreoDialog
               abierto={enviando}

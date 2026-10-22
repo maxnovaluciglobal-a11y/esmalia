@@ -1687,6 +1687,7 @@ export type Database = {
           description: string | null;
           id: string;
           kind: string;
+          requires_patient_signature: boolean;
           seed_key: string | null;
           source: string;
           title: string;
@@ -1701,6 +1702,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           kind?: string;
+          requires_patient_signature?: boolean;
           seed_key?: string | null;
           source?: string;
           title: string;
@@ -1715,6 +1717,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           kind?: string;
+          requires_patient_signature?: boolean;
           seed_key?: string | null;
           source?: string;
           title?: string;
@@ -3457,6 +3460,271 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_signature_events: {
+        Row: {
+          actor_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          ip_hint: string | null;
+          kind: string;
+          request_id: string;
+          user_agent: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          ip_hint?: string | null;
+          kind: string;
+          request_id: string;
+          user_agent?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          ip_hint?: string | null;
+          kind?: string;
+          request_id?: string;
+          user_agent?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_signature_events_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_events_request_id_fkey";
+            columns: ["request_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_signature_requests";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_signature_requests: {
+        Row: {
+          accepted_text: string | null;
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          clinic_id: string;
+          clinic_timezone: string | null;
+          code_attempts: number;
+          code_channel: string;
+          code_expires_at: string | null;
+          code_hash: string | null;
+          code_recipient_masked: string | null;
+          code_sent_at: string | null;
+          codes_sent: number;
+          content_blocks: Json;
+          content_html: string;
+          created_at: string;
+          created_by: string;
+          document_sha256: string;
+          evidence_sha256: string | null;
+          expires_at: string;
+          guardian_id: string | null;
+          id: string;
+          issued_document_id: string | null;
+          kind: string;
+          link_channel: string;
+          locked_until: string | null;
+          opened_at: string | null;
+          patient_id: string;
+          professional_signature_path: string | null;
+          professional_signature_sha256: string | null;
+          quote_fingerprint: string | null;
+          quote_id: string | null;
+          replaces_request_id: string | null;
+          rut_attempts: number;
+          rut_verified_at: string | null;
+          session_expires_at: string | null;
+          session_hash: string | null;
+          sheet: Json;
+          signature_sha256: string | null;
+          signature_storage_path: string | null;
+          signed_at: string | null;
+          signed_at_local: string | null;
+          signed_copy_at: string | null;
+          signed_copy_path: string | null;
+          signed_copy_sha256: string | null;
+          signed_ip: string | null;
+          signed_user_agent: string | null;
+          signer_expected_name: string;
+          signer_name: string | null;
+          signer_role: string;
+          signer_rut_masked: string | null;
+          signer_rut_sha256: string | null;
+          status: string;
+          title: string;
+          token_hash: string;
+        };
+        Insert: {
+          accepted_text?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          clinic_id: string;
+          clinic_timezone?: string | null;
+          code_attempts?: number;
+          code_channel?: string;
+          code_expires_at?: string | null;
+          code_hash?: string | null;
+          code_recipient_masked?: string | null;
+          code_sent_at?: string | null;
+          codes_sent?: number;
+          content_blocks: Json;
+          content_html: string;
+          created_at?: string;
+          created_by?: string;
+          document_sha256: string;
+          evidence_sha256?: string | null;
+          expires_at: string;
+          guardian_id?: string | null;
+          id?: string;
+          issued_document_id?: string | null;
+          kind: string;
+          link_channel: string;
+          locked_until?: string | null;
+          opened_at?: string | null;
+          patient_id: string;
+          professional_signature_path?: string | null;
+          professional_signature_sha256?: string | null;
+          quote_fingerprint?: string | null;
+          quote_id?: string | null;
+          replaces_request_id?: string | null;
+          rut_attempts?: number;
+          rut_verified_at?: string | null;
+          session_expires_at?: string | null;
+          session_hash?: string | null;
+          sheet: Json;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          signed_at?: string | null;
+          signed_at_local?: string | null;
+          signed_copy_at?: string | null;
+          signed_copy_path?: string | null;
+          signed_copy_sha256?: string | null;
+          signed_ip?: string | null;
+          signed_user_agent?: string | null;
+          signer_expected_name: string;
+          signer_name?: string | null;
+          signer_role: string;
+          signer_rut_masked?: string | null;
+          signer_rut_sha256?: string | null;
+          status?: string;
+          title: string;
+          token_hash: string;
+        };
+        Update: {
+          accepted_text?: string | null;
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          clinic_id?: string;
+          clinic_timezone?: string | null;
+          code_attempts?: number;
+          code_channel?: string;
+          code_expires_at?: string | null;
+          code_hash?: string | null;
+          code_recipient_masked?: string | null;
+          code_sent_at?: string | null;
+          codes_sent?: number;
+          content_blocks?: Json;
+          content_html?: string;
+          created_at?: string;
+          created_by?: string;
+          document_sha256?: string;
+          evidence_sha256?: string | null;
+          expires_at?: string;
+          guardian_id?: string | null;
+          id?: string;
+          issued_document_id?: string | null;
+          kind?: string;
+          link_channel?: string;
+          locked_until?: string | null;
+          opened_at?: string | null;
+          patient_id?: string;
+          professional_signature_path?: string | null;
+          professional_signature_sha256?: string | null;
+          quote_fingerprint?: string | null;
+          quote_id?: string | null;
+          replaces_request_id?: string | null;
+          rut_attempts?: number;
+          rut_verified_at?: string | null;
+          session_expires_at?: string | null;
+          session_hash?: string | null;
+          sheet?: Json;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          signed_at?: string | null;
+          signed_at_local?: string | null;
+          signed_copy_at?: string | null;
+          signed_copy_path?: string | null;
+          signed_copy_sha256?: string | null;
+          signed_ip?: string | null;
+          signed_user_agent?: string | null;
+          signer_expected_name?: string;
+          signer_name?: string | null;
+          signer_role?: string;
+          signer_rut_masked?: string | null;
+          signer_rut_sha256?: string | null;
+          status?: string;
+          title?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_signature_requests_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_requests_guardian_id_fkey";
+            columns: ["guardian_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_guardians";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_requests_issued_document_id_fkey";
+            columns: ["issued_document_id"];
+            isOneToOne: false;
+            referencedRelation: "issued_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_requests_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_requests_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_signature_requests_replaces_request_id_fkey";
+            columns: ["replaces_request_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_signature_requests";
             referencedColumns: ["id"];
           },
         ];
@@ -6199,6 +6467,56 @@ export type Database = {
         Returns: string;
       };
       firma_es_de_mi_profesional: { Args: { _name: string }; Returns: boolean };
+      firma_remota_abrir: {
+        Args: { p_ip: string; p_token_hash: string; p_user_agent: string };
+        Returns: Json;
+      };
+      firma_remota_cancelar: {
+        Args: { p_motivo?: string; p_request_id: string };
+        Returns: undefined;
+      };
+      firma_remota_firmar: {
+        Args: {
+          p_code_hash: string;
+          p_firma_path: string;
+          p_firma_sha256: string;
+          p_ip: string;
+          p_nombre: string;
+          p_session_hash: string;
+          p_texto_aceptado: string;
+          p_token_hash: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
+      firma_remota_guardar_copia: {
+        Args: { p_path: string; p_sha256: string; p_token_hash: string };
+        Returns: undefined;
+      };
+      firma_remota_preparar_codigo: {
+        Args: {
+          p_code_hash: string;
+          p_ip: string;
+          p_session_hash: string;
+          p_token_hash: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
+      firma_remota_ubicacion: {
+        Args: { p_session_hash: string; p_token_hash: string };
+        Returns: Json;
+      };
+      firma_remota_verificar_rut: {
+        Args: {
+          p_documento: string;
+          p_ip: string;
+          p_session_hash: string;
+          p_token_hash: string;
+          p_user_agent: string;
+        };
+        Returns: Json;
+      };
       guardar_nota_clinica: {
         Args: {
           p_addendum_of?: string;

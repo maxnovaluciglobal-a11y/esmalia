@@ -44,6 +44,7 @@ import { PatientDocumentsCard } from "@/components/patient-documents-card";
 import { PatientConsentsCard } from "@/components/patient-consents-card";
 import { PatientPrescriptionsCard } from "@/components/patient-prescriptions-card";
 import { DocumentosEmitidosCard } from "@/components/documentos/documentos-emitidos-card";
+import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-distancia";
 import { Odontogram, OdontogramResumen } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
 import { FinanceSection, type PiezaSeed } from "@/components/finance-section";
@@ -858,6 +859,22 @@ function PacienteDetalle() {
                   (access.role === "owner" || access.role === "admin" || access.role === "dentist")
                 }
                 esAdministrador={access.role === "owner" || access.role === "admin"}
+              />
+              <FirmasADistanciaCard
+                clinicId={clinicId}
+                timezone={access.clinic?.timezone ?? "America/Santiago"}
+                filtro={{ patientId: paciente.id }}
+                mostrarTitulos
+                titulo="Firmas a distancia"
+                descripcion="Documentos y presupuestos que el paciente firmó, o tiene por firmar, desde su celular. Se piden desde cada documento o presupuesto."
+                puedeGestionar={(tipo) =>
+                  tipo === "documento"
+                    ? puedeEscribirClinico &&
+                      (access.role === "owner" ||
+                        access.role === "admin" ||
+                        access.role === "dentist")
+                    : hasPermission(access.role, "patients:manage")
+                }
               />
               <PatientDocumentsCard
                 clinicId={clinicId}
