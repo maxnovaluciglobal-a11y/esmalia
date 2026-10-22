@@ -51,6 +51,16 @@ export const Route = createFileRoute("/api/demo-reset")({
           console.error("[demo-reset] no se pudieron fechar los presupuestos", e);
         }
 
+        // PLA-07 crea la cuenta por cobrar cuando un presupuesto PASA a
+        // aceptado; la semilla los inserta ya aceptados, así que la demo
+        // quedaba sin cuentas. Se crean acá con la misma regla de monto que
+        // "Crear cuenta" de la ficha. Un error no tumba el reset.
+        try {
+          await crearCuentasDeLaDemo(supabaseAdmin);
+        } catch (e) {
+          console.error("[demo-reset] no se pudieron crear las cuentas por cobrar", e);
+        }
+
         return new Response("ok", { status: 200 });
       },
     },
@@ -98,4 +108,68 @@ async function fecharPresupuestosDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
       .eq("number", p.number);
     if (error) throw new Error(error.message);
   }
+}
+
+/** Una cuenta por cobrar por cada plan vigente de la demo; la primera, vencida. */
+async function crearCuentasDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
+  const { data: clinica } = await supabaseAdmin
+    .from("clinics")
+    .select("id")
+    .eq("is_demo", true)
+    .limit(1)
+    .maybeSingle();
+  if (!clinica) return;
+
+  const [{ data: planes, error: errPlanes }, { data: existentes, error: errCuentas }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("treatment_plans")
+        .select("id, patient_id, name, status, created_at")
+        .eq("clinic_id", clinica.id)
+        .neq("status", "cancelled")
+        .order("created_at"),
+      supabaseAdmin
+        .from("receivables")
+        .select("treatment_plan_id")
+        .eq("clinic_id", clinica.id)
+        .not("treatment_plan_id", "is", null),
+    ]);
+  if (errPlanes) throw new Error(errPlanes.message);
+  if (errCuentas) throw new Error(errCuentas.message);
+  const conCuenta = new Set((existentes ?? []).map((c) => c.treatment_plan_id));
+  const pendientes = (planes ?? []).filter((p) => !conCuenta.has(p.id));
+  if (pendientes.length === 0) return;
+
+  const { data: items, error: errItems } = await supabaseAdmin
+    .from("treatment_items")
+    .select("plan_id, price_cents, patient_cents")
+    .eq("clinic_id", clinica.id)
+    .in(
+      "plan_id",
+      pendientes.map((p) => p.id),
+    );
+  if (errItems) throw new Error(errItems.message);
+  const montoPorPlan = new Map<string, number>();
+  for (const it of items ?? []) {
+    // `??`: con convenio, `patient_cents` = 0 es real (regla 12).
+    const monto = it.patient_cents ?? it.price_cents;
+    montoPorPlan.set(it.plan_id, (montoPorPlan.get(it.plan_id) ?? 0) + monto);
+  }
+
+  const dia = (offset: number) =>
+    new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const filas = pendientes
+    .filter((p) => (montoPorPlan.get(p.id) ?? 0) > 0)
+    .map((p, i) => ({
+      clinic_id: clinica.id,
+      patient_id: p.patient_id,
+      treatment_plan_id: p.id,
+      description: p.name.slice(0, 200),
+      amount_cents: montoPorPlan.get(p.id) ?? 0,
+      issued_on: i === 0 ? dia(-40) : dia(-10),
+      due_on: i === 0 ? dia(-10) : dia(20),
+    }));
+  if (filas.length === 0) return;
+  const { error } = await supabaseAdmin.from("receivables").insert(filas);
+  if (error) throw new Error(error.message);
 }
