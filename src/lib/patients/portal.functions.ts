@@ -208,7 +208,7 @@ export const revokePortalAccess = createServerFn({ method: "POST" })
  * Ante cualquier error responde `null` (no se sabe) y la ficha muestra el
  * botón igual: cortar un link filtrado nunca puede depender de esta lectura.
  */
-export const getPortalAccessState = createServerFn({ method: "POST" })
+export const getPortalAccessState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), patientId: z.string().uuid() }).parse(input),
