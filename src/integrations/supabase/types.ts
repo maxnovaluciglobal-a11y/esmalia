@@ -33,6 +33,89 @@ export type Database = {
   };
   public: {
     Tables: {
+      agenda_exceptions: {
+        Row: {
+          branch_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          ends_local: string;
+          id: string;
+          kind: string;
+          note: string | null;
+          operatory_id: string | null;
+          professional_id: string | null;
+          reason: string | null;
+          repeat_until: string | null;
+          repeat_weekly: boolean;
+          starts_local: string;
+          updated_at: string;
+        };
+        Insert: {
+          branch_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_local: string;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          operatory_id?: string | null;
+          professional_id?: string | null;
+          reason?: string | null;
+          repeat_until?: string | null;
+          repeat_weekly?: boolean;
+          starts_local: string;
+          updated_at?: string;
+        };
+        Update: {
+          branch_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_local?: string;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          operatory_id?: string | null;
+          professional_id?: string | null;
+          reason?: string | null;
+          repeat_until?: string | null;
+          repeat_weekly?: boolean;
+          starts_local?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agenda_exceptions_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_operatory_id_fkey";
+            columns: ["operatory_id"];
+            isOneToOne: false;
+            referencedRelation: "operatories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       agreement_coverage: {
         Row: {
           agreement_id: string;
@@ -443,6 +526,51 @@ export type Database = {
           },
         ];
       };
+      branch_hours: {
+        Row: {
+          branch_id: string;
+          clinic_id: string;
+          closes_at: string;
+          created_at: string;
+          day_of_week: number;
+          id: string;
+          opens_at: string;
+        };
+        Insert: {
+          branch_id: string;
+          clinic_id: string;
+          closes_at: string;
+          created_at?: string;
+          day_of_week: number;
+          id?: string;
+          opens_at: string;
+        };
+        Update: {
+          branch_id?: string;
+          clinic_id?: string;
+          closes_at?: string;
+          created_at?: string;
+          day_of_week?: number;
+          id?: string;
+          opens_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "branch_hours_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "branch_hours_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       branches: {
         Row: {
           address: string | null;
@@ -497,6 +625,44 @@ export type Database = {
             foreignKeyName: "branches_clinic_id_fkey";
             columns: ["clinic_id"];
             isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      clinic_agenda_settings: {
+        Row: {
+          allow_overbooking: boolean;
+          clinic_id: string;
+          created_at: string;
+          default_duration_min: number;
+          slot_minutes: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          allow_overbooking?: boolean;
+          clinic_id: string;
+          created_at?: string;
+          default_duration_min?: number;
+          slot_minutes?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          allow_overbooking?: boolean;
+          clinic_id?: string;
+          created_at?: string;
+          default_duration_min?: number;
+          slot_minutes?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_agenda_settings_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: true;
             referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
@@ -1041,6 +1207,7 @@ export type Database = {
           name: string;
           onboarding_call_at: string | null;
           onboarding_completed: boolean;
+          quote_validity_days: number;
           tax_id: string | null;
           timezone: string;
           updated_at: string;
@@ -1057,6 +1224,7 @@ export type Database = {
           name: string;
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
+          quote_validity_days?: number;
           tax_id?: string | null;
           timezone?: string;
           updated_at?: string;
@@ -1073,6 +1241,7 @@ export type Database = {
           name?: string;
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
+          quote_validity_days?: number;
           tax_id?: string | null;
           timezone?: string;
           updated_at?: string;
@@ -3371,6 +3540,12 @@ export type Database = {
           amount_cents: number;
           cash_register_id: string | null;
           clinic_id: string;
+          coverage_group_id: string | null;
+          coverage_insurer: string | null;
+          coverage_kind: string | null;
+          coverage_price_cents: number | null;
+          coverage_role: string | null;
+          coverage_tier: string | null;
           created_at: string;
           created_by: string;
           currency: string;
@@ -3391,11 +3566,19 @@ export type Database = {
           treatment_item_id: string | null;
           treatment_plan_id: string | null;
           updated_at: string;
+          voucher_cents: number | null;
+          voucher_number: string | null;
         };
         Insert: {
           amount_cents: number;
           cash_register_id?: string | null;
           clinic_id: string;
+          coverage_group_id?: string | null;
+          coverage_insurer?: string | null;
+          coverage_kind?: string | null;
+          coverage_price_cents?: number | null;
+          coverage_role?: string | null;
+          coverage_tier?: string | null;
           created_at?: string;
           created_by?: string;
           currency?: string;
@@ -3416,11 +3599,19 @@ export type Database = {
           treatment_item_id?: string | null;
           treatment_plan_id?: string | null;
           updated_at?: string;
+          voucher_cents?: number | null;
+          voucher_number?: string | null;
         };
         Update: {
           amount_cents?: number;
           cash_register_id?: string | null;
           clinic_id?: string;
+          coverage_group_id?: string | null;
+          coverage_insurer?: string | null;
+          coverage_kind?: string | null;
+          coverage_price_cents?: number | null;
+          coverage_role?: string | null;
+          coverage_tier?: string | null;
           created_at?: string;
           created_by?: string;
           currency?: string;
@@ -3441,6 +3632,8 @@ export type Database = {
           treatment_item_id?: string | null;
           treatment_plan_id?: string | null;
           updated_at?: string;
+          voucher_cents?: number | null;
+          voucher_number?: string | null;
         };
         Relationships: [
           {
@@ -3747,6 +3940,164 @@ export type Database = {
           },
         ];
       };
+      procedure_package_items: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          name_snapshot: string;
+          package_id: string;
+          position: number;
+          procedure_id: string | null;
+          quantity: number;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          name_snapshot: string;
+          package_id: string;
+          position?: number;
+          procedure_id?: string | null;
+          quantity?: number;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          name_snapshot?: string;
+          package_id?: string;
+          position?: number;
+          procedure_id?: string | null;
+          quantity?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_package_items_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "procedure_package_items_package_id_fkey";
+            columns: ["package_id"];
+            isOneToOne: false;
+            referencedRelation: "procedure_packages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "procedure_package_items_procedure_id_fkey";
+            columns: ["procedure_id"];
+            isOneToOne: false;
+            referencedRelation: "procedures";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      procedure_packages: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          description: string | null;
+          id: string;
+          is_active: boolean;
+          name: string;
+          position: number;
+          price_cents: number;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name: string;
+          position?: number;
+          price_cents: number;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          id?: string;
+          is_active?: boolean;
+          name?: string;
+          position?: number;
+          price_cents?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_packages_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      procedure_price_realignments: {
+        Row: {
+          affected_count: number;
+          amount_cents: number | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          id: string;
+          items: Json;
+          mode: string;
+          percent: number | null;
+          rounding_cents: number | null;
+          scope_label: string;
+        };
+        Insert: {
+          affected_count: number;
+          amount_cents?: number | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          id?: string;
+          items: Json;
+          mode: string;
+          percent?: number | null;
+          rounding_cents?: number | null;
+          scope_label: string;
+        };
+        Update: {
+          affected_count?: number;
+          amount_cents?: number | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          id?: string;
+          items?: Json;
+          mode?: string;
+          percent?: number | null;
+          rounding_cents?: number | null;
+          scope_label?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "procedure_price_realignments_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       procedure_supplies: {
         Row: {
           clinic_id: string;
@@ -3802,6 +4153,7 @@ export type Database = {
       procedures: {
         Row: {
           allows_discount: boolean;
+          catalog_key: string | null;
           category: string | null;
           clinic_id: string;
           code: string | null;
@@ -3810,17 +4162,23 @@ export type Database = {
           currency: string;
           default_price_cents: number;
           duration_min: number | null;
+          fonasa_code: string | null;
           id: string;
           is_active: boolean;
           is_favorite: boolean;
+          is_mai: boolean;
           lab_cost_cents: number | null;
           name: string;
           position: number;
           reference_price_cents: number | null;
+          specialty_id: string | null;
+          suggested_max_cents: number | null;
+          suggested_min_cents: number | null;
           updated_at: string;
         };
         Insert: {
           allows_discount?: boolean;
+          catalog_key?: string | null;
           category?: string | null;
           clinic_id: string;
           code?: string | null;
@@ -3829,17 +4187,23 @@ export type Database = {
           currency?: string;
           default_price_cents?: number;
           duration_min?: number | null;
+          fonasa_code?: string | null;
           id?: string;
           is_active?: boolean;
           is_favorite?: boolean;
+          is_mai?: boolean;
           lab_cost_cents?: number | null;
           name: string;
           position?: number;
           reference_price_cents?: number | null;
+          specialty_id?: string | null;
+          suggested_max_cents?: number | null;
+          suggested_min_cents?: number | null;
           updated_at?: string;
         };
         Update: {
           allows_discount?: boolean;
+          catalog_key?: string | null;
           category?: string | null;
           clinic_id?: string;
           code?: string | null;
@@ -3848,13 +4212,18 @@ export type Database = {
           currency?: string;
           default_price_cents?: number;
           duration_min?: number | null;
+          fonasa_code?: string | null;
           id?: string;
           is_active?: boolean;
           is_favorite?: boolean;
+          is_mai?: boolean;
           lab_cost_cents?: number | null;
           name?: string;
           position?: number;
           reference_price_cents?: number | null;
+          specialty_id?: string | null;
+          suggested_max_cents?: number | null;
+          suggested_min_cents?: number | null;
           updated_at?: string;
         };
         Relationships: [
@@ -3865,10 +4234,18 @@ export type Database = {
             referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "procedures_specialty_id_fkey";
+            columns: ["specialty_id"];
+            isOneToOne: false;
+            referencedRelation: "specialties";
+            referencedColumns: ["id"];
+          },
         ];
       };
       professional_schedules: {
         Row: {
+          branch_id: string | null;
           clinic_id: string;
           created_at: string;
           day_of_week: number;
@@ -3878,6 +4255,7 @@ export type Database = {
           start_time: string;
         };
         Insert: {
+          branch_id?: string | null;
           clinic_id: string;
           created_at?: string;
           day_of_week: number;
@@ -3887,6 +4265,7 @@ export type Database = {
           start_time: string;
         };
         Update: {
+          branch_id?: string | null;
           clinic_id?: string;
           created_at?: string;
           day_of_week?: number;
@@ -3896,6 +4275,13 @@ export type Database = {
           start_time?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "professional_schedules_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "professional_schedules_clinic_id_fkey";
             columns: ["clinic_id"];
@@ -4019,8 +4405,63 @@ export type Database = {
         };
         Relationships: [];
       };
+      quote_events: {
+        Row: {
+          actor_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          from_status: Database["public"]["Enums"]["quote_status"] | null;
+          id: string;
+          kind: string;
+          note: string | null;
+          quote_id: string;
+          to_status: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until: string | null;
+        };
+        Insert: {
+          actor_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["quote_status"] | null;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          quote_id: string;
+          to_status?: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until?: string | null;
+        };
+        Update: {
+          actor_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["quote_status"] | null;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          quote_id?: string;
+          to_status?: Database["public"]["Enums"]["quote_status"] | null;
+          valid_until?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_events_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_events_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       quote_items: {
         Row: {
+          accepted: boolean | null;
           clinic_id: string;
           coverage_cents: number | null;
           created_at: string;
@@ -4030,6 +4471,8 @@ export type Database = {
           name_snapshot: string;
           notes: string | null;
           odontogram_mark_id: string | null;
+          package_id: string | null;
+          package_name_snapshot: string | null;
           patient_cents: number | null;
           phase_label: string | null;
           phase_position: number;
@@ -4043,6 +4486,7 @@ export type Database = {
           unit_price_cents: number;
         };
         Insert: {
+          accepted?: boolean | null;
           clinic_id: string;
           coverage_cents?: number | null;
           created_at?: string;
@@ -4052,6 +4496,8 @@ export type Database = {
           name_snapshot: string;
           notes?: string | null;
           odontogram_mark_id?: string | null;
+          package_id?: string | null;
+          package_name_snapshot?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -4065,6 +4511,7 @@ export type Database = {
           unit_price_cents: number;
         };
         Update: {
+          accepted?: boolean | null;
           clinic_id?: string;
           coverage_cents?: number | null;
           created_at?: string;
@@ -4074,6 +4521,8 @@ export type Database = {
           name_snapshot?: string;
           notes?: string | null;
           odontogram_mark_id?: string | null;
+          package_id?: string | null;
+          package_name_snapshot?: string | null;
           patient_cents?: number | null;
           phase_label?: string | null;
           phase_position?: number;
@@ -4102,6 +4551,13 @@ export type Database = {
             referencedColumns: ["id"];
           },
           {
+            foreignKeyName: "quote_items_package_id_fkey";
+            columns: ["package_id"];
+            isOneToOne: false;
+            referencedRelation: "procedure_packages";
+            referencedColumns: ["id"];
+          },
+          {
             foreignKeyName: "quote_items_procedure_id_fkey";
             columns: ["procedure_id"];
             isOneToOne: false;
@@ -4123,6 +4579,7 @@ export type Database = {
           accepted_by_name: string | null;
           accepted_ip: unknown;
           accepted_signature_path: string | null;
+          accepted_total_cents: number | null;
           accepted_user_agent: string | null;
           agreement_id: string | null;
           agreement_name_snapshot: string | null;
@@ -4133,11 +4590,18 @@ export type Database = {
           created_by: string;
           currency: string;
           discount_cents: number;
+          expired_at: string | null;
           id: string;
+          last_contact_at: string | null;
+          last_contact_note: string | null;
+          next_action: string | null;
+          next_action_on: string | null;
           notes: string | null;
           number: string;
           patient_id: string;
+          professional_id: string | null;
           rejected_at: string | null;
+          rejection_reason: string | null;
           sent_at: string | null;
           status: Database["public"]["Enums"]["quote_status"];
           subtotal_cents: number;
@@ -4150,6 +4614,7 @@ export type Database = {
           accepted_by_name?: string | null;
           accepted_ip?: unknown;
           accepted_signature_path?: string | null;
+          accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
@@ -4160,11 +4625,18 @@ export type Database = {
           created_by?: string;
           currency?: string;
           discount_cents?: number;
+          expired_at?: string | null;
           id?: string;
+          last_contact_at?: string | null;
+          last_contact_note?: string | null;
+          next_action?: string | null;
+          next_action_on?: string | null;
           notes?: string | null;
           number: string;
           patient_id: string;
+          professional_id?: string | null;
           rejected_at?: string | null;
+          rejection_reason?: string | null;
           sent_at?: string | null;
           status?: Database["public"]["Enums"]["quote_status"];
           subtotal_cents?: number;
@@ -4177,6 +4649,7 @@ export type Database = {
           accepted_by_name?: string | null;
           accepted_ip?: unknown;
           accepted_signature_path?: string | null;
+          accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
@@ -4187,11 +4660,18 @@ export type Database = {
           created_by?: string;
           currency?: string;
           discount_cents?: number;
+          expired_at?: string | null;
           id?: string;
+          last_contact_at?: string | null;
+          last_contact_note?: string | null;
+          next_action?: string | null;
+          next_action_on?: string | null;
           notes?: string | null;
           number?: string;
           patient_id?: string;
+          professional_id?: string | null;
           rejected_at?: string | null;
+          rejection_reason?: string | null;
           sent_at?: string | null;
           status?: Database["public"]["Enums"]["quote_status"];
           subtotal_cents?: number;
@@ -4219,6 +4699,13 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quotes_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
             referencedColumns: ["id"];
           },
         ];
@@ -4363,6 +4850,8 @@ export type Database = {
           id: string;
           is_active: boolean;
           name: string;
+          position: number;
+          slug: string | null;
         };
         Insert: {
           clinic_id: string;
@@ -4372,6 +4861,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name: string;
+          position?: number;
+          slug?: string | null;
         };
         Update: {
           clinic_id?: string;
@@ -4381,6 +4872,8 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name?: string;
+          position?: number;
+          slug?: string | null;
         };
         Relationships: [
           {
@@ -4985,6 +5478,10 @@ export type Database = {
         };
         Returns: undefined;
       };
+      asegurar_especialidades: {
+        Args: { p_clinic_id: string };
+        Returns: number;
+      };
       buscar_pacientes_por_documento: {
         Args: { p_clinic_id: string; p_documento: string };
         Returns: string[];
@@ -5152,6 +5649,18 @@ export type Database = {
         Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
         Returns: { procedure_id: string; usos: number }[];
       };
+      realinear_precios: {
+        Args: {
+          p_amount_cents: number | null;
+          p_cambios: Json;
+          p_clinic_id: string;
+          p_mode: string;
+          p_percent: number | null;
+          p_rounding_cents: number | null;
+          p_scope_label: string;
+        };
+        Returns: string;
+      };
       receivable_paid_totals: {
         Args: { p_clinic_id: string; p_receivable_ids?: string[] };
         Returns: { last_paid_at: string; paid_cents: number; receivable_id: string }[];
@@ -5190,6 +5699,7 @@ export type Database = {
       };
       shares_clinic_with: { Args: { _user_id: string }; Returns: boolean };
       storage_clinic_id_of: { Args: { _name: string }; Returns: string };
+      vencer_presupuestos: { Args: { p_clinic_id?: string }; Returns: number };
     };
     Enums: {
       app_role: "owner" | "admin" | "dentist" | "assistant" | "reception" | "accounting";
@@ -5227,7 +5737,8 @@ export type Database = {
       patient_status: "active" | "new" | "inactive";
       payment_method: "cash" | "debit_card" | "credit_card" | "transfer" | "other";
       periodontal_point: "mv" | "v" | "dv" | "ml" | "l" | "dl" | "whole";
-      quote_status: "draft" | "sent" | "accepted" | "rejected" | "expired" | "converted";
+      quote_status:
+        "draft" | "sent" | "accepted" | "partially_accepted" | "rejected" | "expired" | "converted";
       tooth_condition:
         | "sano"
         | "caries"
@@ -5425,7 +5936,15 @@ export const Constants = {
       patient_status: ["active", "new", "inactive"],
       payment_method: ["cash", "debit_card", "credit_card", "transfer", "other"],
       periodontal_point: ["mv", "v", "dv", "ml", "l", "dl", "whole"],
-      quote_status: ["draft", "sent", "accepted", "rejected", "expired", "converted"],
+      quote_status: [
+        "draft",
+        "sent",
+        "accepted",
+        "partially_accepted",
+        "rejected",
+        "expired",
+        "converted",
+      ],
       tooth_condition: [
         "sano",
         "caries",

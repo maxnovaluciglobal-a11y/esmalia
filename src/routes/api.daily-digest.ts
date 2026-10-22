@@ -46,6 +46,17 @@ export const Route = createFileRoute("/api/daily-digest")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const ahora = new Date();
 
+        // Mantenimiento horario, antes de los frenos (Ola 3, PLA-06): los
+        // presupuestos pendientes cuya validez ya pasó quedan vencidos en
+        // todas las clínicas, en su huso. No avisa ni le escribe a nadie; la
+        // función es idempotente y la app igual vence al listar.
+        const { data: vencidos, error: errVencer } = await supabaseAdmin.rpc(
+          "vencer_presupuestos",
+          {},
+        );
+        if (errVencer) console.error("[daily-digest] vencer_presupuestos", errVencer.message);
+        else console.log(`[daily-digest] presupuestos_vencidos=${vencidos ?? 0}`);
+
         const { data: clinicas, error } = await supabaseAdmin
           .from("clinics")
           .select("id, timezone, is_demo")

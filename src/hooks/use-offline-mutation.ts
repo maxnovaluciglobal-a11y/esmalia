@@ -149,14 +149,24 @@ export function useOfflineMutation<P extends Record<string, unknown>>({
 const snapshotVacio: ItemCola[] = [];
 let cache: ItemCola[] = snapshotVacio;
 
+/**
+ * Suscripción estable, fuera del componente. Con una función nueva en cada
+ * render, React se des-suscribía y volvía a suscribir en cada render;
+ * `suscribirCola` lee la cola al suscribirse y entrega un arreglo nuevo, eso
+ * provocaba otro render, y así sin fin: la pestaña quedaba al 100 % de CPU
+ * leyendo IndexedDB (visto en la verificación local de la Ola 2).
+ */
+function suscribirseALaCola(cb: () => void) {
+  return suscribirCola((nuevos) => {
+    cache = nuevos;
+    cb();
+  });
+}
+
 /** Estado de la cola, compartido por la UI de pendientes y el sincronizador. */
 export function useColaOffline(userId: string | undefined) {
   const items = useSyncExternalStore(
-    (cb) =>
-      suscribirCola((nuevos) => {
-        cache = nuevos;
-        cb();
-      }),
+    suscribirseALaCola,
     () => cache,
     () => snapshotVacio,
   );

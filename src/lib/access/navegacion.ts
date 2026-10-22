@@ -219,6 +219,20 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         sinonimos: ["tipos de cita", "tipo de consulta", "estados de cita"],
       },
       {
+        to: "/configuracion-de-agenda",
+        label: "Configuración de la agenda",
+        detalle: "Intervalo, duración, sobrecupos, horario de atención y bloqueos",
+        permisos: ["settings:manage"],
+        sinonimos: [
+          "bloqueos",
+          "bloquear horario",
+          "vacaciones",
+          "horario de atención",
+          "sobrecupos",
+          "intervalo",
+        ],
+      },
+      {
         to: "/consentimientos",
         label: "Consentimientos",
         detalle: "Plantillas para firmar",

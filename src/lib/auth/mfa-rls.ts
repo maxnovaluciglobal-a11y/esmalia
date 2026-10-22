@@ -12,7 +12,8 @@
 // - cada tabla creada en `supabase/migrations/` esté clasificada acá, en una
 //   de las dos listas (una tabla nueva sin clasificar deja el CI en rojo);
 // - la migración contenga, para cada tabla protegida, exactamente el SQL que
-//   genera `sqlPoliticaAal2`.
+//   genera `sqlPoliticaAal2`. Una tabla creada después de esa migración lleva
+//   el mismo SQL (y su reversa comentada) en la migración que la crea.
 //
 // No lo importa la app: solo los tests (no entra en ningún bundle).
 
@@ -61,6 +62,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   periodontal_measurements: "mediciones del periodontograma",
   portal_access_log: "accesos del paciente a su portal",
   prescriptions: "recetas: medicamentos indicados a un paciente",
+  quote_events: "historial de cada presupuesto: estados, contactos y motivos de rechazo",
   quote_items: "ítems de presupuestos",
   quotes: "presupuestos",
   receivable_installments: "cuotas de las cuentas por cobrar de un paciente",
@@ -78,11 +80,14 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
  * pacientes, o tablas de backend solo para `service_role`.
  */
 export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
+  agenda_exceptions: "bloqueos y aperturas de la agenda: horarios del equipo, sin pacientes",
   agreement_coverage: "catálogo de coberturas de convenios",
   agreements: "catálogo de convenios",
   appointment_statuses: "catálogo de estados de cita",
   appointment_types: "catálogo de tipos de cita",
+  branch_hours: "horario de atención de las sucursales",
   branches: "estructura de la clínica",
+  clinic_agenda_settings: "configuración de la agenda",
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",
   clinic_members: "membresía: la app la lee antes y durante la verificación",
@@ -106,6 +111,10 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   patient_document_bidx:
     "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
   payment_methods: "catálogo de medios de pago",
+  procedure_package_items: "catálogo: prestaciones de cada paquete",
+  procedure_packages: "catálogo de paquetes de prestaciones y su precio",
+  procedure_price_realignments:
+    "historial de realineaciones de precios de lista (sin datos de pacientes)",
   procedure_supplies: "catálogo de insumos por prestación",
   procedures: "catálogo de prestaciones y precios de lista",
   professional_schedules: "horarios del equipo",
@@ -119,21 +128,6 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   whatsapp_accounts: "configuración del canal",
   whatsapp_credentials: "backend: solo service_role (sin políticas)",
 };
-
-/**
- * Tablas protegidas que nacieron después de `MIGRACION_AAL2`: su política se
- * crea en la misma migración que crea la tabla (las migraciones aplicadas no
- * se editan, regla 5). Tabla → archivo. Orden alfabético.
- */
-export const MIGRACION_AAL2_POSTERIOR: Readonly<Record<string, string>> = {
-  receivable_installments: "20261024300000_cuentas_por_cobrar.sql",
-  receivables: "20261024300000_cuentas_por_cobrar.sql",
-};
-
-/** Migración que crea la política de una tabla protegida. */
-export function migracionAal2De(tabla: string): string {
-  return MIGRACION_AAL2_POSTERIOR[tabla] ?? MIGRACION_AAL2;
-}
 
 /** Tablas protegidas, en orden alfabético. */
 export function tablasConAal2(): string[] {

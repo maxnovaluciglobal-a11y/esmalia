@@ -4,7 +4,6 @@ import {
   FUNCION_AAL2,
   GUARDIA_AAL2_PLPGSQL,
   MIGRACION_AAL2,
-  MIGRACION_AAL2_POSTERIOR,
   RPC_CON_GUARDIA_AAL2,
   POLITICA_AAL2,
   TABLAS_CON_AAL2,
@@ -13,7 +12,6 @@ import {
   sqlReversaAal2,
   conGuardiaAal2,
   tablasConAal2,
-  migracionAal2De,
   ultimaDefinicionDeFuncion,
 } from "../src/lib/auth/mfa-rls";
 
@@ -44,6 +42,18 @@ function tablasDelSchema(): string[] {
   return [...encontradas].sort();
 }
 
+/** Tablas creadas en migraciones posteriores a la de aal2. */
+function tablasDeMigracionesPosteriores(): Set<string> {
+  const encontradas = new Set<string>();
+  for (const archivo of readdirSync(DIR_MIGRACIONES).filter(
+    (f) => f.endsWith(".sql") && f > MIGRACION_AAL2,
+  )) {
+    const sql = readFileSync(new URL(archivo, DIR_MIGRACIONES), "utf8");
+    for (const [, , tabla] of sql.matchAll(CREATE_TABLE)) encontradas.add(tabla);
+  }
+  return encontradas;
+}
+
 /** Todas las migraciones anteriores a la de aal2, concatenadas en orden. */
 function migracionesPrevias(): string {
   return readdirSync(DIR_MIGRACIONES)
@@ -53,13 +63,22 @@ function migracionesPrevias(): string {
     .join("\n");
 }
 
-function migracion(archivo: string = MIGRACION_AAL2): string {
-  return readFileSync(new URL(archivo, DIR_MIGRACIONES), "utf8");
+function migracion(): string {
+  return readFileSync(new URL(MIGRACION_AAL2, DIR_MIGRACIONES), "utf8");
 }
 
-/** Tablas cuya política vive en la migración original de aal2. */
-function tablasDeLaMigracionOriginal(): string[] {
-  return tablasConAal2().filter((t) => migracionAal2De(t) === MIGRACION_AAL2);
+/**
+ * La migración de aal2 más las posteriores, concatenadas. Una tabla protegida
+ * creada después de `MIGRACION_AAL2` lleva su política (y la reversa
+ * comentada) en la migración que la crea, no en aquella, que ya está aplicada
+ * y no se edita (RUNBOOK regla 4).
+ */
+function migracionesDesdeAal2(): string {
+  return readdirSync(DIR_MIGRACIONES)
+    .filter((f) => f.endsWith(".sql") && f >= MIGRACION_AAL2)
+    .sort()
+    .map((f) => readFileSync(new URL(f, DIR_MIGRACIONES), "utf8"))
+    .join("\n");
 }
 
 describe("clasificación de tablas para la política aal2", () => {
@@ -144,31 +163,25 @@ describe(`migración ${MIGRACION_AAL2}`, () => {
   const sql = migracion();
 
   it("crea la política en cada tabla de la lista, tal cual la genera el módulo", () => {
-    const faltan = tablasConAal2().filter(
-      (t) => !migracion(migracionAal2De(t)).includes(sqlPoliticaAal2(t)),
-    );
+    const desdeAal2 = migracionesDesdeAal2();
+    const faltan = tablasConAal2().filter((t) => !desdeAal2.includes(sqlPoliticaAal2(t)));
     expect(faltan).toEqual([]);
-  });
-
-  it("las tablas posteriores apuntan a migraciones más nuevas que existen", () => {
-    for (const [tabla, archivo] of Object.entries(MIGRACION_AAL2_POSTERIOR)) {
-      expect(archivo > MIGRACION_AAL2, tabla).toBe(true);
-      expect(TABLAS_CON_AAL2, tabla).toHaveProperty(tabla);
-      expect(() => migracion(archivo), archivo).not.toThrow();
-    }
   });
 
   it("no crea la política en tablas fuera de la lista", () => {
     const creadas = [
       ...sql.matchAll(new RegExp(`^create policy ${POLITICA_AAL2} on public\\.([a-z0-9_]+)`, "gm")),
     ].map((m) => m[1]);
-    expect(creadas.sort()).toEqual(tablasDeLaMigracionOriginal());
+    // Las tablas creadas después de esta migración llevan la política en la suya.
+    const posteriores = new Set(
+      [...tablasDeMigracionesPosteriores()].filter((t) => t in TABLAS_CON_AAL2),
+    );
+    expect(creadas.sort()).toEqual(tablasConAal2().filter((t) => !posteriores.has(t)));
   });
 
   it("documenta la reversa de cada tabla", () => {
-    const faltan = tablasDeLaMigracionOriginal().filter(
-      (t) => !sql.includes(`-- ${sqlReversaAal2(t)}`),
-    );
+    const desdeAal2 = migracionesDesdeAal2();
+    const faltan = tablasConAal2().filter((t) => !desdeAal2.includes(`-- ${sqlReversaAal2(t)}`));
     expect(faltan).toEqual([]);
     expect(sql).toContain("-- drop function if exists public.sesion_cumple_mfa();");
   });

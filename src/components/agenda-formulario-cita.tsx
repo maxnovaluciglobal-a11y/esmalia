@@ -17,6 +17,7 @@ import {
   boxAlCambiarProfesional,
   profesionalesDelSelector,
 } from "@/lib/clinic-operations/cita-formulario";
+import { AvisoDeBloqueo } from "@/components/agenda-aviso-bloqueo";
 import type { Profesional } from "@/lib/clinic-operations/clinic-data";
 
 /**
@@ -87,6 +88,7 @@ export function CamposCita({
     profesionales,
     valores.sucursalId,
     profesionalActualId,
+    form.sucursalesDeProfesional,
   );
   // Con una sola sucursal no hay nada que elegir: se completa sola y el
   // campo no se muestra (un Tab menos).
@@ -242,6 +244,8 @@ export function CamposCita({
         value={valores.observaciones}
         onChange={(o) => set("observaciones", o)}
       />
+
+      <AvisoDeBloqueo form={form} profesionales={profesionales} />
 
       {avisos}
     </div>

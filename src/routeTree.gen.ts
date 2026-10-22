@@ -76,6 +76,7 @@ import { Route as AuthenticatedClinicArancelesRouteImport } from './routes/_auth
 import { Route as AuthenticatedClinicCajasRouteImport } from './routes/_authenticated/_clinic/cajas'
 import { Route as AuthenticatedClinicComisionesRouteImport } from './routes/_authenticated/_clinic/comisiones'
 import { Route as AuthenticatedClinicComplianceRouteImport } from './routes/_authenticated/_clinic/compliance'
+import { Route as AuthenticatedClinicConfiguracionDeAgendaRouteImport } from './routes/_authenticated/_clinic/configuracion-de-agenda'
 import { Route as AuthenticatedClinicConsentimientosRouteImport } from './routes/_authenticated/_clinic/consentimientos'
 import { Route as AuthenticatedClinicConveniosRouteImport } from './routes/_authenticated/_clinic/convenios'
 import { Route as AuthenticatedClinicConversacionesRouteImport } from './routes/_authenticated/_clinic/conversaciones'
@@ -98,7 +99,6 @@ import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_auth
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
 import { Route as AuthenticatedClinicPreferenciasRouteImport } from './routes/_authenticated/_clinic/preferencias'
-import { Route as AuthenticatedClinicPresupuestosRouteImport } from './routes/_authenticated/_clinic/presupuestos'
 import { Route as AuthenticatedClinicProfesionalesRouteImport } from './routes/_authenticated/_clinic/profesionales'
 import { Route as AuthenticatedClinicPruebasEmailRouteImport } from './routes/_authenticated/_clinic/pruebas-email'
 import { Route as AuthenticatedClinicRecordatoriosRouteImport } from './routes/_authenticated/_clinic/recordatorios'
@@ -116,6 +116,9 @@ import { Route as ApiRecursoSlugRouteImport } from './routes/api.recurso.$slug'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe.webhook'
 import { Route as AuthenticatedClinicPacientesIndexRouteImport } from './routes/_authenticated/_clinic/pacientes.index'
 import { Route as AuthenticatedClinicPacientesPacienteIdRouteImport } from './routes/_authenticated/_clinic/pacientes.$pacienteId'
+import { Route as AuthenticatedClinicPresupuestosIndexRouteImport } from './routes/_authenticated/_clinic/presupuestos.index'
+import { Route as AuthenticatedClinicPresupuestosPresupuestoIdRouteImport } from './routes/_authenticated/_clinic/presupuestos.$presupuestoId'
+import { Route as AuthenticatedClinicPresupuestosPaquetesRouteImport } from './routes/_authenticated/_clinic/presupuestos.paquetes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -460,6 +463,12 @@ const AuthenticatedClinicComplianceRoute =
     path: '/compliance',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicConfiguracionDeAgendaRoute =
+  AuthenticatedClinicConfiguracionDeAgendaRouteImport.update({
+    id: '/configuracion-de-agenda',
+    path: '/configuracion-de-agenda',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicConsentimientosRoute =
   AuthenticatedClinicConsentimientosRouteImport.update({
     id: '/consentimientos',
@@ -592,12 +601,6 @@ const AuthenticatedClinicPreferenciasRoute =
     path: '/preferencias',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
-const AuthenticatedClinicPresupuestosRoute =
-  AuthenticatedClinicPresupuestosRouteImport.update({
-    id: '/presupuestos',
-    path: '/presupuestos',
-    getParentRoute: () => AuthenticatedClinicRouteRoute,
-  } as any)
 const AuthenticatedClinicProfesionalesRoute =
   AuthenticatedClinicProfesionalesRouteImport.update({
     id: '/profesionales',
@@ -696,6 +699,24 @@ const AuthenticatedClinicPacientesPacienteIdRoute =
     path: '/pacientes/$pacienteId',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicPresupuestosIndexRoute =
+  AuthenticatedClinicPresupuestosIndexRouteImport.update({
+    id: '/presupuestos/',
+    path: '/presupuestos/',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicPresupuestosPresupuestoIdRoute =
+  AuthenticatedClinicPresupuestosPresupuestoIdRouteImport.update({
+    id: '/presupuestos/$presupuestoId',
+    path: '/presupuestos/$presupuestoId',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicPresupuestosPaquetesRoute =
+  AuthenticatedClinicPresupuestosPaquetesRouteImport.update({
+    id: '/presupuestos/paquetes',
+    path: '/presupuestos/paquetes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -763,6 +784,7 @@ export interface FileRoutesByFullPath {
   '/cajas': typeof AuthenticatedClinicCajasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -785,7 +807,6 @@ export interface FileRoutesByFullPath {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
-  '/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -802,7 +823,10 @@ export interface FileRoutesByFullPath {
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
+  '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
+  '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
   '/pacientes/': typeof AuthenticatedClinicPacientesIndexRoute
+  '/presupuestos/': typeof AuthenticatedClinicPresupuestosIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -868,6 +892,7 @@ export interface FileRoutesByTo {
   '/cajas': typeof AuthenticatedClinicCajasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/convenios': typeof AuthenticatedClinicConveniosRoute
   '/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -890,7 +915,6 @@ export interface FileRoutesByTo {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
-  '/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -907,7 +931,10 @@ export interface FileRoutesByTo {
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
+  '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
+  '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
   '/pacientes': typeof AuthenticatedClinicPacientesIndexRoute
+  '/presupuestos': typeof AuthenticatedClinicPresupuestosIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -978,6 +1005,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/cajas': typeof AuthenticatedClinicCajasRoute
   '/_authenticated/_clinic/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/_authenticated/_clinic/compliance': typeof AuthenticatedClinicComplianceRoute
+  '/_authenticated/_clinic/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   '/_authenticated/_clinic/consentimientos': typeof AuthenticatedClinicConsentimientosRoute
   '/_authenticated/_clinic/convenios': typeof AuthenticatedClinicConveniosRoute
   '/_authenticated/_clinic/conversaciones': typeof AuthenticatedClinicConversacionesRoute
@@ -1000,7 +1028,6 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
   '/_authenticated/_clinic/preferencias': typeof AuthenticatedClinicPreferenciasRoute
-  '/_authenticated/_clinic/presupuestos': typeof AuthenticatedClinicPresupuestosRoute
   '/_authenticated/_clinic/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/_authenticated/_clinic/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/_authenticated/_clinic/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
@@ -1017,7 +1044,10 @@ export interface FileRoutesById {
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/_authenticated/_clinic/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
+  '/_authenticated/_clinic/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
+  '/_authenticated/_clinic/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
   '/_authenticated/_clinic/pacientes/': typeof AuthenticatedClinicPacientesIndexRoute
+  '/_authenticated/_clinic/presupuestos/': typeof AuthenticatedClinicPresupuestosIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1087,6 +1117,7 @@ export interface FileRouteTypes {
     | '/cajas'
     | '/comisiones'
     | '/compliance'
+    | '/configuracion-de-agenda'
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
@@ -1109,7 +1140,6 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/preferencias'
-    | '/presupuestos'
     | '/profesionales'
     | '/pruebas-email'
     | '/recordatorios'
@@ -1126,7 +1156,10 @@ export interface FileRouteTypes {
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/pacientes/$pacienteId'
+    | '/presupuestos/$presupuestoId'
+    | '/presupuestos/paquetes'
     | '/pacientes/'
+    | '/presupuestos/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1192,6 +1225,7 @@ export interface FileRouteTypes {
     | '/cajas'
     | '/comisiones'
     | '/compliance'
+    | '/configuracion-de-agenda'
     | '/consentimientos'
     | '/convenios'
     | '/conversaciones'
@@ -1214,7 +1248,6 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/preferencias'
-    | '/presupuestos'
     | '/profesionales'
     | '/pruebas-email'
     | '/recordatorios'
@@ -1231,7 +1264,10 @@ export interface FileRouteTypes {
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/pacientes/$pacienteId'
+    | '/presupuestos/$presupuestoId'
+    | '/presupuestos/paquetes'
     | '/pacientes'
+    | '/presupuestos'
   id:
     | '__root__'
     | '/'
@@ -1301,6 +1337,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/cajas'
     | '/_authenticated/_clinic/comisiones'
     | '/_authenticated/_clinic/compliance'
+    | '/_authenticated/_clinic/configuracion-de-agenda'
     | '/_authenticated/_clinic/consentimientos'
     | '/_authenticated/_clinic/convenios'
     | '/_authenticated/_clinic/conversaciones'
@@ -1323,7 +1360,6 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
     | '/_authenticated/_clinic/preferencias'
-    | '/_authenticated/_clinic/presupuestos'
     | '/_authenticated/_clinic/profesionales'
     | '/_authenticated/_clinic/pruebas-email'
     | '/_authenticated/_clinic/recordatorios'
@@ -1340,7 +1376,10 @@ export interface FileRouteTypes {
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/_authenticated/_clinic/pacientes/$pacienteId'
+    | '/_authenticated/_clinic/presupuestos/$presupuestoId'
+    | '/_authenticated/_clinic/presupuestos/paquetes'
     | '/_authenticated/_clinic/pacientes/'
+    | '/_authenticated/_clinic/presupuestos/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1865,6 +1904,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicComplianceRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/configuracion-de-agenda': {
+      id: '/_authenticated/_clinic/configuracion-de-agenda'
+      path: '/configuracion-de-agenda'
+      fullPath: '/configuracion-de-agenda'
+      preLoaderRoute: typeof AuthenticatedClinicConfiguracionDeAgendaRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/consentimientos': {
       id: '/_authenticated/_clinic/consentimientos'
       path: '/consentimientos'
@@ -2019,13 +2065,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicPreferenciasRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
-    '/_authenticated/_clinic/presupuestos': {
-      id: '/_authenticated/_clinic/presupuestos'
-      path: '/presupuestos'
-      fullPath: '/presupuestos'
-      preLoaderRoute: typeof AuthenticatedClinicPresupuestosRouteImport
-      parentRoute: typeof AuthenticatedClinicRouteRoute
-    }
     '/_authenticated/_clinic/profesionales': {
       id: '/_authenticated/_clinic/profesionales'
       path: '/profesionales'
@@ -2145,6 +2184,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicPacientesPacienteIdRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/presupuestos/': {
+      id: '/_authenticated/_clinic/presupuestos/'
+      path: '/presupuestos'
+      fullPath: '/presupuestos/'
+      preLoaderRoute: typeof AuthenticatedClinicPresupuestosIndexRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/presupuestos/$presupuestoId': {
+      id: '/_authenticated/_clinic/presupuestos/$presupuestoId'
+      path: '/presupuestos/$presupuestoId'
+      fullPath: '/presupuestos/$presupuestoId'
+      preLoaderRoute: typeof AuthenticatedClinicPresupuestosPresupuestoIdRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/presupuestos/paquetes': {
+      id: '/_authenticated/_clinic/presupuestos/paquetes'
+      path: '/presupuestos/paquetes'
+      fullPath: '/presupuestos/paquetes'
+      preLoaderRoute: typeof AuthenticatedClinicPresupuestosPaquetesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
   }
 }
 
@@ -2155,6 +2215,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicCajasRoute: typeof AuthenticatedClinicCajasRoute
   AuthenticatedClinicComisionesRoute: typeof AuthenticatedClinicComisionesRoute
   AuthenticatedClinicComplianceRoute: typeof AuthenticatedClinicComplianceRoute
+  AuthenticatedClinicConfiguracionDeAgendaRoute: typeof AuthenticatedClinicConfiguracionDeAgendaRoute
   AuthenticatedClinicConsentimientosRoute: typeof AuthenticatedClinicConsentimientosRoute
   AuthenticatedClinicConveniosRoute: typeof AuthenticatedClinicConveniosRoute
   AuthenticatedClinicConversacionesRoute: typeof AuthenticatedClinicConversacionesRoute
@@ -2177,7 +2238,6 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
   AuthenticatedClinicPreferenciasRoute: typeof AuthenticatedClinicPreferenciasRoute
-  AuthenticatedClinicPresupuestosRoute: typeof AuthenticatedClinicPresupuestosRoute
   AuthenticatedClinicProfesionalesRoute: typeof AuthenticatedClinicProfesionalesRoute
   AuthenticatedClinicPruebasEmailRoute: typeof AuthenticatedClinicPruebasEmailRoute
   AuthenticatedClinicRecordatoriosRoute: typeof AuthenticatedClinicRecordatoriosRoute
@@ -2189,7 +2249,10 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicTratamientosRoute: typeof AuthenticatedClinicTratamientosRoute
   AuthenticatedClinicWhatsappRoute: typeof AuthenticatedClinicWhatsappRoute
   AuthenticatedClinicPacientesPacienteIdRoute: typeof AuthenticatedClinicPacientesPacienteIdRoute
+  AuthenticatedClinicPresupuestosPresupuestoIdRoute: typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
+  AuthenticatedClinicPresupuestosPaquetesRoute: typeof AuthenticatedClinicPresupuestosPaquetesRoute
   AuthenticatedClinicPacientesIndexRoute: typeof AuthenticatedClinicPacientesIndexRoute
+  AuthenticatedClinicPresupuestosIndexRoute: typeof AuthenticatedClinicPresupuestosIndexRoute
 }
 
 const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildren =
@@ -2200,6 +2263,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicCajasRoute: AuthenticatedClinicCajasRoute,
     AuthenticatedClinicComisionesRoute: AuthenticatedClinicComisionesRoute,
     AuthenticatedClinicComplianceRoute: AuthenticatedClinicComplianceRoute,
+    AuthenticatedClinicConfiguracionDeAgendaRoute:
+      AuthenticatedClinicConfiguracionDeAgendaRoute,
     AuthenticatedClinicConsentimientosRoute:
       AuthenticatedClinicConsentimientosRoute,
     AuthenticatedClinicConveniosRoute: AuthenticatedClinicConveniosRoute,
@@ -2228,7 +2293,6 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicOrtodonciaRoute: AuthenticatedClinicOrtodonciaRoute,
     AuthenticatedClinicPermisosRoute: AuthenticatedClinicPermisosRoute,
     AuthenticatedClinicPreferenciasRoute: AuthenticatedClinicPreferenciasRoute,
-    AuthenticatedClinicPresupuestosRoute: AuthenticatedClinicPresupuestosRoute,
     AuthenticatedClinicProfesionalesRoute:
       AuthenticatedClinicProfesionalesRoute,
     AuthenticatedClinicPruebasEmailRoute: AuthenticatedClinicPruebasEmailRoute,
@@ -2244,8 +2308,14 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicWhatsappRoute: AuthenticatedClinicWhatsappRoute,
     AuthenticatedClinicPacientesPacienteIdRoute:
       AuthenticatedClinicPacientesPacienteIdRoute,
+    AuthenticatedClinicPresupuestosPresupuestoIdRoute:
+      AuthenticatedClinicPresupuestosPresupuestoIdRoute,
+    AuthenticatedClinicPresupuestosPaquetesRoute:
+      AuthenticatedClinicPresupuestosPaquetesRoute,
     AuthenticatedClinicPacientesIndexRoute:
       AuthenticatedClinicPacientesIndexRoute,
+    AuthenticatedClinicPresupuestosIndexRoute:
+      AuthenticatedClinicPresupuestosIndexRoute,
   }
 
 const AuthenticatedClinicRouteRouteWithChildren =

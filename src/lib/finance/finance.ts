@@ -5,19 +5,26 @@ export const QUOTE_STATUSES = [
   "draft",
   "sent",
   "accepted",
+  "partially_accepted",
   "rejected",
   "expired",
   "converted",
 ] as const;
 export type QuoteStatus = (typeof QUOTE_STATUSES)[number];
 
+/**
+ * Etiqueta de cada valor del enum de la base. Los estados que ve el usuario
+ * (siete, con "finalizado" derivado del plan) están en
+ * `estados-presupuesto.ts`; esto queda para exportaciones y textos sueltos.
+ */
 export const QUOTE_STATUS_LABELS: Record<QuoteStatus, string> = {
   draft: "Borrador",
-  sent: "Enviado",
+  sent: "Emitido",
   accepted: "Aceptado",
+  partially_accepted: "Aceptado parcial",
   rejected: "Rechazado",
   expired: "Vencido",
-  converted: "Convertido en plan",
+  converted: "Aceptado",
 };
 
 export const TREATMENT_PLAN_STATUSES = ["active", "on_hold", "completed", "cancelled"] as const;
@@ -56,6 +63,18 @@ export interface Procedure {
   /** Costo de laboratorio. `null` = sin dato, no cero. */
   labCostCents: number | null;
   position: number;
+  /** Especialidad del arancel (ADM-02). `null` = sin especialidad. Opcional:
+   * ausente si la base todavía no tiene la migración 20261024100000. */
+  specialtyId?: string | null;
+  /** Código Fonasa (MLE) de la prestación, si la clínica lo usa (ADM-03). */
+  fonasaCode?: string | null;
+  /** Tiene equivalente en la Modalidad de Atención Institucional (ADM-03). */
+  isMai?: boolean;
+  /** Rango de referencia que ve la clínica; nunca se impone. `null` = sin dato. */
+  suggestedMinCents?: number | null;
+  suggestedMaxCents?: number | null;
+  /** Ítem del catálogo semilla del que se copió. No es FK (regla 10). */
+  catalogKey?: string | null;
 }
 
 /**
@@ -208,6 +227,14 @@ export interface QuoteItem {
    * mano. Sirve para no volver a sugerir una marca ya presupuestada.
    */
   odontogramMarkId: string | null;
+  /**
+   * Aceptación parcial: `false` = el paciente no aceptó esta línea. `null` =
+   * sin decisión (en una aceptación total entran todas).
+   */
+  accepted: boolean | null;
+  /** Paquete del que salió la línea (PLA-12). `null` = línea suelta. */
+  packageId: string | null;
+  packageNameSnapshot: string | null;
 }
 
 export interface Quote {
@@ -231,6 +258,11 @@ export interface Quote {
   acceptedAt: string | null;
   rejectedAt: string | null;
   acceptedByName: string | null;
+  /** Profesional a cargo. `null` = sin asignar. */
+  professionalId: string | null;
+  /** Lo que se aceptó (total o parcial). `null` = no aceptado. */
+  acceptedTotalCents: number | null;
+  rejectionReason: string | null;
   createdAt: string;
   items: QuoteItem[];
 }
@@ -341,6 +373,12 @@ export interface Payment {
   receivableId: string | null;
   /** Cobro repartido en varios medios: las filas del mismo cobro comparten id. */
   paymentGroupId: string | null;
+  /** Bono + copago (MKT-03): las dos filas del mismo cobro comparten id. */
+  coverageGroupId: string | null;
+  /** Qué parte es la fila en un cobro con bono. `null` = pago sin bono. */
+  coverageRole: "bono" | "copago" | null;
+  /** Número del bono (solo en la fila del bono). */
+  voucherNumber: string | null;
 }
 
 export const LAB_ORDER_STATUSES = [

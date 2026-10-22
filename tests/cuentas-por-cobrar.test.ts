@@ -298,6 +298,15 @@ describe("cobro con varios medios (FIN-04)", () => {
     );
   });
 
+  it("agrupa también el bono con su copago (MKT-03)", () => {
+    const pagos = [
+      { id: "1", paymentGroupId: null, coverageGroupId: "b" },
+      { id: "2", paymentGroupId: null, coverageGroupId: null },
+      { id: "3", paymentGroupId: null, coverageGroupId: "b" },
+    ];
+    expect(agruparPorCobro(pagos).map((g) => g.map((p) => p.id))).toEqual([["1", "3"], ["2"]]);
+  });
+
   it("agrupa las filas de un mismo cobro y respeta el orden", () => {
     const pagos = [
       { id: "1", paymentGroupId: "g" },

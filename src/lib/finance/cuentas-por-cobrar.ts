@@ -558,23 +558,26 @@ export function validarReparto(totalCents: number, partes: readonly ParteDeCobro
 // ─── Pagos agrupados por cobro ──────────────────────────────────────────────
 
 /**
- * Agrupa las filas de pago de un mismo cobro (mismo `paymentGroupId`) para
- * mostrarlas juntas. El orden de entrada se respeta (la ficha los lista del
- * más reciente al más viejo); un cobro de un solo medio es un grupo de uno.
+ * Agrupa las filas de pago de un mismo cobro para mostrarlas juntas: las de
+ * un cobro repartido en varios medios (mismo `paymentGroupId`, FIN-04) y las
+ * de un bono con su copago (mismo `coverageGroupId`, MKT-03). El orden de
+ * entrada se respeta (la ficha los lista del más reciente al más viejo); un
+ * cobro de un solo medio es un grupo de uno.
  */
-export function agruparPorCobro<T extends { id: string; paymentGroupId: string | null }>(
-  pagos: readonly T[],
-): T[][] {
+export function agruparPorCobro<
+  T extends { id: string; paymentGroupId: string | null; coverageGroupId?: string | null },
+>(pagos: readonly T[]): T[][] {
   const grupos: T[][] = [];
   const indice = new Map<string, number>();
   for (const p of pagos) {
-    if (!p.paymentGroupId) {
+    const clave = p.paymentGroupId ?? p.coverageGroupId ?? null;
+    if (!clave) {
       grupos.push([p]);
       continue;
     }
-    const i = indice.get(p.paymentGroupId);
+    const i = indice.get(clave);
     if (i === undefined) {
-      indice.set(p.paymentGroupId, grupos.length);
+      indice.set(clave, grupos.length);
       grupos.push([p]);
     } else {
       grupos[i].push(p);

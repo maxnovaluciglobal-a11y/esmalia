@@ -1,15 +1,19 @@
 -- Ola 3 · Frente Cobros (3/3): cuenta por cobrar automática al aceptar un
 -- presupuesto (PLA-07).
 --
--- Cuando un presupuesto pasa a aceptado, la base ya crea su plan de
--- tratamiento (`convert_accepted_quote_to_plan`, BEFORE UPDATE) y lo deja en
--- 'converted'. Este trigger AFTER UPDATE crea además la cuenta por cobrar por
--- lo aceptado, en la misma transacción:
+-- Cuando un presupuesto pasa a aceptado (total o parcial), la base ya crea su
+-- plan de tratamiento con las líneas aceptadas (`convert_accepted_quote_to_plan`,
+-- BEFORE UPDATE, frente Planes 20261024200100): la aceptación total queda en
+-- 'converted' y la parcial en 'partially_accepted'. Este trigger AFTER UPDATE
+-- crea además la cuenta por cobrar por lo aceptado, en la misma transacción:
 --
---   - Monto = parte del paciente de las líneas: Σ coalesce(patient_cents,
---     price_cents) de los ítems del plan creado (o de quote_items si no hay
---     plan), la misma fórmula de `patient_balances`. Con convenio, lo que
---     cubre el convenio no es deuda del paciente. Si el paciente no paga nada
+--   - Monto = parte del paciente de lo ACEPTADO: Σ coalesce(patient_cents,
+--     price_cents) de los ítems del plan creado, que en una aceptación parcial
+--     solo tiene las líneas aceptadas. Es la misma fórmula de
+--     `patient_balances`. No se usa `quotes.accepted_total_cents` porque es el
+--     total bruto de lo aceptado: con convenio, lo que cubre el convenio no es
+--     deuda del paciente. Sin plan (no debería pasar), se suman las líneas de
+--     quote_items no marcadas `accepted = false`. Si el paciente no paga nada
 --     (todo cubierto), no se crea cuenta.
 --   - Idempotente: `receivables_quote_unica` (un presupuesto, una cuenta) +
 --     ON CONFLICT DO NOTHING, y además solo actúa en la transición desde un
@@ -18,14 +22,10 @@
 --   - Fecha de emisión = día de la aceptación en la zona horaria de la
 --     clínica (regla 7), no el día UTC.
 --
--- Cómo extenderlo a "aceptado parcial" (el frente Planes está cambiando los
--- estados del presupuesto en paralelo): cuando exista el estado, (1) sumarlo
--- a `v_aceptados` y (2) restringir la suma a las líneas aceptadas (la columna
--- que defina Planes, p. ej. `quote_items.accepted`). Si un parcial puede
--- pasar después a aceptado total, la cuenta ya existe (índice único por
--- presupuesto): la diferencia se cobra con una cuenta nueva desde el plan o
--- se anula la parcial y se crea la total; no se edita el monto (trigger
--- `receivables_campos_inmutables`).
+-- Aceptación parcial: si después el paciente acepta el resto, Planes no
+-- permite volver a aceptar el mismo presupuesto (estado terminal); lo nuevo se
+-- presupuesta aparte y genera su propia cuenta. El monto de una cuenta no se
+-- edita (trigger `receivables_campos_inmutables`).
 --
 -- Plan cancelado → su cuenta vigente se anula sola (deja de ser deuda en el
 -- saldo del paciente, que no suma planes cancelados; la cuenta tiene que
@@ -45,9 +45,9 @@ security definer
 set search_path = ''
 as $$
 declare
-  -- Estados que cuentan como "aceptado". El BEFORE UPDATE lo deja en
-  -- 'converted' en la misma sentencia, por eso van los dos.
-  v_aceptados constant text[] := array['accepted', 'converted'];
+  -- Estados que cuentan como "aceptado". El BEFORE UPDATE deja la aceptación
+  -- total en 'converted' en la misma sentencia; la parcial queda como está.
+  v_aceptados constant text[] := array['accepted', 'converted', 'partially_accepted'];
   v_plan uuid;
   v_monto bigint;
   v_zona text;
@@ -79,7 +79,8 @@ begin
     select coalesce(sum(coalesce(qi.patient_cents, qi.total_cents, 0)), 0)::bigint
       into v_monto
       from public.quote_items qi
-     where qi.quote_id = new.id;
+     where qi.quote_id = new.id
+       and (new.status::text <> 'partially_accepted' or qi.accepted is distinct from false);
   end if;
 
   if v_monto <= 0 then

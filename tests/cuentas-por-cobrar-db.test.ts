@@ -157,11 +157,42 @@ describe("cuentas por cobrar en la base", () => {
   it("es idempotente: re-aceptar o tocar el estado no duplica la cuenta", async () => {
     const quoteId = await crearPresupuesto(pacienteId);
     await aceptar(quoteId);
-    await aceptar(quoteId);
+    // Mismo estado: no es transición, no crea nada.
     await client.query(`UPDATE public.quotes SET status = 'converted' WHERE id = $1`, [quoteId]);
+    // Aunque el guard de transiciones (frente Planes) dejara volver atrás y
+    // re-aceptar, el índice único por presupuesto no duplica la cuenta.
+    await client.query(`ALTER TABLE public.quotes DISABLE TRIGGER quote_a_validar_transicion`);
     await client.query(`UPDATE public.quotes SET status = 'sent' WHERE id = $1`, [quoteId]);
     await aceptar(quoteId);
+    await client.query(`UPDATE public.quotes SET status = 'sent' WHERE id = $1`, [quoteId]);
+    await client.query(`UPDATE public.quotes SET status = 'partially_accepted' WHERE id = $1`, [
+      quoteId,
+    ]);
+    await client.query(`ALTER TABLE public.quotes ENABLE TRIGGER quote_a_validar_transicion`);
     expect(await cuentasDe(quoteId)).toHaveLength(1);
+  });
+
+  it("aceptación parcial: la cuenta es por lo aceptado (parte del paciente)", async () => {
+    const quoteId = await crearPresupuesto(pacienteId);
+    // El paciente acepta solo la endodoncia (con convenio: paga 20.000).
+    await client.query(
+      `UPDATE public.quote_items SET accepted = (name_snapshot = 'Endodoncia') WHERE quote_id = $1`,
+      [quoteId],
+    );
+    await client.query(`UPDATE public.quotes SET status = 'partially_accepted' WHERE id = $1`, [
+      quoteId,
+    ]);
+    const estado = await client.query<{ status: string; accepted_total_cents: string }>(
+      `SELECT status, accepted_total_cents FROM public.quotes WHERE id = $1`,
+      [quoteId],
+    );
+    expect(estado.rows[0].status).toBe("partially_accepted");
+    // Bruto aceptado 50.000; el convenio pone 30.000: la deuda del paciente es 20.000.
+    expect(Number(estado.rows[0].accepted_total_cents)).toBe(50_000);
+    const [cuenta, ...resto] = await cuentasDe(quoteId);
+    expect(resto).toHaveLength(0);
+    expect(Number(cuenta.amount_cents)).toBe(20_000);
+    expect(cuenta.treatment_plan_id).not.toBeNull();
   });
 
   it("un presupuesto rechazado o en borrador no crea cuenta", async () => {
@@ -432,6 +463,39 @@ describe("cuentas por cobrar en la base", () => {
       [mx],
     );
     expect(Number(r.rows[0].n)).toBe(5);
+  });
+
+  // ─── Resultados del piloto ────────────────────────────────────────────────
+
+  it("el piloto cuenta cobros, no filas: repartido y bono + copago valen uno", async () => {
+    const insertar = (monto: number, extra: string, valores: unknown[] = []) =>
+      client.query(
+        `INSERT INTO public.payments
+           (clinic_id, patient_id, amount_cents, method, created_by, paid_at${extra ? ", " + extra.split("|")[0] : ""})
+         VALUES ($1, $2, $3, 'cash', $4, now()${extra ? ", " + extra.split("|")[1] : ""})`,
+        [clinicId, pacienteId, monto, usuarios.owner, ...valores],
+      );
+    const repartido = randomUUID();
+    await insertar(30_000, "payment_group_id|$5", [repartido]);
+    await insertar(70_000, "payment_group_id|$5", [repartido]);
+    const bono = randomUUID();
+    await insertar(
+      15_000,
+      "coverage_group_id, coverage_kind, coverage_role, coverage_price_cents, voucher_cents|$5, 'fonasa_mle', 'bono', 25000, 15000",
+      [bono],
+    );
+    await insertar(
+      10_000,
+      "coverage_group_id, coverage_kind, coverage_role, coverage_price_cents, voucher_cents|$5, 'fonasa_mle', 'copago', 25000, 15000",
+      [bono],
+    );
+    await insertar(5_000, "");
+    const r = await client.query<{ payments_count: number; collected_cents: string }>(
+      `SELECT payments_count, collected_cents FROM public.pilot_results($1, current_date - 1, current_date + 1)`,
+      [clinicId],
+    );
+    expect(r.rows[0].payments_count).toBe(3);
+    expect(Number(r.rows[0].collected_cents)).toBe(130_000);
   });
 
   // ─── Fusión ───────────────────────────────────────────────────────────────

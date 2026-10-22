@@ -127,4 +127,8 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   confirmarBajaDeCorreos: "Baja de correos: obligatoria por ley, nunca se bloquea.",
   submitMarketingLead: "Formulario público de la web.",
   ensureDemoClinicFresh: "Clínica demo pública (ya es de solo lectura por trigger).",
+
+  // Siembra idempotente de una lista estándar, no datos que escriba el equipo.
+  asegurarEspecialidades:
+    "Siembra las especialidades estándar del arancel si faltan; no edita datos de la clínica.",
 };
