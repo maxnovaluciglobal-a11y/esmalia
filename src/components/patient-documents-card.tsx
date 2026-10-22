@@ -23,6 +23,7 @@ import {
 } from "@/lib/clinical/clinical-documents.functions";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fecha } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -108,7 +109,7 @@ export function PatientDocumentsCard({
     <div className="card-clinical p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Documentos clínicos</h3>
+          <TituloSeccion>Documentos clínicos</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Fotos intraorales y radiografías del paciente.
           </p>

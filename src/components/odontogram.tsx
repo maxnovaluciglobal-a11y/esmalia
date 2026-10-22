@@ -75,6 +75,7 @@ import { DienteAnatomico } from "@/components/diente-anatomico";
 import { cn } from "@/lib/utils";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 /** Colores del esquema de superficies (tokens con modo oscuro, ver styles.css). */
 const ESQUEMA: Record<ReturnType<typeof colorDeMarca>, string> = {
@@ -437,7 +438,7 @@ function TablaOdontograma({
           estado
         </caption>
         <thead>
-          <tr className="border-b border-hairline text-[11px] uppercase tracking-wider text-muted-foreground">
+          <tr className="border-b border-hairline text-[11px] text-muted-foreground">
             <th scope="col" className="py-2 pr-3 font-semibold">
               Pieza
             </th>
@@ -770,7 +771,7 @@ export function Odontogram({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Odontograma</h3>
+          <TituloSeccion>Odontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Numeración FDI · toca una zona del diente o del esquema para marcar esa superficie; la
             raíz o el borde superior del esquema marcan la pieza entera.
@@ -1156,9 +1157,7 @@ export function OdontogramResumen({
     <section aria-labelledby="odontograma-resumen" className="card-clinical p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id="odontograma-resumen" className="font-display text-lg font-semibold">
-            Odontograma
-          </h3>
+          <TituloSeccion id="odontograma-resumen">Odontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             {isLoading
               ? "Cargando…"

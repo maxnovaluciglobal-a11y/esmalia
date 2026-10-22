@@ -34,6 +34,7 @@ import {
   type Parentesco,
   type Tutor,
 } from "@/lib/patients/tutor";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -170,10 +171,11 @@ export function PatientGuardiansCard({
     <section className="space-y-3 rounded-lg border border-border p-5 text-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="flex items-center gap-2 font-display text-xl font-semibold">
-            <UsersRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          <TituloSeccion
+            icono={<UsersRound className="size-4 shrink-0 text-muted-foreground" aria-hidden />}
+          >
             Tutor o representante
-          </h3>
+          </TituloSeccion>
           <p className="text-xs text-muted-foreground">
             {esMenor === true
               ? "Menor de edad: su tutor firma los consentimientos y recibe los mensajes."

@@ -97,7 +97,6 @@ export function TrialDesbloqueo({
           search={{
             q: "",
             fecha: "",
-            vista: "dia",
             sucursal: "",
             profesional: "",
             estado: "",

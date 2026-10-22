@@ -24,6 +24,7 @@ import {
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { cn } from "@/lib/utils";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function ChipListEditor({
   label,
@@ -466,7 +467,7 @@ export function MedicalHistoryCard({
   return (
     <section className="card-clinical p-6">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-display text-sm font-semibold">Anamnesis</h3>
+        <TituloSeccion>Anamnesis</TituloSeccion>
         {puedeEditar && dirty && (
           <button
             type="button"

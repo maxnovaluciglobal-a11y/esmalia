@@ -36,6 +36,7 @@ import {
   type RecetaItem,
 } from "@/lib/clinical/recetas";
 import { fecha, fechaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -178,7 +179,7 @@ export function PatientPrescriptionsCard({
     <div className="card-clinical p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Recetas</h3>
+          <TituloSeccion>Recetas</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Una receta emitida no se edita: si hay un error, se anula y se emite otra.
           </p>

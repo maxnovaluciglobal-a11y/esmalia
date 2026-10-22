@@ -78,6 +78,7 @@ import {
 } from "@/lib/finance/finance.functions";
 import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
+import { TituloSeccion } from "@/components/titulo-seccion";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { fecha, fechaHora } from "@/lib/formato-fecha";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
@@ -1267,7 +1268,7 @@ export function FinanceSection({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Presupuestos y tratamientos</h3>
+          <TituloSeccion>Presupuestos y tratamientos</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Aceptar un presupuesto crea automáticamente el plan de tratamiento con sus ítems.
           </p>

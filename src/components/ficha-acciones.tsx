@@ -87,7 +87,6 @@ export function AccionesDeLaFicha({
             search={{
               q: "",
               fecha: "",
-              vista: "dia",
               sucursal: "",
               profesional: "",
               estado: "",

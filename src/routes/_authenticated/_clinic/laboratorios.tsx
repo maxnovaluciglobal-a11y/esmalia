@@ -599,7 +599,7 @@ function LaboratoriosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[52rem] text-sm">
                   <thead>
-                    <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Enviado</th>
                       <th className="px-3 py-2 text-left font-medium">Paciente</th>
                       <th className="px-3 py-2 text-left font-medium">Trabajo</th>

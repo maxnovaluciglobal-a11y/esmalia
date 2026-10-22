@@ -75,6 +75,7 @@ import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 const REVIEW_BADGE: Record<NoteReviewStatus, string> = {
   none: "border-hairline text-muted-foreground",
@@ -545,7 +546,7 @@ export function NotasClinicas({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Notas clínicas</h3>
+          <TituloSeccion>Notas clínicas</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             {pattyActiva
               ? "Patty (IA) redacta y resume; tú revisas y firmas. Con versiones y auditoría."

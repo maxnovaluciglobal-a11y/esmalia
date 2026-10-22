@@ -43,6 +43,7 @@ import { useGuardians } from "@/hooks/use-guardians";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { esMenorDeEdad, parentescoLegible, tutoresVigentes } from "@/lib/patients/tutor";
 import { fechaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -233,7 +234,7 @@ export function PatientConsentsCard({
     <div className="card-clinical p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Consentimientos</h3>
+          <TituloSeccion>Consentimientos</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Firma capturada en el momento, con el texto exacto que firmó el paciente.
           </p>

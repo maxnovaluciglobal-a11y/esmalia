@@ -491,7 +491,7 @@ function CajasPage() {
               <div className="hidden overflow-x-auto border-y border-border md:block">
                 <table className="w-full min-w-[48rem] text-sm">
                   <thead>
-                    <tr className="kicker text-left">
+                    <tr className="text-left text-xs font-medium text-muted-foreground">
                       <th scope="col" className="py-2.5 pr-3 font-normal">
                         Estado
                       </th>
@@ -727,7 +727,7 @@ function TablaDesglose({
     <div className="overflow-x-auto border-y border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="kicker">
+          <tr className="text-xs font-medium text-muted-foreground">
             <th scope="col" className="py-2.5 pr-3 text-left font-normal">
               Medio de pago
             </th>

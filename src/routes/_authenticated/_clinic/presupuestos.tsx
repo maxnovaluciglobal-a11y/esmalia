@@ -171,7 +171,7 @@ function PresupuestosPage() {
             <table className="hidden w-full text-sm md:table">
               <caption className="sr-only">Presupuestos de la clínica</caption>
               <thead>
-                <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-hairline text-left text-xs text-muted-foreground">
                   <th scope="col" className="px-5 py-3 font-medium">
                     Número
                   </th>

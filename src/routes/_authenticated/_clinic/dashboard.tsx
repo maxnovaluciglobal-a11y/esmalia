@@ -587,7 +587,7 @@ function Dashboard() {
   const busquedaAgendaHoy = {
     q: "",
     fecha: hoy,
-    vista: "dia" as const,
+    // Sin `vista`: la agenda elige la suya (lista en el celular, día en el resto).
     sucursal: "",
     profesional: "",
     estado: "",
@@ -730,7 +730,7 @@ function Dashboard() {
                 <div className="hidden border-y border-border md:block">
                   <table className="w-full table-fixed text-sm">
                     <thead>
-                      <tr className="kicker text-left">
+                      <tr className="text-left text-xs font-medium text-muted-foreground">
                         <th scope="col" className="w-14 py-2 pr-3 font-normal">
                           Hora
                         </th>

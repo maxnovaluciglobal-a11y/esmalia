@@ -106,7 +106,6 @@ function MiAgendaPage() {
               search={{
                 q: "",
                 fecha: hoy,
-                vista: "dia",
                 sucursal: "",
                 profesional: "",
                 estado: "",

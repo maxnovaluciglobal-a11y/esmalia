@@ -37,6 +37,7 @@ import { mensajeDeError } from "@/lib/mensaje-error";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 type Props = {
   clinicId: string;
@@ -77,7 +78,7 @@ function ChartTable({ chart }: { chart: PeriodontalChartData }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-collapse text-xs">
         <thead>
-          <tr className="border-b border-hairline text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr className="border-b border-hairline text-[11px] text-muted-foreground">
             <th className="py-1.5 pr-3 text-left">Pieza</th>
             {PERIODONTAL_POINTS.map((p) => (
               <th key={p} className="px-1.5 py-1.5 text-center" title={POINT_LABELS[p]}>
@@ -290,7 +291,7 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[560px] text-xs">
                         <thead>
-                          <tr className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <tr className="text-[11px] text-muted-foreground">
                             <th className="pb-1 pr-2 text-left">Punto</th>
                             <th className="px-1.5 pb-1 text-center">PD (mm)</th>
                             <th className="px-1.5 pb-1 text-center">Sangrado</th>
@@ -448,7 +449,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Periodontograma</h3>
+          <TituloSeccion>Periodontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Sondaje de 6 puntos por pieza (AAP): profundidad, sangrado y recesión, más movilidad y
             furca por diente.

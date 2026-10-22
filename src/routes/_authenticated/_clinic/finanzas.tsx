@@ -521,7 +521,7 @@ function Tabla({ columnas, children }: { columnas: string[]; children: React.Rea
     <div className="overflow-x-auto border-y border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="kicker">
+          <tr className="text-xs font-medium text-muted-foreground">
             {columnas.map((c, i) => (
               <th
                 key={c}

@@ -29,6 +29,7 @@ import { buscarPacientes } from "@/lib/patients/buscar-pacientes.functions";
 import {
   accionesRapidas,
   hrefDeAccion,
+  hrefDeCobro,
   paginasQueCoinciden,
   type AccionRapida,
   type PaginaBuscable,
@@ -67,6 +68,8 @@ export function GlobalSearch({
   const [qDiferida, setQDiferida] = useState("");
   /** Ítem resaltado (controlado): cuando llegan pacientes, pasa al primero. */
   const [seleccion, setSeleccion] = useState("");
+  /** "Registrar pago" elegido: el buscador pasa a pedir el paciente a cobrar. */
+  const [cobrando, setCobrando] = useState(false);
   const disparadorRef = useRef<HTMLButtonElement>(null);
   /** Al cerrar navegando, el foco queda en la página nueva y no vuelve al botón. */
   const cerroNavegando = useRef(false);
@@ -103,6 +106,7 @@ export function GlobalSearch({
   useEffect(() => {
     if (!abierto) return;
     cerroNavegando.current = false;
+    setCobrando(false);
     setQ("");
     setQDiferida("");
     setSeleccion("");
@@ -134,7 +138,7 @@ export function GlobalSearch({
   // En solo lectura las acciones crean algo: no se ofrecen (el servidor
   // igual las rechazaría).
   const soloLectura = useSoloLectura();
-  const acciones = !soloLectura ? accionesRapidas(access.role, q) : [];
+  const acciones = !soloLectura && !cobrando ? accionesRapidas(access.role, q) : [];
 
   const clinicId = access.clinic?.id;
   const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
@@ -165,6 +169,15 @@ export function GlobalSearch({
    *  diálogo (agenda con `?nueva=1`, caja con `?abrir=1`). Si ya se está en
    *  esa ruta, conserva su vista, fecha y filtros (`hrefDeAccion`). */
   function ejecutar(accion: AccionRapida) {
+    // Registrar pago: el cobro es de un paciente, así que primero se elige a
+    // quién y después se abre su ficha con el pago ya abierto.
+    if (accion.id === "registrar-pago" && puedeBuscarPacientes) {
+      setCobrando(true);
+      setQ("");
+      setQDiferida("");
+      setSeleccion("");
+      return;
+    }
     cerroNavegando.current = true;
     setAbierto(false);
     void navigate({ href: hrefDeAccion(accion, ubicacion) });
@@ -232,16 +245,20 @@ export function GlobalSearch({
               value={q}
               onValueChange={setQ}
               placeholder={
-                puedeBuscarPacientes
-                  ? "Paciente, documento, teléfono o página…"
-                  : "Ir a una página…"
+                cobrando
+                  ? "¿A qué paciente? Nombre, documento o teléfono…"
+                  : puedeBuscarPacientes
+                    ? "Paciente, documento, teléfono o página…"
+                    : "Ir a una página…"
               }
             />
             <CommandList>
               <CommandEmpty>
                 {buscandoPacientes && (isFetching || q.trim() !== qDiferida)
                   ? "Buscando…"
-                  : "Sin resultados para esa búsqueda."}
+                  : cobrando && q.trim().length < 2
+                    ? "Registrar pago: escribe al menos 2 letras del paciente."
+                    : "Sin resultados para esa búsqueda."}
               </CommandEmpty>
               {buscandoPacientes &&
                 pacientes.length === 0 &&
@@ -255,12 +272,12 @@ export function GlobalSearch({
                   </p>
                 )}
               {pacientes.length > 0 && (
-                <CommandGroup heading="Pacientes">
+                <CommandGroup heading={cobrando ? "Registrar pago a…" : "Pacientes"}>
                   {pacientes.map((p) => (
                     <CommandItem
                       key={p.id}
                       value={`paciente-${p.id}`}
-                      onSelect={() => ir(`/pacientes/${p.id}`)}
+                      onSelect={() => ir(cobrando ? hrefDeCobro(p.id) : `/pacientes/${p.id}`)}
                     >
                       <UserRound className="text-muted-foreground" aria-hidden />
                       <span className="flex-1 truncate">{p.nombre}</span>
@@ -285,7 +302,7 @@ export function GlobalSearch({
                   })}
                 </CommandGroup>
               )}
-              {paginasFiltradas.length > 0 && (
+              {!cobrando && paginasFiltradas.length > 0 && (
                 <CommandGroup heading="Ir a">
                   {paginasFiltradas.map((p) => (
                     <CommandItem key={p.to} value={`pagina-${p.to}`} onSelect={() => ir(p.to)}>

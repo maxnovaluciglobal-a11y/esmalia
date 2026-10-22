@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { listMessages } from "@/lib/messaging/messaging.functions";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaCortaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 interface Props {
   clinicId: string;
@@ -28,7 +29,7 @@ export function MessagesHistory({ clinicId, patientId }: Props) {
     <div className="card-clinical p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="font-display text-lg font-semibold">Comunicaciones</h3>
+          <TituloSeccion>Comunicaciones</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Mensajes enviados al paciente y respuestas suyas.
           </p>

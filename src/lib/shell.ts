@@ -83,11 +83,12 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     permiso: "cash:manage",
   },
   {
-    // El cobro se registra desde la ficha (o desde la cita en la agenda):
-    // esto lleva a la caja del día, donde se ve qué falta cobrar.
+    // El cobro es siempre de un paciente: el buscador pide el paciente y abre
+    // su ficha con `?cobrar=1`, que abre "Registrar pago" (ver
+    // `hrefDeCobro`). `href` queda como respaldo si no se elige a nadie.
     id: "registrar-pago",
     label: "Registrar pago",
-    detalle: "Caja del día",
+    detalle: "Elige el paciente",
     to: "/cajas",
     parametro: null,
     href: "/cajas",
@@ -99,8 +100,8 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
     label: "Crear paciente",
     detalle: "En Pacientes",
     to: "/pacientes",
-    parametro: null,
-    href: "/pacientes",
+    parametro: "nuevo",
+    href: `/pacientes?nuevo=${PEDIDO_ABRIR}`,
     sinonimos: ["paciente nuevo", "nuevo paciente", "agregar paciente", "alta de paciente"],
     permiso: "patients:manage",
   },
@@ -184,7 +185,12 @@ export function leerNuevaCita(valor: unknown): string | undefined {
   return v || undefined;
 }
 
-/** `abrir` de `/cajas`: solo `1` (número o texto) cuenta como pedido. */
+/** Ficha del paciente con "Registrar pago" abierto (acción del ⌘K). */
+export function hrefDeCobro(pacienteId: string): string {
+  return `/pacientes/${encodeURIComponent(pacienteId)}?cobrar=${PEDIDO_ABRIR}`;
+}
+
+/** `abrir` de `/cajas` y `nuevo` de `/pacientes`: solo `1` (número o texto) cuenta como pedido. */
 export function leerPedidoAbrirCaja(valor: unknown): typeof PEDIDO_ABRIR | undefined {
   if (typeof valor !== "string" && typeof valor !== "number") return undefined;
   return String(valor).trim() === PEDIDO_ABRIR ? PEDIDO_ABRIR : undefined;

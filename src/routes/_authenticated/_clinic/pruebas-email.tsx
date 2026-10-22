@@ -541,7 +541,7 @@ function PruebasEmailPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="text-xs text-muted-foreground">
                   <tr className="border-b border-border">
                     <th scope="col" className="px-5 py-3 font-medium">
                       Fecha
