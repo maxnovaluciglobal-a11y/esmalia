@@ -9,6 +9,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import { mensajeDb } from "@/lib/db-errors";
+import { idsConElMismoDocumento } from "@/lib/patients/indice-ciego.server";
+import { pareceDocumento } from "@/lib/patients/rut";
 
 export type PacienteEncontrado = {
   id: string;
@@ -54,22 +56,59 @@ export const buscarPacientes = createServerFn({ method: "GET" })
     if (!puede) throw new Error("No tienes permisos");
 
     const patron = `%${termino}%`;
-    const { data: rows, error } = await supabase
-      .from("patients")
-      .select("id, full_name, document_id, phone")
-      .eq("clinic_id", data.clinicId)
-      // Las fichas archivadas (LEG-08) no salen en la búsqueda rápida: se
-      // ven desde Pacientes con el filtro de archivo.
-      .is("archived_at", null)
-      .or(`full_name.ilike.${patron},document_id.ilike.${patron},phone.ilike.${patron}`)
-      .order("full_name", { ascending: true })
-      .limit(8);
+    type Fila = { id: string; full_name: string; document_id: string | null; phone: string | null };
+
+    // Tres caminos en paralelo, todos con la RLS del usuario:
+    // 1. PAC-03: el documento escrito como sea, por el índice ciego.
+    // 2. PAC-02: el nombre sin tildes y con errores de tipeo (pg_trgm).
+    // 3. Lo de siempre: subcadena de documento, teléfono o nombre.
+    const porDocumento = async (): Promise<Fila[]> => {
+      if (!pareceDocumento(data.q)) return [];
+      const ids = await idsConElMismoDocumento(supabase, data.clinicId, data.q);
+      if (ids.length === 0) return [];
+      const { data: filas } = await supabase
+        .from("patients")
+        .select("id, full_name, document_id, phone")
+        .eq("clinic_id", data.clinicId)
+        .is("archived_at", null)
+        .in("id", ids);
+      return filas ?? [];
+    };
+    const porNombre = async (): Promise<Fila[]> => {
+      const { data: filas, error } = await supabase.rpc("buscar_pacientes_por_nombre", {
+        p_clinic_id: data.clinicId,
+        p_termino: termino,
+        p_limite: 8,
+      });
+      // Sin la migración de búsqueda, queda la búsqueda de siempre (3).
+      if (error) return [];
+      return (filas ?? []) as Fila[];
+    };
+
+    const [doc, nombre, { data: rows, error }] = await Promise.all([
+      porDocumento(),
+      porNombre(),
+      supabase
+        .from("patients")
+        .select("id, full_name, document_id, phone")
+        .eq("clinic_id", data.clinicId)
+        // Las fichas archivadas (LEG-08) no salen en la búsqueda rápida: se
+        // ven desde Pacientes con el filtro de archivo.
+        .is("archived_at", null)
+        .or(`full_name.ilike.${patron},document_id.ilike.${patron},phone.ilike.${patron}`)
+        .order("full_name", { ascending: true })
+        .limit(8),
+    ]);
     if (error) throw new Error(mensajeDb(error, "No pudimos buscar pacientes."));
 
-    return (rows ?? []).map((r) => ({
-      id: r.id,
-      nombre: r.full_name,
-      documento: r.document_id,
-      telefono: r.phone,
-    }));
+    const vistos = new Set<string>();
+    return [...doc, ...(rows ?? []), ...nombre]
+      .filter((r) => (vistos.has(r.id) ? false : (vistos.add(r.id), true)))
+      .slice(0, 8)
+      .map((r) => ({
+        id: r.id,
+        nombre: r.full_name,
+        documento: r.document_id,
+        telefono: r.phone,
+      }));
   });

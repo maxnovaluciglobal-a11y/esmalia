@@ -90,6 +90,22 @@ export interface Paciente {
   referralCode: string | null;
   /** Fecha en que se archivó la ficha (LEG-08). null/undefined = activa. Archivar reemplaza a borrar. */
   archivadaEl?: string | null;
+  // ── Ola 1 · Frente Pacientes (todos null en las fichas anteriores) ──
+  /** FIC-01: rut | pasaporte | dni | otro. */
+  documentoTipo?: "rut" | "pasaporte" | "dni" | "otro" | null;
+  /** FIC-02: previsión; null = "Pendiente". */
+  prevision?: "fonasa" | "isapre" | "particular" | "ffaa" | "extranjero" | "sin_prevision" | null;
+  previsionTramo?: "A" | "B" | "C" | "D" | null;
+  previsionInstitucion?: string | null;
+  /** FIC-03: contacto de emergencia (null si no se cargó). */
+  contactoEmergencia?: { nombre: string; relacion: string; telefono: string } | null;
+  /** FIC-04: origen del paciente (texto de la lista de la clínica) y detalle. */
+  origen?: string | null;
+  origenDetalle?: string | null;
+  direccion?: string | null;
+  comuna?: string | null;
+  /** SEG-08: lo que le falta a la ficha (solo en el listado, si se pidió). */
+  faltantes?: ("prevision" | "documento" | "fechaNacimiento" | "direccion" | "anamnesis")[];
 }
 
 export const HORA_INICIO = 8;

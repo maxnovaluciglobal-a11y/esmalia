@@ -6,6 +6,7 @@ import { ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ListasDeLaFicha } from "@/components/listas-de-la-ficha";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { BloqueoEscritura } from "@/components/solo-lectura";
 import { Button } from "@/components/ui/button";
@@ -71,6 +72,7 @@ function DatosDeLaClinicaPage() {
           <FormularioDatos datos={datos.data} esDemo={access.clinic!.isDemo} />
         )}
         <DireccionYContacto clinicId={clinicId} />
+        <ListasDeLaFicha clinicId={clinicId} />
       </div>
     </AppShell>
   );

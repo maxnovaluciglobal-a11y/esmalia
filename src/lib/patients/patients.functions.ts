@@ -16,10 +16,24 @@ import { vigilarCifradoDeDocumento } from "@/lib/patients/documento-cifrado.serv
 import { validatePhoneNumber } from "@/lib/patients/phoneValidation";
 import { toE164 } from "@/lib/messaging/telefonos";
 import { FILTROS_DE_ARCHIVO } from "@/lib/patients/archivo";
-import { CAMPOS_EDITABLES_DEL_PACIENTE } from "@/lib/patients/editar-paciente";
+import { CAMPOS_EDITABLES_DEL_PACIENTE, CAMPOS_FICHA_OLA1 } from "@/lib/patients/editar-paciente";
 import { actualizarPaciente } from "@/lib/patients/editar-paciente.server";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import {
+  esPrevision,
+  faltantesDeLaFicha,
+  normalizarCodigoReferido,
+  origenPorReferido,
+  parcheDeFichaOla1,
+  TRAMOS_FONASA,
+  type TramoFonasa,
+} from "@/lib/patients/datos-ficha";
+import {
+  idsConElMismoDocumento,
+  MENSAJE_DOCUMENTO_DUPLICADO,
+} from "@/lib/patients/indice-ciego.server";
+import { esTipoDocumento, formatearRut } from "@/lib/patients/rut";
 import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
@@ -95,6 +109,18 @@ type PatientRow = {
   ai_summary: string | null;
   wa_opt_in: boolean;
   referral_code: string | null;
+  // Ola 1 · Frente Pacientes (migración 20261022100000).
+  document_type?: string | null;
+  health_plan?: string | null;
+  health_plan_tier?: string | null;
+  health_plan_institution?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_relationship?: string | null;
+  emergency_contact_phone?: string | null;
+  acquisition_source?: string | null;
+  acquisition_source_detail?: string | null;
+  address?: string | null;
+  commune?: string | null;
 };
 
 type AppointmentSlim = { patient_id: string; starts_at: string; status: string };
@@ -145,11 +171,29 @@ function mapPatientRow(
     waOptIn: row.wa_opt_in,
     referralCode: row.referral_code,
     archivadaEl: row.archived_at ?? null,
+    documentoTipo: esTipoDocumento(row.document_type) ? row.document_type : null,
+    prevision: esPrevision(row.health_plan) ? row.health_plan : null,
+    previsionTramo: (TRAMOS_FONASA as readonly string[]).includes(row.health_plan_tier ?? "")
+      ? (row.health_plan_tier as TramoFonasa)
+      : null,
+    previsionInstitucion: row.health_plan_institution ?? null,
+    contactoEmergencia:
+      row.emergency_contact_name || row.emergency_contact_phone
+        ? {
+            nombre: row.emergency_contact_name ?? "",
+            relacion: row.emergency_contact_relationship ?? "",
+            telefono: row.emergency_contact_phone ?? "",
+          }
+        : null,
+    origen: row.acquisition_source ?? null,
+    origenDetalle: row.acquisition_source_detail ?? null,
+    direccion: row.address ?? null,
+    comuna: row.commune ?? null,
   };
 }
 
 const PATIENT_COLUMNS =
-  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, agreement_id, agreement_member_id, archived_at";
+  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, agreement_id, agreement_member_id, archived_at, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
 
 /**
  * Tope de fila del listado — red de seguridad, no la estrategia de paginado
@@ -188,6 +232,11 @@ export const listPatients = createServerFn({ method: "GET" })
          * `finance:view`: a los demás el saldo les llega `null`.
          */
         conSaldos: z.boolean().default(false),
+        /**
+         * SEG-08: qué le falta a cada ficha (filtro "Fichas incompletas").
+         * La anamnesis solo cuenta para quien ve la historia clínica.
+         */
+        conCompletitud: z.boolean().default(false),
       })
       .parse(input),
   )
@@ -244,17 +293,38 @@ export const listPatients = createServerFn({ method: "GET" })
     // `patients.balance_cents` quedó del esquema original y no se mantiene:
     // el saldo real sale de `fetchPatientBalances`, como en la ficha.
     let saldos: Map<string, { billedCents: number; paidCents: number }> | null = null;
-    if (data.conSaldos) {
+    let permisos: readonly string[] = [];
+    if (data.conSaldos || data.conCompletitud) {
       const { data: membership } = await supabase
         .from("clinic_members")
         .select("role")
         .eq("clinic_id", data.clinicId)
         .eq("user_id", userId)
         .maybeSingle();
-      const veFinanzas = membership?.role
-        ? permissionsForRole(membership.role as ClinicRole).includes("finance:view")
-        : false;
-      if (veFinanzas) saldos = await fetchPatientBalances(supabase, data.clinicId);
+      permisos = membership?.role ? permissionsForRole(membership.role as ClinicRole) : [];
+    }
+    if (data.conSaldos && permisos.includes("finance:view")) {
+      saldos = await fetchPatientBalances(supabase, data.clinicId);
+    }
+
+    // SEG-08: con anamnesis = tiene fila en patient_medical_history. Solo
+    // para quien ve la historia clínica (la RLS igual no le daría filas a
+    // los demás, y "falta anamnesis" sería falso).
+    let conAnamnesis: Set<string> | null = null;
+    let pais: string | null = null;
+    if (data.conCompletitud) {
+      pais = await paisDeLaClinica(supabase, data.clinicId);
+      if (permisos.includes("clinical:view")) {
+        const { filas, error: mhError } = await leerTodasLasPaginas((desde, hasta) =>
+          supabase
+            .from("patient_medical_history")
+            .select("patient_id")
+            .eq("clinic_id", data.clinicId)
+            .order("patient_id", { ascending: true })
+            .range(desde, hasta),
+        );
+        if (!mhError) conAnamnesis = new Set(filas.map((f) => f.patient_id));
+      }
     }
 
     const items = rows.map((row) => {
@@ -267,7 +337,7 @@ export const listPatients = createServerFn({ method: "GET" })
             ? saldo.billedCents - saldo.paidCents
             : null;
       }
-      return mapPatientRow(row as PatientRow, {
+      const paciente = mapPatientRow(row as PatientRow, {
         ultimaVisita: s?.last_appointment_at
           ? formatoFecha(s.last_appointment_at.slice(0, 10))
           : "Sin visitas",
@@ -276,6 +346,20 @@ export const listPatients = createServerFn({ method: "GET" })
           ? formatoFecha(s.next_appointment_at.slice(0, 10))
           : null,
       });
+      if (data.conCompletitud) {
+        paciente.faltantes = faltantesDeLaFicha(
+          {
+            prevision: paciente.prevision ?? null,
+            documento: paciente.documento,
+            fechaNacimiento: paciente.fechaNacimiento ?? null,
+            direccion: paciente.direccion ?? null,
+            comuna: paciente.comuna ?? null,
+            tieneAnamnesis: conAnamnesis ? conAnamnesis.has(paciente.id) : null,
+          },
+          (pais ?? "").toUpperCase() === "CL",
+        );
+      }
+      return paciente;
     });
     return { items, truncated };
   });
@@ -455,16 +539,64 @@ export const createPatient = createServerFn({ method: "POST" })
         profesionalId: z.string().uuid().optional(),
         etiquetas: z.array(z.string()).default([]),
         estado: z.enum(["activo", "nuevo", "inactivo"]).default("nuevo"),
+        /** Código de referido de otro paciente (FIC-04): fija el origen solo. */
+        codigoReferido: z.string().trim().max(20).optional(),
+        /** El alta ya avisó que hay otra ficha con el mismo documento y se confirmó. */
+        permitirDuplicado: z.boolean().default(false),
       })
+      .merge(CAMPOS_FICHA_OLA1)
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ id: string }> => {
     const { supabase } = context;
+    const pais = await paisDeLaClinica(supabase, data.clinicId);
 
-    const telefono = telefonoParaGuardar(
-      data.telefono,
-      await paisDeLaClinica(supabase, data.clinicId),
+    // FIC-01: el RUT se valida también acá (regla 15) y se guarda con formato.
+    const tipo = data.documentoTipo ?? null;
+    const documento =
+      data.documento && tipo === "rut" ? formatearRut(data.documento) : data.documento || null;
+
+    // FIC-04: el código de referido decide el origen.
+    let referidoPor: { id: string; nombre: string } | null = null;
+    if (data.codigoReferido) {
+      const codigo = normalizarCodigoReferido(data.codigoReferido);
+      const { data: ref, error: refError } = await supabase
+        .from("patients")
+        .select("id, full_name")
+        .eq("clinic_id", data.clinicId)
+        .eq("referral_code", codigo)
+        .maybeSingle();
+      if (refError)
+        throw new Error(mensajeDb(refError, "No pudimos revisar el código de referido."));
+      if (!ref) throw new Error("No encontramos ese código de referido en la clínica.");
+      referidoPor = { id: ref.id, nombre: ref.full_name };
+    }
+    const origenReferido = origenPorReferido(referidoPor);
+
+    const { parche, error: errorFicha } = parcheDeFichaOla1(
+      {
+        documentoTipo: data.documentoTipo,
+        prevision: data.prevision,
+        contactoEmergencia: data.contactoEmergencia,
+        origen: origenReferido
+          ? { fuente: origenReferido.origen, detalle: origenReferido.detalle }
+          : data.origen,
+        direccion: data.direccion,
+        comuna: data.comuna,
+      },
+      { pais, esAlta: true, documentoFinal: documento, tipoFinal: tipo },
     );
+    if (errorFicha) throw new Error(errorFicha);
+
+    // PAC-03: otra ficha con el mismo documento. El formulario ya lo avisó
+    // y ofreció abrirla o fusionar; acá se exige la confirmación. Es un
+    // aviso, no una regla de la base: si la búsqueda falla, no bloquea.
+    if (documento && !data.permitirDuplicado) {
+      const iguales = await idsConElMismoDocumento(supabase, data.clinicId, documento);
+      if (iguales.length > 0) throw new Error(MENSAJE_DOCUMENTO_DUPLICADO);
+    }
+
+    const telefono = telefonoParaGuardar(data.telefono, pais);
     const phoneValid = await validatePhoneNumber(telefono);
 
     const { data: inserted, error } = await supabase
@@ -472,7 +604,7 @@ export const createPatient = createServerFn({ method: "POST" })
       .insert({
         clinic_id: data.clinicId,
         full_name: data.nombre,
-        document_id: data.documento || null,
+        document_id: documento,
         birth_date: data.fechaNacimiento,
         phone: telefono,
         phone_valid: phoneValid,
@@ -481,6 +613,8 @@ export const createPatient = createServerFn({ method: "POST" })
         primary_professional_id: data.profesionalId ?? null,
         tags: data.etiquetas,
         status: UI_STATUS_TO_DB[data.estado],
+        referred_by_patient_id: referidoPor?.id ?? null,
+        ...parche,
       })
       .select("id")
       .single();

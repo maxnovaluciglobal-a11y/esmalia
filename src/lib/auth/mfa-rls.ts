@@ -83,6 +83,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",
   clinic_members: "membresía: la app la lee antes y durante la verificación",
+  clinic_patient_options: "listas editables de la ficha (isapres, origen): sin datos de pacientes",
   clinics: "estructura de la clínica",
   commission_rules: "configuración de porcentajes, no movimientos",
   consent_templates: "plantillas sin datos de pacientes",
@@ -99,6 +100,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   notification_preferences: "preferencias propias del usuario",
   odontogram_condition_catalog: "catálogo de condiciones del odontograma",
   operatories: "estructura de la clínica",
+  patient_document_bidx:
+    "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
   payment_methods: "catálogo de medios de pago",
   procedure_supplies: "catálogo de insumos por prestación",
   procedures: "catálogo de prestaciones y precios de lista",

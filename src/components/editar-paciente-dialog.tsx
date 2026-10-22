@@ -29,6 +29,22 @@ import {
 import { updatePatient } from "@/lib/patients/patients.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
+import { CamposFicha } from "@/components/campos-ficha";
+import { useOpcionesDeFicha } from "@/hooks/use-opciones-ficha";
+import {
+  cambiosDeFicha,
+  erroresDeCamposFicha,
+  estadoCamposDe,
+  type CampoFicha,
+  type EstadoCamposFicha,
+} from "@/lib/patients/datos-ficha";
+import {
+  ETIQUETA_TIPO_DOCUMENTO,
+  formatearRut,
+  TIPOS_DOCUMENTO,
+  tipoDocumentoPorDefecto,
+  type TipoDocumento,
+} from "@/lib/patients/rut";
 
 /**
  * "Editar datos" de la ficha: nombre, documento, fecha de nacimiento,
@@ -48,7 +64,21 @@ export function EditarPacienteDialog({
   country: string | null;
   paciente: Pick<
     Paciente,
-    "id" | "nombre" | "documento" | "fechaNacimiento" | "telefono" | "email"
+    | "id"
+    | "nombre"
+    | "documento"
+    | "fechaNacimiento"
+    | "telefono"
+    | "email"
+    | "documentoTipo"
+    | "prevision"
+    | "previsionTramo"
+    | "previsionInstitucion"
+    | "contactoEmergencia"
+    | "origen"
+    | "origenDetalle"
+    | "direccion"
+    | "comuna"
   >;
   /**
    * Modo controlado (menú "Más acciones" de la ficha): el padre abre y cierra
@@ -69,8 +99,20 @@ export function EditarPacienteDialog({
   const [original, setOriginal] = useState<DatosBasicos>(() => datosBasicosDe(paciente));
   const [datos, setDatos] = useState<DatosBasicos>(original);
   const [errores, setErrores] = useState<Partial<Record<CampoBasico, string>>>({});
+  // Ola 1: tipo de documento, previsión, contacto de emergencia, origen y domicilio.
+  const esChile = (country ?? "").toUpperCase() === "CL";
+  const tipoPorDefecto = tipoDocumentoPorDefecto(country);
+  const [fichaOriginal, setFichaOriginal] = useState<EstadoCamposFicha>(() =>
+    estadoCamposDe(paciente, tipoPorDefecto),
+  );
+  const [ficha, setFicha] = useState<EstadoCamposFicha>(fichaOriginal);
+  const [erroresFicha, setErroresFicha] = useState<Partial<Record<CampoFicha, string>>>({});
+  const opciones = useOpcionesDeFicha(abierto ? clinicId : null);
 
-  const cambios = cambiosDeDatosBasicos(original, datos);
+  const cambios = {
+    ...cambiosDeFicha(fichaOriginal, ficha),
+    ...cambiosDeDatosBasicos(original, datos),
+  };
   const hayCambios = Object.keys(cambios).length > 0;
   const avisoTelefono = avisoDeTelefono(datos.telefono, country);
 
@@ -93,6 +135,10 @@ export function EditarPacienteDialog({
     setOriginal(actuales);
     setDatos(actuales);
     setErrores({});
+    const fichaActual = estadoCamposDe(paciente, tipoPorDefecto);
+    setFichaOriginal(fichaActual);
+    setFicha(fichaActual);
+    setErroresFicha({});
   }
 
   function abrir() {
@@ -108,8 +154,16 @@ export function EditarPacienteDialog({
 
   function enviar() {
     const encontrados = validarDatosBasicos(datos);
+    const deFicha = erroresDeCamposFicha(
+      { ...ficha, documento: datos.documento },
+      { previsionObligatoria: false, pais: country },
+    );
+    // El documento tiene un solo mensaje: el del RUT si corresponde.
+    if (deFicha.documento) encontrados.documento = deFicha.documento;
+    delete deFicha.documento;
     setErrores(encontrados);
-    const primero = (Object.keys(encontrados) as CampoBasico[])[0];
+    setErroresFicha(deFicha);
+    const primero = [...Object.keys(encontrados), ...Object.keys(deFicha)][0];
     if (primero) {
       document.getElementById(`${fid}-${primero}`)?.focus();
       return;
@@ -180,7 +234,35 @@ export function EditarPacienteDialog({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor={`${fid}-documento`}>Documento</Label>
-                <Input {...campo("documento")} autoComplete="off" maxLength={40} />
+                <div className="grid grid-cols-[minmax(0,6.5rem)_minmax(0,1fr)] gap-2">
+                  <select
+                    aria-label="Tipo de documento"
+                    value={ficha.documentoTipo}
+                    onChange={(e) => {
+                      setFicha((f) => ({ ...f, documentoTipo: e.target.value as TipoDocumento }));
+                      setErrores((er) => ({ ...er, documento: undefined }));
+                    }}
+                    className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+                  >
+                    {TIPOS_DOCUMENTO.map((t) => (
+                      <option key={t} value={t}>
+                        {ETIQUETA_TIPO_DOCUMENTO[t]}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    {...campo("documento")}
+                    onBlur={() => {
+                      // FIC-01: el RUT queda con puntos y guion al salir del campo.
+                      if (ficha.documentoTipo === "rut" && datos.documento.trim()) {
+                        const f = formatearRut(datos.documento);
+                        if (f !== datos.documento) setDatos((d) => ({ ...d, documento: f }));
+                      }
+                    }}
+                    autoComplete="off"
+                    maxLength={40}
+                  />
+                </div>
                 {errorDe("documento")}
               </div>
               <div className="space-y-1.5">
@@ -226,6 +308,22 @@ export function EditarPacienteDialog({
                 <Input {...campo("email")} type="email" autoComplete="off" maxLength={254} />
                 {errorDe("email")}
               </div>
+            </div>
+            <div className="border-t border-hairline pt-4">
+              <CamposFicha
+                idBase={fid}
+                valor={ficha}
+                onChange={(cambio) => {
+                  setFicha((f) => ({ ...f, ...cambio }));
+                  setErroresFicha({});
+                }}
+                errores={erroresFicha}
+                esChile={esChile}
+                previsionObligatoria={false}
+                isapres={opciones.isapres}
+                origenes={opciones.origenes}
+                conDocumento={false}
+              />
             </div>
             <DialogFooter className="gap-2 pt-2">
               <Button
