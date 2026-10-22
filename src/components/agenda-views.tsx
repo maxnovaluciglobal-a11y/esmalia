@@ -1,4 +1,11 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { CalendarX2 } from "lucide-react";
 
 import {
@@ -15,9 +22,17 @@ import {
 } from "@/lib/clinic-operations/agenda-fechas";
 import { horaDeMinutos, iniciales, rangoDeGrilla } from "@/components/agenda-hueco";
 import { claseBloque, tonoDeEstadoCita } from "@/lib/clinic-operations/estado-cita-tono";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { cn } from "@/lib/utils";
-import { horarioDelDia, type BloqueHorario } from "@/components/agenda-movimiento";
-import { FranjasDeHorario } from "@/components/agenda-grid";
+import {
+  destinoPorTeclado,
+  esMovible,
+  horarioDelDia,
+  type BloqueHorario,
+  type Carril,
+  type Destino,
+} from "@/components/agenda-movimiento";
+import { FantasmaCita, FranjasDeHorario, type ArrastreGrilla } from "@/components/agenda-grid";
 import { useMinutosAhora } from "@/hooks/use-minutos-ahora";
 import {
   etiquetaOcupacion,
@@ -26,7 +41,8 @@ import {
 } from "@/components/agenda-ocupacion";
 import { PanelCita } from "@/components/agenda-panel-cita";
 import { etiquetaBloqueCita } from "@/components/cita-acciones";
-import { enfocarCita } from "@/hooks/use-arrastre-cita";
+import { enfocarCita, ID_AYUDA_ARRASTRE, useArrastreCita } from "@/hooks/use-arrastre-cita";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { resumenConflictos, type Conflicto } from "@/components/agenda-conflictos";
 
 // El borde izquierdo identifica al profesional (color guardado en
@@ -43,7 +59,7 @@ type ColorPorProfesional = Map<string, string>;
 function colorPorProfesional(
   profesionales: Pick<Profesional, "id" | "color">[],
 ): ColorPorProfesional {
-  return new Map(profesionales.map((p) => [p.id, p.color]));
+  return new Map(profesionales.map((p) => [p.id, colorProfesional(p.color)]));
 }
 
 // ── Vista semana por carriles (PR 10b del plan A+) ───────────────────────
@@ -104,6 +120,7 @@ export function AgendaSemanaCarriles({
   renderAcciones,
   conflictos,
   nombreProfesional,
+  arrastre,
 }: {
   /** Citas que se dibujan (con los filtros de búsqueda y estado aplicados). */
   citas: Cita[];
@@ -124,6 +141,12 @@ export function AgendaSemanaCarriles({
   /** Choques de horario por id de cita (`detectarConflictos`). */
   conflictos?: Map<string, Conflicto[]>;
   nombreProfesional?: (id: string) => string;
+  /**
+   * Arrastrar en la semana (AGE-02): cambia día, hora y profesional. Mismas
+   * reglas que la vista de día (`validarDestino` + servidor). Sin esto, la
+   * semana se ve pero no se mueve.
+   */
+  arrastre?: ArrastreGrilla;
 }) {
   const ids = useMemo(() => profesionales.map((p) => p.id), [profesionales]);
   const porId = useMemo(() => new Map(profesionales.map((p) => [p.id, p])), [profesionales]);
@@ -165,6 +188,46 @@ export function AgendaSemanaCarriles({
 
   const minutosAhora = useMinutosAhora(dias.includes(hoy), zonaHoraria);
   const ahoraVisible = minutosAhora !== null && minutosAhora >= desde && minutosAhora <= hasta;
+
+  // ── Arrastre (AGE-02) ──
+  // Un carril por día y profesional, en orden de lectura: Alt + ←/→ pasa al
+  // profesional vecino y, en el borde, al día vecino.
+  const refsCarril = useRef(new Map<string, HTMLDivElement>());
+  const claveCarril = (fecha: string, profesionalId: string) => `${fecha}|${profesionalId}`;
+  const carrilesArrastre = useMemo<Carril[]>(
+    () => dias.flatMap((d) => profesionales.map((p) => ({ fecha: d, profesionalId: p.id }))),
+    [dias, profesionales],
+  );
+  // Solo lectura (#85): la semana vive dentro del AppShell, igual que la
+  // grilla de día. El servidor repite el chequeo (`requireEscritura`).
+  const soloLectura = useSoloLectura();
+  const puedeArrastrar = Boolean(arrastre?.habilitado && !soloLectura);
+  const soltar = (c: Cita, d: Destino) => {
+    arrastre?.onMover(c, d);
+    enfocarCita(c.id);
+  };
+  const { fantasma, alPresionar, clicDeArrastre } = useArrastreCita({
+    habilitado: puedeArrastrar,
+    carriles: carrilesArrastre,
+    elementoDeCarril: (c) => refsCarril.current.get(claveCarril(c.fecha, c.profesionalId)),
+    rango: { desde, hasta },
+    validar: (c, d) =>
+      arrastre?.validar(c, d) ?? { ok: false, motivo: "estado", mensaje: "No se puede mover." },
+    onSoltar: soltar,
+    onRechazo: (m) => arrastre?.onRechazo(m),
+    pxPorMinuto: PIXELES_POR_MINUTO,
+  });
+
+  function moverConTeclado(e: KeyboardEvent<HTMLButtonElement>, c: Cita) {
+    if (!arrastre || !puedeArrastrar || !e.altKey || !esMovible(c)) return;
+    if (!e.key.startsWith("Arrow")) return;
+    e.preventDefault();
+    const destino = destinoPorTeclado(c, e.key, carrilesArrastre, { desde, hasta });
+    if (!destino) return;
+    const veredicto = arrastre.validar(c, destino);
+    if (veredicto.ok) soltar(c, destino);
+    else if (veredicto.motivo !== "sin-cambio") arrastre.onRechazo(veredicto.mensaje);
+  }
 
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
   const seleccionada = seleccionId ? delaSemana.find((c) => c.id === seleccionId) : undefined;
@@ -222,7 +285,14 @@ export function AgendaSemanaCarriles({
           página entera a 1549px (UX-01). `isolate`: los z-* de adentro no
           se cuelan sobre la barra fija del celular. */}
       <div className="card-clinical relative isolate overflow-x-auto" style={columnas}>
-        <div className="md:min-w-[var(--ancho-min)]">
+        {puedeArrastrar && (
+          <p id={ID_AYUDA_ARRASTRE} className="sr-only">
+            Para mover la cita: arrástrala a otro día, hora o profesional, o usa Alt más flechas
+            arriba y abajo para cambiar la hora y Alt más flechas a los lados para pasar al
+            profesional o al día vecino.
+          </p>
+        )}
+        <div className="md:min-w-[var(--ancho-min)] [.agenda-arrastrando_&]:cursor-grabbing [.agenda-arrastrando_&]:select-none">
           <div className={cn(plantilla, "border-b border-hairline")}>
             <div />
             {dias.map((d) => {
@@ -261,7 +331,7 @@ export function AgendaSemanaCarriles({
                         key={p.id}
                         title={p.nombre}
                         className="truncate border-t-2 pt-0.5 text-center text-[11px] font-semibold text-muted-foreground"
-                        style={{ borderTopColor: p.color }}
+                        style={{ borderTopColor: colorProfesional(p.color) }}
                       >
                         <span aria-hidden="true">{iniciales(p.nombre)}</span>
                         <span className="sr-only">{p.nombre}</span>
@@ -313,7 +383,15 @@ export function AgendaSemanaCarriles({
                 ))}
                 <div className={cn(plantillaCarriles, "absolute inset-0 px-0.5")}>
                   {profesionales.map((p) => (
-                    <div key={p.id} className="relative">
+                    <div
+                      key={p.id}
+                      ref={(el) => {
+                        const clave = claveCarril(d, p.id);
+                        if (el) refsCarril.current.set(clave, el);
+                        else refsCarril.current.delete(clave);
+                      }}
+                      className="relative"
+                    >
                       <FranjasDeHorario
                         bloques={horarios?.[p.id]}
                         fecha={d}
@@ -324,18 +402,31 @@ export function AgendaSemanaCarriles({
                         .filter((c) => c.fecha === d && c.profesionalId === p.id)
                         .map((c) => {
                           const choque = resumenConflictos(conflictos?.get(c.id));
+                          const arrastrable = puedeArrastrar && esMovible(c);
+                          const enCola = arrastre?.enCola.has(c.id) ?? false;
                           return (
                             <button
                               key={c.id}
                               type="button"
                               data-cita-id={c.id}
-                              aria-label={[`${etiquetaBloqueCita(c)}, ${p.nombre}`, choque]
+                              aria-label={[
+                                `${etiquetaBloqueCita(c)}, ${p.nombre}`,
+                                choque,
+                                enCola ? "Cambio en cola" : "",
+                              ]
                                 .filter(Boolean)
                                 .join(". ")}
+                              aria-describedby={arrastrable ? ID_AYUDA_ARRASTRE : undefined}
                               title={choque || undefined}
                               aria-expanded={c.id === seleccionId}
                               aria-controls={c.id === seleccionId ? "agenda-panel-cita" : undefined}
-                              onClick={() => setSeleccionId(c.id === seleccionId ? null : c.id)}
+                              onPointerDown={arrastrable ? (e) => alPresionar(e, c) : undefined}
+                              onKeyDown={(e) => moverConTeclado(e, c)}
+                              onClick={() => {
+                                // Soltar un arrastre no abre el panel.
+                                if (clicDeArrastre()) return;
+                                setSeleccionId(c.id === seleccionId ? null : c.id);
+                              }}
                               className={cn(
                                 "absolute inset-x-0 overflow-hidden rounded border-l-2 px-1 text-left text-[11px] leading-[1.15] transition-shadow hover:z-10 hover:shadow-md focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",
                                 estadoClases[c.estado],
@@ -343,11 +434,14 @@ export function AgendaSemanaCarriles({
                                 c.id === seleccionId &&
                                   "z-10 outline-2 outline-offset-1 outline-foreground",
                                 choque && "border-y border-r border-dashed border-warning-border",
+                                arrastrable && "cursor-grab touch-manipulation",
+                                fantasma?.citaId === c.id && "opacity-40 shadow-none",
+                                enCola && "border-y border-r border-dashed",
                               )}
                               style={{
                                 top: (c.inicio - desde) * PIXELES_POR_MINUTO + 1,
                                 height: Math.max(c.duracion * PIXELES_POR_MINUTO - 2, 14),
-                                borderLeftColor: p.color,
+                                borderLeftColor: colorProfesional(p.color),
                               }}
                             >
                               {c.duracion >= 30 && (
@@ -367,6 +461,16 @@ export function AgendaSemanaCarriles({
                             </button>
                           );
                         })}
+                      {fantasma &&
+                        fantasma.destino.fecha === d &&
+                        fantasma.destino.profesionalId === p.id && (
+                          <FantasmaCita
+                            fantasma={fantasma}
+                            desde={desde}
+                            pxPorMinuto={PIXELES_POR_MINUTO}
+                            compacto
+                          />
+                        )}
                     </div>
                   ))}
                 </div>

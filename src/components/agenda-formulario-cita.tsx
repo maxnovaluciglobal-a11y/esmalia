@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 
 import {
   AyudaProfesionales,
@@ -13,7 +13,11 @@ import { AllergyAlertBanner } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
 import { Label } from "@/components/ui/label";
 import { idsDelFormulario, type FormularioCita } from "@/hooks/use-formulario-cita";
-import { profesionalesDelSelector } from "@/lib/clinic-operations/cita-formulario";
+import {
+  boxAlCambiarProfesional,
+  profesionalesDelSelector,
+} from "@/lib/clinic-operations/cita-formulario";
+import { AvisoDeBloqueo } from "@/components/agenda-aviso-bloqueo";
 import type { Profesional } from "@/lib/clinic-operations/clinic-data";
 
 /**
@@ -37,6 +41,12 @@ export function CamposCita({
   profesionalActualId,
   /** Avisos que van al final (feriado, choques). */
   avisos,
+  /**
+   * Precarga el box por defecto del profesional que ya viene elegido al
+   * abrir (Nueva cita, Agendar solicitud). Al editar no: la cita ya dice su
+   * box. En los dos casos, cambiar de profesional precarga el suyo.
+   */
+  precargarBox = true,
 }: {
   form: FormularioCita;
   prefijo: string;
@@ -47,13 +57,38 @@ export function CamposCita({
   puedeAdministrarProfesionales: boolean;
   profesionalActualId?: string;
   avisos?: ReactNode;
+  precargarBox?: boolean;
 }) {
   const ids = idsDelFormulario(prefijo);
   const { valores, set } = form;
+
+  // Box por defecto del profesional (AGE-04): se aplica cuando cambia el
+  // profesional y ya llegó el catálogo de boxes. Lo elegido a mano se
+  // respeta (`boxAlCambiarProfesional`).
+  const ultimoProfesional = useRef<string | null>(precargarBox ? null : valores.profesionalId);
+  useEffect(() => {
+    if (valores.profesionalId === ultimoProfesional.current) return;
+    if (valores.profesionalId && form.boxes.length === 0) return;
+    const anterior = profesionales.find((p) => p.id === ultimoProfesional.current);
+    const nuevo = profesionales.find((p) => p.id === valores.profesionalId);
+    if (valores.profesionalId && !nuevo) return;
+    ultimoProfesional.current = valores.profesionalId;
+    const box = boxAlCambiarProfesional({
+      boxActual: valores.boxId,
+      anterior,
+      nuevo,
+      boxes: form.boxes,
+      sucursalId: valores.sucursalId,
+    });
+    if (box !== valores.boxId) set("boxId", box);
+    // Solo importa el cambio de profesional y la llegada de los catálogos.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valores.profesionalId, form.boxes, profesionales]);
   const disponibles = profesionalesDelSelector(
     profesionales,
     valores.sucursalId,
     profesionalActualId,
+    form.sucursalesDeProfesional,
   );
   // Con una sola sucursal no hay nada que elegir: se completa sola y el
   // campo no se muestra (un Tab menos).
@@ -209,6 +244,8 @@ export function CamposCita({
         value={valores.observaciones}
         onChange={(o) => set("observaciones", o)}
       />
+
+      <AvisoDeBloqueo form={form} profesionales={profesionales} />
 
       {avisos}
     </div>

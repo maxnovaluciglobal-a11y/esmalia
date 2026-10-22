@@ -34,11 +34,14 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
 import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
 import { AgendaGrid, AvisoDeChoques, type ArrastreGrilla } from "@/components/agenda-grid";
 import {
   boxDe,
+  boxEfectivo,
+  choquesDelMovimiento,
   conflictosDeCandidata,
   detectarConflictos,
   resumenConflictos,
@@ -55,12 +58,18 @@ import {
   horarioDelDia,
   validarDestino,
   type Destino,
+  type Veredicto,
 } from "@/components/agenda-movimiento";
 import { MoverCitaDialog } from "@/components/agenda-mover-a";
 import { CambiarEstadoMenu } from "@/components/cambiar-estado-cita-menu";
 import { claseEstadoBadge, puedeConfirmarCita } from "@/components/cita-acciones";
 import type { SemillaCita } from "@/components/agenda-hueco";
 import { AgendaMonth, AgendaSemanaCarriles } from "@/components/agenda-views";
+import { AgendaPorBox } from "@/components/agenda-por-box";
+import {
+  ConfirmarMovimientoConChoque,
+  type MovimientoPorConfirmar,
+} from "@/components/agenda-confirmar-choque";
 import { fechaMasAntigua } from "@/components/agenda-ocupacion";
 import { AllergyAlertIcon } from "@/components/medical-history-card";
 import { PatientCombobox } from "@/components/patient-combobox";
@@ -76,7 +85,10 @@ import {
   enfocarPrimerFaltante,
   profesionalesDelSelector,
 } from "@/lib/clinic-operations/cita-formulario";
-import { getAppointmentFormDetails } from "@/lib/clinic-operations/cita-formulario.functions";
+import {
+  getAppointmentFormDetails,
+  listOperatories,
+} from "@/lib/clinic-operations/cita-formulario.functions";
 import { esAtajoGuardar, esAtajoNuevaCita, hayDialogoAbierto } from "@/lib/atajos";
 import { addDaysISO, addMonthsISO, rangoDeVista } from "@/lib/clinic-operations/agenda-fechas";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -85,6 +97,14 @@ import { WhatsAppButton } from "@/components/whatsapp-button";
 import { usePublicHolidays } from "@/hooks/use-public-holidays";
 import { useColaOffline, useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { useReprogramarCita } from "@/hooks/use-reprogramar-cita";
+import { useDisponibilidadAgenda } from "@/hooks/use-disponibilidad-agenda";
+import { AccionesDeDisponibilidad } from "@/components/agenda-acciones-disponibilidad";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import {
+  describirBloqueo,
+  sucursalesPorProfesional,
+  type AjustesAgenda,
+} from "@/lib/clinic-operations/disponibilidad";
 import {
   puedeSimularSinConexion,
   simularSinConexion,
@@ -229,6 +249,8 @@ interface AgendaSearch {
   /** Con `nueva=1`: id del paciente que el diálogo trae elegido (contrato de
    * la Ola 1, `hrefNuevaCita`). Se limpia junto con `nueva`. */
   paciente?: string;
+  /** Vista de día con un carril por box en vez de por profesional (AGE-04). */
+  carril?: "box";
 }
 
 function parseVista(v: unknown): VistaAgenda | undefined {
@@ -251,6 +273,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
     page: num(search.page, 1),
     nueva: leerNuevaCita(search.nueva),
     paciente: str(search.paciente) || undefined,
+    carril: search.carril === "box" ? "box" : undefined,
   }),
   beforeLoad: requirePermission("agenda:view"),
   head: () => ({
@@ -289,6 +312,11 @@ function horaDeCita(minutos: number) {
  * que otra parte del sistema use.
  */
 function avisarSiSolapa(resultado: unknown, zonaAviso?: string) {
+  // Bloqueos de la agenda (AGE-07): el servidor guardó la cita igual y avisa.
+  const bloqueos = (resultado as { bloqueos?: string[] } | undefined)?.bloqueos;
+  if (bloqueos?.length) {
+    toast.warning(`Ojo: la cita quedó en un horario bloqueado (${bloqueos.join("; ")}).`);
+  }
   const solapamiento = (resultado as { solapamiento?: Solapamiento } | undefined)?.solapamiento;
   if (!solapamiento) return;
   const hora = horaFmt(solapamiento.startsAt, zonaAviso);
@@ -313,6 +341,7 @@ function useChoquesDelFormulario({
   sucursalId,
   startsAt,
   duracion,
+  boxId,
 }: {
   citas: Cita[];
   profesionales: Profesional[];
@@ -322,6 +351,8 @@ function useChoquesDelFormulario({
   sucursalId: string;
   startsAt: string;
   duracion: number;
+  /** Box elegido ("" = el del profesional). */
+  boxId: string;
 }): Conflicto[] {
   return useMemo(() => {
     const destino = destinoDeStartsAt(startsAt);
@@ -335,21 +366,51 @@ function useChoquesDelFormulario({
         fecha: destino.fecha,
         inicio: destino.inicio,
         duracion,
+        boxId: boxId || null,
       },
       citas,
       profesionales,
     );
-  }, [citas, profesionales, citaId, pacienteId, profesionalId, sucursalId, startsAt, duracion]);
+  }, [
+    citas,
+    profesionales,
+    citaId,
+    pacienteId,
+    profesionalId,
+    sucursalId,
+    startsAt,
+    duracion,
+    boxId,
+  ]);
+}
+
+/**
+ * Con los sobrecupos apagados (AGE-10), un choque con el mismo profesional
+ * no se puede guardar: el botón queda deshabilitado con este motivo y el
+ * servidor lo rechaza igual (`MENSAJE_SIN_SOBRECUPOS`).
+ */
+function motivoSinSobrecupo(ajustes: AjustesAgenda, conflictos: Conflicto[]): string | null {
+  if (ajustes.permiteSobrecupos) return null;
+  return conflictos.some((c) => c.tipo === "profesional")
+    ? "Esta clínica no permite sobrecupos: elige otra hora u otro profesional."
+    : null;
 }
 
 function ChoquesDelFormulario({
   conflictos,
   profesionales,
   profesionalId,
+  boxId,
+  boxes,
+  sinSobrecupo,
 }: {
   conflictos: Conflicto[];
   profesionales: Profesional[];
   profesionalId: string;
+  boxId: string;
+  boxes: readonly { id: string; nombre: string }[];
+  /** Motivo de `motivoSinSobrecupo`: reemplaza el "Puedes guardarla igual". */
+  sinSobrecupo?: string | null;
 }) {
   if (conflictos.length === 0) return null;
   return (
@@ -358,13 +419,19 @@ function ChoquesDelFormulario({
       nombreProfesional={(id) =>
         profesionales.find((p) => p.id === id)?.nombre ?? "otro profesional"
       }
-      box={boxDe(profesionales.find((p) => p.id === profesionalId))}
+      box={
+        boxEfectivo(
+          { boxId: boxId || null },
+          profesionales.find((p) => p.id === profesionalId),
+          (id) => boxes.find((b) => b.id === id)?.nombre,
+        )?.nombre ?? null
+      }
       titulo={
         conflictos.length === 1
           ? "Este horario choca con otra cita"
           : `Este horario choca con ${conflictos.length} citas`
       }
-      pie="Puedes guardarla igual. Revisa si hace falta mover alguna."
+      pie={sinSobrecupo ?? "Puedes guardarla igual. Revisa si hace falta mover alguna."}
     />
   );
 }
@@ -418,25 +485,30 @@ function GuardarCita({
   faltaTexto,
   enCurso,
   onGuardar,
+  motivoDeshabilitado,
   children,
 }: {
   idFaltan: string;
   faltaTexto: string | null;
   enCurso: boolean;
   onGuardar: () => void;
+  /** Sin sobrecupos (AGE-10): el botón queda deshabilitado con el motivo a la vista. */
+  motivoDeshabilitado?: string | null;
   children: ReactNode;
 }) {
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button
-        onClick={onGuardar}
-        disabled={enCurso}
-        aria-describedby={faltaTexto ? idFaltan : undefined}
-        aria-keyshortcuts="Meta+Enter Control+Enter"
-      >
-        {enCurso && <Loader2 className="size-3.5 animate-spin" />}
-        {children}
-      </Button>
+      <AccionDeshabilitada motivo={motivoDeshabilitado}>
+        <Button
+          onClick={onGuardar}
+          disabled={enCurso}
+          aria-describedby={faltaTexto ? idFaltan : undefined}
+          aria-keyshortcuts="Meta+Enter Control+Enter"
+        >
+          {enCurso && <Loader2 className="size-3.5 animate-spin" />}
+          {children}
+        </Button>
+      </AccionDeshabilitada>
       <FaltaCompletar id={idFaltan} texto={faltaTexto} />
     </div>
   );
@@ -647,6 +719,7 @@ function NuevaCitaDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -697,6 +770,9 @@ function NuevaCitaDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
+                sinSobrecupo={motivoSinSobrecupo(form.ajustes, choques)}
               />
             </>
           }
@@ -707,6 +783,7 @@ function NuevaCitaDialog({
             faltaTexto={faltaTexto}
             enCurso={crear.enCurso}
             onGuardar={agendar}
+            motivoDeshabilitado={motivoSinSobrecupo(form.ajustes, choques)}
           >
             {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
           </GuardarCita>
@@ -845,6 +922,7 @@ function EditarCitaDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -876,6 +954,7 @@ function EditarCitaDialog({
           profesionales={profesionales}
           puedeAdministrarProfesionales={puedeAdministrarProfesionales}
           profesionalActualId={cita.profesionalId}
+          precargarBox={false}
           avisos={
             <>
               {feriadoSeleccionado && <HolidayNotice name={feriadoSeleccionado} />}
@@ -883,6 +962,9 @@ function EditarCitaDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
+                sinSobrecupo={motivoSinSobrecupo(form.ajustes, choques)}
               />
             </>
           }
@@ -893,6 +975,7 @@ function EditarCitaDialog({
             faltaTexto={faltaTexto}
             enCurso={editar.isPending}
             onGuardar={guardar}
+            motivoDeshabilitado={motivoSinSobrecupo(form.ajustes, choques)}
           >
             {choques.length > 0 ? "Guardar igual" : "Guardar cambios"}
           </GuardarCita>
@@ -1010,6 +1093,7 @@ function AgendarSolicitudDialog({
     sucursalId: valores.sucursalId,
     startsAt: valores.startsAt,
     duracion: valores.duracion,
+    boxId: valores.boxId,
   });
 
   return (
@@ -1035,6 +1119,9 @@ function AgendarSolicitudDialog({
                 conflictos={choques}
                 profesionales={profesionales}
                 profesionalId={valores.profesionalId}
+                boxId={valores.boxId}
+                boxes={form.boxes}
+                sinSobrecupo={motivoSinSobrecupo(form.ajustes, choques)}
               />
             </>
           }
@@ -1045,6 +1132,7 @@ function AgendarSolicitudDialog({
             faltaTexto={faltaTexto}
             enCurso={agendar.isPending}
             onGuardar={confirmar}
+            motivoDeshabilitado={motivoSinSobrecupo(form.ajustes, choques)}
           >
             {choques.length > 0 ? "Confirmar igual" : "Confirmar cita"}
           </GuardarCita>
@@ -1490,6 +1578,15 @@ function AgendaPage() {
     enabled: Boolean(clinicId),
     queryFn: () => fetchHorarios({ data: { clinicId: clinicId! } }),
   });
+  // Ola 2 · Disponibilidad: bloqueos, aperturas, horario de las sucursales y
+  // ajustes de la agenda del rango que se mira.
+  const [dispDesde, dispHasta] = useMemo(() => rangoDeLaVista(vista, fecha), [vista, fecha]);
+  const disponibilidad = useDisponibilidadAgenda({
+    clinicId,
+    desde: dispDesde,
+    hasta: dispHasta,
+  });
+  const disponibilidadDelDia = useMemo(() => disponibilidad.grilla(fecha), [disponibilidad, fecha]);
   const { pendientes: enColaOffline } = useColaOffline(access.userId);
   // Los movimientos que esperan conexión se pintan en su destino: si no,
   // la cita "volvería" a su hora vieja con cada refresco del cache.
@@ -1554,17 +1651,39 @@ function AgendaPage() {
     nombreProfesional,
   });
   const validarMovimiento = useCallback(
-    (cita: Cita, destino: Destino) =>
-      validarDestino({
+    (cita: Cita, destino: Destino): Veredicto => {
+      const veredicto = validarDestino({
         cita,
         destino,
-        horario: horarioDelDia(horarios?.[destino.profesionalId], destino.fecha),
+        // Una apertura excepcional (AGE-08) suma horario ese día.
+        horario: disponibilidad.conAperturasDe(
+          horarioDelDia(horarios?.[destino.profesionalId], destino.fecha),
+          destino.fecha,
+          destino.profesionalId,
+        ),
         citasDelCarril: citas.filter(
           (c) => c.fecha === destino.fecha && c.profesionalId === destino.profesionalId,
         ),
         nombreProfesional: nombreProfesional(destino.profesionalId),
-      }),
-    [horarios, citas, nombreProfesional],
+      });
+      if (!veredicto.ok) return veredicto;
+      // Soltar sobre un bloqueo (AGE-07) casi siempre es un error de
+      // puntería, igual que soltar sobre otra cita: quien quiera agendar
+      // encima a propósito tiene el diálogo de edición, que avisa.
+      const bloqueos = disponibilidad.bloqueosEn(
+        profesionales.find((p) => p.id === destino.profesionalId),
+        { ...destino, duracion: cita.duracion },
+      );
+      if (bloqueos.length > 0) {
+        return {
+          ok: false,
+          motivo: "fuera-de-horario",
+          mensaje: `Ese horario está bloqueado (${describirBloqueo(bloqueos[0])}). La cita quedó donde estaba.`,
+        };
+      }
+      return veredicto;
+    },
+    [horarios, citas, nombreProfesional, disponibilidad, profesionales],
   );
   const rechazarMovimiento = useCallback(
     (mensaje: string) => {
@@ -1574,6 +1693,46 @@ function AgendaPage() {
     [reprogramar],
   );
   const [citaAMover, setCitaAMover] = useState<Cita | null>(null);
+
+  // Boxes activos (AGE-04): carriles de la vista por box y nombres en los
+  // avisos de choque. Misma consulta que el formulario de cita.
+  const fetchBoxes = useServerFn(listOperatories);
+  const { data: boxes = [] } = useQuery({
+    queryKey: ["operatories", clinicId],
+    enabled: Boolean(clinicId),
+    staleTime: 5 * 60_000,
+    queryFn: () => fetchBoxes({ data: { clinicId: clinicId! } }),
+  });
+
+  // Mover con choque (AGE-02): si el destino deja a la cita con el mismo
+  // paciente o el mismo box a la vez que otra, se pide confirmación antes.
+  // El mismo profesional ya no se puede soltar (`validarDestino`).
+  const [movimientoConChoque, setMovimientoConChoque] = useState<MovimientoPorConfirmar | null>(
+    null,
+  );
+  const moverCita = useCallback(
+    (cita: Cita, destino: Destino) => {
+      const choques = choquesDelMovimiento(cita, destino, citas, profesionales);
+      if (choques.length === 0) {
+        void reprogramar.mover(cita, destino);
+        return;
+      }
+      const conBox = choques.find((x) => x.tipo === "box");
+      setMovimientoConChoque({
+        cita,
+        destino,
+        conflictos: choques,
+        box: conBox
+          ? (boxEfectivo(
+              conBox.cita,
+              profesionales.find((p) => p.id === conBox.cita.profesionalId),
+              (id) => boxes.find((b) => b.id === id)?.nombre,
+            )?.nombre ?? null)
+          : null,
+      });
+    },
+    [citas, profesionales, boxes, reprogramar],
+  );
   const puedeSimular = puedeSimularSinConexion(esCuentaDemo(access.email));
 
   const fetchSolicitudes = useServerFn(listPendingAppointmentRequests);
@@ -1659,14 +1818,24 @@ function AgendaPage() {
     ],
   );
 
+  // AGE-23: con el filtro de sucursal, también los que atienden ahí según su horario.
+  const sucursalesDeProfesional = useMemo(
+    () => sucursalesPorProfesional(horarios ?? {}),
+    [horarios],
+  );
   const columnas = useMemo(
     () =>
       profesionales.filter((p) => {
-        if (search.sucursal && p.sucursalId !== search.sucursal) return false;
+        if (
+          search.sucursal &&
+          p.sucursalId !== search.sucursal &&
+          !sucursalesDeProfesional[p.id]?.includes(search.sucursal)
+        )
+          return false;
         if (search.profesional && p.id !== search.profesional) return false;
         return true;
       }),
-    [profesionales, search.sucursal, search.profesional],
+    [profesionales, search.sucursal, search.profesional, sucursalesDeProfesional],
   );
 
   // Ocupación de la semana: solo los filtros que cambian qué sillones se miden
@@ -1782,12 +1951,25 @@ function AgendaPage() {
           horarios={horarios}
           validar={validarMovimiento}
           onMover={(c, d) => {
-            void reprogramar.mover(c, d);
+            moverCita(c, d);
             enfocarCita(c.id);
           }}
           onClose={() => setCitaAMover(null)}
         />
-        <div className="flex items-center justify-end gap-2">
+        <ConfirmarMovimientoConChoque
+          pendiente={movimientoConChoque}
+          nombreProfesional={nombreProfesional}
+          onConfirmar={(m) => {
+            setMovimientoConChoque(null);
+            void reprogramar.mover(m.cita, m.destino);
+            enfocarCita(m.cita.id);
+          }}
+          onCancelar={() => {
+            if (movimientoConChoque) enfocarCita(movimientoConChoque.cita.id);
+            setMovimientoConChoque(null);
+          }}
+        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <div className="pointer-coarse:hidden">
@@ -1796,6 +1978,17 @@ function AgendaPage() {
           )}
           {/* Solo demo y desarrollo: fuera de la barra principal (UX, Ola 0). */}
           {puedeSimular && <MasOpcionesAgenda enCola={enColaOffline.length} />}
+          {clinicId && puedeAdministrarProfesionales && (
+            <AccionesDeDisponibilidad
+              clinicId={clinicId}
+              clinicName={access.clinic?.name}
+              fecha={fecha}
+              hoy={hoy}
+              sucursales={sucursales}
+              profesionales={profesionales}
+              puedeMover={puedeGestionarAgenda}
+            />
+          )}
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <NuevaCitaDialog
               clinicId={clinicId}
@@ -1821,6 +2014,11 @@ function AgendaPage() {
             />
           )}
         </div>
+
+        {/* PAN-05: componente aparte, encima de la grilla. */}
+        {clinicId && hasPermission(access.role, "agenda:manage") && (
+          <AvisoCitasPasadas clinicId={clinicId} timezone={access.clinic?.timezone} />
+        )}
 
         {appointmentsRes?.truncated && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
@@ -2013,7 +2211,36 @@ function AgendaPage() {
 
             {(vista === "dia" || vista === "semana") && (
               <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                {vista === "dia" && puedeGestionarAgenda ? (
+                {vista === "dia" && (
+                  <div
+                    role="group"
+                    aria-label="Carriles de la agenda"
+                    className="flex rounded-lg border border-hairline p-0.5 text-xs"
+                  >
+                    {(
+                      [
+                        [undefined, "Por profesional"],
+                        ["box", "Por box"],
+                      ] as const
+                    ).map(([valor, etiqueta]) => (
+                      <button
+                        key={etiqueta}
+                        type="button"
+                        aria-pressed={search.carril === valor}
+                        onClick={() => set({ carril: valor })}
+                        className={cn(
+                          "rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11 pointer-coarse:px-3",
+                          search.carril === valor
+                            ? "bg-secondary text-foreground"
+                            : "text-muted-foreground hover:text-foreground",
+                        )}
+                      >
+                        {etiqueta}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {(vista === "semana" || search.carril !== "box") && puedeGestionarAgenda ? (
                   <p className="text-xs text-muted-foreground">
                     <span className="pointer-coarse:hidden">
                       Arrastra una cita para moverla. Con teclado:{" "}
@@ -2036,13 +2263,28 @@ function AgendaPage() {
                 />
               </div>
             )}
-            {vista === "dia" && (
+            {vista === "dia" && search.carril === "box" && (
+              <AgendaPorBox
+                citas={filtradas}
+                boxes={boxes.filter((b) => !search.sucursal || b.sucursalId === search.sucursal)}
+                profesionales={profesionales}
+                conSucursal={!search.sucursal && sucursales.length > 1}
+                nombreSucursal={(id) => sucursales.find((s) => s.id === id)?.nombre ?? ""}
+                allergyAlerts={allergyAlerts}
+                renderAcciones={accionesDeCita}
+                conflictos={conflictos}
+                nombreProfesional={nombreProfesional}
+                esHoy={fecha === hoy}
+                zonaHoraria={access.clinic?.timezone}
+              />
+            )}
+            {vista === "dia" && search.carril !== "box" && (
               <AgendaGrid
                 arrastre={
                   {
                     habilitado: puedeGestionarAgenda,
                     validar: validarMovimiento,
-                    onMover: (c, d) => void reprogramar.mover(c, d),
+                    onMover: moverCita,
                     onRechazo: rechazarMovimiento,
                     enCola,
                     horarios,
@@ -2062,6 +2304,7 @@ function AgendaPage() {
                 renderAcciones={accionesDeCita}
                 conflictos={conflictos}
                 nombreProfesional={nombreProfesional}
+                disponibilidad={disponibilidadDelDia}
               />
             )}
             {vista === "semana" && (
@@ -2078,6 +2321,14 @@ function AgendaPage() {
                 renderAcciones={accionesDeCita}
                 conflictos={conflictos}
                 nombreProfesional={nombreProfesional}
+                arrastre={{
+                  habilitado: puedeGestionarAgenda,
+                  validar: validarMovimiento,
+                  onMover: moverCita,
+                  onRechazo: rechazarMovimiento,
+                  enCola,
+                  horarios,
+                }}
               />
             )}
             {vista === "mes" && (

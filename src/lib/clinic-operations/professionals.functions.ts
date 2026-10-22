@@ -20,8 +20,15 @@ export type ProfessionalDetail = {
 };
 
 /** Bloque de horario de un día de la semana. 0 = domingo … 6 = sábado
- * (igual que Date.getDay()). Un día sin bloque = no atiende ese día. */
-export type ScheduleBlock = { dayOfWeek: number; startTime: string; endTime: string };
+ * (igual que Date.getDay()). Un día sin bloque = no atiende ese día.
+ * `branchId` (AGE-23): sucursal donde atiende ese bloque; null = cualquiera
+ * (las filas anteriores a la Ola 2). */
+export type ScheduleBlock = {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  branchId: string | null;
+};
 
 const timeRegex = /^\d{2}:\d{2}$/;
 
@@ -156,15 +163,17 @@ export const getProfessionalSchedule = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ScheduleBlock[]> => {
     const { data: rows, error } = await context.supabase
       .from("professional_schedules")
-      .select("day_of_week, start_time, end_time")
+      .select("day_of_week, start_time, end_time, branch_id")
       .eq("clinic_id", data.clinicId)
       .eq("professional_id", data.professionalId)
-      .order("day_of_week", { ascending: true });
+      .order("day_of_week", { ascending: true })
+      .order("start_time", { ascending: true });
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar el horario del profesional."));
     return (rows ?? []).map((r) => ({
       dayOfWeek: r.day_of_week,
       startTime: r.start_time.slice(0, 5),
       endTime: r.end_time.slice(0, 5),
+      branchId: r.branch_id,
     }));
   });
 
@@ -180,7 +189,7 @@ export const listProfessionalSchedules = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<Record<string, ScheduleBlock[]>> => {
     const { data: rows, error } = await context.supabase
       .from("professional_schedules")
-      .select("professional_id, day_of_week, start_time, end_time")
+      .select("professional_id, day_of_week, start_time, end_time, branch_id")
       .eq("clinic_id", data.clinicId)
       .order("day_of_week", { ascending: true })
       .order("start_time", { ascending: true });
@@ -191,6 +200,7 @@ export const listProfessionalSchedules = createServerFn({ method: "GET" })
         dayOfWeek: r.day_of_week,
         startTime: r.start_time.slice(0, 5),
         endTime: r.end_time.slice(0, 5),
+        branchId: r.branch_id,
       });
     }
     return porProfesional;
@@ -212,8 +222,11 @@ export const setProfessionalSchedule = createServerFn({ method: "POST" })
               dayOfWeek: z.number().int().min(0).max(6),
               startTime: z.string().regex(timeRegex),
               endTime: z.string().regex(timeRegex),
+              // AGE-23. Ausente (cliente anterior) = cualquier sucursal.
+              branchId: z.string().uuid().nullish(),
             }),
           )
+          .max(42)
           .refine((blocks) => blocks.every((b) => b.startTime < b.endTime), {
             message: "La hora de inicio debe ser antes que la de cierre.",
           }),
@@ -238,6 +251,7 @@ export const setProfessionalSchedule = createServerFn({ method: "POST" })
           day_of_week: b.dayOfWeek,
           start_time: b.startTime,
           end_time: b.endTime,
+          branch_id: b.branchId ?? null,
         })),
       );
       if (insertError)

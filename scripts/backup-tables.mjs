@@ -9,14 +9,17 @@
 // nombrando la tabla que falte. Sí hace falta ordenarla alfabéticamente,
 // para que el diff de agregar una tabla sea de una línea.
 export const TABLES = [
+  "agenda_exceptions",
   "agreement_coverage",
   "agreements",
   "appointment_requests",
   "appointment_statuses",
   "appointment_types",
   "appointments",
+  "branch_hours",
   "branches",
   "cash_registers",
+  "clinic_agenda_settings",
   "clinic_counters",
   "clinic_data_exports",
   "clinic_members",

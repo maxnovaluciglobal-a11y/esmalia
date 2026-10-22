@@ -34,16 +34,30 @@ import { claseEstadoBadge, etiquetaBloqueCita, rangoHorarioCita } from "@/compon
 import { buttonVariants } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { cn } from "@/lib/utils";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { QUERY_MOVIL, QUERY_TACTIL, useMediaQuery } from "@/hooks/use-media-query";
 import {
   boxDe,
+  boxEfectivo,
   describirConflicto,
+  nombreBoxDe,
   resumenConflictos,
   type Conflicto,
 } from "@/components/agenda-conflictos";
 import { PanelCita } from "@/components/agenda-panel-cita";
+import { CapaDisponibilidad } from "@/components/agenda-disponibilidad";
+import type { DisponibilidadGrilla } from "@/hooks/use-disponibilidad-agenda";
+import {
+  aperturasComoRango,
+  filtrarHuecosAgendables,
+  restarTramos,
+  tramosDeApertura,
+  tramosNoAgendables,
+  type FranjaDisponibilidad,
+  type Tramo,
+} from "@/lib/clinic-operations/disponibilidad";
 import {
   colaciones,
   destinoPorTeclado,
@@ -105,6 +119,7 @@ export function AgendaGrid({
   arrastre,
   conflictos,
   nombreProfesional,
+  disponibilidad,
 }: {
   compacta?: boolean;
   citas: Cita[];
@@ -130,8 +145,22 @@ export function AgendaGrid({
   conflictos?: Map<string, Conflicto[]>;
   /** id → nombre, para describir el choque (la otra cita puede ser de otro profesional). */
   nombreProfesional?: (id: string) => string;
+  /** Bloqueos, aperturas, sucursal cerrada e intervalo de la grilla (Ola 2). */
+  disponibilidad?: DisponibilidadGrilla;
 }) {
-  const { desde, hasta } = rangoDeGrilla(citas);
+  // Capa de disponibilidad (Ola 2): franjas por columna, calculadas una vez.
+  const franjasPorProfesional = useMemo(() => {
+    const map = new Map<string, FranjaDisponibilidad[]>();
+    if (!disponibilidad) return map;
+    for (const p of profesionales) map.set(p.id, disponibilidad.franjasDe(p));
+    return map;
+  }, [disponibilidad, profesionales]);
+  const paso = disponibilidad?.pasoMin ?? PASO_HUECO_MIN;
+  // Una apertura excepcional fuera de la jornada base estira la grilla.
+  const { desde, hasta } = rangoDeGrilla([
+    ...citas,
+    ...[...franjasPorProfesional.values()].flatMap(aperturasComoRango),
+  ]);
   const horas = (hasta - desde) / 60;
   // Celular: la cita se abre en una hoja desde abajo (el popover lateral
   // quedaba fuera de la pantalla) y la grilla se desplaza adentro de su
@@ -140,7 +169,7 @@ export function AgendaGrid({
   const movil = useMediaQuery(QUERY_MOVIL);
   const tactil = useMediaQuery(QUERY_TACTIL);
   const ppm = tactil ? PIXELES_POR_MINUTO_TACTIL : PIXELES_POR_MINUTO;
-  const altoHueco = PASO_HUECO_MIN * ppm;
+  const altoHueco = paso * ppm;
   const alto = (hasta - desde) * ppm;
   const [seleccionId, setSeleccionId] = useState<string | null>(null);
   const seleccionada = movil && seleccionId ? citas.find((c) => c.id === seleccionId) : undefined;
@@ -187,10 +216,21 @@ export function AgendaGrid({
     const map = new Map<string, number[]>();
     if (!huecosHabilitados) return map;
     for (const p of profesionales) {
-      map.set(p.id, huecosLibres(citasPorProfesional.get(p.id) ?? [], hasta, desde));
+      const libres = huecosLibres(citasPorProfesional.get(p.id) ?? [], hasta, desde, paso);
+      // Sin huecos clicables en un bloqueo ni con la sucursal cerrada.
+      const noAgendables = tramosNoAgendables(franjasPorProfesional.get(p.id) ?? []);
+      map.set(p.id, filtrarHuecosAgendables(libres, paso, noAgendables));
     }
     return map;
-  }, [huecosHabilitados, profesionales, citasPorProfesional, desde, hasta]);
+  }, [
+    huecosHabilitados,
+    profesionales,
+    citasPorProfesional,
+    desde,
+    hasta,
+    paso,
+    franjasPorProfesional,
+  ]);
 
   // Roving tabindex: toda la capa de huecos es UNA parada de Tab (si no,
   // serían ~28 por profesional antes de llegar al listado). Adentro se navega
@@ -244,7 +284,7 @@ export function AgendaGrid({
 
   function agendarEnHueco(e: MouseEvent<HTMLButtonElement>, p: Profesional, minutos: number) {
     if (!onAgendarHueco || !fecha) return;
-    onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p }), e.currentTarget);
+    onAgendarHueco(semillaDeHueco({ fecha, minutos, profesional: p, paso }), e.currentTarget);
   }
 
   // ── Arrastre ──
@@ -378,8 +418,16 @@ export function AgendaGrid({
                     desde={desde}
                     hasta={hasta}
                     pxPorMinuto={ppm}
+                    aperturas={tramosDeApertura(franjasPorProfesional.get(p.id) ?? [])}
                   />
                 )}
+
+                <CapaDisponibilidad
+                  franjas={franjasPorProfesional.get(p.id) ?? []}
+                  desde={desde}
+                  hasta={hasta}
+                  pxPorMinuto={ppm}
+                />
 
                 {(huecosPorProfesional.get(p.id) ?? []).map((m) => {
                   const clave = claveHueco(p.id, m);
@@ -478,7 +526,7 @@ export function AgendaGrid({
  * Adentro del botón solo va contenido de frase (`<span>`): un `<div>` o un
  * `<p>` dentro de `<button>` es HTML inválido.
  */
-function BloqueCita({
+export function BloqueCita({
   cita: c,
   profesional: p,
   desde,
@@ -495,6 +543,7 @@ function BloqueCita({
   onPointerDown,
   clicDeArrastre,
   onKeyDown,
+  conProfesional = false,
 }: {
   cita: Cita;
   profesional: Profesional;
@@ -515,10 +564,17 @@ function BloqueCita({
   onPointerDown?: (e: PointerEvent<HTMLButtonElement>) => void;
   clicDeArrastre?: () => boolean;
   onKeyDown?: (e: KeyboardEvent<HTMLButtonElement>) => void;
+  /** Vista por box: el carril no dice el profesional, lo dice el bloque. */
+  conProfesional?: boolean;
 }) {
   const corta = c.duracion < 30;
   const choque = resumenConflictos(conflictos);
-  const etiqueta = [etiquetaBloqueCita(c), choque, enCola ? "Cambio en cola" : ""]
+  const etiqueta = [
+    etiquetaBloqueCita(c),
+    conProfesional ? p.nombre : "",
+    choque,
+    enCola ? "Cambio en cola" : "",
+  ]
     .filter(Boolean)
     .join(". ");
   const boton = (
@@ -529,7 +585,9 @@ function BloqueCita({
       aria-describedby={arrastrable ? ID_AYUDA_ARRASTRE : undefined}
       title={
         conflictos?.length
-          ? conflictos.map((x) => describirConflicto(x, nombreProfesional, boxDe(p))).join("\n")
+          ? conflictos
+              .map((x) => describirConflicto(x, nombreProfesional, nombreBoxDe(c, p)))
+              .join("\n")
           : undefined
       }
       onPointerDown={arrastrable ? onPointerDown : undefined}
@@ -566,7 +624,7 @@ function BloqueCita({
           <span
             aria-hidden="true"
             className="mt-[5px] size-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: p.color }}
+            style={{ backgroundColor: colorProfesional(p.color) }}
           />
           {/* ≥30 min hay alto para dos líneas: el apellido no se pierde
               en columnas angostas. */}
@@ -603,7 +661,10 @@ function BloqueCita({
           </span>
         </span>
       </span>
-      {c.duracion >= 45 && (
+      {conProfesional && c.duracion >= 30 && (
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{p.nombre}</span>
+      )}
+      {c.duracion >= (conProfesional ? 60 : 45) && (
         <span className="mt-0.5 block truncate text-[11px]">{c.tratamiento}</span>
       )}
       {c.prioridad && c.duracion >= 60 && (
@@ -671,10 +732,12 @@ export function DetalleCita({
           <span
             aria-hidden="true"
             className="size-2 shrink-0 rounded-full"
-            style={{ backgroundColor: p.color }}
+            style={{ backgroundColor: colorProfesional(p.color) }}
           />
           <span className="truncate">{p.nombre}</span>
         </dd>
+        <dt className="text-muted-foreground">Box</dt>
+        <dd className="break-words">{textoBox(c, p)}</dd>
         <dt className="text-muted-foreground">Estado</dt>
         <dd className="flex flex-wrap items-center gap-1.5">
           <EstadoCitaPastilla cita={{ estado: c.estado }} />
@@ -685,7 +748,7 @@ export function DetalleCita({
         <AvisoDeChoques
           conflictos={conflictos}
           nombreProfesional={nombreProfesional ?? (() => "otro profesional")}
-          box={boxDe(p)}
+          box={nombreBoxDe(c, p)}
           titulo="Choque de horario"
         />
       )}
@@ -702,6 +765,13 @@ export function DetalleCita({
       </div>
     </>
   );
+}
+
+/** "Box 2", "Box 1 (del profesional)" o "Sin box". */
+function textoBox(c: Cita, p: Profesional): string {
+  const box = boxEfectivo(c, p);
+  if (!box) return "Sin box";
+  return box.propio ? box.nombre : `${box.nombre} (del profesional)`;
 }
 
 /**
@@ -748,21 +818,25 @@ export function AvisoDeChoques({
  * antes de soltar. Si no se puede soltar ahí, lo dice (y en rojo, con
  * borde punteado y texto: no solo color).
  */
-function FantasmaCita({
+export function FantasmaCita({
   fantasma: f,
   desde,
   pxPorMinuto = PIXELES_POR_MINUTO,
+  compacto = false,
 }: {
   fantasma: Fantasma;
   desde: number;
   pxPorMinuto?: number;
+  /** Carril angosto (semana): sin márgenes y con el motivo en un globo encima. */
+  compacto?: boolean;
 }) {
   const ok = f.veredicto.ok || f.veredicto.motivo === "sin-cambio";
   return (
     <div
       aria-hidden="true"
       className={cn(
-        "pointer-events-none absolute left-1.5 right-1.5 z-30 overflow-hidden rounded-md border-2 border-dashed px-2 py-1 text-[11px] leading-tight shadow-lg",
+        "pointer-events-none absolute z-30 rounded-md border-2 border-dashed text-[11px] leading-tight shadow-lg",
+        compacto ? "inset-x-0 px-0.5" : "left-1.5 right-1.5 overflow-hidden px-2 py-1",
         ok
           ? "border-brand-700 bg-brand/10 text-foreground"
           : "border-destructive bg-destructive/10 text-destructive",
@@ -776,7 +850,15 @@ function FantasmaCita({
         {horaDeMinutos(f.destino.inicio)}–{horaDeMinutos(f.destino.inicio + f.duracion)}
       </span>
       {!f.veredicto.ok && f.veredicto.motivo !== "sin-cambio" && (
-        <span className="line-clamp-2">{f.veredicto.mensaje}</span>
+        <span
+          className={
+            compacto
+              ? "absolute left-0 top-full mt-1 w-48 rounded-md border border-destructive bg-card px-2 py-1 text-destructive shadow-md"
+              : "line-clamp-2"
+          }
+        >
+          {f.veredicto.mensaje}
+        </span>
       )}
     </div>
   );
@@ -793,25 +875,31 @@ export function FranjasDeHorario({
   desde,
   hasta,
   pxPorMinuto = PIXELES_POR_MINUTO,
+  aperturas = [],
 }: {
   bloques: BloqueHorario[] | undefined;
   fecha: string;
   desde: number;
   hasta: number;
   pxPorMinuto?: number;
+  /** Aperturas excepcionales (AGE-08): ahí no se dibuja "fuera de horario". */
+  aperturas?: Tramo[];
 }) {
   const horario = horarioDelDia(bloques, fecha);
   if (!horario.declarado) return null;
-  const franjas: { inicio: number; fin: number; tipo: "fuera" | "colacion" }[] = [];
+  const crudas: { inicio: number; fin: number; tipo: "fuera" | "colacion" }[] = [];
   if (horario.tramos.length === 0) {
-    franjas.push({ inicio: desde, fin: hasta, tipo: "fuera" });
+    crudas.push({ inicio: desde, fin: hasta, tipo: "fuera" });
   } else {
     const primero = horario.tramos[0];
     const ultimo = horario.tramos[horario.tramos.length - 1];
-    if (primero.inicio > desde) franjas.push({ inicio: desde, fin: primero.inicio, tipo: "fuera" });
-    for (const c of colaciones(horario)) franjas.push({ ...c, tipo: "colacion" });
-    if (ultimo.fin < hasta) franjas.push({ inicio: ultimo.fin, fin: hasta, tipo: "fuera" });
+    if (primero.inicio > desde) crudas.push({ inicio: desde, fin: primero.inicio, tipo: "fuera" });
+    for (const c of colaciones(horario)) crudas.push({ ...c, tipo: "colacion" });
+    if (ultimo.fin < hasta) crudas.push({ inicio: ultimo.fin, fin: hasta, tipo: "fuera" });
   }
+  const franjas = crudas.flatMap((f) =>
+    restarTramos([f], aperturas).map((t) => ({ ...t, tipo: f.tipo })),
+  );
   return (
     <>
       {franjas.map((f) => {

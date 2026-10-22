@@ -11,6 +11,7 @@ import { enBloques, leerTodasLasPaginas, mapConLimite } from "@/lib/paginacion";
 import { requireFinanceViewRole } from "@/lib/finance/finance-reports.functions";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
+import { revisarDisponibilidad } from "@/lib/clinic-operations/disponibilidad-db";
 
 const DEFAULT_TIMEZONE = "America/Santiago";
 
@@ -23,14 +24,15 @@ const DIA_SEMANA_CORTO: Record<string, number> = {
   Fri: 5,
   Sat: 6,
 };
+// En plural: solo se usa en "no atiende los …".
 const DIA_SEMANA_LABEL: Record<number, string> = {
-  0: "domingo",
+  0: "domingos",
   1: "lunes",
   2: "martes",
   3: "miércoles",
   4: "jueves",
   5: "viernes",
-  6: "sábado",
+  6: "sábados",
 };
 
 /** Día de la semana (0=domingo…6=sábado, igual que Date.getDay()) según lo
@@ -65,6 +67,8 @@ type AppointmentRow = {
   status: string;
   is_priority: boolean;
   patient_confirmed_at: string | null;
+  operatory_id: string | null;
+  operatory_name: string | null;
 };
 
 function fechaLocal(iso: string, timeZone: string): string {
@@ -105,11 +109,13 @@ function mapAppointmentRow(row: AppointmentRow, pacienteNombre: string, timeZone
     estado: row.status as EstadoCita,
     prioridad: row.is_priority || undefined,
     pacienteConfirmo: row.patient_confirmed_at ? true : undefined,
+    boxId: row.operatory_id,
+    box: row.operatory_name,
   };
 }
 
 const APPOINTMENT_COLUMNS =
-  "id, patient_id, professional_id, branch_id, treatment_label, starts_at, ends_at, status, is_priority, patient_confirmed_at";
+  "id, patient_id, professional_id, branch_id, treatment_label, starts_at, ends_at, status, is_priority, patient_confirmed_at, operatory_id, operatory_name";
 
 /**
  * Tope de fila del listado. El filtro de fecha lo sigue aplicando la UI (así
@@ -287,6 +293,16 @@ export function wallTimeInTzToUtc(localIso: string, timeZone: string): Date {
 export type Solapamiento = { treatmentLabel: string; startsAt: string; endsAt: string };
 
 /**
+ * Avisos que acompañan a una cita guardada: el doble-booking y, desde la Ola
+ * 2, los bloqueos de la agenda que pisa (AGE-07). Ninguno impide guardar.
+ */
+export type AvisosDeCita = { solapamiento?: Solapamiento; bloqueos?: string[] };
+
+/** Mensaje cuando la clínica apagó los sobrecupos (AGE-10). */
+export const MENSAJE_SIN_SOBRECUPOS =
+  "Esta clínica no permite sobrecupos: ya hay una cita con este profesional en ese horario. Elige otra hora u otro profesional.";
+
+/**
  * Auditoría de código 01-sep-2026: createAppointment y updateAppointment
  * traían este bloque duplicado casi carácter por carácter (timezone de la
  * sucursal, bloqueo duro contra professional_schedules, aviso soft de
@@ -326,8 +342,10 @@ export async function validarHorarioYSolapamiento(
     duracionMin: number;
     /** Al reprogramar, la cita no debe chocar consigo misma. */
     excludeAppointmentId?: string;
+    /** Box elegido, para avisar de un bloqueo del box (AGE-07). */
+    operatoryId?: string | null;
   },
-): Promise<{ startsAt: Date; endsAt: Date; solapamiento?: Solapamiento }> {
+): Promise<{ startsAt: Date; endsAt: Date } & AvisosDeCita> {
   const { data: branch, error: branchErr } = await supabase
     .from("branches")
     .select("timezone")
@@ -342,6 +360,18 @@ export async function validarHorarioYSolapamiento(
   if (Number.isNaN(startsAt.getTime())) throw new Error("Fecha/hora de inicio inválida.");
   const endsAt = new Date(startsAt.getTime() + params.duracionMin * 60_000);
 
+  // Ola 2 · Disponibilidad: ajustes de la clínica (sobrecupos), bloqueos que
+  // pisan la cita y aperturas excepcionales del profesional. Todo en hora de
+  // pared de la sucursal, como el `startsAtRaw`.
+  const disponibilidad = await revisarDisponibilidad(supabase, {
+    clinicId: params.clinicId,
+    branchId: params.branchId,
+    professionalId: params.professionalId,
+    startsAtRaw: params.startsAtRaw,
+    duracionMin: params.duracionMin,
+    operatoryId: params.operatoryId,
+  });
+
   // Bloqueo DURO (a diferencia del aviso soft de solapamiento de más abajo)
   // contra el horario declarado del profesional en /profesionales. Un
   // profesional SIN ninguna fila en professional_schedules no tiene
@@ -352,23 +382,32 @@ export async function validarHorarioYSolapamiento(
   // doble-booking (cubrir un turno, urgencia).
   const { data: horarios, error: horariosErr } = await supabase
     .from("professional_schedules")
-    .select("day_of_week, start_time, end_time")
+    .select("day_of_week, start_time, end_time, branch_id")
     .eq("clinic_id", params.clinicId)
     .eq("professional_id", params.professionalId);
   if (horariosErr)
     throw new Error(mensajeDb(horariosErr, "No pudimos verificar el horario del profesional."));
 
-  if (horarios && horarios.length > 0) {
+  // Una apertura excepcional (AGE-08) habilita el rango aunque caiga fuera
+  // del horario semanal: es justamente para eso.
+  if (horarios && horarios.length > 0 && !disponibilidad.aperturaCubre) {
     const dia = diaSemanaLocal(startsAt, timeZone);
+    const delDia = horarios.filter((h) => h.day_of_week === dia);
     // Un día puede tener más de un bloque (mañana y tarde): entre los dos
     // está la colación. Antes se miraba solo el primero y una cita de la
     // tarde quedaba "fuera del horario" (arrastre de la agenda, PR 10).
-    const bloquesDia = horarios
-      .filter((h) => h.day_of_week === dia)
+    // AGE-23: un bloque con sucursal vale solo en esa sucursal; sin
+    // sucursal (las filas de antes), en cualquiera.
+    const bloquesDia = delDia
+      .filter((h) => !h.branch_id || h.branch_id === params.branchId)
       .map((h) => ({ inicio: h.start_time.slice(0, 5), fin: h.end_time.slice(0, 5) }))
       .sort((a, b) => a.inicio.localeCompare(b.inicio));
     if (bloquesDia.length === 0) {
-      throw new Error(`El profesional no atiende los ${DIA_SEMANA_LABEL[dia]}.`);
+      throw new Error(
+        delDia.length > 0
+          ? `El profesional no atiende en esta sucursal los ${DIA_SEMANA_LABEL[dia]}.`
+          : `El profesional no atiende los ${DIA_SEMANA_LABEL[dia]}.`,
+      );
     }
     const horaInicio = horaLocalHHMM(startsAt, timeZone);
     const horaFin = horaLocalHHMM(endsAt, timeZone);
@@ -412,8 +451,14 @@ export async function validarHorarioYSolapamiento(
         endsAt: choque.ends_at,
       }
     : undefined;
+  // Con los sobrecupos apagados (AGE-10) el aviso pasa a ser un bloqueo: es
+  // el par en el servidor del botón deshabilitado del formulario.
+  if (solapamiento && !disponibilidad.ajustes.permiteSobrecupos) {
+    throw new Error(MENSAJE_SIN_SOBRECUPOS);
+  }
+  const bloqueos = disponibilidad.bloqueos.length > 0 ? disponibilidad.bloqueos : undefined;
 
-  return { startsAt, endsAt, solapamiento };
+  return { startsAt, endsAt, solapamiento, bloqueos };
 }
 
 /**
@@ -479,13 +524,14 @@ export const createAppointment = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ id: string; solapamiento?: Solapamiento }> => {
-    const { startsAt, endsAt, solapamiento } = await validarHorarioYSolapamiento(context.supabase, {
+  .handler(async ({ data, context }): Promise<{ id: string } & AvisosDeCita> => {
+    const { startsAt, endsAt, ...avisos } = await validarHorarioYSolapamiento(context.supabase, {
       clinicId: data.clinicId,
       branchId: data.branchId,
       professionalId: data.professionalId,
       startsAtRaw: data.startsAt,
       duracionMin: data.duracionMin,
+      operatoryId: data.operatoryId,
     });
     if (data.operatoryId) {
       await validarBox(context.supabase, {
@@ -536,7 +582,7 @@ export const createAppointment = createServerFn({ method: "POST" })
       userId: context.userId,
       origen: "manual",
     });
-    return { id: inserted.id, solapamiento };
+    return { id: inserted.id, ...avisos };
   });
 
 /**
@@ -565,7 +611,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ ok: true; solapamiento?: Solapamiento }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true } & AvisosDeCita> => {
     if (data.operatoryId) {
       await validarBox(context.supabase, {
         clinicId: data.clinicId,
@@ -573,13 +619,14 @@ export const updateAppointment = createServerFn({ method: "POST" })
         operatoryId: data.operatoryId,
       });
     }
-    const { startsAt, endsAt, solapamiento } = await validarHorarioYSolapamiento(context.supabase, {
+    const { startsAt, endsAt, ...avisos } = await validarHorarioYSolapamiento(context.supabase, {
       clinicId: data.clinicId,
       branchId: data.branchId,
       professionalId: data.professionalId,
       startsAtRaw: data.startsAt,
       duracionMin: data.duracionMin,
       excludeAppointmentId: data.appointmentId,
+      operatoryId: data.operatoryId,
     });
 
     const { error } = await context.supabase
@@ -606,7 +653,7 @@ export const updateAppointment = createServerFn({ method: "POST" })
       .eq("id", data.appointmentId)
       .eq("clinic_id", data.clinicId);
     if (error) throw new Error(mensajeDb(error, "No tienes permisos para editar esta cita."));
-    return { ok: true, solapamiento };
+    return { ok: true, ...avisos };
   });
 
 /** Estados en los que una cita todavía se puede mover de hora o de profesional. */
@@ -636,7 +683,7 @@ export const moveAppointment = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data, context }): Promise<{ ok: true; solapamiento?: Solapamiento }> => {
+  .handler(async ({ data, context }): Promise<{ ok: true } & AvisosDeCita> => {
     const { supabase } = context;
     const { data: cita, error: citaErr } = await supabase
       .from("appointments")
@@ -667,7 +714,7 @@ export const moveAppointment = createServerFn({ method: "POST" })
       (new Date(cita.ends_at).getTime() - new Date(cita.starts_at).getTime()) / 60_000,
     );
 
-    const { startsAt, endsAt, solapamiento } = await validarHorarioYSolapamiento(supabase, {
+    const { startsAt, endsAt, ...avisos } = await validarHorarioYSolapamiento(supabase, {
       clinicId: data.clinicId,
       branchId,
       professionalId: data.professionalId,
@@ -687,7 +734,7 @@ export const moveAppointment = createServerFn({ method: "POST" })
       .eq("id", data.appointmentId)
       .eq("clinic_id", data.clinicId);
     if (error) throw new Error("No tienes permisos para mover esta cita.");
-    return { ok: true, solapamiento };
+    return { ok: true, ...avisos };
   });
 
 export const setAppointmentStatus = createServerFn({ method: "POST" })

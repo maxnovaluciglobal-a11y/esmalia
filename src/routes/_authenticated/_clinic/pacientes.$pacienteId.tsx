@@ -53,6 +53,7 @@ import { ReferralCodeCard } from "@/components/referral-code-card";
 import { AccionesDeLaFicha } from "@/components/ficha-acciones";
 import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
 import { AvisoGes, CompletitudDeLaFicha, ContactoDeEmergencia } from "@/components/ficha-ola1";
+import { ContadoresDeCitasFicha } from "@/components/ficha-contadores-citas";
 import { faltantesDeLaFicha, textoPrevision } from "@/lib/patients/datos-ficha";
 import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
 import { motivosGes } from "@/lib/patients/ges";
@@ -671,6 +672,13 @@ function PacienteDetalle() {
               </dd>
             </div>
           </dl>
+          {clinicId && (
+            <ContadoresDeCitasFicha
+              clinicId={clinicId}
+              patientId={paciente.id}
+              timezone={timezone}
+            />
+          )}
         </header>
 
         <Tabs value={pestana} onValueChange={(v) => setPestana(v as PestanaFicha)} className="mt-4">

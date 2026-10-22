@@ -66,10 +66,11 @@ export const completeClinicSetup = createServerFn({ method: "POST" })
       throw new Error(mensajeDb(branchError, "No pudimos crear la sucursal."));
 
     const { error: opError } = await supabase.from("operatories").insert(
-      data.branch.operatories.map((name) => ({
+      data.branch.operatories.map((name, position) => ({
         clinic_id: clinicId,
         branch_id: branch.id,
         name,
+        position,
       })),
     );
     if (opError)

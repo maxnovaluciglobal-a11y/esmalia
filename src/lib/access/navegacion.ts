@@ -146,6 +146,13 @@ export const DESTINOS: readonly Destino[] = [
       { to: "/morosidad", label: "Morosidad", permisos: ["finance:view"], sinonimos: ["deudas"] },
       { to: "/comisiones", label: "Comisiones", permisos: ["finance:view", "commission:view-own"] },
       { to: "/efectividad", label: "Efectividad", permisos: ["dashboard:view"] },
+      {
+        to: "/resultados-del-piloto",
+        label: "Resultados del piloto",
+        // Solo owner/admin: es la conversación de cierre del piloto (INF-14).
+        permisos: ["settings:manage"],
+        sinonimos: ["piloto", "resultados", "cierre del piloto"],
+      },
     ],
   },
   {
@@ -204,6 +211,20 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         detalle: "Etiquetas de la agenda y tipos de consulta",
         permisos: ["settings:manage"],
         sinonimos: ["tipos de cita", "tipo de consulta", "estados de cita"],
+      },
+      {
+        to: "/configuracion-de-agenda",
+        label: "Configuración de la agenda",
+        detalle: "Intervalo, duración, sobrecupos, horario de atención y bloqueos",
+        permisos: ["settings:manage"],
+        sinonimos: [
+          "bloqueos",
+          "bloquear horario",
+          "vacaciones",
+          "horario de atención",
+          "sobrecupos",
+          "intervalo",
+        ],
       },
       {
         to: "/consentimientos",

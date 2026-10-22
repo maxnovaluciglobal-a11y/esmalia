@@ -204,6 +204,7 @@ export const listOperatories = createServerFn({ method: "GET" })
       .select("id, name, branch_id")
       .eq("clinic_id", data.clinicId)
       .eq("is_active", true)
+      .order("position", { ascending: true })
       .order("name", { ascending: true });
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar los boxes."));
     return (rows ?? []).map((r) => ({ id: r.id, nombre: r.name, sucursalId: r.branch_id }));

@@ -33,6 +33,89 @@ export type Database = {
   };
   public: {
     Tables: {
+      agenda_exceptions: {
+        Row: {
+          branch_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          ends_local: string;
+          id: string;
+          kind: string;
+          note: string | null;
+          operatory_id: string | null;
+          professional_id: string | null;
+          reason: string | null;
+          repeat_until: string | null;
+          repeat_weekly: boolean;
+          starts_local: string;
+          updated_at: string;
+        };
+        Insert: {
+          branch_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_local: string;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          operatory_id?: string | null;
+          professional_id?: string | null;
+          reason?: string | null;
+          repeat_until?: string | null;
+          repeat_weekly?: boolean;
+          starts_local: string;
+          updated_at?: string;
+        };
+        Update: {
+          branch_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          ends_local?: string;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          operatory_id?: string | null;
+          professional_id?: string | null;
+          reason?: string | null;
+          repeat_until?: string | null;
+          repeat_weekly?: boolean;
+          starts_local?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "agenda_exceptions_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_operatory_id_fkey";
+            columns: ["operatory_id"];
+            isOneToOne: false;
+            referencedRelation: "operatories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "agenda_exceptions_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       agreement_coverage: {
         Row: {
           agreement_id: string;
@@ -312,6 +395,7 @@ export type Database = {
           is_priority: boolean;
           notes: string | null;
           operatory_id: string | null;
+          operatory_name: string | null;
           patient_confirmed_at: string | null;
           patient_confirmed_via: string | null;
           patient_id: string;
@@ -340,6 +424,7 @@ export type Database = {
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
+          operatory_name?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id: string;
@@ -368,6 +453,7 @@ export type Database = {
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
+          operatory_name?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id?: string;
@@ -440,6 +526,51 @@ export type Database = {
           },
         ];
       };
+      branch_hours: {
+        Row: {
+          branch_id: string;
+          clinic_id: string;
+          closes_at: string;
+          created_at: string;
+          day_of_week: number;
+          id: string;
+          opens_at: string;
+        };
+        Insert: {
+          branch_id: string;
+          clinic_id: string;
+          closes_at: string;
+          created_at?: string;
+          day_of_week: number;
+          id?: string;
+          opens_at: string;
+        };
+        Update: {
+          branch_id?: string;
+          clinic_id?: string;
+          closes_at?: string;
+          created_at?: string;
+          day_of_week?: number;
+          id?: string;
+          opens_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "branch_hours_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "branch_hours_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       branches: {
         Row: {
           address: string | null;
@@ -494,6 +625,44 @@ export type Database = {
             foreignKeyName: "branches_clinic_id_fkey";
             columns: ["clinic_id"];
             isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      clinic_agenda_settings: {
+        Row: {
+          allow_overbooking: boolean;
+          clinic_id: string;
+          created_at: string;
+          default_duration_min: number;
+          slot_minutes: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          allow_overbooking?: boolean;
+          clinic_id: string;
+          created_at?: string;
+          default_duration_min?: number;
+          slot_minutes?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          allow_overbooking?: boolean;
+          clinic_id?: string;
+          created_at?: string;
+          default_duration_min?: number;
+          slot_minutes?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_agenda_settings_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: true;
             referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
@@ -2337,6 +2506,7 @@ export type Database = {
           id: string;
           is_active: boolean;
           name: string;
+          position: number;
         };
         Insert: {
           branch_id: string;
@@ -2345,6 +2515,7 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name: string;
+          position?: number;
         };
         Update: {
           branch_id?: string;
@@ -2353,6 +2524,7 @@ export type Database = {
           id?: string;
           is_active?: boolean;
           name?: string;
+          position?: number;
         };
         Relationships: [
           {
@@ -3949,6 +4121,7 @@ export type Database = {
       };
       professional_schedules: {
         Row: {
+          branch_id: string | null;
           clinic_id: string;
           created_at: string;
           day_of_week: number;
@@ -3958,6 +4131,7 @@ export type Database = {
           start_time: string;
         };
         Insert: {
+          branch_id?: string | null;
           clinic_id: string;
           created_at?: string;
           day_of_week: number;
@@ -3967,6 +4141,7 @@ export type Database = {
           start_time: string;
         };
         Update: {
+          branch_id?: string | null;
           clinic_id?: string;
           created_at?: string;
           day_of_week?: number;
@@ -3976,6 +4151,13 @@ export type Database = {
           start_time?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "professional_schedules_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "professional_schedules_clinic_id_fkey";
             columns: ["clinic_id"];
@@ -5068,9 +5250,40 @@ export type Database = {
         Args: { p_clinic_id: string };
         Returns: { has_future: boolean; last_visit_at: string; patient_id: string }[];
       };
+      patient_appointment_counters: {
+        Args: { p_clinic_id: string; p_patient_id: string };
+        Returns: {
+          attended: number;
+          cancelled: number;
+          last_visit_at: string | null;
+          next_at: string | null;
+          no_show: number;
+          past_open: number;
+          upcoming: number;
+        }[];
+      };
       patient_balances: {
         Args: { p_clinic_id: string; p_patient_ids?: string[] };
         Returns: { billed_cents: number; paid_cents: number; patient_id: string }[];
+      };
+      pilot_results: {
+        Args: { p_clinic_id: string; p_desde: string; p_hasta: string };
+        Returns: {
+          appointments_attended: number;
+          appointments_cancelled: number;
+          appointments_no_show: number;
+          appointments_scheduled: number;
+          collected_cents: number;
+          currency: string | null;
+          patients_by_source: Json;
+          patients_new: number;
+          payments_count: number;
+          quotes_accepted: number;
+          quotes_accepted_cents: number;
+          quotes_issued: number;
+          quotes_issued_cents: number;
+          reminders_sent: number;
+        }[];
       };
       procedimientos_frecuentes: {
         Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
