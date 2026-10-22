@@ -43,6 +43,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   clinical_notes: "historia clínica",
   commission_settlements: "liquidaciones de comisiones: producción y pagos",
   expenses: "gastos de la clínica",
+  issued_documents: "documentos emitidos a un paciente: certificados, informes y reembolsos",
   lab_orders: "órdenes de laboratorio de un paciente",
   messages: "conversaciones con pacientes (WhatsApp, correo)",
   notifications: "avisos internos que nombran pacientes y notas",
@@ -95,6 +96,9 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   clinics: "estructura de la clínica",
   commission_rules: "configuración de porcentajes, no movimientos",
   consent_templates: "plantillas sin datos de pacientes",
+  document_template_versions:
+    "versiones del texto de las plantillas de documentos, sin datos de pacientes",
+  document_templates: "plantillas de documentos sin datos de pacientes",
   email_sandbox_config: "configuración de envío",
   inventory_counts: "inventario",
   inventory_items: "catálogo de inventario",

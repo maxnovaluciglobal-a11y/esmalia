@@ -1196,6 +1196,7 @@ export type Database = {
       };
       clinics: {
         Row: {
+          business_activity: string | null;
           country: string;
           created_at: string;
           created_by: string;
@@ -1208,11 +1209,15 @@ export type Database = {
           onboarding_call_at: string | null;
           onboarding_completed: boolean;
           quote_validity_days: number;
+          tax_address: string | null;
+          tax_commune: string | null;
           tax_id: string | null;
+          tax_receipt_kind: string | null;
           timezone: string;
           updated_at: string;
         };
         Insert: {
+          business_activity?: string | null;
           country?: string;
           created_at?: string;
           created_by?: string;
@@ -1225,11 +1230,15 @@ export type Database = {
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
           quote_validity_days?: number;
+          tax_address?: string | null;
+          tax_commune?: string | null;
           tax_id?: string | null;
+          tax_receipt_kind?: string | null;
           timezone?: string;
           updated_at?: string;
         };
         Update: {
+          business_activity?: string | null;
           country?: string;
           created_at?: string;
           created_by?: string;
@@ -1242,7 +1251,10 @@ export type Database = {
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
           quote_validity_days?: number;
+          tax_address?: string | null;
+          tax_commune?: string | null;
           tax_id?: string | null;
+          tax_receipt_kind?: string | null;
           timezone?: string;
           updated_at?: string;
         };
@@ -1426,6 +1438,107 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      document_template_versions: {
+        Row: {
+          body: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          template_id: string;
+          title: string;
+          version: number;
+        };
+        Insert: {
+          body: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          template_id: string;
+          title: string;
+          version?: number;
+        };
+        Update: {
+          body?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          template_id?: string;
+          title?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_template_versions_template_id_clinic_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "document_templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      document_templates: {
+        Row: {
+          active: boolean;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          current_version_id: string | null;
+          description: string | null;
+          id: string;
+          kind: string;
+          seed_key: string | null;
+          source: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          current_version_id?: string | null;
+          description?: string | null;
+          id?: string;
+          kind?: string;
+          seed_key?: string | null;
+          source?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          current_version_id?: string | null;
+          description?: string | null;
+          id?: string;
+          kind?: string;
+          seed_key?: string | null;
+          source?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "document_templates_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "document_templates_current_version_fk";
+            columns: ["current_version_id"];
+            isOneToOne: false;
+            referencedRelation: "document_template_versions";
             referencedColumns: ["id"];
           },
         ];
@@ -1809,6 +1922,141 @@ export type Database = {
             columns: ["warehouse_id"];
             isOneToOne: false;
             referencedRelation: "warehouses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      issued_documents: {
+        Row: {
+          clinic_address_snapshot: string | null;
+          clinic_id: string;
+          clinic_legal_name_snapshot: string | null;
+          clinic_name_snapshot: string;
+          clinic_phone_snapshot: string | null;
+          clinic_tax_id_snapshot: string | null;
+          content_blocks: Json;
+          content_html: string;
+          content_sha256: string;
+          fields: Json;
+          id: string;
+          issued_at: string;
+          issued_by: string;
+          kind: string;
+          number: number;
+          patient_id: string;
+          patient_name_snapshot: string;
+          professional_id: string | null;
+          professional_name_snapshot: string;
+          professional_registry_snapshot: string | null;
+          professional_specialty_snapshot: string | null;
+          signature_sha256: string | null;
+          signature_storage_path: string | null;
+          template_id: string | null;
+          template_version_id: string;
+          title: string;
+          void_reason: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+          year: number;
+        };
+        Insert: {
+          clinic_address_snapshot?: string | null;
+          clinic_id: string;
+          clinic_legal_name_snapshot?: string | null;
+          clinic_name_snapshot?: string;
+          clinic_phone_snapshot?: string | null;
+          clinic_tax_id_snapshot?: string | null;
+          content_blocks: Json;
+          content_html: string;
+          content_sha256?: string;
+          fields?: Json;
+          id?: string;
+          issued_at?: string;
+          issued_by?: string;
+          kind?: string;
+          number?: number;
+          patient_id: string;
+          patient_name_snapshot?: string;
+          professional_id?: string | null;
+          professional_name_snapshot?: string;
+          professional_registry_snapshot?: string | null;
+          professional_specialty_snapshot?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          template_id?: string | null;
+          template_version_id: string;
+          title?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          year?: number;
+        };
+        Update: {
+          clinic_address_snapshot?: string | null;
+          clinic_id?: string;
+          clinic_legal_name_snapshot?: string | null;
+          clinic_name_snapshot?: string;
+          clinic_phone_snapshot?: string | null;
+          clinic_tax_id_snapshot?: string | null;
+          content_blocks?: Json;
+          content_html?: string;
+          content_sha256?: string;
+          fields?: Json;
+          id?: string;
+          issued_at?: string;
+          issued_by?: string;
+          kind?: string;
+          number?: number;
+          patient_id?: string;
+          patient_name_snapshot?: string;
+          professional_id?: string | null;
+          professional_name_snapshot?: string;
+          professional_registry_snapshot?: string | null;
+          professional_specialty_snapshot?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          template_id?: string | null;
+          template_version_id?: string;
+          title?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "issued_documents_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issued_documents_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issued_documents_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issued_documents_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "document_templates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "issued_documents_template_version_id_fkey";
+            columns: ["template_version_id"];
+            isOneToOne: false;
+            referencedRelation: "document_template_versions";
             referencedColumns: ["id"];
           },
         ];
@@ -4311,6 +4559,10 @@ export type Database = {
           is_active: boolean;
           license_number: string | null;
           phone: string | null;
+          signature_sha256: string | null;
+          signature_storage_path: string | null;
+          signature_updated_at: string | null;
+          sis_registry_number: string | null;
           specialty_id: string | null;
           updated_at: string;
           user_id: string | null;
@@ -4327,6 +4579,10 @@ export type Database = {
           is_active?: boolean;
           license_number?: string | null;
           phone?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          signature_updated_at?: string | null;
+          sis_registry_number?: string | null;
           specialty_id?: string | null;
           updated_at?: string;
           user_id?: string | null;
@@ -4343,6 +4599,10 @@ export type Database = {
           is_active?: boolean;
           license_number?: string | null;
           phone?: string | null;
+          signature_sha256?: string | null;
+          signature_storage_path?: string | null;
+          signature_updated_at?: string | null;
+          sis_registry_number?: string | null;
           specialty_id?: string | null;
           updated_at?: string;
           user_id?: string | null;
@@ -5538,6 +5798,7 @@ export type Database = {
         };
         Returns: string;
       };
+      firma_es_de_mi_profesional: { Args: { _name: string }; Returns: boolean };
       guardar_nota_clinica: {
         Args: {
           p_addendum_of?: string;
@@ -5686,6 +5947,15 @@ export type Database = {
       registrar_lectura_ficha: {
         Args: { p_clinic_id: string; p_patient_id: string; p_seccion: string };
         Returns: boolean;
+      };
+      registrar_mi_firma: {
+        Args: {
+          p_clinic_id: string;
+          p_registro_sis: string;
+          p_sha256: string;
+          p_storage_path: string;
+        };
+        Returns: undefined;
       };
       registrar_mis_datos_de_firma: {
         Args: { p_clinic_id: string; p_nombre: string; p_registro: string };
