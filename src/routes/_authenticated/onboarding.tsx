@@ -9,6 +9,7 @@ import { COUNTRIES, SPECIALTY_PRESETS } from "@/lib/onboarding-types";
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { cn } from "@/lib/utils";
 import { peekPlanIntent } from "@/lib/marketing/plan-intent";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   head: () => ({
@@ -121,6 +122,15 @@ function OnboardingPage() {
     selectedSpecialties.length > 0,
     professionals.some((p) => p.fullName.trim().length > 1),
   ][step];
+  // UX-05: el botón deshabilitado dice qué falta, en vez de quedar gris.
+  const motivoPaso = stepValid
+    ? null
+    : [
+        "Escribe el nombre de la clínica (al menos 2 letras).",
+        "Escribe el nombre de la sucursal y al menos un box.",
+        "Elige al menos una especialidad.",
+        "Agrega al menos un profesional con nombre.",
+      ][step];
 
   const existing = clinicsQuery.data ?? [];
 
@@ -498,7 +508,7 @@ function OnboardingPage() {
 
           {error && <p className="mt-5 text-xs text-destructive">{error}</p>}
 
-          <div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-5">
+          <div className="mt-8 flex items-start justify-between gap-3 border-t border-border pt-5">
             <button
               type="button"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
@@ -509,27 +519,31 @@ function OnboardingPage() {
             </button>
 
             {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => s + 1)}
-                disabled={!stepValid}
-                className="rounded-lg border border-brand bg-transparent px-5 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-40"
-              >
-                Continuar
-              </button>
+              <AccionDeshabilitada motivo={motivoPaso}>
+                <button
+                  type="button"
+                  onClick={() => setStep((s) => s + 1)}
+                  disabled={!stepValid}
+                  className="rounded-lg border border-brand bg-transparent px-5 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-40"
+                >
+                  Continuar
+                </button>
+              </AccionDeshabilitada>
             ) : (
-              <button
-                type="button"
-                onClick={() => {
-                  setError(null);
-                  mutation.mutate();
-                }}
-                disabled={!stepValid || mutation.isPending}
-                className="inline-flex items-center gap-2 rounded-lg border border-brand bg-transparent px-5 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-40"
-              >
-                {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
-                Finalizar configuración
-              </button>
+              <AccionDeshabilitada motivo={motivoPaso}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    mutation.mutate();
+                  }}
+                  disabled={!stepValid || mutation.isPending}
+                  className="inline-flex items-center gap-2 rounded-lg border border-brand bg-transparent px-5 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-40"
+                >
+                  {mutation.isPending && <Loader2 className="size-4 animate-spin" />}
+                  Finalizar configuración
+                </button>
+              </AccionDeshabilitada>
             )}
           </div>
         </div>

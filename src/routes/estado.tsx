@@ -18,6 +18,7 @@ import {
   type SaludMedida,
 } from "@/lib/estado-servicio";
 import { cn } from "@/lib/utils";
+import { fechaHora, hora } from "@/lib/formato-fecha";
 
 /**
  * Status page propia, sin terceros: el estado se mide desde el navegador
@@ -127,7 +128,7 @@ function EstadoDelServicio() {
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
         <span aria-live="polite">
           {comprobadoEn
-            ? `Última comprobación: ${comprobadoEn.toLocaleTimeString()} (hora de tu equipo). Se repite cada minuto.`
+            ? `Última comprobación: ${hora(comprobadoEn, zonaDelEquipo())} (hora de tu equipo). Se repite cada minuto.`
             : "Midiendo desde tu navegador…"}
         </span>
         <button
@@ -191,14 +192,17 @@ function TarjetaDeEstado({ estado }: { estado: EstadoGeneral }) {
 }
 
 /** Fechas en UTC a propósito: igual en el render del servidor y del navegador. */
-const formatoUtc = new Intl.DateTimeFormat("es", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "UTC",
-});
-
 function fechaUtc(iso: string) {
-  return `${formatoUtc.format(new Date(iso))} UTC`;
+  return `${fechaHora(iso, "UTC")} UTC`;
+}
+
+/** Huso del equipo de quien mira (la página es pública: no hay clínica). */
+function zonaDelEquipo(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return undefined;
+  }
 }
 
 function TarjetaIncidente({ incidente: i }: { incidente: Incidente }) {

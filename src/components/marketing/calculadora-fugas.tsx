@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { calcularFugas } from "@/lib/marketing/calculadora";
 import { registrarEvento } from "@/lib/marketing/eventos";
 import { detectarPaisVisitante, monedaPorPais } from "@/lib/marketing/pais-visitante";
+import { numero as conMiles } from "@/lib/formato-fecha";
 
 // ── Calculadora de fugas embebida ───────────────────────────────────
 // Reutiliza `calcularFugas` (misma fórmula que /calculadora-rentabilidad-dental):
@@ -109,7 +110,7 @@ export function CalculadoraFugas() {
             <Input
               id="calc-citas"
               inputMode="numeric"
-              value={citas.toLocaleString("es-CL")}
+              value={conMiles(citas)}
               onChange={(e) => setCitas(numero(e.target.value))}
               className="tabular-nums"
             />
@@ -146,7 +147,7 @@ export function CalculadoraFugas() {
               <Input
                 id="calc-ticket"
                 inputMode="numeric"
-                value={ticket.toLocaleString("es-CL")}
+                value={conMiles(ticket)}
                 onChange={(e) => setTicket(numero(e.target.value))}
                 className="rounded-l-none tabular-nums"
               />

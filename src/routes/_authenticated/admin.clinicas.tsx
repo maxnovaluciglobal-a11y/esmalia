@@ -38,6 +38,7 @@ import {
 } from "@/lib/billing";
 import { hace, type Semaforo } from "@/lib/admin/salud-clinica";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { fecha, fechaHora } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/admin/clinicas")({
   loader: () => listClinicsForStaff({}),
@@ -92,16 +93,9 @@ function AccesoRestringido({ error: errorDesconocido }: ErrorComponentProps) {
   );
 }
 
-/** Igual criterio que `admin.leads.tsx::formatFechaHora`: `Intl`/`toLocaleString`
- *  directo, sin luxon. */
+/** Fecha y hora con el formato único de la app (UX-09). */
 function formatFechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaHora(iso);
 }
 
 const ESTADO_TONO: Record<SubscriptionStatus, string> = {
@@ -123,11 +117,7 @@ function comoSubscription(row: ClinicaStaffRow): Subscription | null {
 }
 
 function formatFecha(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return fecha(iso);
 }
 
 /** Métrica de activación del benchmark de onboarding (25-sep): sin cita
@@ -356,7 +346,7 @@ function AdminClinicasPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[60rem] text-sm">
                 <thead>
-                  <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-hairline text-xs text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">Clínica</th>
                     <th className="px-3 py-2 text-left font-medium">Alta</th>
                     <th className="px-3 py-2 text-left font-medium">Suscripción</th>

@@ -20,6 +20,7 @@ import {
 } from "@/lib/finance/finance-reports.functions";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
+import { diaSemana, fechaCorta } from "@/lib/formato-fecha";
 
 /**
  * Rangos largos (ej. 3 meses) volvían el gráfico de caja una lista de barras
@@ -42,17 +43,9 @@ function agruparPorSemana(dias: { date: string; totalCents: number }[]) {
     .map(([date, totalCents]) => ({ date, totalCents }));
 }
 
-const FORMATO_DIA = new Intl.DateTimeFormat("es-CL", {
-  weekday: "short",
-  day: "2-digit",
-  month: "short",
-});
-
 function etiquetaBarra(date: string, agrupadoPorSemana: boolean) {
-  const [, mes, dia] = date.split("-");
-  if (agrupadoPorSemana) return `Semana del ${dia}/${mes}`;
-  const fecha = parseIsoDate(date);
-  return fecha ? FORMATO_DIA.format(fecha) : date;
+  if (agrupadoPorSemana) return `Semana del ${fechaCorta(date)}`;
+  return parseIsoDate(date) ? diaSemana(date) : date;
 }
 
 interface FinanzasSearch {
@@ -528,7 +521,7 @@ function Tabla({ columnas, children }: { columnas: string[]; children: React.Rea
     <div className="overflow-x-auto border-y border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="kicker">
+          <tr className="text-xs font-medium text-muted-foreground">
             {columnas.map((c, i) => (
               <th
                 key={c}

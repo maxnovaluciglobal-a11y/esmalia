@@ -37,6 +37,7 @@ import {
 import { requirePermission } from "@/lib/access/route-guards";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { mesAnio } from "@/lib/formato-fecha";
 
 function primerDiaDelMes(timeZone?: string): string {
   return `${hoyISO(timeZone).slice(0, 7)}-01`;
@@ -62,9 +63,7 @@ function PanelDeRed({ clinicId, branchCount }: { clinicId: string; branchCount: 
 
   return (
     <section className="card-clinical p-5">
-      <h3 className="mb-1 text-base font-semibold">
-        Panel de red — {new Date().toLocaleDateString("es-CL", { month: "long", year: "numeric" })}
-      </h3>
+      <h3 className="mb-1 text-base font-semibold">Panel de red — {mesAnio(new Date())}</h3>
       <p className="mb-4 text-sm text-muted-foreground">
         Citas y asistencia del mes en curso, comparadas entre sucursales.
       </p>

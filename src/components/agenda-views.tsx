@@ -351,7 +351,7 @@ export function AgendaSemanaCarriles({
                               }}
                             >
                               {c.duracion >= 30 && (
-                                <span className="block cifra text-[10px] opacity-80">
+                                <span className="block cifra text-[10px]">
                                   {horaDeMinutos(c.inicio)}
                                 </span>
                               )}

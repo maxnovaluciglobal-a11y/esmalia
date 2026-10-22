@@ -38,6 +38,8 @@ import {
 } from "@/lib/messaging/conversations.functions";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { fecha, fechaCortaHora } from "@/lib/formato-fecha";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
 
 export const Route = createFileRoute("/_authenticated/_clinic/conversaciones")({
   beforeLoad: requirePermission("agenda:manage"),
@@ -449,9 +451,9 @@ function Hilo({
             <BellOff className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span>
               Este paciente pidió la baja
-              {hilo.waOptOutAt && ` el ${new Date(hilo.waOptOutAt).toLocaleDateString("es-CL")}`}.
-              No recibe recordatorios automáticos. Responder a mano a algo que él mismo escribió
-              está bien; volver a incluirlo en envíos masivos, no.
+              {hilo.waOptOutAt && ` el ${fecha(hilo.waOptOutAt)}`}. No recibe recordatorios
+              automáticos. Responder a mano a algo que él mismo escribió está bien; volver a
+              incluirlo en envíos masivos, no.
             </span>
           </p>
         )}
@@ -553,6 +555,7 @@ function Hilo({
 }
 
 function Burbuja({ mensaje: m }: { mensaje: ConversationMessage }) {
+  const zona = useZonaClinica();
   const entrante = m.direction === "inbound";
   const etiqueta =
     m.templateKind && m.templateKind in MESSAGE_TEMPLATE_KIND_LABELS
@@ -572,12 +575,7 @@ function Burbuja({ mensaje: m }: { mensaje: ConversationMessage }) {
         {etiqueta && <p className="kicker mb-1">{etiqueta}</p>}
         <p className="whitespace-pre-wrap text-sm">{m.body}</p>
         <p className="mt-1 flex items-center justify-end gap-1 text-xs text-muted-foreground tabular-nums">
-          {new Date(m.createdAt).toLocaleString("es-CL", {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
+          {fechaCortaHora(m.createdAt, zona)}
           {!entrante && m.status === "read" && (
             <CheckCheck className="size-3.5 text-info" aria-label="Leído" />
           )}

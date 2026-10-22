@@ -10,6 +10,7 @@ import {
   claseItemNav,
   decidirAbrirCaja,
   hrefDeAccion,
+  hrefDeCobro,
   interpretarNuevaCita,
   leerNuevaCita,
   leerPedidoAbrirCaja,
@@ -117,8 +118,24 @@ describe("shell A+", () => {
         "nueva-cita": "/agenda?nueva=1",
         "abrir-caja": "/cajas?abrir=1",
         "registrar-pago": "/cajas",
-        "crear-paciente": "/pacientes",
+        "crear-paciente": "/pacientes?nuevo=1",
       });
+    });
+
+    it("registrar pago abre la ficha del paciente elegido con el cobro abierto", () => {
+      expect(hrefDeCobro("3cdeb639-b2eb-41e7-be29-f891bd33d03a")).toBe(
+        "/pacientes/3cdeb639-b2eb-41e7-be29-f891bd33d03a?cobrar=1",
+      );
+      const buscador = leer("src/components/global-search.tsx");
+      expect(buscador).toContain('accion.id === "registrar-pago"');
+      expect(buscador).toContain("hrefDeCobro(p.id)");
+    });
+
+    it("pacientes abre Nuevo paciente con ?nuevo=1 y lo borra", () => {
+      const ruta = leer("src/routes/_authenticated/_clinic/pacientes.index.tsx");
+      expect(ruta).toContain("leerPedidoAbrirCaja(search.nuevo)");
+      expect(ruta).toContain("abrirAhora={search.nuevo === PEDIDO_ABRIR}");
+      expect(ruta).toContain("nuevo: undefined");
     });
 
     it("desde la misma ruta conserva vista, fecha y filtros", () => {
@@ -230,7 +247,7 @@ describe("shell A+", () => {
 
     it("el aside va en tinta", () => {
       expect(shell).toContain(
-        "dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-night-line bg-night text-on-night lg:flex",
+        "dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-shell-edge bg-night text-on-night lg:flex",
       );
       expect(shell).not.toContain("bg-sidebar");
     });

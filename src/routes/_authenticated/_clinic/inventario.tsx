@@ -71,6 +71,8 @@ import {
 import type { ConsumptionType } from "@/lib/clinic-operations/procedure-supply-consumption";
 import { requirePermission } from "@/lib/access/route-guards";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { fecha, fechaHora } from "@/lib/formato-fecha";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
 
 const MOVEMENT_LABELS: Record<InventoryMovementKind, string> = {
   entrada: "Entrada",
@@ -841,6 +843,7 @@ function HistorialMovimientosDialog({
 }: { clinicId: string; item: InventoryItem } & DialogoControlado) {
   const [open, setOpen, controlado] = useAbierto(control);
   const fetchMovements = useServerFn(listInventoryMovements);
+  const zona = useZonaClinica();
 
   const movementsQuery = useQuery({
     queryKey: ["inventory-movements", clinicId, item.id],
@@ -889,7 +892,7 @@ function HistorialMovimientosDialog({
                 {movementsQuery.data.items.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
-                      {new Date(m.recordedAt).toLocaleString("es-CL")}
+                      {fechaHora(m.recordedAt, zona)}
                     </TableCell>
                     <TableCell>
                       <Badge variant={m.kind === "salida" ? "destructive" : "secondary"}>
@@ -904,12 +907,7 @@ function HistorialMovimientosDialog({
                         <>
                           {m.lotNumber && <span>{m.lotNumber}</span>}
                           {m.lotNumber && m.expirationDate && " · "}
-                          {m.expirationDate && (
-                            <span>
-                              vence{" "}
-                              {new Date(m.expirationDate + "T00:00:00").toLocaleDateString("es-CL")}
-                            </span>
-                          )}
+                          {m.expirationDate && <span>vence {fecha(m.expirationDate)}</span>}
                         </>
                       ) : (
                         "—"
@@ -1214,8 +1212,7 @@ function InventarioPage() {
                         </span>
                       </span>
                       <Badge variant={vencido ? "destructive" : "secondary"}>
-                        {vencido ? "Vencido" : "Vence"}{" "}
-                        {new Date(lot.expirationDate + "T00:00:00").toLocaleDateString("es-CL")}
+                        {vencido ? "Vencido" : "Vence"} {fecha(lot.expirationDate)}
                       </Badge>
                     </li>
                   );

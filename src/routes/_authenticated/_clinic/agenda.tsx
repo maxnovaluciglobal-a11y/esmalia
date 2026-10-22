@@ -78,6 +78,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import {
+  fecha as fechaFmt,
+  fechaCorta as fechaCortaFmt,
+  hora as horaFmt,
+  mesAnio,
+  numero,
+} from "@/lib/formato-fecha";
 import {
   Dialog,
   DialogContent,
@@ -175,24 +184,13 @@ function desplazarPeriodo(vista: VistaAgenda, fecha: string, dir: 1 | -1): strin
 /** Título del período visible: día largo, rango de semana, o mes + año. */
 function labelPeriodo(vista: VistaAgenda, fecha: string): string {
   if (vista === "dia" || vista === "lista") return formatoFechaLarga(fecha) || fecha;
-  const parse = (iso: string) => new Date(`${iso}T00:00:00Z`);
-  if (vista === "mes") {
-    return new Intl.DateTimeFormat("es", {
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    }).format(parse(fecha));
-  }
+  if (vista === "mes") return mesAnio(fecha);
   const [desde, hasta] = rangoDeVista("semana", fecha);
-  const d = parse(desde);
-  const h = parse(hasta);
-  const dia = (x: Date) =>
-    new Intl.DateTimeFormat("es", { day: "numeric", timeZone: "UTC" }).format(x);
-  const mesAnio = (x: Date) =>
-    new Intl.DateTimeFormat("es", { month: "short", year: "numeric", timeZone: "UTC" }).format(x);
-  return d.getUTCMonth() === h.getUTCMonth()
-    ? `${dia(d)}–${dia(h)} ${mesAnio(h)}`
-    : `${dia(d)} ${mesAnio(d)} – ${dia(h)} ${mesAnio(h)}`;
+  if (desde.slice(0, 7) === hasta.slice(0, 7))
+    return `${Number(desde.slice(8, 10))}–${fechaFmt(hasta)}`;
+  if (desde.slice(0, 4) === hasta.slice(0, 4))
+    return `${fechaCortaFmt(desde)} – ${fechaFmt(hasta)}`;
+  return `${fechaFmt(desde)} – ${fechaFmt(hasta)}`;
 }
 
 interface AgendaSearch {
@@ -266,12 +264,10 @@ function horaDeCita(minutos: number) {
  * navegador (aproximada): es un aviso para que el staff decida, no un dato
  * que otra parte del sistema use.
  */
-function avisarSiSolapa(resultado: unknown) {
+function avisarSiSolapa(resultado: unknown, zonaAviso?: string) {
   const solapamiento = (resultado as { solapamiento?: Solapamiento } | undefined)?.solapamiento;
   if (!solapamiento) return;
-  const hora = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" }).format(
-    new Date(solapamiento.startsAt),
-  );
+  const hora = horaFmt(solapamiento.startsAt, zonaAviso);
   toast.warning(
     `Ojo: ${solapamiento.treatmentLabel} ya está agendado a las ${hora} con este profesional. La cita se creó igual — revisa si hace falta reagendar.`,
   );
@@ -423,6 +419,7 @@ function NuevaCitaDialog({
    * tiene clinical:view — ver agenda.tsx). */
   allergyAlerts?: Record<string, string[]>;
 }) {
+  const zona = useZonaClinica();
   const [open, setOpen] = useState(false);
   const [pacienteId, setPacienteId] = useState("");
   const [sucursalId, setSucursalId] = useState("");
@@ -497,7 +494,7 @@ function NuevaCitaDialog({
     // igual creó la cita, esto solo le avisa a quien agenda que otra cita
     // del mismo profesional ya ocupa (parte de) ese horario, por si fue un
     // error y prefiere reagendar a mano.
-    onExito: (resultado) => avisarSiSolapa(resultado),
+    onExito: (resultado) => avisarSiSolapa(resultado, zona),
     onDone: () => {
       setOpen(false);
       setPacienteId("");
@@ -672,10 +669,25 @@ function NuevaCitaDialog({
           />
         </div>
         <DialogFooter>
-          <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
-            {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
-            {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !puedeCrear &&
+              `Falta ${[
+                !pacienteId && "paciente",
+                !sucursalId && "sucursal",
+                !profesionalId && "profesional",
+                !tratamiento.trim() && "tratamiento",
+                !startsAt && "fecha y hora",
+              ]
+                .filter(Boolean)
+                .join(", ")}.`
+            }
+          >
+            <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
+              {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
+              {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -705,6 +717,7 @@ function EditarCitaDialog({
   profesionales: Profesional[];
   citas: Cita[];
 }) {
+  const zona = useZonaClinica();
   const [open, setOpen] = useState(false);
   const [sucursalId, setSucursalId] = useState(cita.sucursalId);
   const [profesionalId, setProfesionalId] = useState(cita.profesionalId);
@@ -755,7 +768,7 @@ function EditarCitaDialog({
         },
       }),
     onSuccess: (resultado) => {
-      avisarSiSolapa(resultado);
+      avisarSiSolapa(resultado, zona);
       toast.success("Cita actualizada.");
       setOpen(false);
     },
@@ -909,6 +922,7 @@ function AgendarSolicitudDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const zona = useZonaClinica();
   const [sucursalId, setSucursalId] = useState("");
   const [profesionalId, setProfesionalId] = useState("");
   const [duracion, setDuracion] = useState(30);
@@ -948,7 +962,7 @@ function AgendarSolicitudDialog({
       queryClient.invalidateQueries({ queryKey: ["appointment-requests", clinicId] });
       toast.success("Cita agendada y solicitud cerrada");
       // Aviso SOLAPADO, no bloqueo — ver appointments.functions.ts.
-      avisarSiSolapa({ solapamiento });
+      avisarSiSolapa({ solapamiento }, zona);
       onOpenChange(false);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -1814,8 +1828,8 @@ function AgendaPage() {
 
         {appointmentsRes?.truncated && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
-            Mostrando las primeras {citas.length.toLocaleString("es")} citas. Si buscas una cita muy
-            antigua o muy futura, puede que no aparezca acá.
+            Mostrando las primeras {numero(citas.length)} citas. Si buscas una cita muy antigua o
+            muy futura, puede que no aparezca acá.
           </p>
         )}
 

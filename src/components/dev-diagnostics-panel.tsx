@@ -8,6 +8,7 @@ import {
   suscribirBloqueos,
   type Diagnostico,
 } from "@/lib/block-diagnostics";
+import { hora } from "@/lib/formato-fecha";
 
 const VERDICTO_LABEL: Record<string, string> = {
   allow: "La matriz esperaba permitir",
@@ -29,9 +30,7 @@ function Tarjeta({ d }: { d: Diagnostico }) {
     <div className="rounded-lg border border-hairline bg-card p-3">
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-medium text-xs">{d.accionLabel}</span>
-        <span className="text-[11px] text-muted-foreground">
-          {new Date(d.ts).toLocaleTimeString("es-MX")}
-        </span>
+        <span className="text-[11px] text-muted-foreground">{hora(d.ts)}</span>
       </div>
       <div className="space-y-1">
         <Fila etiqueta="Estado real" valor={d.estadoLabel} />

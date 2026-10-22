@@ -10,6 +10,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { PastillaConexion } from "@/components/pastilla-conexion";
 import { SoloLecturaProvider } from "@/components/solo-lectura";
+import { ZonaClinicaContext } from "@/hooks/use-zona-clinica";
 import { StatusStrip } from "@/components/status-strip";
 import { getSupabase } from "@/integrations/supabase/lazy";
 import { resetOfflineCache } from "@/lib/offline/offline-cache";
@@ -87,7 +88,7 @@ function BarraInferior({
                 <>
                   <span
                     aria-hidden
-                    className="absolute -top-1.5 -right-3 min-w-4 rounded-sm bg-brand-700 px-0.5 text-center text-[11px] leading-4 tabular-nums text-white"
+                    className="absolute -top-1.5 -right-3 min-w-4 rounded-sm bg-primary px-0.5 text-center text-[11px] leading-4 tabular-nums text-primary-foreground"
                   >
                     {badge > 9 ? "9+" : badge}
                   </span>
@@ -321,7 +322,7 @@ export function AppShell({
       {/* `dark` en el aside: los tokens de adentro (logo, selector de
           clínica, foco) se leen sobre tinta aunque la página esté en claro.
           `tinta-de-pagina` evita que ese `dark` hunda el fondo (styles.css). */}
-      <aside className="dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-night-line bg-night text-on-night lg:flex">
+      <aside className="dark tinta-de-pagina sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-shell-edge bg-night text-on-night lg:flex">
         <div className="space-y-4 px-5 pt-6 pb-4">
           <Link to="/dashboard" className="flex items-center py-1">
             <EsmaliaLogo size={28} />
@@ -414,7 +415,7 @@ export function AppShell({
                 className="size-10 rounded-full object-cover outline outline-offset-[-1px] outline-border"
               />
             ) : (
-              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand">
+              <span className="grid size-10 place-items-center rounded-full bg-brand-soft text-sm font-semibold text-brand-700">
                 {initials(access.fullName, access.email)}
               </span>
             )}
@@ -466,7 +467,7 @@ export function AppShell({
                 <>
                   <span
                     aria-hidden
-                    className="min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                    className="min-w-5 rounded-sm bg-primary px-1 text-center text-[11px] leading-5 tabular-nums text-primary-foreground"
                   >
                     {d.badge > 9 ? "9+" : d.badge}
                   </span>
@@ -509,7 +510,7 @@ export function AppShell({
                     <>
                       <span
                         aria-hidden
-                        className="min-w-5 rounded-sm bg-brand-700 px-1 text-center text-[11px] leading-5 tabular-nums text-white"
+                        className="min-w-5 rounded-sm bg-primary px-1 text-center text-[11px] leading-5 tabular-nums text-primary-foreground"
                       >
                         {badge > 9 ? "9+" : badge}
                       </span>
@@ -536,7 +537,9 @@ export function AppShell({
               </Link>
             </nav>
           )}
-          <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
+          <ZonaClinicaContext.Provider value={access.clinic?.timezone ?? undefined}>
+            <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
+          </ZonaClinicaContext.Provider>
         </div>
 
         <BarraInferior

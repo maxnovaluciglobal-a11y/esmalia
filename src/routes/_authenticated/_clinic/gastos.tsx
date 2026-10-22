@@ -311,7 +311,7 @@ function GastoDialog({
 
         <DialogFooter className="flex-col items-end gap-1.5 sm:flex-row sm:items-center">
           {!listo && !guardar.isPending && (
-            <p className="text-xs text-muted-foreground">
+            <p id="motivo-guardar-gasto" className="text-xs text-muted-foreground">
               Falta{" "}
               {[
                 !d.category.trim() && "categoría",
@@ -322,7 +322,11 @@ function GastoDialog({
                 .join(", ")}
             </p>
           )}
-          <Button onClick={() => guardar.mutate()} disabled={!listo}>
+          <Button
+            onClick={() => guardar.mutate()}
+            disabled={!listo}
+            aria-describedby={!listo && !guardar.isPending ? "motivo-guardar-gasto" : undefined}
+          >
             {guardar.isPending && <Loader2 className="size-3.5 animate-spin" />}
             {expense ? "Guardar cambios" : "Registrar gasto"}
           </Button>
@@ -529,7 +533,7 @@ function GastosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[44rem] text-sm">
                   <thead>
-                    <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Fecha</th>
                       <th className="px-3 py-2 text-left font-medium">Categoría</th>
                       <th className="px-3 py-2 text-left font-medium">Descripción</th>

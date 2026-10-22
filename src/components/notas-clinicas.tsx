@@ -74,6 +74,8 @@ import type { ClinicRole } from "@/lib/access/access";
 import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 const REVIEW_BADGE: Record<NoteReviewStatus, string> = {
   none: "border-hairline text-muted-foreground",
@@ -544,7 +546,7 @@ export function NotasClinicas({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Notas clínicas</h3>
+          <TituloSeccion>Notas clínicas</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             {pattyActiva
               ? "Patty (IA) redacta y resume; tú revisas y firmas. Con versiones y auditoría."
@@ -906,11 +908,7 @@ export function NotasClinicas({
                       !revisorId || solicitarRevision.isPending || notaActual.status !== "signed"
                     }
                     className="inline-flex items-center gap-1.5 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60 disabled:opacity-50"
-                    title={
-                      notaActual.status !== "signed"
-                        ? "Firma la nota antes de enviarla a revisión"
-                        : undefined
-                    }
+                    aria-describedby="motivo-revision-nota"
                   >
                     {solicitarRevision.isPending ? (
                       <Loader2 className="size-3 animate-spin" />
@@ -919,23 +917,15 @@ export function NotasClinicas({
                     )}
                     Enviar a revisión
                   </button>
-                  {notaActual.status !== "signed" ? (
-                    <span className="text-xs text-muted-foreground">
-                      Firma la nota para poder solicitar aprobación.
-                    </span>
-                  ) : (
-                    !revisorId &&
-                    revisores.length > 0 && (
-                      <span className="text-xs text-muted-foreground">
-                        Elige un revisor para enviarla.
-                      </span>
-                    )
-                  )}
-                  {revisores.length === 0 && (
-                    <span className="text-xs text-muted-foreground">
-                      No hay otros profesionales habilitados como revisores.
-                    </span>
-                  )}
+                  <span id="motivo-revision-nota" className="text-xs text-muted-foreground">
+                    {notaActual.status !== "signed"
+                      ? "Firma la nota para poder solicitar aprobación."
+                      : revisores.length === 0
+                        ? "No hay otros profesionales habilitados como revisores."
+                        : !revisorId
+                          ? "Elige un revisor para enviarla."
+                          : null}
+                  </span>
                 </div>
               )}
 
@@ -1174,25 +1164,28 @@ export function NotasClinicas({
                       {puedeEditar &&
                         notas.find((n) => n.id === v.noteId)?.status !== "signed" &&
                         v.version !== notaActual?.version && (
-                          <button
-                            onClick={() => {
-                              if (
-                                window.confirm(
-                                  `¿Revertir el contenido a la v${v.version}? Se creará un nuevo borrador y quedará registrado en auditoría.`,
-                                )
-                              )
-                                restaurar.mutate(v.id);
-                            }}
-                            disabled={restaurar.isPending || revisionPendiente}
-                            title={
-                              revisionPendiente
-                                ? "Resuelve la revisión pendiente antes de revertir"
-                                : `Revertir a v${v.version} como nuevo borrador`
+                          <AccionDeshabilitada
+                            motivo={
+                              revisionPendiente &&
+                              "Resuelve la revisión pendiente antes de revertir."
                             }
-                            className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline disabled:opacity-50"
+                            como="globo"
                           >
-                            <RotateCcw className="size-3" /> Revertir a v{v.version}
-                          </button>
+                            <button
+                              onClick={() => {
+                                if (
+                                  window.confirm(
+                                    `¿Revertir el contenido a la v${v.version}? Se creará un nuevo borrador y quedará registrado en auditoría.`,
+                                  )
+                                )
+                                  restaurar.mutate(v.id);
+                              }}
+                              disabled={restaurar.isPending || revisionPendiente}
+                              className="inline-flex items-center gap-1 text-xs text-brand-700 hover:underline disabled:opacity-50"
+                            >
+                              <RotateCcw className="size-3" /> Revertir a v{v.version} como borrador
+                            </button>
+                          </AccionDeshabilitada>
                         )}
                     </div>
                   </div>

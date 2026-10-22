@@ -5,8 +5,7 @@ import { useColaOffline } from "@/hooks/use-offline-mutation";
 import { descartarConflicto, descartarFallido, type ItemCola } from "@/lib/offline/offline-queue";
 import { resolverConflicto } from "@/lib/offline/offline-sync";
 import { CONDITION_LABELS, type ToothCondition } from "@/lib/clinical/odontogram";
-
-const hora = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
+import { hora } from "@/lib/formato-fecha";
 
 /** Texto de "lo que hay vigente ahora en el servidor" según el tipo de conflicto. */
 function loQueHayVigente(item: ItemCola): string {
@@ -61,9 +60,7 @@ export function PendingSyncBanner({ userId }: { userId: string | undefined }) {
               <li key={item.localId} className="text-xs">
                 <div className="flex flex-wrap items-center gap-x-2">
                   <span className="font-medium">Tú: {item.resumen}</span>
-                  <span className="text-muted-foreground">
-                    ({hora.format(new Date(item.capturedAt))})
-                  </span>
+                  <span className="text-muted-foreground">({hora(item.capturedAt)})</span>
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="text-muted-foreground">{loQueHayVigente(item)}</span>
@@ -103,7 +100,7 @@ export function PendingSyncBanner({ userId }: { userId: string | undefined }) {
               <li key={item.localId} className="flex flex-wrap items-center gap-x-2 text-xs">
                 <span className="font-medium">{item.resumen}</span>
                 <span className="text-muted-foreground">
-                  ({hora.format(new Date(item.capturedAt))}) — {item.error}
+                  ({hora(item.capturedAt)}) — {item.error}
                 </span>
                 <button
                   type="button"

@@ -50,6 +50,7 @@ import {
 } from "@/lib/exportacion/exportacion-clinica";
 import { fichasAbsorbidas } from "@/lib/patients/fusion";
 import { etiquetaParentesco } from "@/lib/patients/tutor";
+import { fecha, fechaHora } from "@/lib/formato-fecha";
 
 // ── Contenido ─────────────────────────────────────────────────────────────
 
@@ -155,39 +156,24 @@ export function pacientesConFicha(indice: IndiceFichas): FilaExportacion[] {
 
 // ── Formato ───────────────────────────────────────────────────────────────
 
-function formateador(zona: string, conHora: boolean): Intl.DateTimeFormat {
-  const opciones: Intl.DateTimeFormatOptions = {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    ...(conHora ? { hour: "2-digit", minute: "2-digit" } : {}),
-  };
-  try {
-    return new Intl.DateTimeFormat("es", { ...opciones, timeZone: zona });
-  } catch {
-    return new Intl.DateTimeFormat("es", { ...opciones, timeZone: "UTC" });
-  }
-}
-
+// Mismo formato que la app (UX-09): `@/lib/formato-fecha`.
 function crearFechas(zona: string) {
-  const conHora = formateador(zona, true);
-  const sinHora = formateador(zona, false);
   const valida = (iso: string) => !Number.isNaN(Date.parse(iso));
   return {
     /** Fecha y hora de un instante (timestamptz), en la zona de la clínica. */
     fechaHora: (v: ValorExportacion | undefined) => {
       const iso = texto(v);
-      return iso && valida(iso) ? conHora.format(new Date(iso)) : "";
+      return iso && valida(iso) ? fechaHora(iso, zona) : "";
     },
     /** Fecha de un instante (timestamptz), en la zona de la clínica. */
     fecha: (v: ValorExportacion | undefined) => {
       const iso = texto(v);
-      return iso && valida(iso) ? sinHora.format(new Date(iso)) : "";
+      return iso && valida(iso) ? fecha(iso, zona) : "";
     },
     /** Fecha sin hora (`date`): no tiene zona, se muestra tal cual. */
     dia: (v: ValorExportacion | undefined) => {
       const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(texto(v));
-      return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+      return m ? fecha(`${m[1]}-${m[2]}-${m[3]}`) : "";
     },
   };
 }

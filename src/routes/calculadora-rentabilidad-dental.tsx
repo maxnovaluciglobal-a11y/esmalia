@@ -34,6 +34,7 @@ import { registrarEvento } from "@/lib/marketing/eventos";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { numero } from "@/lib/formato-fecha";
 
 // Mismo shape que `ldJsonScript()` (privado en src/lib/seo.ts, no exportado a
 // propósito — ver la nota de esa tarea). OJO al gotcha documentado ahí
@@ -133,7 +134,7 @@ function numeroDesdeTexto(texto: string): number | null {
 }
 
 function formatearPct(pct: number): string {
-  return `${pct.toLocaleString("es-CL", { maximumFractionDigits: 1 })}%`;
+  return `${numero(pct, { maximumFractionDigits: 1 })}%`;
 }
 
 /**

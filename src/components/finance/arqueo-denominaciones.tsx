@@ -182,13 +182,13 @@ export function ArqueoDenominaciones({
                   <span className="font-medium">{formatMoney(d.valorCents, currency)}</span>{" "}
                   <span className="block text-xs text-muted-foreground sm:inline">{d.tipo}</span>
                 </span>
-                <span className="inline-flex h-9 items-center rounded-full border border-input">
+                <span className="inline-flex h-9 items-center rounded-full border border-input pointer-coarse:h-11">
                   <button
                     type="button"
                     onClick={() => cambiar(clave, ajustarCantidad(cantidad, -1))}
                     disabled={cantidad === 0}
                     aria-label={`Quitar uno: ${nombre}`}
-                    className="grid size-9 place-items-center rounded-full outline-none hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40"
+                    className="grid size-9 place-items-center rounded-full outline-none hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring disabled:opacity-40 pointer-coarse:size-11"
                   >
                     <Minus className="size-4" aria-hidden />
                   </button>
@@ -205,18 +205,18 @@ export function ArqueoDenominaciones({
                       const n = Number.parseInt(e.target.value, 10);
                       cambiar(clave, Number.isNaN(n) ? 0 : ajustarCantidad(0, n));
                     }}
-                    className="w-10 appearance-none bg-transparent text-center text-sm tabular-nums outline-none [-moz-appearance:textfield] focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    className="h-full w-10 appearance-none bg-transparent text-center text-sm tabular-nums outline-none [-moz-appearance:textfield] focus-visible:rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button
                     type="button"
                     onClick={() => cambiar(clave, ajustarCantidad(cantidad, 1))}
                     aria-label={`Agregar uno: ${nombre}`}
-                    className="grid size-9 place-items-center rounded-full outline-none hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+                    className="grid size-9 place-items-center rounded-full outline-none hover:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:size-11"
                   >
                     <Plus className="size-4" aria-hidden />
                   </button>
                 </span>
-                <span className="text-right text-sm tabular-nums text-muted-foreground">
+                <span className="text-right text-sm cifra text-muted-foreground">
                   {formatMoney(subtotal(d, cantidad), currency)}
                 </span>
               </li>
@@ -297,7 +297,16 @@ export function ArqueoDenominaciones({
         </div>
       )}
 
-      <BloqueoEscritura>
+      <BloqueoEscritura
+        className="mt-4 w-full items-stretch"
+        otroMotivo={
+          diff === null
+            ? "Cuenta el cajón para ver si cuadra antes de cerrar."
+            : faltaMotivo
+              ? "Escribe el motivo de la diferencia para cerrar."
+              : null
+        }
+      >
         <Button
           type="button"
           size="lg"

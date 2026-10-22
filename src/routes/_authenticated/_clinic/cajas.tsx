@@ -50,6 +50,7 @@ import {
 import { decidirAbrirCaja, leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
+import { fechaCortaHora, fechaLarga } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/cajas")({
   // `?abrir=1` abre "Abrir caja" al entrar (acción del ⌘K) y se borra.
@@ -74,14 +75,7 @@ const INPUT =
 
 /** Fecha y hora en la zona de la clínica: un turno se lee por la hora. */
 function fechaHora(iso: string | null, timeZone: string | undefined) {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZone: timeZone || "America/Santiago",
-  }).format(new Date(iso));
+  return fechaCortaHora(iso, timeZone);
 }
 
 function etiquetaMetodo(method: string) {
@@ -97,9 +91,7 @@ function lecturaDiferencia(diff: number, currency: string): { texto: string; ton
 
 /** Texto del anillo del sello: "LUNES 19" (día de la clínica, no del navegador). */
 function etiquetaDelDia(hoy: string): string {
-  const fecha = new Date(`${hoy}T12:00:00Z`);
-  const dia = new Intl.DateTimeFormat("es-CL", { weekday: "long", timeZone: "UTC" }).format(fecha);
-  return `${dia} ${Number(hoy.slice(8, 10))}`.toUpperCase();
+  return fechaLarga(hoy).split(" de ")[0].toUpperCase();
 }
 
 function notaEsperado(aperturaCents: number, cobrosEnEfectivo: number, currency: string) {
@@ -499,7 +491,7 @@ function CajasPage() {
               <div className="hidden overflow-x-auto border-y border-border md:block">
                 <table className="w-full min-w-[48rem] text-sm">
                   <thead>
-                    <tr className="kicker text-left">
+                    <tr className="text-left text-xs font-medium text-muted-foreground">
                       <th scope="col" className="py-2.5 pr-3 font-normal">
                         Estado
                       </th>
@@ -677,16 +669,14 @@ function DetalleArqueo({ detalle }: { detalle: DetalleDenominaciones }) {
                 {f.cantidad} × {formatMoney(f.valorCents, detalle.currency)}{" "}
                 <span className="text-muted-foreground">{f.tipo}</span>
               </span>
-              <span className="tabular-nums">
+              <span className="cifra">
                 {formatMoney(f.valorCents * f.cantidad, detalle.currency)}
               </span>
             </li>
           ))}
           <li className="flex justify-between gap-3 py-2 font-medium">
             <span>Total contado</span>
-            <span className="tabular-nums">
-              {formatMoney(detalle.totalCents, detalle.currency)}
-            </span>
+            <span className="cifra">{formatMoney(detalle.totalCents, detalle.currency)}</span>
           </li>
         </ul>
       )}
@@ -737,7 +727,7 @@ function TablaDesglose({
     <div className="overflow-x-auto border-y border-border">
       <table className="w-full text-sm">
         <thead>
-          <tr className="kicker">
+          <tr className="text-xs font-medium text-muted-foreground">
             <th scope="col" className="py-2.5 pr-3 text-left font-normal">
               Medio de pago
             </th>

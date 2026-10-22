@@ -1,3 +1,5 @@
+import { fecha, fechaLarga } from "@/lib/formato-fecha";
+
 export type EstadoCita = "confirmada" | "en-sala" | "ausente" | "finalizada" | "tentativa";
 export type EstadoPaciente = "activo" | "nuevo" | "inactivo";
 
@@ -41,7 +43,10 @@ export interface Profesional {
 }
 
 export interface EventoClinico {
+  /** YYYY-MM-DD (lo que ve Patty). */
   fecha: string;
+  /** Instante completo (timestamptz), para mostrarlo en el huso de la clínica. */
+  instante?: string;
   titulo: string;
   detalle?: string;
   tipo: "consulta" | "imagen" | "presupuesto" | "control";
@@ -149,22 +154,14 @@ export function fechaAISO(date: Date): string {
   }).format(date);
 }
 
+/** "21 oct 2026" de una fecha civil "YYYY-MM-DD" (UX-09: delega en `formato-fecha`). */
 export function formatoFecha(iso: string | null | undefined) {
-  const date = parseIsoDate(iso);
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  }).format(date);
+  if (!parseIsoDate(iso)) return "—";
+  return fecha(iso!.slice(0, 10));
 }
 
+/** "miércoles 21 de octubre" de una fecha civil "YYYY-MM-DD". */
 export function formatoFechaLarga(iso: string | null | undefined) {
-  const date = parseIsoDate(iso);
-  if (!date) return "—";
-  return new Intl.DateTimeFormat("es-CL", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(date);
+  if (!parseIsoDate(iso)) return "—";
+  return fechaLarga(iso!.slice(0, 10));
 }

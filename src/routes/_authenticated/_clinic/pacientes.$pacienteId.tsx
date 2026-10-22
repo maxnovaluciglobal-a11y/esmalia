@@ -227,7 +227,9 @@ function ConvenioDelPaciente({
   if (editando) {
     return (
       <div className="space-y-1.5">
-        <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Convenio</p>
+        <p className="kicker" aria-hidden="true">
+          Convenio
+        </p>
         <Select
           value={seleccion || "particular"}
           onValueChange={(v) => setSeleccion(v === "particular" ? "" : v)}
@@ -274,7 +276,9 @@ function ConvenioDelPaciente({
 
   return (
     <div>
-      <p className="kicker">Convenio</p>
+      <p className="kicker" aria-hidden="true">
+        Convenio
+      </p>
       <p className="mt-1 truncate font-display text-xl font-semibold leading-tight">
         {nombre ?? (cargandoConvenios ? <Esqueleto className="mt-1 h-5 w-32" /> : "Convenio")}
       </p>
@@ -474,7 +478,7 @@ function PacienteDetalle() {
               hasta: "",
               page: 1,
             }}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground sm:min-h-9"
           >
             <ArrowLeft className="size-3.5" aria-hidden /> Pacientes
           </Link>
@@ -553,16 +557,19 @@ function PacienteDetalle() {
                     : "Al día"}
             </Dato>
             <div className="min-w-0">
-              {clinicId ? (
-                <ConvenioDelPaciente
-                  clinicId={clinicId}
-                  patientId={paciente.id}
-                  convenioId={paciente.convenioId ?? null}
-                  convenioNombre={paciente.convenioNombre ?? null}
-                  afiliado={paciente.convenioAfiliado ?? null}
-                  puedeEditar={puedeFacturar}
-                />
-              ) : null}
+              <dt className="sr-only">Convenio</dt>
+              <dd>
+                {clinicId ? (
+                  <ConvenioDelPaciente
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    convenioId={paciente.convenioId ?? null}
+                    convenioNombre={paciente.convenioNombre ?? null}
+                    afiliado={paciente.convenioAfiliado ?? null}
+                    puedeEditar={puedeFacturar}
+                  />
+                ) : null}
+              </dd>
             </div>
             <div className="min-w-0">
               <dt className="kicker">Alerta médica</dt>

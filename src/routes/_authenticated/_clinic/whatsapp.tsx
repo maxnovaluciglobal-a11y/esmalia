@@ -322,8 +322,8 @@ function WhatsAppPage() {
       <div className="max-w-2xl space-y-6">
         <p className="text-sm text-muted-foreground">
           {requiereLlamada && (!platformConfigured || account?.status !== "connected")
-            ? "Conecta el WhatsApp de tu clínica para mandar recordatorios, recall y avisos de saldo desde aquí — cada clínica usa su propio número, nunca compartimos uno entre clínicas."
-            : "Conecta el WhatsApp de tu clínica: Esmalia prepara los recordatorios, el recall y los avisos de saldo, y tu equipo los envía con un clic, sin abrir WhatsApp. Cada clínica usa su propio número — nunca compartimos uno entre clínicas."}
+            ? "Conecta el WhatsApp de tu clínica para mandar recordatorios, controles periódicos y avisos de saldo desde aquí — cada clínica usa su propio número, nunca compartimos uno entre clínicas."
+            : "Conecta el WhatsApp de tu clínica: Esmalia prepara los recordatorios, los controles periódicos y los avisos de saldo, y tu equipo los envía con un clic, sin abrir WhatsApp. Cada clínica usa su propio número — nunca compartimos uno entre clínicas."}
         </p>
 
         {isLoading && <p className="text-sm text-muted-foreground">Cargando…</p>}
@@ -385,9 +385,9 @@ function WhatsAppPage() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>¿Desconectar WhatsApp?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Los recordatorios, el recall y los avisos de saldo dejan de enviarse por la
-                      API oficial y vuelven a wa.me manual desde /recordatorios. Vas a poder
-                      reconectar cuando quieras.
+                      Los recordatorios, los controles periódicos y los avisos de saldo dejan de
+                      enviarse por la API oficial y vuelven a wa.me manual desde /recordatorios. Vas
+                      a poder reconectar cuando quieras.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -439,7 +439,7 @@ function WhatsAppPage() {
           requiereLlamada && (
             <LlamadaDesbloqueo
               feature="WhatsApp oficial"
-              descripcion="Conecta el WhatsApp real de tu clínica para enviar recordatorios, recall y avisos de saldo con un clic por la API oficial de Meta, sin abrir WhatsApp — en vez de wa.me manual."
+              descripcion="Conecta el WhatsApp real de tu clínica para enviar recordatorios, controles periódicos y avisos de saldo con un clic por la API oficial de Meta, sin abrir WhatsApp — en vez de wa.me manual."
               clinicName={access.clinic?.name}
               clinicEmail={access.email}
             />

@@ -878,7 +878,7 @@ function ArancelesPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[46rem] text-sm">
                   <thead>
-                    <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Prestación</th>
                       <th className="px-3 py-2 text-left font-medium">Código</th>
                       <th className="px-3 py-2 text-right font-medium">Precio</th>
@@ -908,7 +908,7 @@ function ArancelesPage() {
                         <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
                           {p.code ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
+                        <td className="px-3 py-2 text-right cifra">
                           {formatMoney(p.defaultPriceCents, p.currency)}
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
@@ -916,7 +916,7 @@ function ArancelesPage() {
                             ? "—"
                             : formatMoney(p.referencePriceCents, p.currency)}
                         </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                        <td className="px-3 py-2 text-right text-xs cifra text-muted-foreground">
                           {p.labCostCents === null ? "—" : formatMoney(p.labCostCents, p.currency)}
                         </td>
                         <td className="px-3 py-2 text-center text-xs text-muted-foreground">

@@ -373,7 +373,7 @@ describe("contenidoFicha", () => {
     const t = todoElTexto(c);
     expect(c.pacienteNombre).toBe("María Núñez");
     expect(c.encabezado[0]).toContain("12.345.678-9");
-    expect(t).toContain("Fecha de nacimiento: 02-05-1990");
+    expect(t).toContain("Fecha de nacimiento: 2 may 1990");
     // Alertas: alergia grave y anticoagulantes son críticas.
     const alertas = c.secciones.find((s) => s.titulo === "Alertas clínicas")!;
     expect(alertas.lineas[0]).toMatchObject({ estilo: "alerta" });

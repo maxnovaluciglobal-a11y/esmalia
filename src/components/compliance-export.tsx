@@ -192,7 +192,7 @@ export function ComplianceExport({ clinicId, clinicName, puedeAbrirFichas = fals
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full min-w-[840px] text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-4 py-3 font-medium">Fecha</th>
                 <th className="px-4 py-3 font-medium">Origen</th>
                 <th className="px-4 py-3 font-medium">Paciente</th>

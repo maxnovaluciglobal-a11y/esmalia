@@ -12,16 +12,11 @@ import {
   signosVitalesSchema,
 } from "@/lib/clinical/anamnesis";
 import { listVitalSigns, recordVitalSigns } from "@/lib/clinical/medical-history.functions";
+import { fechaHora, numero } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function formatFechaHora(iso: string, timeZone: string | undefined): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    timeZone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaHora(iso, timeZone);
 }
 
 const campoClase =
@@ -133,10 +128,9 @@ export function VitalSignsCard({
   return (
     <section className="card-clinical p-6">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 font-display text-sm font-semibold">
-          <Activity className="size-4 text-muted-foreground" aria-hidden />
+        <TituloSeccion icono={<Activity className="size-4 text-muted-foreground" aria-hidden />}>
           Signos vitales
-        </h3>
+        </TituloSeccion>
         {puedeEditar && !abierto && (
           <Button size="sm" variant="outline" onClick={() => setAbierto(true)}>
             <Plus className="size-3.5" aria-hidden /> Registrar
@@ -242,7 +236,7 @@ export function VitalSignsCard({
               <span className="tabular-nums">
                 PA {formatearPresion(s.systolicMmhg, s.diastolicMmhg)} · Pulso {s.heartRateBpm} lpm
                 {s.temperatureC != null &&
-                  ` · ${s.temperatureC.toLocaleString("es-CL", { minimumFractionDigits: 1 })} °C`}
+                  ` · ${numero(s.temperatureC, { minimumFractionDigits: 1 })} °C`}
               </span>
               {s.notes && <span className="w-full text-muted-foreground">{s.notes}</span>}
             </li>

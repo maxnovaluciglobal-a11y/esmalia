@@ -6,6 +6,7 @@ import { formatMoney } from "@/lib/finance/finance";
 import { getPanelDesempeno, type PanelMes } from "@/lib/finance/finance-reports.functions";
 import { lecturaCobradoVsProducido, recortarSerieMensual } from "@/lib/finance/reportes-lectura";
 import { cn } from "@/lib/utils";
+import { mesAnio } from "@/lib/formato-fecha";
 
 /**
  * Panel de desempeño de la clínica (G-7 del análisis competitivo).
@@ -74,9 +75,7 @@ function SerieMensual({ serie: serieCompleta, currency }: { serie: PanelMes[]; c
 
   const mesLargo = (mes: string) => {
     const [anio, m] = mes.split("-").map(Number);
-    return new Intl.DateTimeFormat("es", { month: "long", timeZone: "UTC" }).format(
-      new Date(Date.UTC(anio, m - 1, 15)),
-    );
+    return mesAnio(`${anio}-${String(m).padStart(2, "0")}-15`).split(" ")[0];
   };
   const periodo =
     serie.length === serieCompleta.length
@@ -109,7 +108,13 @@ function SerieMensual({ serie: serieCompleta, currency }: { serie: PanelMes[]; c
           Todavía no hay producción ni cobros en los últimos {serieCompleta.length} meses.
         </p>
       ) : (
-        <div ref={desplazable} className="overflow-x-auto">
+        <div
+          ref={desplazable}
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="Producción y cobros por mes (desplazable)"
+        >
           {/* min-w en el wrapper, no en el svg: el svg y la fila de meses
            * tienen que compartir el mismo ancho para que el scroll horizontal
            * no los desalinee. Con pocos meses no hace falta: entra en un

@@ -121,7 +121,9 @@ function MorosidadPage() {
                   {filas!.map((f) => (
                     <TableRow key={f.patientId}>
                       <TableCell className="font-medium">{f.patientName}</TableCell>
-                      <TableCell>{formatMoney(f.balanceCents, f.currency)}</TableCell>
+                      <TableCell className="cifra">
+                        {formatMoney(f.balanceCents, f.currency)}
+                      </TableCell>
                       <TableCell>
                         <Badge className={BUCKET_TONE[f.bucket]} variant="secondary">
                           {AGING_BUCKET_LABELS[f.bucket]}

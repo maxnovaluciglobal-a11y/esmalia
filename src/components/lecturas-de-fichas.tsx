@@ -119,7 +119,7 @@ export function LecturasDeFichas({ clinicId }: Props) {
         <div className="-mx-6 overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b border-border text-left text-xs text-muted-foreground">
                 <th className="px-6 py-3 font-medium">Fecha</th>
                 <th className="px-6 py-3 font-medium">Quién</th>
                 <th className="px-6 py-3 font-medium">Paciente</th>

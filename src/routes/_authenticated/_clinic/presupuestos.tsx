@@ -25,6 +25,7 @@ import {
 import { listPresupuestosDeClinica } from "@/lib/finance/presupuestos.functions";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
+import { fecha } from "@/lib/formato-fecha";
 
 type PresupuestosSearch = { estado?: FiltroEstado; q?: string };
 
@@ -59,23 +60,12 @@ const TONO_ESTADO: Record<EstadoVisible, string> = {
 };
 
 function fechaCorta(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("es", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone,
-  }).format(new Date(iso));
+  return fecha(iso, timeZone);
 }
 
 /** `valid_until` es una fecha sin hora: se formatea tal cual, sin huso. */
 function fechaSinHora(dia: string): string {
-  const [a, m, d] = dia.split("-").map(Number);
-  return new Intl.DateTimeFormat("es", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(a, m - 1, d)));
+  return fecha(dia);
 }
 
 function PresupuestosPage() {
@@ -181,7 +171,7 @@ function PresupuestosPage() {
             <table className="hidden w-full text-sm md:table">
               <caption className="sr-only">Presupuestos de la clínica</caption>
               <thead>
-                <tr className="border-b border-hairline text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b border-hairline text-left text-xs text-muted-foreground">
                   <th scope="col" className="px-5 py-3 font-medium">
                     Número
                   </th>

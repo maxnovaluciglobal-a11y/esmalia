@@ -35,6 +35,8 @@ import {
   VADEMECUM,
   type RecetaItem,
 } from "@/lib/clinical/recetas";
+import { fecha, fechaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 function inputClass() {
   return "w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base";
@@ -50,13 +52,7 @@ const ITEM_VACIO: RecetaItem = {
 };
 
 function fechaEnZona(iso: string, timeZone: string, conHora = false): string {
-  return new Intl.DateTimeFormat("es-CL", {
-    timeZone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    ...(conHora ? { hour: "2-digit", minute: "2-digit" } : {}),
-  }).format(new Date(iso));
+  return conHora ? fechaHora(iso, timeZone) : fecha(iso, timeZone);
 }
 
 /** YYYY-MM-DD de una fecha en la zona de la clínica (para calcular la edad). */
@@ -183,7 +179,7 @@ export function PatientPrescriptionsCard({
     <div className="card-clinical p-6">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Recetas</h3>
+          <TituloSeccion>Recetas</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Una receta emitida no se edita: si hay un error, se anula y se emite otra.
           </p>

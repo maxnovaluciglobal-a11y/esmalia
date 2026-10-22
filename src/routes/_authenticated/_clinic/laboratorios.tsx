@@ -55,6 +55,7 @@ import { exportarCsv } from "@/lib/csv-export";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 interface LabSearch {
   estado: string;
@@ -330,10 +331,20 @@ function NuevaOrdenDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => crear.mutate()} disabled={!listo}>
-            {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Registrar orden
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !crear.isPending &&
+              !listo &&
+              `Falta ${[!patientId && "paciente", !description.trim() && "descripción"]
+                .filter(Boolean)
+                .join(" y ")}.`
+            }
+          >
+            <Button onClick={() => crear.mutate()} disabled={!listo}>
+              {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Registrar orden
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -588,7 +599,7 @@ function LaboratoriosPage() {
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[52rem] text-sm">
                   <thead>
-                    <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Enviado</th>
                       <th className="px-3 py-2 text-left font-medium">Paciente</th>
                       <th className="px-3 py-2 text-left font-medium">Trabajo</th>
@@ -627,7 +638,7 @@ function LaboratoriosPage() {
                             {o.dueOn ? formatoFecha(o.dueOn) : "—"}
                             {atrasada && <span className="ml-1">⚠</span>}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          <td className="whitespace-nowrap px-3 py-2 text-right cifra text-muted-foreground">
                             {o.costCents === null ? "—" : formatMoney(o.costCents, o.currency)}
                           </td>
                           <td className="px-3 py-2">

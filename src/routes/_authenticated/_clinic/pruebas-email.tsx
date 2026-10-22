@@ -48,6 +48,8 @@ import {
   type EmailTestTemplate,
 } from "@/lib/messaging/email-test-log";
 import { cn } from "@/lib/utils";
+import { fechaCortaHora } from "@/lib/formato-fecha";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pruebas-email")({
   beforeLoad: requireOwner(),
@@ -94,13 +96,7 @@ function EstadoBadge({ estado }: { estado: EmailTestStatus }) {
 }
 
 function formatoFecha(iso: string) {
-  return new Date(iso).toLocaleString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return fechaCortaHora(iso);
 }
 
 const ICONO_PREFLIGHT: Record<PreflightState, { Icon: typeof CheckCircle2; clase: string }> = {
@@ -431,20 +427,22 @@ function PruebasEmailPage() {
                   <ShieldCheck className="size-4" aria-hidden />
                   {verificando ? "Verificando…" : "Verificación previa"}
                 </button>
-                <button
-                  type="button"
-                  onClick={lanzarPrueba}
-                  disabled={ejecutando || !puedeEnviar}
-                  title={
-                    puedeEnviar
-                      ? undefined
-                      : "Ejecuta la verificación previa y resuelve los fallos antes de enviar."
+                <AccionDeshabilitada
+                  motivo={
+                    !puedeEnviar &&
+                    "Ejecuta la verificación previa y resuelve los fallos antes de enviar."
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  <Send className="size-4" aria-hidden />
-                  {ejecutando ? "Ejecutando…" : "Enviar prueba"}
-                </button>
+                  <button
+                    type="button"
+                    onClick={lanzarPrueba}
+                    disabled={ejecutando || !puedeEnviar}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <Send className="size-4" aria-hidden />
+                    {ejecutando ? "Ejecutando…" : "Enviar prueba"}
+                  </button>
+                </AccionDeshabilitada>
               </div>
 
               <PreflightPanel report={preflight} />
@@ -543,7 +541,7 @@ function PruebasEmailPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-left text-sm">
-                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+                <thead className="text-xs text-muted-foreground">
                   <tr className="border-b border-border">
                     <th scope="col" className="px-5 py-3 font-medium">
                       Fecha

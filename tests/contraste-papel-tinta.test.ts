@@ -97,3 +97,24 @@ describe("valores A+", () => {
     expect(contraste(rgb(claro.hex.card), rgb(claro.hex.background))).toBeGreaterThanOrEqual(1.08);
   });
 });
+
+// UX-12 (Ola 0): el esquema de superficies del odontograma se pinta sobre la
+// tarjeta, así que tiene su propio par claro/oscuro. Las marcas (azul
+// "existente", rojo "patología o por hacer") se distinguen del neutro con
+// ≥ 3:1 (WCAG 1.4.11), y en oscuro el neutro ya no es un cuadro gris claro.
+describe.each([
+  ["claro", claro],
+  ["oscuro", oscuro],
+] as const)("esquema del odontograma (%s)", (modo, t) => {
+  it("azul y rojo se separan del neutro (≥ 3:1)", () => {
+    for (const marca of ["odonto-azul", "odonto-rojo"]) {
+      expect(contraste(rgb(t.hex[marca]), rgb(t.hex["odonto-neutro"]))).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it("el neutro acompaña el modo de la tarjeta", () => {
+    const neutro = luminancia(rgb(t.hex["odonto-neutro"]));
+    if (modo === "oscuro") expect(neutro).toBeLessThan(0.1);
+    else expect(neutro).toBeGreaterThan(0.6);
+  });
+});

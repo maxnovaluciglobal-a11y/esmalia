@@ -243,7 +243,7 @@ function EstadosDeCitaPage() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[36rem] text-sm">
                 <thead>
-                  <tr className="border-b border-hairline text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr className="border-b border-hairline text-xs text-muted-foreground">
                     <th className="px-4 py-2 text-left font-medium">Etiqueta</th>
                     <th className="px-3 py-2 text-left font-medium">Estado del sistema</th>
                     <th className="px-3 py-2" />

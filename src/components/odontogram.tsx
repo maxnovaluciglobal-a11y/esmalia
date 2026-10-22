@@ -47,6 +47,7 @@ import {
   LEYENDA_SIMBOLOGIA,
   OPACIDAD_PLANIFICADO,
   aplicaConservacion,
+  colorDeMarca,
   condicionesDisponibles,
   denticionPorEdad,
   hexDeMarca,
@@ -72,6 +73,16 @@ import { listProcedures, listQuotes } from "@/lib/finance/finance.functions";
 import { debeSugerir, marcasYaPresupuestadas } from "@/lib/finance/sugerencia-presupuesto";
 import { DienteAnatomico } from "@/components/diente-anatomico";
 import { cn } from "@/lib/utils";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fechaHora } from "@/lib/formato-fecha";
+import { TituloSeccion } from "@/components/titulo-seccion";
+
+/** Colores del esquema de superficies (tokens con modo oscuro, ver styles.css). */
+const ESQUEMA: Record<ReturnType<typeof colorDeMarca>, string> = {
+  azul: "var(--odonto-azul)",
+  rojo: "var(--odonto-rojo)",
+  neutro: "var(--odonto-neutro)",
+};
 
 const TOOTH_SIZE = 40;
 const TOOTH_GAP = 4;
@@ -152,7 +163,9 @@ function ToothCell({
   const cubre = marcaParaPintar(
     deLaPieza.filter((m) => m.status === "existente" && CUBREN_ESQUEMA.includes(m.condition)),
   );
-  const wholeColor = cubre ? hexDeMarca(cubre) : null;
+  // El esquema se pinta sobre la tarjeta (no sobre el marfil del diente):
+  // usa los tokens --odonto-*, que en oscuro pasan a tonos legibles sobre tinta.
+  const wholeColor = cubre ? ESQUEMA[colorDeMarca(cubre)] : null;
 
   // Activa la misma acción que el click: usada tanto por onClick (mouse/touch)
   // como por onKeyDown (Enter/Space) de cada superficie enfocable.
@@ -187,8 +200,11 @@ function ToothCell({
 
   function pinturaDe(surface: ToothSurface): { fill: string; opacity: number } {
     const m = marcaParaPintar(enSuperficie(surface));
-    if (!m) return { fill: COLORES_SIMBOLOGIA.neutro, opacity: 1 };
-    return { fill: hexDeMarca(m), opacity: m.status === "planificado" ? OPACIDAD_PLANIFICADO : 1 };
+    if (!m) return { fill: ESQUEMA.neutro, opacity: 1 };
+    return {
+      fill: ESQUEMA[colorDeMarca(m)],
+      opacity: m.status === "planificado" ? OPACIDAD_PLANIFICADO : 1,
+    };
   }
 
   const zones: {
@@ -287,7 +303,7 @@ function ToothCell({
             y={0}
             width={s}
             height={s}
-            fill={wholeColor}
+            style={{ fill: wholeColor }}
             opacity={0.85}
             tabIndex={0}
             role="button"
@@ -304,9 +320,8 @@ function ToothCell({
               <polygon
                 key={z.surface}
                 points={z.points}
-                fill={p.fill}
+                style={{ fill: p.fill, stroke: "var(--odonto-trazo)" }}
                 fillOpacity={p.opacity}
-                stroke="rgba(0,0,0,0.08)"
                 strokeWidth={0.5}
                 tabIndex={0}
                 role="button"
@@ -326,9 +341,8 @@ function ToothCell({
             y={c - inner / 2}
             width={inner}
             height={inner}
-            fill={oclusal.fill}
+            style={{ fill: oclusal.fill, stroke: "var(--odonto-trazo)" }}
             fillOpacity={oclusal.opacity}
-            stroke="rgba(0,0,0,0.12)"
             strokeWidth={0.5}
             pointerEvents="none"
           />
@@ -424,7 +438,7 @@ function TablaOdontograma({
           estado
         </caption>
         <thead>
-          <tr className="border-b border-hairline text-[11px] uppercase tracking-wider text-muted-foreground">
+          <tr className="border-b border-hairline text-[11px] text-muted-foreground">
             <th scope="col" className="py-2 pr-3 font-semibold">
               Pieza
             </th>
@@ -592,6 +606,7 @@ export function Odontogram({
   // después sería un salto.
   const [entrada, setEntrada] = useState(animar);
   const soloLectura = useSoloLectura();
+  const zona = useZonaClinica();
   const fetchQuotes = useServerFn(listQuotes);
   const fetchProcedures = useServerFn(listProcedures);
   const fetchMarks = useServerFn(listOdontogramMarks);
@@ -756,7 +771,7 @@ export function Odontogram({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Odontograma</h3>
+          <TituloSeccion>Odontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Numeración FDI · toca una zona del diente o del esquema para marcar esa superficie; la
             raíz o el borde superior del esquema marcan la pieza entera.
@@ -1104,7 +1119,7 @@ export function Odontogram({
                 )}
               </div>
               <span className="text-muted-foreground">
-                {h.recordedByName ?? "—"} · {new Date(h.recordedAt).toLocaleString("es-CL")}
+                {h.recordedByName ?? "—"} · {fechaHora(h.recordedAt, zona)}
               </span>
             </div>
           ))}
@@ -1142,9 +1157,7 @@ export function OdontogramResumen({
     <section aria-labelledby="odontograma-resumen" className="card-clinical p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 id="odontograma-resumen" className="font-display text-lg font-semibold">
-            Odontograma
-          </h3>
+          <TituloSeccion id="odontograma-resumen">Odontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             {isLoading
               ? "Cargando…"
@@ -1157,7 +1170,7 @@ export function OdontogramResumen({
           type="button"
           onClick={onVerOdontograma}
           className={cn(
-            "inline-flex items-center gap-1 rounded-md text-sm font-medium text-brand-700 hover:underline",
+            "inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-brand-700 hover:underline sm:min-h-9",
             FOCUS_RING_CLASS,
           )}
         >

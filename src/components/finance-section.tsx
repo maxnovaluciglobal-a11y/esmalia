@@ -78,6 +78,10 @@ import {
 } from "@/lib/finance/finance.functions";
 import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
+import { TituloSeccion } from "@/components/titulo-seccion";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { fecha, fechaHora } from "@/lib/formato-fecha";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { listProcedureSupplies } from "@/lib/clinic-operations/procedure-supplies.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { NuevoPagoDialog } from "@/components/finance/nuevo-pago-dialog";
@@ -760,7 +764,7 @@ function TotalesPresupuesto({
       </div>
       <div className="flex items-center justify-end gap-3 pt-1">
         <span className="text-muted-foreground">Total</span>
-        <span className="w-32 text-right font-display text-lg font-semibold">
+        <span className="w-32 text-right cifra text-base font-semibold">
           {formatMoney(Math.max(0, subtotal - descuento), currency)}
         </span>
       </div>
@@ -1035,10 +1039,17 @@ function EditarPresupuestoDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => update.mutate()} disabled={!puedeGuardar}>
-            {update.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar cambios
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !items.some((it) => it.nameSnapshot.trim()) &&
+              "Elige una prestación del catálogo o escribe la descripción de un ítem."
+            }
+          >
+            <Button onClick={() => update.mutate()} disabled={!puedeGuardar}>
+              {update.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Guardar cambios
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1059,6 +1070,7 @@ export function FinanceSection({
   onPagoAbierto,
 }: Props) {
   const queryClient = useQueryClient();
+  const zona = useZonaClinica();
   const router = useRouter();
   const [expandedQuote, setExpandedQuote] = useState<string | null>(null);
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null);
@@ -1256,7 +1268,7 @@ export function FinanceSection({
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Presupuestos y tratamientos</h3>
+          <TituloSeccion>Presupuestos y tratamientos</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Aceptar un presupuesto crea automáticamente el plan de tratamiento con sus ítems.
           </p>
@@ -1292,15 +1304,11 @@ export function FinanceSection({
         <div className="mb-5 grid gap-3 rounded-lg border border-hairline bg-secondary/40 p-3 sm:grid-cols-3">
           <div>
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Facturado</p>
-            <p className="font-display text-base font-semibold">
-              {formatMoney(totalBilled, currency)}
-            </p>
+            <p className="cifra text-base font-semibold">{formatMoney(totalBilled, currency)}</p>
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Pagado</p>
-            <p className="font-display text-base font-semibold">
-              {formatMoney(totalPaid, currency)}
-            </p>
+            <p className="cifra text-base font-semibold">{formatMoney(totalPaid, currency)}</p>
           </div>
           <div>
             <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
@@ -1363,7 +1371,7 @@ export function FinanceSection({
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="font-display text-sm font-semibold">
+                      <span className="cifra text-sm font-semibold">
                         {formatMoney(plan.totalCents, plan.currency)}
                       </span>
                       {isOpen ? (
@@ -1482,14 +1490,13 @@ export function FinanceSection({
                       <div>
                         <p className="text-sm font-medium">{quote.number}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(quote.createdAt).toLocaleDateString("es-CL")} ·{" "}
-                          {quote.items.length} ítems
+                          {fecha(quote.createdAt, zona)} · {quote.items.length} ítems
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <QuoteStatusBadge status={quote.status} />
-                      <span className="font-display text-sm font-semibold">
+                      <span className="cifra text-sm font-semibold">
                         {formatMoney(quote.totalCents, quote.currency)}
                       </span>
                       {isOpen ? (
@@ -1676,7 +1683,12 @@ export function FinanceSection({
                       )}
                     />
                     <div>
-                      <p className={cn("text-sm font-medium", pay.reversedAt && "line-through")}>
+                      <p
+                        className={cn(
+                          "cifra text-sm font-medium",
+                          pay.reversedAt && "line-through",
+                        )}
+                      >
                         {formatMoney(pay.amountCents, pay.currency)}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -1689,12 +1701,7 @@ export function FinanceSection({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">
-                      {new Date(pay.paidAt).toLocaleString("es-CL", {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      })}
-                    </span>
+                    <span className="text-muted-foreground">{fechaHora(pay.paidAt, zona)}</span>
                     {puedeReversarPagos && !pay.reversedAt && (
                       <Button
                         type="button"

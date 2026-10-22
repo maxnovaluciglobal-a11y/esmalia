@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -57,6 +57,9 @@ import {
   POR_PAGINA_POR_DEFECTO,
   type ColumnasVisibles,
 } from "@/lib/patients/lista-pacientes";
+import { numero } from "@/lib/formato-fecha";
+import { leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell";
+import { useSoloLectura } from "@/hooks/use-solo-lectura";
 
 interface PacientesSearch {
   q: string;
@@ -74,6 +77,8 @@ interface PacientesSearch {
   sinCita?: boolean;
   /** LEG-08: sin valor = solo fichas activas (las archivadas no se listan). */
   archivo?: FiltroDeArchivo;
+  /** `1` abre "Nuevo paciente" al entrar (acción del ⌘K) y se borra. */
+  nuevo?: typeof PEDIDO_ABRIR;
 }
 
 export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
@@ -89,6 +94,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/pacientes/")({
     ...(search.conSaldo === true || search.conSaldo === "1" ? { conSaldo: true } : {}),
     ...(search.sinCita === true || search.sinCita === "1" ? { sinCita: true } : {}),
     ...(search.archivo ? { archivo: parseFiltroDeArchivo(search.archivo) } : {}),
+    ...(leerPedidoAbrirCaja(search.nuevo) ? { nuevo: PEDIDO_ABRIR } : {}),
   }),
   beforeLoad: requirePermission("patients:view"),
   head: () => ({
@@ -119,8 +125,23 @@ const estados: { value: EstadoPaciente; label: string }[] = (
   ["activo", "nuevo", "inactivo"] as EstadoPaciente[]
 ).map((e) => ({ value: e, label: etiquetaEstadoPaciente[e] }));
 
-function NuevoPacienteDialog({ clinicId }: { clinicId: string }) {
+function NuevoPacienteDialog({
+  clinicId,
+  abrirAhora = false,
+  onAbierto,
+}: {
+  clinicId: string;
+  abrirAhora?: boolean;
+  onAbierto?: () => void;
+}) {
   const [open, setOpen] = useState(false);
+  const soloLectura = useSoloLectura();
+  // Pedido del ⌘K (`?nuevo=1`): abre una vez y la página borra el pedido.
+  useEffect(() => {
+    if (!abrirAhora) return;
+    if (!soloLectura) setOpen(true);
+    onAbierto?.();
+  }, [abrirAhora, soloLectura, onAbierto]);
   const [nombre, setNombre] = useState("");
   const [documento, setDocumento] = useState("");
   const [fechaNacimiento, setFechaNacimiento] = useState("");
@@ -538,6 +559,10 @@ function PacientesPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const clinicId = access.clinic?.id;
 
+  const limpiarPedidoNuevo = useCallback(() => {
+    void navigate({ search: (prev) => ({ ...prev, nuevo: undefined }), replace: true });
+  }, [navigate]);
+
   const fetchPatients = useServerFn(listPatients);
   const veFinanzas = hasPermission(access.role, "finance:view");
   const fetchBranches = useServerFn(listBranches);
@@ -611,15 +636,19 @@ function PacientesPage() {
           {clinicId && hasPermission(access.role, "patients:manage") && (
             <>
               <ImportarPacientesDialog clinicId={clinicId} />
-              <NuevoPacienteDialog clinicId={clinicId} />
+              <NuevoPacienteDialog
+                clinicId={clinicId}
+                abrirAhora={search.nuevo === PEDIDO_ABRIR}
+                onAbierto={limpiarPedidoNuevo}
+              />
             </>
           )}
         </div>
 
         {patientsRes?.truncated && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
-            Mostrando los primeros {pacientes.length.toLocaleString("es")} pacientes. Usa la
-            búsqueda para encontrar a alguien que no aparezca en la lista.
+            Mostrando los primeros {numero(pacientes.length)} pacientes. Usa la búsqueda para
+            encontrar a alguien que no aparezca en la lista.
           </p>
         )}
 

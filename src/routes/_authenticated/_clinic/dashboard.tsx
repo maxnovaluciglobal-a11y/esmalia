@@ -34,6 +34,7 @@ import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupa
 import { listPatients } from "@/lib/patients/patients.functions";
 import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
+import { hora as horaActual } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
   beforeLoad: requirePermission("dashboard:view"),
@@ -241,13 +242,7 @@ function ColaAccionable({ tareas }: { tareas: Tarea[] }) {
 }
 
 function saludo(timezone: string | undefined) {
-  const hora = Number(
-    new Intl.DateTimeFormat("es-CL", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: timezone || "America/Santiago",
-    }).format(new Date()),
-  );
+  const hora = Number(horaActual(new Date(), timezone).slice(0, 2));
   if (hora < 12) return "Buenos días";
   if (hora < 20) return "Buenas tardes";
   return "Buenas noches";
@@ -592,7 +587,7 @@ function Dashboard() {
   const busquedaAgendaHoy = {
     q: "",
     fecha: hoy,
-    vista: "dia" as const,
+    // Sin `vista`: la agenda elige la suya (lista en el celular, día en el resto).
     sucursal: "",
     profesional: "",
     estado: "",
@@ -669,7 +664,7 @@ function Dashboard() {
               <Link
                 to="/agenda"
                 search={busquedaAgendaHoy}
-                className="text-sm text-brand-700 hover:underline"
+                className="inline-flex min-h-11 items-center text-sm text-brand-700 hover:underline sm:min-h-9"
               >
                 Abrir agenda →
               </Link>
@@ -735,7 +730,7 @@ function Dashboard() {
                 <div className="hidden border-y border-border md:block">
                   <table className="w-full table-fixed text-sm">
                     <thead>
-                      <tr className="kicker text-left">
+                      <tr className="text-left text-xs font-medium text-muted-foreground">
                         <th scope="col" className="w-14 py-2 pr-3 font-normal">
                           Hora
                         </th>

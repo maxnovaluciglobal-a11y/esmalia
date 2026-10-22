@@ -5,8 +5,7 @@ import { useConnectivity } from "@/hooks/use-connectivity";
 import { useColaOffline } from "@/hooks/use-offline-mutation";
 import { textoConexion } from "@/lib/shell";
 import { cn } from "@/lib/utils";
-
-const hora = new Intl.DateTimeFormat("es", { hour: "2-digit", minute: "2-digit" });
+import { hora } from "@/lib/formato-fecha";
 
 /**
  * Vista pura de la pastilla (sin hooks), para poder probarla con
@@ -93,8 +92,8 @@ export function PastillaConexion({
             Puedes seguir cobrando, agendando, guardando notas clínicas, marcando el odontograma y
             editando la anamnesis (alergias, medicación, antecedentes): se guarda en este equipo y
             se sincroniza solo cuando vuelva internet. Ves la información
-            {lastOnlineAt ? ` de las ${hora.format(lastOnlineAt)}` : " guardada"}. Enviar mensajes o
-            crear presupuestos sí necesita conexión.
+            {lastOnlineAt ? ` de las ${hora(lastOnlineAt)}` : " guardada"}. Enviar mensajes o crear
+            presupuestos sí necesita conexión.
           </p>
         )}
       </PopoverContent>

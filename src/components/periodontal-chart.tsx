@@ -34,6 +34,10 @@ import {
   type PeriodontalPoint,
 } from "@/lib/clinical/periodontal";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fechaHora } from "@/lib/formato-fecha";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { TituloSeccion } from "@/components/titulo-seccion";
 
 type Props = {
   clinicId: string;
@@ -42,14 +46,8 @@ type Props = {
   userId?: string | null;
 };
 
-function formatoFechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatoFechaHora(iso: string, zona?: string): string {
+  return fechaHora(iso, zona);
 }
 
 function PocketCell({ mm, bleeding }: { mm: number | null; bleeding: boolean | null }) {
@@ -80,7 +78,7 @@ function ChartTable({ chart }: { chart: PeriodontalChartData }) {
     <div className="overflow-x-auto">
       <table className="w-full min-w-[720px] border-collapse text-xs">
         <thead>
-          <tr className="border-b border-hairline text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr className="border-b border-hairline text-[11px] text-muted-foreground">
             <th className="py-1.5 pr-3 text-left">Pieza</th>
             {PERIODONTAL_POINTS.map((p) => (
               <th key={p} className="px-1.5 py-1.5 text-center" title={POINT_LABELS[p]}>
@@ -293,7 +291,7 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[560px] text-xs">
                         <thead>
-                          <tr className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                          <tr className="text-[11px] text-muted-foreground">
                             <th className="pb-1 pr-2 text-left">Punto</th>
                             <th className="px-1.5 pb-1 text-center">PD (mm)</th>
                             <th className="px-1.5 pb-1 text-center">Sangrado</th>
@@ -408,10 +406,12 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
         </div>
 
         <DialogFooter>
-          <Button onClick={() => create.mutate()} disabled={!puedeCrear}>
-            {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar sondaje
-          </Button>
+          <AccionDeshabilitada motivo={toothList.length === 0 && "Elige al menos una pieza."}>
+            <Button onClick={() => create.mutate()} disabled={!puedeCrear}>
+              {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Guardar sondaje
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -419,6 +419,7 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
 }
 
 export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
+  const zona = useZonaClinica();
   const latestFn = useServerFn(getLatestPeriodontalChart);
   const historyFn = useServerFn(listPeriodontalCharts);
   const byIdFn = useServerFn(getPeriodontalChartById);
@@ -448,7 +449,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
     <div className="card-clinical p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="font-display text-lg font-semibold">Periodontograma</h3>
+          <TituloSeccion>Periodontograma</TituloSeccion>
           <p className="text-xs text-muted-foreground">
             Sondaje de 6 puntos por pieza (AAP): profundidad, sangrado y recesión, más movilidad y
             furca por diente.
@@ -484,7 +485,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
               }`}
             >
               <Activity className="size-3" />
-              {formatoFechaHora(h.recordedAt)}
+              {formatoFechaHora(h.recordedAt, zona)}
               <span className="text-[11px] opacity-70">{h.teethCount} piezas</span>
               {h.bleedingSitesCount > 0 && (
                 <span className="rounded-full bg-destructive/10 px-1.5 text-[11px] text-destructive">
@@ -506,7 +507,8 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
             {viewChartId ? "Sondaje" : "Sondaje más reciente"} ·{" "}
-            {formatoFechaHora(chartToShow.recordedAt)} · {chartToShow.recordedByName ?? "Usuario"}
+            {formatoFechaHora(chartToShow.recordedAt, zona)} ·{" "}
+            {chartToShow.recordedByName ?? "Usuario"}
             {chartToShow.notes ? ` · ${chartToShow.notes}` : ""}
           </p>
           <ChartTable chart={chartToShow} />

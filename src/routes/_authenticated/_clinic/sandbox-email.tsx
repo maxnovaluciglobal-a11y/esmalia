@@ -226,9 +226,9 @@ function SandboxEmailPage() {
                     disabled={
                       !listo || (opcion.valor === "production" && !puertaProduccion.permitido)
                     }
-                    title={
+                    aria-describedby={
                       opcion.valor === "production" && !puertaProduccion.permitido
-                        ? puertaProduccion.motivo
+                        ? "motivo-produccion"
                         : undefined
                     }
                     onClick={() => {
@@ -252,6 +252,11 @@ function SandboxEmailPage() {
                   >
                     <p className="text-sm font-medium">{opcion.titulo}</p>
                     <p className="text-sm text-muted-foreground">{opcion.detalle}</p>
+                    {opcion.valor === "production" && !puertaProduccion.permitido && (
+                      <p id="motivo-produccion" className="mt-1 text-xs text-warning">
+                        {puertaProduccion.motivo}
+                      </p>
+                    )}
                   </button>
                 ))}
               </div>
