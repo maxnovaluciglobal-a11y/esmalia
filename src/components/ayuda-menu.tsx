@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Mail, MessageCircle } from "lucide-react";
+import { BookOpen, Keyboard, Mail, MessageCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EVENTO_ABRIR_ATAJOS } from "@/lib/atajos";
 import { EMAIL_SOPORTE, enlaceWhatsAppSoporte } from "@/lib/marketing/contacto";
 
 /**
@@ -46,6 +47,14 @@ export function AyudaMenu({
           <Link to="/docs" target="_blank">
             <BookOpen className="mr-2 size-4" /> Centro de ayuda
           </Link>
+        </DropdownMenuItem>
+        {/* Solo con teclado físico: en el celular no hay atajos que mostrar. */}
+        <DropdownMenuItem
+          className="pointer-coarse:hidden"
+          onSelect={() => window.dispatchEvent(new Event(EVENTO_ABRIR_ATAJOS))}
+        >
+          <Keyboard className="mr-2 size-4" /> Atajos de teclado
+          <span className="ml-auto pl-3 font-mono text-[11px] text-muted-foreground">?</span>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <a href={`mailto:${EMAIL_SOPORTE}`}>
