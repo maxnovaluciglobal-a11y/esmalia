@@ -77,3 +77,17 @@ describe("paleta de colores por profesional", () => {
     expect(COLOR_PROFESIONAL_POR_DEFECTO).toBe(PALETA_PROFESIONALES[0].claro);
   });
 });
+
+describe("paleta de la base (migración 20261023200200)", () => {
+  it("public.paleta_profesionales() tiene los mismos colores y en el mismo orden que PALETA_PROFESIONALES", () => {
+    const sql = readFileSync(
+      path.resolve(
+        __dirname,
+        "../supabase/migrations/20261023200200_colores_distintos_por_profesional.sql",
+      ),
+      "utf8",
+    );
+    const enSql = /select array\[([^\]]+)\]/.exec(sql)?.[1].match(/#[0-9a-f]{6}/gi) ?? [];
+    expect(enSql).toEqual(PALETA_PROFESIONALES.map((c) => c.claro));
+  });
+});
