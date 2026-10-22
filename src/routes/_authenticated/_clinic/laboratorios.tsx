@@ -627,7 +627,7 @@ function LaboratoriosPage() {
                             {o.dueOn ? formatoFecha(o.dueOn) : "—"}
                             {atrasada && <span className="ml-1">⚠</span>}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-muted-foreground">
+                          <td className="whitespace-nowrap px-3 py-2 text-right cifra text-muted-foreground">
                             {o.costCents === null ? "—" : formatMoney(o.costCents, o.currency)}
                           </td>
                           <td className="px-3 py-2">

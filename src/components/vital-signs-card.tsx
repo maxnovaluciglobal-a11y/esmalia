@@ -12,16 +12,10 @@ import {
   signosVitalesSchema,
 } from "@/lib/clinical/anamnesis";
 import { listVitalSigns, recordVitalSigns } from "@/lib/clinical/medical-history.functions";
+import { fechaHora, numero } from "@/lib/formato-fecha";
 
 function formatFechaHora(iso: string, timeZone: string | undefined): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    timeZone,
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaHora(iso, timeZone);
 }
 
 const campoClase =
@@ -242,7 +236,7 @@ export function VitalSignsCard({
               <span className="tabular-nums">
                 PA {formatearPresion(s.systolicMmhg, s.diastolicMmhg)} · Pulso {s.heartRateBpm} lpm
                 {s.temperatureC != null &&
-                  ` · ${s.temperatureC.toLocaleString("es-CL", { minimumFractionDigits: 1 })} °C`}
+                  ` · ${numero(s.temperatureC, { minimumFractionDigits: 1 })} °C`}
               </span>
               {s.notes && <span className="w-full text-muted-foreground">{s.notes}</span>}
             </li>

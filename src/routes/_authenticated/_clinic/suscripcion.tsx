@@ -21,6 +21,7 @@ import {
 } from "@/lib/marketing/eventos-cuenta";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { requirePermission } from "@/lib/access/route-guards";
+import { fecha } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/suscripcion")({
   head: () => ({
@@ -69,13 +70,8 @@ function planFromPriceId(priceId: string | null): PlanKey | null {
   return null;
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return "—";
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(iso));
+function formatDate(iso: string | null, zona?: string) {
+  return fecha(iso, zona);
 }
 
 function BillingPage() {
@@ -252,13 +248,15 @@ function BillingPage() {
                 <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                   Próxima renovación
                 </dt>
-                <dd className="mt-1 text-sm">{formatDate(sub.currentPeriodEnd)}</dd>
+                <dd className="mt-1 text-sm">
+                  {formatDate(sub.currentPeriodEnd, access.clinic?.timezone)}
+                </dd>
               </div>
               {sub.cancelAtPeriodEnd && (
                 <div>
                   <dt className="text-xs uppercase tracking-wide text-muted-foreground">Aviso</dt>
                   <dd className="mt-1 text-sm text-warning">
-                    Cancelada — vence el {formatDate(sub.currentPeriodEnd)}
+                    Cancelada — vence el {formatDate(sub.currentPeriodEnd, access.clinic?.timezone)}
                   </dd>
                 </div>
               )}

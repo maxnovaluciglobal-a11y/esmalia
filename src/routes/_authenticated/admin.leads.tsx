@@ -24,6 +24,7 @@ import { MENSAJE_STAFF_REQUIERE_MFA } from "@/lib/auth/mfa";
 import { listMarketingLeads } from "@/lib/marketing/leads.functions";
 import type { MetaLead } from "@/lib/marketing/leads";
 import type { Json } from "@/integrations/supabase/types";
+import { fechaHora } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/admin/leads")({
   loader: () => listMarketingLeads({}),
@@ -200,18 +201,9 @@ function SenalesMeta({ meta }: { meta: Json | null }) {
   return <div className="flex flex-wrap gap-1">{pills}</div>;
 }
 
-/** Igual criterio que `patient-consents-card.tsx`: `Intl`/`Date.toLocaleString`
- *  directo, sin luxon (ver CLAUDE.md — "no hay luxon"). `created_at` es un
- *  timestamp completo, no una fecha sola, así que no sirve `formatoFecha` de
- *  `clinic-data.ts` (esa asume `YYYY-MM-DD` y descarta la hora). */
+/** `created_at` es un instante: fecha y hora con el formato único (UX-09). */
 function formatFechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return fechaHora(iso);
 }
 
 function AdminLeadsPage() {

@@ -25,6 +25,7 @@ import {
 import { listPresupuestosDeClinica } from "@/lib/finance/presupuestos.functions";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
+import { fecha } from "@/lib/formato-fecha";
 
 type PresupuestosSearch = { estado?: FiltroEstado; q?: string };
 
@@ -59,23 +60,12 @@ const TONO_ESTADO: Record<EstadoVisible, string> = {
 };
 
 function fechaCorta(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat("es", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone,
-  }).format(new Date(iso));
+  return fecha(iso, timeZone);
 }
 
 /** `valid_until` es una fecha sin hora: se formatea tal cual, sin huso. */
 function fechaSinHora(dia: string): string {
-  const [a, m, d] = dia.split("-").map(Number);
-  return new Intl.DateTimeFormat("es", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(a, m - 1, d)));
+  return fecha(dia);
 }
 
 function PresupuestosPage() {

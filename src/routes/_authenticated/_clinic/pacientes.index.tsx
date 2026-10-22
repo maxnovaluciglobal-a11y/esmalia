@@ -57,6 +57,7 @@ import {
   POR_PAGINA_POR_DEFECTO,
   type ColumnasVisibles,
 } from "@/lib/patients/lista-pacientes";
+import { numero } from "@/lib/formato-fecha";
 
 interface PacientesSearch {
   q: string;
@@ -618,8 +619,8 @@ function PacientesPage() {
 
         {patientsRes?.truncated && (
           <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
-            Mostrando los primeros {pacientes.length.toLocaleString("es")} pacientes. Usa la
-            búsqueda para encontrar a alguien que no aparezca en la lista.
+            Mostrando los primeros {numero(pacientes.length)} pacientes. Usa la búsqueda para
+            encontrar a alguien que no aparezca en la lista.
           </p>
         )}
 

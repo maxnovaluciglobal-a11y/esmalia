@@ -6,6 +6,8 @@ import { MESSAGE_STATUS_LABELS, MESSAGE_TEMPLATE_KIND_LABELS } from "@/lib/messa
 import { Link } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { listMessages } from "@/lib/messaging/messaging.functions";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fechaCortaHora } from "@/lib/formato-fecha";
 
 interface Props {
   clinicId: string;
@@ -14,6 +16,7 @@ interface Props {
 
 /** Historial de mensajes enviados al paciente (WhatsApp, SMS, email). */
 export function MessagesHistory({ clinicId, patientId }: Props) {
+  const zona = useZonaClinica();
   const fetchMessages = useServerFn(listMessages);
 
   const { data: messages = [], isLoading } = useQuery({
@@ -73,7 +76,7 @@ export function MessagesHistory({ clinicId, patientId }: Props) {
                     )}
                     {!entrante && <span>· {MESSAGE_STATUS_LABELS[m.status]}</span>}
                   </div>
-                  <span>{new Date(m.createdAt).toLocaleString("es-CL")}</span>
+                  <span className="cifra">{fechaCortaHora(m.createdAt, zona)}</span>
                 </div>
                 <p className="mt-1 whitespace-pre-wrap text-xs text-foreground/90">{m.body}</p>
                 <p className="mt-1 text-[11px] text-muted-foreground">

@@ -285,7 +285,7 @@ function FilaCobertura({
   return (
     <tr className="border-b border-hairline last:border-0">
       <td className="px-4 py-2">{procedure.name}</td>
-      <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+      <td className="px-3 py-2 text-right text-xs cifra text-muted-foreground">
         {formatMoney(procedure.defaultPriceCents, currency)}
       </td>
       <td className="px-3 py-2">

@@ -1,4 +1,5 @@
 /** Utilidades de navegador compartidas por las dos exportaciones (clínica y ficha). */
+import { fechaHora } from "@/lib/formato-fecha";
 
 export async function descargarBytes(url: string): Promise<Uint8Array> {
   const res = await fetch(url);
@@ -20,9 +21,5 @@ export function guardarZip(zip: Uint8Array, nombre: string) {
 
 /** Fecha y hora legibles de la generación, en la zona de la clínica. */
 export function generadoAhora(timezone: string): string {
-  return new Intl.DateTimeFormat("es", {
-    timeZone: timezone,
-    dateStyle: "long",
-    timeStyle: "short",
-  }).format(new Date());
+  return fechaHora(new Date(), timezone);
 }

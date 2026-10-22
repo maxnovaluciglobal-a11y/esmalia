@@ -14,6 +14,7 @@ import { interpretarConIA } from "@/lib/messaging/intencion-de-agenda-ia";
 import { avisoDeAgenda, type FuenteDeLectura } from "@/lib/messaging/aviso-de-agenda";
 import { captureException } from "@/lib/sentry";
 import type { Database } from "@/integrations/supabase/types";
+import { fechaCortaHora } from "@/lib/formato-fecha";
 
 type SupabaseAdminClient = SupabaseClient<Database>;
 
@@ -487,12 +488,12 @@ async function anotarConfirmacionDelPaciente(
     return null;
   }
 
-  return new Date(cita.starts_at).toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const { data: clinica } = await supabaseAdmin
+    .from("clinics")
+    .select("timezone")
+    .eq("id", clinicId)
+    .maybeSingle();
+  return fechaCortaHora(cita.starts_at, clinica?.timezone);
 }
 
 /** Recorta el cuerpo del mensaje para que entre en el aviso sin desbordarlo. */

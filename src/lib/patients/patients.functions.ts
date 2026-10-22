@@ -403,6 +403,7 @@ export const getPatient = createServerFn({ method: "GET" })
       .slice(0, 8)
       .map((a, i) => ({
         fecha: a.starts_at.slice(0, 10),
+        instante: a.starts_at,
         titulo: a.treatment_label || "Consulta",
         detalle: [nameByProfessional.get(a.professional_id), a.status].filter(Boolean).join(" · "),
         tipo: "consulta" as const,

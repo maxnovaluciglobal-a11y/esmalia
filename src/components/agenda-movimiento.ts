@@ -1,5 +1,6 @@
 import { horaDeMinutos } from "@/components/agenda-hueco";
 import { HORA_INICIO, PIXELES_POR_MINUTO, type Cita } from "@/lib/clinic-operations/clinic-data";
+import { diaSemana } from "@/lib/formato-fecha";
 
 /**
  * Lógica pura de "arrastrar para reprogramar" (PR 10 del plan A+).
@@ -396,16 +397,7 @@ export function aplicarMovimientosPendientes<C extends Cita>(
 
 /** "mié 21 oct" para una fecha de calendario. */
 export function fechaCorta(fecha: string): string {
-  const [y, mo, d] = fecha.split("-").map(Number);
-  return new Intl.DateTimeFormat("es-CL", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  })
-    .format(new Date(Date.UTC(y, (mo || 1) - 1, d || 1)))
-    .replace(/\./g, "")
-    .replace(",", "");
+  return diaSemana(fecha);
 }
 
 /** Frase para el aviso y para `aria-live`. */

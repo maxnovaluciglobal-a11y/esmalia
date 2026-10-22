@@ -10,6 +10,7 @@ import { GlobalSearch } from "@/components/global-search";
 import { NotificationsBell } from "@/components/notifications-bell";
 import { PastillaConexion } from "@/components/pastilla-conexion";
 import { SoloLecturaProvider } from "@/components/solo-lectura";
+import { ZonaClinicaContext } from "@/hooks/use-zona-clinica";
 import { StatusStrip } from "@/components/status-strip";
 import { getSupabase } from "@/integrations/supabase/lazy";
 import { resetOfflineCache } from "@/lib/offline/offline-cache";
@@ -536,7 +537,9 @@ export function AppShell({
               </Link>
             </nav>
           )}
-          <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
+          <ZonaClinicaContext.Provider value={access.clinic?.timezone ?? undefined}>
+            <SoloLecturaProvider access={access}>{children}</SoloLecturaProvider>
+          </ZonaClinicaContext.Provider>
         </div>
 
         <BarraInferior

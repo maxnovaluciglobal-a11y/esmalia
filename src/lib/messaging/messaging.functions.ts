@@ -42,6 +42,7 @@ import {
   type PacienteContactable,
   type PresupuestoSinRespuesta,
 } from "@/lib/messaging/presupuestos-sin-respuesta";
+import { fechaLarga as fechaLargaFmt, hora as horaFmt } from "@/lib/formato-fecha";
 
 /** Lee la config de sandbox de email de la clínica desde la DB (fuente de
  * verdad única, compartida con /sandbox-email). Sin fila = default seguro.
@@ -441,20 +442,7 @@ function diaLocalDe(iso: string, timeZone: string): string {
 }
 
 function formatFechaHoraLocal(iso: string, timeZone: string): { fechaLarga: string; hora: string } {
-  const date = new Date(iso);
-  const fechaLarga = new Intl.DateTimeFormat("es-CL", {
-    timeZone,
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(date);
-  const hora = new Intl.DateTimeFormat("es-CL", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(date);
-  return { fechaLarga, hora };
+  return { fechaLarga: fechaLargaFmt(iso, timeZone), hora: horaFmt(iso, timeZone) };
 }
 
 export interface PendingReminder {

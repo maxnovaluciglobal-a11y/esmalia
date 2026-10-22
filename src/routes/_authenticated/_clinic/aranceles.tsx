@@ -908,7 +908,7 @@ function ArancelesPage() {
                         <td className="px-3 py-2 tabular-nums text-xs text-muted-foreground">
                           {p.code ?? "—"}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
+                        <td className="px-3 py-2 text-right cifra">
                           {formatMoney(p.defaultPriceCents, p.currency)}
                         </td>
                         <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
@@ -916,7 +916,7 @@ function ArancelesPage() {
                             ? "—"
                             : formatMoney(p.referencePriceCents, p.currency)}
                         </td>
-                        <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                        <td className="px-3 py-2 text-right text-xs cifra text-muted-foreground">
                           {p.labCostCents === null ? "—" : formatMoney(p.labCostCents, p.currency)}
                         </td>
                         <td className="px-3 py-2 text-center text-xs text-muted-foreground">

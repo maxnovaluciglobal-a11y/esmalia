@@ -27,6 +27,7 @@ import {
   type DnsVerification,
 } from "@/lib/messaging/dns-email";
 import { cn } from "@/lib/utils";
+import { fechaHora } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/dominio-email")({
   beforeLoad: requirePermission("team:manage"),
@@ -214,8 +215,7 @@ function DominioEmailPage() {
               <h2 className="font-display text-base font-semibold">Resultado de la verificación</h2>
               <p className="text-sm text-muted-foreground">
                 {verificacion.domain} · selector {verificacion.dkimSelector} ·{" "}
-                {new Date(verificacion.checkedAt).toLocaleString("es-MX")} ·{" "}
-                {verificacion.durationMs} ms
+                {fechaHora(verificacion.checkedAt)} · {verificacion.durationMs} ms
               </p>
             </header>
             <ul className="divide-y divide-border">

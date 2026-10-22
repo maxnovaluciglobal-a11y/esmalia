@@ -48,6 +48,7 @@ import {
   type EmailTestTemplate,
 } from "@/lib/messaging/email-test-log";
 import { cn } from "@/lib/utils";
+import { fechaCortaHora } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pruebas-email")({
   beforeLoad: requireOwner(),
@@ -94,13 +95,7 @@ function EstadoBadge({ estado }: { estado: EmailTestStatus }) {
 }
 
 function formatoFecha(iso: string) {
-  return new Date(iso).toLocaleString("es-MX", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  return fechaCortaHora(iso);
 }
 
 const ICONO_PREFLIGHT: Record<PreflightState, { Icon: typeof CheckCircle2; clase: string }> = {

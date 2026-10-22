@@ -216,7 +216,7 @@ export function ArqueoDenominaciones({
                     <Plus className="size-4" aria-hidden />
                   </button>
                 </span>
-                <span className="text-right text-sm tabular-nums text-muted-foreground">
+                <span className="text-right text-sm cifra text-muted-foreground">
                   {formatMoney(subtotal(d, cantidad), currency)}
                 </span>
               </li>

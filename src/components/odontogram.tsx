@@ -72,6 +72,8 @@ import { listProcedures, listQuotes } from "@/lib/finance/finance.functions";
 import { debeSugerir, marcasYaPresupuestadas } from "@/lib/finance/sugerencia-presupuesto";
 import { DienteAnatomico } from "@/components/diente-anatomico";
 import { cn } from "@/lib/utils";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fechaHora } from "@/lib/formato-fecha";
 
 const TOOTH_SIZE = 40;
 const TOOTH_GAP = 4;
@@ -592,6 +594,7 @@ export function Odontogram({
   // después sería un salto.
   const [entrada, setEntrada] = useState(animar);
   const soloLectura = useSoloLectura();
+  const zona = useZonaClinica();
   const fetchQuotes = useServerFn(listQuotes);
   const fetchProcedures = useServerFn(listProcedures);
   const fetchMarks = useServerFn(listOdontogramMarks);
@@ -1104,7 +1107,7 @@ export function Odontogram({
                 )}
               </div>
               <span className="text-muted-foreground">
-                {h.recordedByName ?? "—"} · {new Date(h.recordedAt).toLocaleString("es-CL")}
+                {h.recordedByName ?? "—"} · {fechaHora(h.recordedAt, zona)}
               </span>
             </div>
           ))}

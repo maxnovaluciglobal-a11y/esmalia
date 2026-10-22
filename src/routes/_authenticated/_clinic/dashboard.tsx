@@ -34,6 +34,7 @@ import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupa
 import { listPatients } from "@/lib/patients/patients.functions";
 import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
+import { hora as horaActual } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
   beforeLoad: requirePermission("dashboard:view"),
@@ -241,13 +242,7 @@ function ColaAccionable({ tareas }: { tareas: Tarea[] }) {
 }
 
 function saludo(timezone: string | undefined) {
-  const hora = Number(
-    new Intl.DateTimeFormat("es-CL", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: timezone || "America/Santiago",
-    }).format(new Date()),
-  );
+  const hora = Number(horaActual(new Date(), timezone).slice(0, 2));
   if (hora < 12) return "Buenos días";
   if (hora < 20) return "Buenas tardes";
   return "Buenas noches";

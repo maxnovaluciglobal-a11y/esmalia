@@ -34,6 +34,8 @@ import {
   type PeriodontalPoint,
 } from "@/lib/clinical/periodontal";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fechaHora } from "@/lib/formato-fecha";
 
 type Props = {
   clinicId: string;
@@ -42,14 +44,8 @@ type Props = {
   userId?: string | null;
 };
 
-function formatoFechaHora(iso: string): string {
-  return new Date(iso).toLocaleString("es-CL", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+function formatoFechaHora(iso: string, zona?: string): string {
+  return fechaHora(iso, zona);
 }
 
 function PocketCell({ mm, bleeding }: { mm: number | null; bleeding: boolean | null }) {
@@ -419,6 +415,7 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
 }
 
 export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
+  const zona = useZonaClinica();
   const latestFn = useServerFn(getLatestPeriodontalChart);
   const historyFn = useServerFn(listPeriodontalCharts);
   const byIdFn = useServerFn(getPeriodontalChartById);
@@ -484,7 +481,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
               }`}
             >
               <Activity className="size-3" />
-              {formatoFechaHora(h.recordedAt)}
+              {formatoFechaHora(h.recordedAt, zona)}
               <span className="text-[11px] opacity-70">{h.teethCount} piezas</span>
               {h.bleedingSitesCount > 0 && (
                 <span className="rounded-full bg-destructive/10 px-1.5 text-[11px] text-destructive">
@@ -506,7 +503,8 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">
             {viewChartId ? "Sondaje" : "Sondaje más reciente"} ·{" "}
-            {formatoFechaHora(chartToShow.recordedAt)} · {chartToShow.recordedByName ?? "Usuario"}
+            {formatoFechaHora(chartToShow.recordedAt, zona)} ·{" "}
+            {chartToShow.recordedByName ?? "Usuario"}
             {chartToShow.notes ? ` · ${chartToShow.notes}` : ""}
           </p>
           <ChartTable chart={chartToShow} />

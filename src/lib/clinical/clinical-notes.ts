@@ -1,3 +1,5 @@
+import { fechaHora } from "@/lib/formato-fecha";
+
 export type NoteStatus = "draft" | "signed";
 
 /**
@@ -204,13 +206,9 @@ export const AI_ACTION_LABELS: Record<string, string> = {
   polish: "Pulida por Patty (IA)",
 };
 
-export function formatoFechaHora(iso: string) {
-  return new Date(iso).toLocaleString("es-419", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+/** "21 oct 2026, 09:30" en el huso de la clínica (UX-09: delega en `formato-fecha`). */
+export function formatoFechaHora(iso: string, zona?: string | null) {
+  return fechaHora(iso, zona);
 }
 
 /**

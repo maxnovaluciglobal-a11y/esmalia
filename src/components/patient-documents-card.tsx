@@ -21,6 +21,8 @@ import {
   uploadPatientDocument,
   type PatientDocument,
 } from "@/lib/clinical/clinical-documents.functions";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fecha } from "@/lib/formato-fecha";
 
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -31,12 +33,8 @@ function readFileAsDataUrl(file: File): Promise<string> {
   });
 }
 
-function formatFecha(iso: string): string {
-  return new Date(iso).toLocaleDateString("es-CL", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+function formatFecha(iso: string, zona?: string): string {
+  return fecha(iso, zona);
 }
 
 export function PatientDocumentsCard({
@@ -49,6 +47,7 @@ export function PatientDocumentsCard({
   puedeEditar: boolean;
 }) {
   const queryClient = useQueryClient();
+  const zona = useZonaClinica();
   const fetchDocuments = useServerFn(listPatientDocuments);
   const uploadDocument = useServerFn(uploadPatientDocument);
   const archiveDocument = useServerFn(archivePatientDocument);
@@ -183,7 +182,7 @@ export function PatientDocumentsCard({
                 </a>
               )}
               <div className="flex items-center justify-between gap-1 bg-surface/90 px-2 py-1.5 text-[11px] text-muted-foreground">
-                <span>{formatFecha(doc.createdAt)}</span>
+                <span>{formatFecha(doc.createdAt, zona)}</span>
                 {puedeEditar && (
                   <button
                     type="button"

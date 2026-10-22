@@ -7,6 +7,7 @@ import { type Enlace, NOMBRE_COLECCION } from "@/content";
 import type { Bloque, PaginaContenido } from "@/content/tipos";
 import { registrarEvento } from "@/lib/marketing/eventos";
 import { cn } from "@/lib/utils";
+import { fecha } from "@/lib/formato-fecha";
 
 const ENLACE = /(\*\*[^*]+\*\*|\[[^\]]+\]\([^)\s]+\))/g;
 
@@ -179,12 +180,7 @@ function RenderBloque({ bloque }: { bloque: Bloque }): ReactNode {
 }
 
 function fechaLarga(iso: string) {
-  return new Intl.DateTimeFormat("es", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${iso}T00:00:00Z`));
+  return fecha(iso.slice(0, 10));
 }
 
 /** Página editorial completa (funciones, país, comparativas, guías, plantillas). */

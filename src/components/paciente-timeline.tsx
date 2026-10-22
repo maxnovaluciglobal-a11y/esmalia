@@ -2,6 +2,8 @@ import { Link } from "@tanstack/react-router";
 
 import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { cn } from "@/lib/utils";
+import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { fecha } from "@/lib/formato-fecha";
 
 export function PacienteTimeline({
   paciente,
@@ -10,6 +12,7 @@ export function PacienteTimeline({
   paciente: Paciente;
   conEncabezado?: boolean;
 }) {
+  const zona = useZonaClinica();
   return (
     <div className="space-y-6">
       {conEncabezado && (
@@ -59,8 +62,8 @@ export function PacienteTimeline({
                 e.actual ? "bg-brand" : "bg-border",
               )}
             />
-            <p className="text-[11px] font-bold uppercase tracking-tight text-muted-foreground">
-              {e.fecha}
+            <p className="text-xs font-medium text-muted-foreground">
+              <time dateTime={e.instante ?? e.fecha}>{fecha(e.instante ?? e.fecha, zona)}</time>
             </p>
             <p className="text-sm font-medium">{e.titulo}</p>
             {e.detalle && <p className="mt-1 text-xs text-muted-foreground">{e.detalle}</p>}
