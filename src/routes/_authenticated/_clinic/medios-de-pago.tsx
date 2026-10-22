@@ -24,6 +24,12 @@ import { getMySubscription } from "@/lib/billing.functions";
 import { informesBloqueados } from "@/lib/billing";
 import { formatMoney, netAfterRetention, type PaymentMethodConfig } from "@/lib/finance/finance";
 import {
+  ETIQUETA_TIPO_MEDIO,
+  TIPOS_MEDIO,
+  esTipoMedio,
+  type TipoMedio,
+} from "@/lib/finance/medios-de-pago";
+import {
   createPaymentMethod,
   listPaymentMethods,
   setPaymentMethodActive,
@@ -66,6 +72,9 @@ function MedioDialog({
   const [name, setName] = useState(medio?.name ?? "");
   const [retention, setRetention] = useState(medio?.retentionPct ?? 0);
   const [allowsRefund, setAllowsRefund] = useState(medio?.allowsRefund ?? false);
+  // FIN-07: qué es el medio (efectivo, Redcompra, cheque, bono…). Decide cómo
+  // cuenta en la caja: solo el efectivo entra al arqueo del cajón.
+  const [kind, setKind] = useState<TipoMedio | "">(medio?.kind ?? "");
   const queryClient = useQueryClient();
   const createFn = useServerFn(createPaymentMethod);
   const updateFn = useServerFn(updatePaymentMethod);
@@ -78,6 +87,7 @@ function MedioDialog({
         retentionPct: retention,
         allowsRefund,
         position: medio?.position ?? 99,
+        kind: kind || null,
       };
       return medio
         ? updateFn({ data: { ...payload, paymentMethodId: medio.id } }).then(() => undefined)
@@ -91,6 +101,7 @@ function MedioDialog({
         setName("");
         setRetention(0);
         setAllowsRefund(false);
+        setKind("");
       }
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -104,6 +115,7 @@ function MedioDialog({
           setName(medio.name);
           setRetention(medio.retentionPct);
           setAllowsRefund(medio.allowsRefund);
+          setKind(medio.kind ?? "");
         }
         setOpen(next);
       }}
@@ -138,6 +150,28 @@ function MedioDialog({
               placeholder="Ej: Klap - Crédito"
               className={INPUT}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="m-kind">Tipo</Label>
+            <select
+              id="m-kind"
+              value={kind}
+              onChange={(e) => setKind(esTipoMedio(e.target.value) ? e.target.value : "")}
+              className={INPUT}
+              aria-describedby="m-kind-ayuda"
+            >
+              <option value="">Sin tipo (cuenta como otro)</option>
+              {TIPOS_MEDIO.map((t) => (
+                <option key={t} value={t}>
+                  {ETIQUETA_TIPO_MEDIO[t]}
+                </option>
+              ))}
+            </select>
+            <p id="m-kind-ayuda" className="text-xs text-muted-foreground">
+              Solo los medios de tipo efectivo entran al arqueo de la caja. Redcompra cuenta como
+              débito.
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -255,6 +289,7 @@ function MediosDePagoPage() {
                   <thead>
                     <tr className="border-b border-hairline text-xs text-muted-foreground">
                       <th className="px-4 py-2 text-left font-medium">Medio de pago</th>
+                      <th className="px-3 py-2 text-left font-medium">Tipo</th>
                       <th className="px-3 py-2 text-right font-medium">Retención</th>
                       <th className="px-3 py-2 text-right font-medium">
                         Neto de {formatMoney(EJEMPLO_CENTS, currency)}
@@ -279,6 +314,9 @@ function MediosDePagoPage() {
                               Deshabilitado
                             </span>
                           )}
+                        </td>
+                        <td className="px-3 py-2 text-xs text-muted-foreground">
+                          {m.kind ? ETIQUETA_TIPO_MEDIO[m.kind] : "Sin tipo"}
                         </td>
                         <td className="px-3 py-2 text-right tabular-nums">
                           {m.retentionPct > 0 ? `${m.retentionPct}%` : "—"}

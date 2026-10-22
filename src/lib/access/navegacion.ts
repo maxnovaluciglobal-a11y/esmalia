@@ -129,6 +129,12 @@ export const DESTINOS: readonly Destino[] = [
         permisos: ["finance:view"],
         sinonimos: ["presupuesto", "cotización", "cotizaciones"],
       },
+      {
+        to: "/cuentas-por-cobrar",
+        label: "Cuentas por cobrar",
+        permisos: ["finance:view"],
+        sinonimos: ["cuotas", "cobranza", "por cobrar"],
+      },
       { to: "/gastos", label: "Gastos", permisos: ["finance:view"], sinonimos: ["egresos"] },
     ],
   },

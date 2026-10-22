@@ -85,6 +85,10 @@ import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { listProcedureSupplies } from "@/lib/clinic-operations/procedure-supplies.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { NuevoPagoDialog } from "@/components/finance/nuevo-pago-dialog";
+import { CuentasDelPaciente } from "@/components/finance/cuentas-del-paciente";
+import { listCuentasDelPaciente } from "@/lib/finance/cuentas-por-cobrar.functions";
+import { agruparPorCobro } from "@/lib/finance/cuentas-por-cobrar";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import {
   AceptarPresupuestoDialog,
   ConfirmarConsumoDialog,
@@ -1118,6 +1122,19 @@ export function FinanceSection({
     queryKey: ["payments", clinicId, patientId],
     queryFn: () => fetchPayments({ data: { clinicId, patientId } }),
   });
+  // Cuentas por cobrar del paciente (FIN-02/03): la misma deuda ordenada por
+  // origen y vencimiento. Un error acá no esconde el saldo de arriba.
+  const fetchCuentas = useServerFn(listCuentasDelPaciente);
+  const {
+    data: cuentasData,
+    isLoading: cuentasLoading,
+    isError: cuentasError,
+  } = useQuery({
+    queryKey: ["cuentas-paciente", clinicId, patientId],
+    queryFn: () => fetchCuentas({ data: { clinicId, patientId } }),
+  });
+  const cuentas = cuentasData?.cuentas ?? [];
+  const pagosPorCobro = useMemo(() => agruparPorCobro(payments), [payments]);
 
   /** Cents imputados a cada ítem del plan, para el semáforo por línea (G-5). */
   const pagosPorItem = useMemo(() => paidCentsByItem(payments), [payments]);
@@ -1135,7 +1152,9 @@ export function FinanceSection({
     (s, p) => s + p.items.reduce((si, it) => si + (it.patientCents ?? it.priceCents), 0),
     0,
   );
-  const totalPaid = payments.reduce((s, p) => s + p.amountCents, 0);
+  // Los reversados no cuentan, igual que en `patient_balances` (encabezado):
+  // antes esta tarjeta los sumaba y mostraba otro saldo que el de arriba.
+  const totalPaid = payments.reduce((s, p) => s + (p.reversedAt ? 0 : p.amountCents), 0);
   const balance = totalBilled - totalPaid;
   // Las filas viejas mandan (se cotizaron en su moneda); si no hay ninguna,
   // la referencia es la clínica y no un "CLP" cableado.
@@ -1154,6 +1173,8 @@ export function FinanceSection({
     onSuccess: async (result, variables) => {
       await queryClient.invalidateQueries({ queryKey: ["quotes", clinicId, patientId] });
       await queryClient.invalidateQueries({ queryKey: ["treatment-plans", clinicId, patientId] });
+      // PLA-07: aceptar crea la cuenta por cobrar en la misma transacción.
+      void queryClient.invalidateQueries({ queryKey: ["cuentas-paciente", clinicId, patientId] });
       // Mismo "saldo fantasma" que NuevoPagoDialog: aceptar un presupuesto
       // cambia "facturado" (se crea el plan de tratamiento), y el header de
       // saldo viene del loader de la ruta, no de React Query.
@@ -1196,6 +1217,7 @@ export function FinanceSection({
     onSuccess: () => {
       toast.success("Pago reversado.");
       queryClient.invalidateQueries({ queryKey: ["payments", clinicId, patientId] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas-paciente", clinicId, patientId] });
       setReversingPaymentId(null);
       setReversalReason("");
     },
@@ -1280,6 +1302,7 @@ export function FinanceSection({
               patientId={patientId}
               userId={userId}
               plans={plans}
+              cuentas={cuentas}
               suggestedAmountCents={Math.max(0, balance)}
               saldoCargado={!isLoading && !payLoading}
               currency={currency}
@@ -1658,6 +1681,18 @@ export function FinanceSection({
             })}
           </section>
 
+          <CuentasDelPaciente
+            clinicId={clinicId}
+            patientId={patientId}
+            cuentas={cuentas}
+            hoy={cuentasData?.hoy ?? hoyISO(zona)}
+            plans={plans}
+            cargando={cuentasLoading}
+            error={cuentasError}
+            puedeEditar={puedeEditar}
+            puedeAnular={puedeReversarPagos}
+          />
+
           <section>
             <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Pagos registrados
@@ -1665,8 +1700,19 @@ export function FinanceSection({
             {payments.length === 0 && (
               <p className="text-xs text-muted-foreground">Aún no hay pagos registrados.</p>
             )}
-            {payments.map((pay) => {
+            {pagosPorCobro.map((grupo) => {
+              const pay = grupo[0];
               const plan = plans.find((p) => p.id === pay.treatmentPlanId);
+              const cuenta = cuentas.find((c) => c.id === pay.receivableId);
+              const montoCobro = grupo.reduce((s, g) => s + g.amountCents, 0);
+              const medios = grupo
+                .map(
+                  (g) =>
+                    `${g.methodNameSnapshot ?? PAYMENT_METHOD_LABELS[g.method]}${
+                      grupo.length > 1 ? ` ${formatMoney(g.amountCents, g.currency)}` : ""
+                    }`,
+                )
+                .join(" + ");
               return (
                 <div
                   key={pay.id}
@@ -1689,12 +1735,12 @@ export function FinanceSection({
                           pay.reversedAt && "line-through",
                         )}
                       >
-                        {formatMoney(pay.amountCents, pay.currency)}
+                        {formatMoney(montoCobro, pay.currency)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {PAYMENT_METHOD_LABELS[pay.method]}
-                        {plan && ` · ${plan.name}`}
-                        {!plan && pay.treatmentPlanId === null && " · A cuenta"}
+                        {medios}
+                        {cuenta ? ` · ${cuenta.description}` : plan && ` · ${plan.name}`}
+                        {!cuenta && !plan && pay.treatmentPlanId === null && " · A cuenta"}
                         {pay.reference && ` · Ref. ${pay.reference}`}
                         {pay.reversedAt && ` · Reversado: ${pay.reversalReason}`}
                       </p>
@@ -1735,7 +1781,8 @@ export function FinanceSection({
             <AlertDialogTitle>Reversar pago</AlertDialogTitle>
             <AlertDialogDescription>
               El pago no se borra: queda tachado en el historial con el motivo, y deja de contar
-              para el saldo del paciente, la caja del turno y los reportes. No se puede deshacer.
+              para el saldo del paciente, la caja del turno y los reportes. Si el cobro se hizo con
+              varios medios, se reversa entero. No se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">
