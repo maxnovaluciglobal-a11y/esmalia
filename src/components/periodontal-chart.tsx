@@ -36,6 +36,7 @@ import {
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 type Props = {
   clinicId: string;
@@ -404,10 +405,12 @@ function NuevoSondajeDialog({ clinicId, patientId }: { clinicId: string; patient
         </div>
 
         <DialogFooter>
-          <Button onClick={() => create.mutate()} disabled={!puedeCrear}>
-            {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar sondaje
-          </Button>
+          <AccionDeshabilitada motivo={toothList.length === 0 && "Elige al menos una pieza."}>
+            <Button onClick={() => create.mutate()} disabled={!puedeCrear}>
+              {create.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Guardar sondaje
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>

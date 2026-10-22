@@ -1,7 +1,8 @@
-import { cloneElement, type ReactElement, type ReactNode } from "react";
+import { type ReactElement, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { SoloLecturaContext, useSoloLectura } from "@/hooks/use-solo-lectura";
 import type { ClinicAccess } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
@@ -37,18 +38,32 @@ export function SoloLecturaProvider({
 
 /**
  * Envuelve un botón (o un `DialogTrigger asChild`) que crea o edita: en solo
- * lectura lo deshabilita y explica por qué. El `title` va en un `span`
- * porque un botón deshabilitado no recibe el puntero y su tooltip no
- * aparece.
+ * lectura lo deshabilita y explica por qué (UX-05): el motivo sale en un globo
+ * al pasar el puntero, enfocar o tocar, y el botón lo anuncia con
+ * `aria-describedby`. Antes era un `title`, que no se ve en el celular.
  */
-export function BloqueoEscritura({ children }: { children: ReactElement<{ disabled?: boolean }> }) {
+export function BloqueoEscritura({
+  children,
+  otroMotivo,
+  className,
+}: {
+  children: ReactElement<{ disabled?: boolean; className?: string }>;
+  /** Motivo propio de la acción (falta un dato, etc.), visible debajo del botón. */
+  otroMotivo?: string | null | false;
+  className?: string;
+}) {
   const bloqueado = useSoloLectura();
-  if (!bloqueado) return children;
+  if (bloqueado) {
+    return (
+      <AccionDeshabilitada motivo={EXPLICACION_BOTON_SOLO_LECTURA} como="globo">
+        {children}
+      </AccionDeshabilitada>
+    );
+  }
   return (
-    <span title={EXPLICACION_BOTON_SOLO_LECTURA} className="inline-flex cursor-not-allowed">
-      {cloneElement(children, { disabled: true })}
-      <span className="sr-only">{EXPLICACION_BOTON_SOLO_LECTURA}</span>
-    </span>
+    <AccionDeshabilitada motivo={otroMotivo} className={className}>
+      {children}
+    </AccionDeshabilitada>
   );
 }
 

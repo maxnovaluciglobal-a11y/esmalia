@@ -55,6 +55,7 @@ import { exportarCsv } from "@/lib/csv-export";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 interface LabSearch {
   estado: string;
@@ -330,10 +331,20 @@ function NuevaOrdenDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => crear.mutate()} disabled={!listo}>
-            {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Registrar orden
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !crear.isPending &&
+              !listo &&
+              `Falta ${[!patientId && "paciente", !description.trim() && "descripción"]
+                .filter(Boolean)
+                .join(" y ")}.`
+            }
+          >
+            <Button onClick={() => crear.mutate()} disabled={!listo}>
+              {crear.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Registrar orden
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>

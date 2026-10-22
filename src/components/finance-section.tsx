@@ -78,6 +78,7 @@ import {
 } from "@/lib/finance/finance.functions";
 import { MoneyInput } from "@/components/money-input";
 import { cn } from "@/lib/utils";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { fecha, fechaHora } from "@/lib/formato-fecha";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { listProcedureSupplies } from "@/lib/clinic-operations/procedure-supplies.functions";
@@ -1037,10 +1038,17 @@ function EditarPresupuestoDialog({
         </div>
 
         <DialogFooter>
-          <Button onClick={() => update.mutate()} disabled={!puedeGuardar}>
-            {update.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            Guardar cambios
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !items.some((it) => it.nameSnapshot.trim()) &&
+              "Elige una prestación del catálogo o escribe la descripción de un ítem."
+            }
+          >
+            <Button onClick={() => update.mutate()} disabled={!puedeGuardar}>
+              {update.isPending && <Loader2 className="size-3.5 animate-spin" />}
+              Guardar cambios
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>

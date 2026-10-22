@@ -297,7 +297,16 @@ export function ArqueoDenominaciones({
         </div>
       )}
 
-      <BloqueoEscritura>
+      <BloqueoEscritura
+        className="mt-4 w-full items-stretch"
+        otroMotivo={
+          diff === null
+            ? "Cuenta el cajón para ver si cuadra antes de cerrar."
+            : faltaMotivo
+              ? "Escribe el motivo de la diferencia para cerrar."
+              : null
+        }
+      >
         <Button
           type="button"
           size="lg"

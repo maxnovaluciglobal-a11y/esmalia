@@ -49,6 +49,7 @@ import {
 } from "@/lib/messaging/email-test-log";
 import { cn } from "@/lib/utils";
 import { fechaCortaHora } from "@/lib/formato-fecha";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 
 export const Route = createFileRoute("/_authenticated/_clinic/pruebas-email")({
   beforeLoad: requireOwner(),
@@ -426,20 +427,22 @@ function PruebasEmailPage() {
                   <ShieldCheck className="size-4" aria-hidden />
                   {verificando ? "Verificando…" : "Verificación previa"}
                 </button>
-                <button
-                  type="button"
-                  onClick={lanzarPrueba}
-                  disabled={ejecutando || !puedeEnviar}
-                  title={
-                    puedeEnviar
-                      ? undefined
-                      : "Ejecuta la verificación previa y resuelve los fallos antes de enviar."
+                <AccionDeshabilitada
+                  motivo={
+                    !puedeEnviar &&
+                    "Ejecuta la verificación previa y resuelve los fallos antes de enviar."
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                 >
-                  <Send className="size-4" aria-hidden />
-                  {ejecutando ? "Ejecutando…" : "Enviar prueba"}
-                </button>
+                  <button
+                    type="button"
+                    onClick={lanzarPrueba}
+                    disabled={ejecutando || !puedeEnviar}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand bg-transparent px-4 py-2 text-sm font-medium text-brand-700 transition-opacity hover:bg-brand/12 disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <Send className="size-4" aria-hidden />
+                    {ejecutando ? "Ejecutando…" : "Enviar prueba"}
+                  </button>
+                </AccionDeshabilitada>
               </div>
 
               <PreflightPanel report={preflight} />

@@ -78,6 +78,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import {
   fecha as fechaFmt,
@@ -668,10 +669,25 @@ function NuevaCitaDialog({
           />
         </div>
         <DialogFooter>
-          <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
-            {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
-            {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
-          </Button>
+          <AccionDeshabilitada
+            motivo={
+              !puedeCrear &&
+              `Falta ${[
+                !pacienteId && "paciente",
+                !sucursalId && "sucursal",
+                !profesionalId && "profesional",
+                !tratamiento.trim() && "tratamiento",
+                !startsAt && "fecha y hora",
+              ]
+                .filter(Boolean)
+                .join(", ")}.`
+            }
+          >
+            <Button onClick={agendar} disabled={crear.enCurso || !puedeCrear}>
+              {crear.enCurso && <Loader2 className="size-3.5 animate-spin" />}
+              {choques.length > 0 ? "Agendar igual" : "Agendar cita"}
+            </Button>
+          </AccionDeshabilitada>
         </DialogFooter>
       </DialogContent>
     </Dialog>
