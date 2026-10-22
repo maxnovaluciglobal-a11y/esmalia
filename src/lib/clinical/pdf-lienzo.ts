@@ -64,7 +64,7 @@ export function crearLienzo(doc: jsPDF) {
 
   /** Franja de color arriba de la primera hoja; deja el cursor debajo. */
   const franjaSuperior = () => {
-    doc.setFillColor(13, 148, 136);
+    doc.setFillColor(160, 111, 36); // ocre de la marca (--brand-600)
     doc.rect(0, 0, ANCHO, 6, "F");
     y = MARGEN + 6;
   };

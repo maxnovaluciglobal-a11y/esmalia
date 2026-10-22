@@ -128,7 +128,7 @@ export async function exportarCompliancePdf(
   };
 
   // Portada / encabezado
-  doc.setFillColor(13, 148, 136);
+  doc.setFillColor(160, 111, 36); // ocre de la marca (--brand-600)
   doc.rect(0, 0, ANCHO, 6, "F");
   y = MARGEN + 6;
   doc.setFont("helvetica", "bold");
