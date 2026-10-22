@@ -42,4 +42,14 @@ describe("mensajeDeError", () => {
   it("usa el fallback cuando no hay mensaje", () => {
     expect(mensajeDeError(undefined, "No se pudo guardar")).toBe("No se pudo guardar");
   });
+
+  it("muestra el mensaje de una validación de zod, no el JSON", () => {
+    const zod = JSON.stringify(
+      [{ code: "custom", message: "Link inválido.", path: ["token"] }],
+      null,
+      2,
+    );
+    expect(mensajeDeError(new Error(zod))).toBe("Link inválido.");
+    expect(mensajeDeError(new Error("[no es json"))).toBe("[no es json");
+  });
 });

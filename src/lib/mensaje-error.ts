@@ -21,8 +21,9 @@ const TECNICO =
 export const MENSAJE_GENERICO = "No se pudo completar. Intenta de nuevo en un momento.";
 
 export function mensajeDeError(e: unknown, fallback: string = MENSAJE_GENERICO): string {
-  const m = e instanceof Error ? e.message : typeof e === "string" ? e : "";
-  if (!m) return fallback;
+  const crudo = e instanceof Error ? e.message : typeof e === "string" ? e : "";
+  if (!crudo) return fallback;
+  const m = primerMensajeDeValidacion(crudo) ?? crudo;
   if (SIN_CONEXION.test(m)) {
     return "Sin conexión con el servidor. Revisa tu internet e intenta de nuevo.";
   }
@@ -36,4 +37,25 @@ export function mensajeDeError(e: unknown, fallback: string = MENSAJE_GENERICO):
   }
   if (TECNICO.test(m)) return fallback;
   return m;
+}
+
+/**
+ * Un `.validator(zod)` de una server function que falla llega al cliente con
+ * el `ZodError` serializado (`[{"code":"custom","message":"Link inválido.",…}]`).
+ * Devuelve el primer `message` legible, o null si no es ese formato.
+ */
+function primerMensajeDeValidacion(m: string): string | null {
+  const t = m.trim();
+  if (!t.startsWith("[")) return null;
+  try {
+    const lista: unknown = JSON.parse(t);
+    if (!Array.isArray(lista)) return null;
+    for (const item of lista) {
+      const msg = (item as { message?: unknown } | null)?.message;
+      if (typeof msg === "string" && msg.trim()) return msg.trim();
+    }
+  } catch {
+    return null;
+  }
+  return null;
 }
