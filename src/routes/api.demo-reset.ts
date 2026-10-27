@@ -86,6 +86,8 @@ export const Route = createFileRoute("/api/demo-reset")({
         }
         await (await import("@/lib/reserva/demo.server")).prepararReservaDeLaDemo(supabaseAdmin);
 
+        await crearEncuestasDeLaDemo(supabaseAdmin);
+
         return new Response("ok", { status: 200 });
       },
     },
@@ -399,4 +401,72 @@ async function crearCobrosDeHoyDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
   }));
   const { error } = await supabaseAdmin.from("payments").insert(filas);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Ola 7 · MKT-08: respuestas NPS de ejemplo en citas atendidas de la demo,
+ * para que "Notificaciones a pacientes" muestre el resumen y comentarios. La
+ * demo nunca recibe correos (el cron la salta); esto solo siembra filas. La
+ * reseña no se muestra (sin link). Un error no tumba el reset.
+ */
+const ENCUESTAS_DEMO: readonly { nota: number | null; comentario: string | null }[] = [
+  { nota: 10, comentario: "Muy amables y puntuales. La doctora explicó todo con calma." },
+  { nota: 9, comentario: "Excelente atención, volvería sin dudarlo." },
+  { nota: 10, comentario: null },
+  { nota: 8, comentario: "Bien, aunque esperé unos minutos en la sala." },
+  { nota: 9, comentario: null },
+  { nota: 6, comentario: "Me costó encontrar estacionamiento cerca." },
+  { nota: null, comentario: null },
+];
+
+async function crearEncuestasDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
+  try {
+    const { data: clinica } = await supabaseAdmin
+      .from("clinics")
+      .select("id")
+      .eq("is_demo", true)
+      .limit(1)
+      .maybeSingle();
+    if (!clinica) return;
+    const { count } = await supabaseAdmin
+      .from("patient_nps_responses")
+      .select("id", { count: "exact", head: true })
+      .eq("clinic_id", clinica.id);
+    if ((count ?? 0) > 0) return;
+    const { data: citas } = await supabaseAdmin
+      .from("appointments")
+      .select("id, patient_id, professional_id, ends_at")
+      .eq("clinic_id", clinica.id)
+      .eq("status", "finalizada")
+      .order("ends_at", { ascending: false })
+      .limit(ENCUESTAS_DEMO.length);
+    if (!citas?.length) return;
+    const filas = await Promise.all(
+      citas.map(async (c, i) => {
+        const e = ENCUESTAS_DEMO[i];
+        const enviada = new Date(new Date(c.ends_at).getTime() + 3 * 3_600_000);
+        const bytes = crypto.getRandomValues(new Uint8Array(32));
+        const digest = await crypto.subtle.digest("SHA-256", bytes);
+        return {
+          clinic_id: clinica.id,
+          patient_id: c.patient_id,
+          appointment_id: c.id,
+          professional_id: c.professional_id,
+          token_hash: Array.from(new Uint8Array(digest), (b) =>
+            b.toString(16).padStart(2, "0"),
+          ).join(""),
+          sent_at: enviada.toISOString(),
+          expires_at: new Date(enviada.getTime() + 14 * 86_400_000).toISOString(),
+          score: e.nota,
+          comment: e.comentario,
+          responded_at:
+            e.nota === null ? null : new Date(enviada.getTime() + 3_600_000).toISOString(),
+        };
+      }),
+    );
+    const { error } = await supabaseAdmin.from("patient_nps_responses").insert(filas);
+    if (error) throw new Error(error.message);
+  } catch (e) {
+    console.error("[demo-reset] no se pudieron crear las encuestas de ejemplo", e);
+  }
 }

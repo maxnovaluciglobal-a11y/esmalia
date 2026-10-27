@@ -161,6 +161,12 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
     "Firma a distancia (sin login): el paciente pide su código de verificación.",
   firmarDocumentoADistancia:
     "Firma a distancia (sin login): el paciente firma un documento que la clínica ya le mandó.",
+  abrirFormularioPrevio:
+    "Formulario antes de la cita (sin login): el paciente abre el link que le mandó la clínica.",
+  enviarFormularioPrevio:
+    "Formulario antes de la cita (sin login): el paciente envía sus datos; no toca la ficha hasta que el equipo lo acepta.",
+  abrirEncuesta: "Encuesta de satisfacción (sin login): el paciente abre el link de la clínica.",
+  responderEncuesta: "Encuesta de satisfacción (sin login): el paciente responde la encuesta.",
   abrirReserva: "Reserva en línea (sin login): el paciente abre el link público de la clínica.",
   horasDeReserva: "Reserva en línea (sin login): el paciente mira las horas libres.",
   pedirCodigoDeReserva:
