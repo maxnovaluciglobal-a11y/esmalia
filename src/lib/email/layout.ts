@@ -71,6 +71,12 @@ export type Bloque =
   | { tipo: "parrafo"; partes: Inline[]; tenue?: boolean }
   | { tipo: "subtitulo"; texto: string }
   | { tipo: "boton"; texto: string; href: string }
+  /** Dos acciones lado a lado (la segunda con borde): "Confirmar" / "Cancelar o reagendar". */
+  | {
+      tipo: "botones";
+      principal: { texto: string; href: string };
+      secundario?: { texto: string; href: string };
+    }
   | { tipo: "pasos"; pasos: { titulo: string; detalle: string; href: string }[] }
   | {
       tipo: "cifra";
@@ -103,6 +109,13 @@ function bloqueHtml(b: Bloque): string {
       // Botón "a prueba de balas": tabla con fondo + enlace con padding, para
       // que Outlook (que ignora padding en <a>) igual pinte el área.
       return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr><td align="center" bgcolor="${COLORES.ocre}" style="border-radius:6px;background:${COLORES.ocre};"><a href="${escapeHtml(b.href)}" style="display:inline-block;padding:13px 24px;font-family:${FUENTE_TEXTO};font-size:16px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:6px;">${escapeHtml(b.texto)}</a></td></tr></table>`;
+    case "botones": {
+      const principal = `<td align="center" bgcolor="${COLORES.ocre}" style="border-radius:6px;background:${COLORES.ocre};"><a href="${escapeHtml(b.principal.href)}" style="display:inline-block;padding:13px 22px;font-family:${FUENTE_TEXTO};font-size:16px;font-weight:600;line-height:1.2;color:#ffffff;text-decoration:none;border-radius:6px;">${escapeHtml(b.principal.texto)}</a></td>`;
+      const secundario = b.secundario
+        ? `<td width="10" style="width:10px;font-size:0;line-height:0;">&nbsp;</td><td align="center" style="border-radius:6px;border:1px solid ${COLORES.ocre};"><a href="${escapeHtml(b.secundario.href)}" style="display:inline-block;padding:12px 20px;font-family:${FUENTE_TEXTO};font-size:16px;font-weight:600;line-height:1.2;color:${COLORES.ocre};text-decoration:none;border-radius:6px;">${escapeHtml(b.secundario.texto)}</a></td>`
+        : "";
+      return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 24px 0;"><tr>${principal}${secundario}</tr></table>`;
+    }
     case "pasos":
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">${b.pasos
         .map(
@@ -135,6 +148,11 @@ function bloqueTexto(b: Bloque): string {
       return b.texto.toUpperCase();
     case "boton":
       return `${b.texto}: ${b.href}`;
+    case "botones":
+      return [b.principal, b.secundario]
+        .filter((x): x is { texto: string; href: string } => Boolean(x))
+        .map((x) => `${x.texto}: ${x.href}`)
+        .join("\n");
     case "pasos":
       return b.pasos
         .map((s, i) => `${i + 1}. ${s.titulo}\n   ${s.detalle}\n   ${s.href}`)

@@ -263,6 +263,8 @@ interface AgendaSearch {
   paciente?: string;
   /** Vista de día con un carril por box en vez de por profesional (AGE-04). */
   carril?: "box";
+  /** Id de una cita: la abre en el cajón al cargar (los carriles de Hoy). */
+  cita?: string;
 }
 
 function parseVista(v: unknown): VistaAgenda | undefined {
@@ -286,6 +288,7 @@ export const Route = createFileRoute("/_authenticated/_clinic/agenda")({
     nueva: leerNuevaCita(search.nueva),
     paciente: str(search.paciente) || undefined,
     carril: search.carril === "box" ? "box" : undefined,
+    cita: str(search.cita) || undefined,
   }),
   beforeLoad: requirePermission("agenda:view"),
   head: () => ({
@@ -2330,6 +2333,7 @@ function AgendaPage() {
         )}
         {vista === "dia" && search.carril !== "box" && (
           <AgendaGrid
+            citaInicial={search.cita}
             arrastre={
               {
                 habilitado: puedeGestionarAgenda,

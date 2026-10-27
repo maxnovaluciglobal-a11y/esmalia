@@ -23,8 +23,11 @@ export function PacientesGes({ clinicId }: { clinicId: string }) {
 
   const visibles = data.slice(0, 8);
   return (
-    <section aria-labelledby="pacientes-ges" className="rounded-lg border border-border p-5">
-      <h2 id="pacientes-ges" className="font-display text-xl font-semibold">
+    <section
+      aria-labelledby="pacientes-ges"
+      className="rounded-[14px] border border-hairline bg-card p-5"
+    >
+      <h2 id="pacientes-ges" className="font-display text-[26px] font-medium leading-none">
         Pacientes GES
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
