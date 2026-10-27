@@ -38,6 +38,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)agenda-[^/]+\.tsx?$/,
   /(?:^|\/)kpis-en-filete\.tsx$/,
   /(?:^|\/)cajas\.tsx$/,
+  /(?:^|\/)caja-del-dia\.tsx$/, // tarjeta en tinta de la caja: barras por hora y por medio
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
   /^components\/marketing\//,
 ];

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import type { ClinicRole } from "@/lib/access/access";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
-import { descargarCsv } from "@/lib/csv-export";
+import { descargarCsv, nombreArchivoCsv } from "@/lib/csv-export";
 import {
   columnasParaRol,
   csvDeLista,
@@ -28,6 +28,11 @@ interface Props<T> {
   timezone: string;
   /** Filtros vigentes, para el registro de la exportación. */
   filtros?: Record<string, string>;
+  /**
+   * Nombre base del archivo si no es el título de la lista (p. ej. la caja
+   * exporta los movimientos del día además de los turnos). Opcional.
+   */
+  archivo?: string;
   className?: string;
 }
 
@@ -46,6 +51,7 @@ export function useExportarCsvLista<T>({
   columnas,
   timezone,
   filtros,
+  archivo,
 }: Omit<Props<T>, "className">) {
   const registrar = useServerFn(registrarExportacionDeLista);
   const [enCurso, setEnCurso] = useState(false);
@@ -68,7 +74,12 @@ export function useExportarCsvLista<T>({
           columnas: visibles.map((c) => c.header),
         },
       });
-      descargarCsv(csvDeLista(filas, visibles), nombreArchivoLista(lista, hoyISO(timezone)));
+      descargarCsv(
+        csvDeLista(filas, visibles),
+        archivo
+          ? nombreArchivoCsv(archivo, hoyISO(timezone))
+          : nombreArchivoLista(lista, hoyISO(timezone)),
+      );
       toast.success(
         `${filas.length} ${filas.length === 1 ? "fila exportada" : "filas exportadas"}`,
         { description: "Revisa tu carpeta de descargas. Se abre con Excel." },
