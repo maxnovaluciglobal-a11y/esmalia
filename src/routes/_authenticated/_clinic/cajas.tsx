@@ -6,8 +6,8 @@ import { Clock, Download, Loader2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
-import { ExportarCsvLista } from "@/components/exportar-csv-lista";
-import { fechaHoraPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
+import { ExportarCsvLista, useExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaHoraPlanilla, montoPlanilla, siNoPlanilla } from "@/lib/exportacion/listas-csv";
 import {
   ArqueoDenominaciones,
   type CierreArqueo,
@@ -40,14 +40,8 @@ import {
   claseTexto,
   type TonoEstado,
 } from "@/lib/clinic-operations/estado-cita-tono";
-import {
-  formatMoney,
-  fromCents,
-  PAYMENT_METHOD_LABELS,
-  type PaymentMethod,
-} from "@/lib/finance/finance";
+import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
 import { getCajaDelDia } from "@/lib/finance/caja-del-dia.functions";
-import { exportarCsv } from "@/lib/csv-export";
 import {
   CASH_REGISTER_STATUS_LABELS,
   esperadoEnCaja,
@@ -259,6 +253,31 @@ function CajasPage() {
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
 
+  // Movimientos del día: una fila por medio de cada cobro (un cobro
+  // repartido sale en dos filas, como se concilia). Usa el mismo registro
+  // de exportaciones de las listas (Ola 6, EXP-04) con la lista "caja".
+  const filasCsv = (resumen?.movimientos ?? []).flatMap((m) => m.partes.map((p) => ({ m, p })));
+  const exportacion = useExportarCsvLista<(typeof filasCsv)[number]>({
+    clinicId: clinicId ?? "",
+    rol: access.role,
+    lista: "caja",
+    archivo: "Movimientos de caja",
+    filas: filasCsv,
+    timezone: clinicTz ?? "America/Santiago",
+    filtros: { contenido: "movimientos del día", fecha: resumen?.fecha ?? hoyISO(clinicTz) },
+    columnas: [
+      { header: "Fecha", value: () => resumen?.fecha ?? hoyISO(clinicTz) },
+      { header: "Hora", value: ({ m }) => m.hora },
+      { header: "Paciente", value: ({ m }) => m.paciente },
+      { header: "Concepto", value: ({ m }) => m.concepto },
+      { header: "Profesional", value: ({ m }) => m.profesional },
+      { header: "Medio de pago", value: ({ p }) => p.medio },
+      { header: "En el cajón", value: ({ p }) => siNoPlanilla(p.enEfectivo) },
+      { header: "Monto", value: ({ p }) => montoPlanilla(p.cents, currency), dinero: true },
+      { header: "Moneda", value: () => currency, dinero: true },
+    ],
+  });
+
   if (!clinicId) return null;
 
   const hoy = hoyISO(clinicTz);
@@ -278,27 +297,6 @@ function CajasPage() {
     : ultimaCerrada
       ? `último cierre ${fechaHora(ultimaCerrada.closedAt, clinicTz)}`
       : "sin turnos todavía";
-
-  function exportarMovimientos() {
-    if (!resumen) return;
-    const filas = resumen.movimientos.flatMap((m) => m.partes.map((p) => ({ m, p })));
-    exportarCsv(
-      filas,
-      [
-        { header: "Fecha", value: () => resumen.fecha },
-        { header: "Hora", value: ({ m }) => m.hora },
-        { header: "Paciente", value: ({ m }) => m.paciente },
-        { header: "Concepto", value: ({ m }) => m.concepto },
-        { header: "Profesional", value: ({ m }) => m.profesional },
-        { header: "Medio de pago", value: ({ p }) => p.medio },
-        { header: "En el cajón", value: ({ p }) => (p.enEfectivo ? "Sí" : "No") },
-        { header: "Monto", value: ({ p }) => fromCents(p.cents, currency) },
-        { header: "Moneda", value: () => currency },
-      ],
-      "caja-del-dia",
-      resumen.fecha,
-    );
-  }
 
   return (
     <AppShell title="Caja del día" access={access}>
@@ -337,14 +335,22 @@ function CajasPage() {
                   <Clock className="size-3.5" aria-hidden />
                   {openRegister ? "Caja abierta" : "Caja cerrada"}
                 </span>
-                <Button
-                  variant="outline"
-                  className="h-10 rounded-full px-4"
-                  onClick={exportarMovimientos}
-                  disabled={!resumen || resumen.movimientos.length === 0}
-                >
-                  <Download aria-hidden /> Exportar CSV
-                </Button>
+                {exportacion.puede && (
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-full px-4"
+                    onClick={() => void exportacion.exportar()}
+                    disabled={!resumen || exportacion.vacia || exportacion.enCurso}
+                    title={exportacion.vacia ? "Todavía no hay cobros hoy" : undefined}
+                  >
+                    {exportacion.enCurso ? (
+                      <Loader2 className="animate-spin" aria-hidden />
+                    ) : (
+                      <Download aria-hidden />
+                    )}
+                    Exportar CSV
+                  </Button>
+                )}
                 {openRegister ? (
                   // En celular el arqueo queda debajo de los movimientos: el
                   // botón lleva hasta él. En escritorio está a la vista.
