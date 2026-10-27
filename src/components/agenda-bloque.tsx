@@ -68,6 +68,8 @@ export function ContenidoBloque({
 }) {
   const a = ASPECTO_ESTADO[c.estado];
   const corta = c.duracion < 45;
+  // AGE-22: las alergias son del titular, no de la actividad grupal.
+  if (c.grupal) allergies = undefined;
   const marcas = (
     <>
       {choque && <CalendarX2 aria-hidden className="size-3 shrink-0 text-warning" />}

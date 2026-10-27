@@ -770,7 +770,8 @@ export const setAppointmentStatus = createServerFn({ method: "POST" })
       .from("appointments")
       .update({ status: data.estado })
       .eq("id", data.appointmentId);
-    if (error) throw new Error("No tienes permisos para actualizar esta cita.");
+    // AGE-22: el aviso de "la grupal no se marca ausente entera" llega tal cual.
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para actualizar esta cita."));
     return { ok: true };
   });
 

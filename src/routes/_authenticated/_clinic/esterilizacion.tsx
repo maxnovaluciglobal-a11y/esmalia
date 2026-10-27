@@ -293,6 +293,7 @@ function EsterilizacionPage() {
                   filas={ciclos}
                   columnas={columnasCsvCiclos}
                   timezone={zona}
+                  etiqueta="Exportar registro"
                 />
                 <ExportarCsvLista<Paquete>
                   clinicId={clinicId}
@@ -302,6 +303,7 @@ function EsterilizacionPage() {
                   columnas={columnasCsvRastreo}
                   timezone={zona}
                   archivo="rastreo-de-paquetes"
+                  etiqueta="Exportar rastreo"
                 />
                 {puedeRegistrar && (
                   <BloqueoEscritura>
