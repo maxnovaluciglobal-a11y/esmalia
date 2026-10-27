@@ -374,6 +374,22 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         permisos: ["settings:manage"],
         sinonimos: ["reservar", "agendar en línea", "link de reserva", "widget", "qr", "web"],
       },
+      {
+        to: "/dispositivos",
+        label: "Dispositivos",
+        detalle: "Tótem de recepción, TV de la sala de espera y pantalla del box",
+        permisos: ["settings:manage"],
+        sinonimos: [
+          "tótem",
+          "totem",
+          "tablet",
+          "pantalla",
+          "tv",
+          "sala de espera",
+          "check-in",
+          "llamar",
+        ],
+      },
     ],
   },
   {
