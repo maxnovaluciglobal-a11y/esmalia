@@ -2,14 +2,32 @@ import { useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock, Percent } from "lucide-react";
+import { CheckCheck, CircleDashed, Loader2, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
-import { DateField, FilterBar } from "@/components/filters";
+import {
+  BarraApilada,
+  BarraFina,
+  DatosEnTinta,
+  Destacado,
+  EncabezadoEditorial,
+  EtiquetaTinta,
+  FILA,
+  MontoEnTinta,
+  PANEL,
+  Pastilla,
+  SelectorPeriodo,
+  SinDatos,
+  TablaAPlus,
+  TINTA,
+  TITULO_PANEL,
+  TintaCargando,
+  celda,
+  type ColumnaTabla,
+} from "@/components/reportes/aplus";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -21,20 +39,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { requireAnyPermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
 import { informesBloqueados } from "@/lib/billing";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { formatMoney } from "@/lib/finance/finance";
+import { nombreDelPeriodo } from "@/lib/finance/periodos-reporte";
+import { fecha, numero } from "@/lib/formato-fecha";
+import { cn } from "@/lib/utils";
 import {
   closeCommissionPeriod,
   getCommissionReport,
@@ -173,169 +187,280 @@ function ComisionesPage() {
   const totalProduccion = (lineas ?? []).reduce((acc, l) => acc + l.productionCents, 0);
   const sinRegla = (lineas ?? []).filter((l) => l.commissionCents === null).length;
 
+  const lineasVisibles = lineas ?? [];
+  const totalProcedimientos = lineasVisibles.reduce((acc, l) => acc + l.procedureCount, 0);
+  const pagadas = lineasVisibles.filter((l) => l.closed && l.paidAt).length;
+  const cerradas = lineasVisibles.filter((l) => l.closed && !l.paidAt).length;
+  const abiertas = lineasVisibles.filter((l) => !l.closed).length;
+  const maxComision = Math.max(
+    0,
+    ...lineasVisibles.map((l) => l.commissionCents ?? l.productionCents),
+  );
+  const hoy = hoyISO(access.clinic?.timezone);
+  const periodo = nombreDelPeriodo(search.desde, search.hasta, hoy);
+  const dinero = (c: number) => formatMoney(c, currency);
+  const conAcciones = veTodo && puedeGestionar;
+  const columnas: ColumnaTabla[] = [
+    { label: "Profesional" },
+    { label: "Regla", className: "hidden lg:table-cell" },
+    { label: "Estado" },
+    { label: "Proced.", derecha: true, className: "hidden md:table-cell" },
+    { label: "Producción", derecha: true, className: "hidden sm:table-cell" },
+    { label: "Comisión", derecha: true },
+    ...(conAcciones ? [{ label: "", className: "w-0" }] : []),
+  ];
+  const n = columnas.length;
+
+  const conclusion = !lineas ? undefined : lineasVisibles.length === 0 ? (
+    veTodo ? (
+      "No hay profesionales cargados."
+    ) : (
+      "No hay producción registrada a tu nombre en este período."
+    )
+  ) : (
+    <>
+      <b className="font-semibold text-foreground">
+        {veTodo ? "Comisión total" : "Tu comisión"}: {dinero(totalComision)}
+      </b>{" "}
+      sobre {dinero(totalProduccion)} de producción realizada.
+      {veTodo && sinRegla > 0 && (
+        <>
+          {" "}
+          {sinRegla === 1
+            ? "Un profesional no tiene regla configurada y no se le calcula nada."
+            : `${sinRegla} profesionales no tienen regla configurada y no se les calcula nada.`}
+        </>
+      )}
+    </>
+  );
+
   return (
     <AppShell title="Comisiones" access={access}>
       {bloqueado ? (
         <TrialDesbloqueo pantalla="Comisiones" sub={sub ?? null} />
       ) : (
-        <div className="space-y-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold">
-                {veTodo ? "Liquidación de comisiones" : "Mi comisión"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {veTodo
-                  ? "Según los procedimientos completados en el período. La comisión se calcula con la regla vigente de cada profesional (se edita en Profesionales)."
-                  : "Tu comisión según los procedimientos completados en el período, con la regla vigente configurada por la clínica."}
-              </p>
-            </div>
-
-            {veTodo && puedeGestionar && (
-              <Button
-                variant="outline"
-                onClick={() => setConfirmarCierre(true)}
-                disabled={!clinicId || isLoading || (lineas ?? []).length === 0}
-              >
-                <Lock className="size-3.5" />
-                Cerrar período
-              </Button>
-            )}
+        <div className="mx-auto max-w-[84rem] space-y-[18px]">
+          <div className="space-y-4 pb-2">
+            <EncabezadoEditorial
+              seccion="Reportes"
+              pagina="Comisiones"
+              titulo={
+                <>
+                  {veTodo ? "Comisiones de " : "Mi comisión de "}
+                  <Destacado>{periodo}</Destacado>
+                </>
+              }
+              conclusion={conclusion}
+              acciones={
+                conAcciones ? (
+                  <Button
+                    variant="outline"
+                    className="h-10 rounded-full px-4"
+                    onClick={() => setConfirmarCierre(true)}
+                    disabled={!clinicId || isLoading || lineasVisibles.length === 0}
+                  >
+                    <Lock aria-hidden />
+                    Cerrar período
+                  </Button>
+                ) : undefined
+              }
+            />
+            <SelectorPeriodo
+              desde={search.desde}
+              hasta={search.hasta}
+              hoy={hoy}
+              onCambiar={(r) => set(r)}
+            />
           </div>
 
-          <FilterBar
-            activos={0}
-            onReset={() =>
-              set({
-                desde: primerDiaDelMes(access.clinic?.timezone),
-                hasta: hoyISO(access.clinic?.timezone),
-              })
-            }
-          >
-            <DateField label="Desde" value={search.desde} onChange={(desde) => set({ desde })} />
-            <DateField label="Hasta" value={search.hasta} onChange={(hasta) => set({ hasta })} />
-          </FilterBar>
-
-          {isLoading && (
-            <p className="px-1 py-10 text-center text-sm text-muted-foreground">Cargando…</p>
+          {!isLoading && !veTodo && !soloMiProfessionalId && (
+            <p className="rounded-[14px] border border-dashed border-warning-border bg-warning-soft px-5 py-4 text-sm text-foreground/85">
+              Todavía no hay una ficha de profesional vinculada a tu cuenta en esta clínica, así que
+              no podemos mostrarte tu comisión. Pide a un administrador que revise tu perfil en
+              Profesionales.
+            </p>
           )}
 
           {isError && (
             <ErrorDeCarga onReintentar={refetch} mensaje="No pudimos cargar las comisiones." />
           )}
 
-          {!isLoading && !veTodo && !soloMiProfessionalId && (
-            <p className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs text-warning">
-              Todavía no hay una ficha de profesional vinculada a tu cuenta en esta clínica — no
-              podemos mostrarte tu comisión. Pide a un administrador que revise tu perfil en
-              Profesionales.
-            </p>
-          )}
+          {isLoading && <TintaCargando texto="Calculando las comisiones…" />}
 
           {!isLoading && lineas && (
             <>
-              <section className="grid gap-4 sm:grid-cols-2">
-                <div className="card-clinical p-5">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    <Percent className="size-3.5" />{" "}
-                    {veTodo ? "Comisión total del período" : "Mi comisión del período"}
+              <section
+                aria-label="Resumen de comisiones"
+                className={cn(TINTA, "grid gap-7 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]")}
+              >
+                <div className="min-w-0">
+                  <EtiquetaTinta>
+                    {veTodo ? "Comisión del período" : "Mi comisión del período"}
+                  </EtiquetaTinta>
+                  <MontoEnTinta cents={totalComision} currency={currency} />
+                  <p className="mt-3.5 text-sm font-medium text-on-night-2">
+                    sobre <b className="font-semibold text-on-night">{dinero(totalProduccion)}</b>{" "}
+                    de producción {veTodo ? "total" : "tuya"}
                   </p>
-                  <p className="font-display text-2xl font-semibold">
-                    {formatMoney(totalComision, currency)}
-                  </p>
+                  <div className="mt-6">
+                    <DatosEnTinta
+                      columnas={3}
+                      datos={[
+                        {
+                          label: "Procedimientos",
+                          valor: numero(totalProcedimientos),
+                          nota: "completados",
+                        },
+                        {
+                          label: "Profesionales",
+                          valor: numero(lineasVisibles.length),
+                          nota: veTodo ? "con línea en el período" : undefined,
+                        },
+                        {
+                          label: "Sin regla",
+                          valor: veTodo ? numero(sinRegla) : sinRegla > 0 ? "Sí" : "No",
+                          nota: sinRegla > 0 ? "se edita en Profesionales" : "todos con regla",
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
-                <div className="card-clinical p-5">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Producción {veTodo ? "total" : "mía"}
-                  </p>
-                  <p className="font-display text-2xl font-semibold">
-                    {formatMoney(totalProduccion, currency)}
-                  </p>
+                <div className="min-w-0">
+                  <EtiquetaTinta>Estado de la liquidación</EtiquetaTinta>
+                  <BarraApilada
+                    sobre="tinta"
+                    sinPorcentaje
+                    vacio="Sin líneas en este período."
+                    partes={[
+                      {
+                        clave: "abierto",
+                        etiqueta: "Abierto · se recalcula con la regla vigente",
+                        valor: abiertas,
+                        texto: numero(abiertas),
+                      },
+                      {
+                        clave: "cerrado",
+                        etiqueta: "Cerrado · monto congelado, por pagar",
+                        valor: cerradas,
+                        texto: numero(cerradas),
+                      },
+                      {
+                        clave: "pagado",
+                        etiqueta: "Pagado",
+                        valor: pagadas,
+                        texto: numero(pagadas),
+                      },
+                    ]}
+                  />
                 </div>
               </section>
 
-              {veTodo && sinRegla > 0 && (
-                <p className="rounded-lg border border-warning/30 bg-warning/5 px-4 py-2.5 text-xs text-warning">
-                  {sinRegla} profesional{sinRegla === 1 ? "" : "es"} sin regla de comisión
-                  configurada — no se les calcula nada. Configura la regla en Profesionales.
-                </p>
-              )}
-
-              <div className="card-clinical overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Profesional</TableHead>
-                      <TableHead>Regla</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead className="text-right">Procedimientos</TableHead>
-                      <TableHead className="text-right">Producción</TableHead>
-                      <TableHead className="text-right">Comisión</TableHead>
-                      {veTodo && puedeGestionar && (
-                        <TableHead className="text-right">Acciones</TableHead>
-                      )}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lineas.map((l) => (
-                      <TableRow key={l.professionalId}>
-                        <TableCell className="font-medium">{l.professionalName}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {l.ruleLabel}
-                        </TableCell>
-                        <TableCell>
-                          {l.closed ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              <Badge variant="secondary">Cerrado</Badge>
-                              {l.paidAt && <Badge variant="default">Pagado</Badge>}
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">Abierto</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right cifra">{l.procedureCount}</TableCell>
-                        <TableCell className="text-right cifra">
-                          {formatMoney(l.productionCents, currency)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold cifra">
-                          {l.commissionCents === null
-                            ? "—"
-                            : formatMoney(l.commissionCents, currency)}
-                        </TableCell>
-                        {veTodo && puedeGestionar && (
-                          <TableCell className="text-right">
-                            {l.closed && !l.paidAt && l.settlementId && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={marcarPagado.isPending}
-                                onClick={() => marcarPagado.mutate(l.settlementId!)}
-                              >
-                                {marcarPagado.isPending && (
-                                  <Loader2 className="size-3.5 animate-spin" />
-                                )}
-                                Marcar pagado
-                              </Button>
+              <section aria-labelledby="com-lista" className={cn(PANEL, "overflow-hidden")}>
+                <div className="px-5 pt-[18px] pb-3">
+                  <h2 id="com-lista" className={TITULO_PANEL}>
+                    Por <Destacado>profesional</Destacado>
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {veTodo
+                      ? "Según los procedimientos completados en el período, con la regla vigente de cada profesional (se edita en Profesionales). Un período cerrado conserva su monto."
+                      : "Según tus procedimientos completados en el período, con la regla vigente configurada por la clínica."}
+                  </p>
+                </div>
+                {lineasVisibles.length === 0 ? (
+                  <SinDatos
+                    className="border-t border-hairline"
+                    titulo={
+                      veTodo
+                        ? "No hay profesionales cargados."
+                        : "No hay producción registrada a tu nombre en este período."
+                    }
+                  />
+                ) : (
+                  <TablaAPlus columnas={columnas}>
+                    {lineasVisibles.map((l) => {
+                      const valorBarra = l.commissionCents ?? l.productionCents;
+                      return (
+                        <tr key={l.professionalId} className={FILA}>
+                          <td className={celda(0, n, "min-w-[9rem]")}>
+                            <span className="font-medium">{l.professionalName}</span>
+                            <BarraFina
+                              className="mt-1.5 max-w-[14rem]"
+                              pct={maxComision > 0 ? (valorBarra / maxComision) * 100 : 0}
+                              color={colorProfesional(l.color)}
+                            />
+                            <span className="mt-1 block text-[12.5px] text-muted-foreground lg:hidden">
+                              {l.ruleLabel}
+                            </span>
+                          </td>
+                          <td
+                            className={celda(
+                              1,
+                              n,
+                              "hidden text-[13px] text-muted-foreground lg:table-cell",
                             )}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                    {lineas.length === 0 && (
-                      <TableRow>
-                        <TableCell
-                          colSpan={veTodo && puedeGestionar ? 7 : 6}
-                          className="py-10 text-center text-sm text-muted-foreground"
-                        >
-                          {veTodo
-                            ? "No hay profesionales cargados."
-                            : "No hay producción registrada a tu nombre en este período."}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+                          >
+                            {l.ruleLabel}
+                          </td>
+                          <td className={celda(2, n)}>
+                            {l.closed && l.paidAt ? (
+                              <Pastilla tono="success" icono={CheckCheck}>
+                                Pagado
+                              </Pastilla>
+                            ) : l.closed ? (
+                              <Pastilla tono="info" icono={Lock}>
+                                Cerrado
+                              </Pastilla>
+                            ) : (
+                              <Pastilla tono="neutral" icono={CircleDashed}>
+                                Abierto
+                              </Pastilla>
+                            )}
+                          </td>
+                          <td className={celda(3, n, "cifra hidden text-right md:table-cell")}>
+                            {numero(l.procedureCount)}
+                          </td>
+                          <td
+                            className={celda(
+                              4,
+                              n,
+                              "cifra hidden text-right whitespace-nowrap sm:table-cell",
+                            )}
+                          >
+                            {dinero(l.productionCents)}
+                          </td>
+                          <td
+                            className={celda(
+                              5,
+                              n,
+                              "cifra text-right font-semibold whitespace-nowrap",
+                            )}
+                          >
+                            {l.commissionCents === null ? "—" : dinero(l.commissionCents)}
+                          </td>
+                          {conAcciones && (
+                            <td className={celda(6, n, "text-right")}>
+                              {l.closed && !l.paidAt && l.settlementId && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="rounded-full"
+                                  disabled={marcarPagado.isPending}
+                                  onClick={() => marcarPagado.mutate(l.settlementId!)}
+                                >
+                                  {marcarPagado.isPending && (
+                                    <Loader2 className="size-3.5 animate-spin" />
+                                  )}
+                                  Marcar pagado
+                                </Button>
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </TablaAPlus>
+                )}
+              </section>
             </>
           )}
         </div>
@@ -346,10 +471,10 @@ function ComisionesPage() {
           <AlertDialogHeader>
             <AlertDialogTitle>Cerrar período de comisiones</AlertDialogTitle>
             <AlertDialogDescription>
-              Esto congela los montos actuales de {search.desde} a {search.hasta} para todos los
-              profesionales con producción o regla configurada. Una vez cerrado, editar la regla de
-              comisión de un profesional ya NO afecta lo liquidado en este rango — solo se puede
-              revertir con una migración correctiva manual. ¿Confirmas el cierre?
+              Esto congela los montos actuales del {fecha(search.desde)} al {fecha(search.hasta)}{" "}
+              para todos los profesionales con producción o regla configurada. Una vez cerrado,
+              editar la regla de comisión de un profesional ya NO afecta lo liquidado en este rango
+              — solo se puede revertir con una migración correctiva manual. ¿Confirmas el cierre?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

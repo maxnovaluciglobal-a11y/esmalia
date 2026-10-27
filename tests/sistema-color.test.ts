@@ -43,6 +43,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)hoy-dia-por-profesional\.tsx$/, // carriles de Hoy: solo la línea de ahora
   /(?:^|\/)resumen-nps\.tsx$/, // tarjeta en tinta del NPS: mezcla de respuestas (Ola 7)
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
+  /^components\/reportes\//, // A+ de Reportes y Operación: barras y mezclas de datos
   /^components\/marketing\//,
 ];
 

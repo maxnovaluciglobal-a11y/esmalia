@@ -1,52 +1,42 @@
-import { useId } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
-import { KpisEnFilete, type KpiFilete } from "@/components/kpis-en-filete";
+import {
+  BarraApilada,
+  BarraFina,
+  BarrasEnTinta,
+  DatosEnTinta,
+  Destacado,
+  EncabezadoEditorial,
+  EtiquetaTinta,
+  MontoEnTinta,
+  PANEL,
+  SelectorPeriodo,
+  SinDatos,
+  TINTA,
+  TITULO_PANEL,
+  TintaCargando,
+} from "@/components/reportes/aplus";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
 import { informesBloqueados } from "@/lib/billing";
-import { formatoFecha, hoyISO, parseIsoDate } from "@/lib/clinic-operations/clinic-data";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
 import {
   getFinanceSummary,
   getQuoteConversionReport,
   type FinanceSummary,
 } from "@/lib/finance/finance-reports.functions";
+import { nombreDelPeriodo, serieDeCaja } from "@/lib/finance/periodos-reporte";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
-import { diaSemana, fechaCorta } from "@/lib/formato-fecha";
-
-/**
- * Rangos largos (ej. 3 meses) volvían el gráfico de caja una lista de barras
- * finas día por día, difícil de escanear — agrupa por semana (lunes a
- * domingo) cuando hay más de 30 puntos, sin tocar el resumen que llega del
- * servidor.
- */
-function agruparPorSemana(dias: { date: string; totalCents: number }[]) {
-  const totales = new Map<string, number>();
-  for (const d of dias) {
-    const fecha = new Date(`${d.date}T00:00:00`);
-    const diaSemana = fecha.getDay();
-    const offsetALunes = (diaSemana + 6) % 7;
-    fecha.setDate(fecha.getDate() - offsetALunes);
-    const inicioSemana = fecha.toISOString().slice(0, 10);
-    totales.set(inicioSemana, (totales.get(inicioSemana) ?? 0) + d.totalCents);
-  }
-  return [...totales.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([date, totalCents]) => ({ date, totalCents }));
-}
-
-function etiquetaBarra(date: string, agrupadoPorSemana: boolean) {
-  if (agrupadoPorSemana) return `Semana del ${fechaCorta(date)}`;
-  return parseIsoDate(date) ? diaSemana(date) : date;
-}
+import { diaSemana, fechaCorta, numero } from "@/lib/formato-fecha";
 
 interface FinanzasSearch {
   desde: string;
@@ -58,7 +48,7 @@ interface FinanzasSearch {
 // de estas dos fechas cae a la timezone de Chile mientras no haya un valor
 // explícito en la URL. Impacto acotado: solo el rango por defecto del
 // reporte, unas horas al día, y solo si la clínica no es de Chile — dentro
-// del componente (el botón "Este mes" más abajo) sí usamos access.clinic?.timezone real.
+// del componente (los chips de período) sí usamos access.clinic?.timezone real.
 function primerDiaDelMes(timeZone?: string): string {
   const hoy = hoyISO(timeZone);
   return `${hoy.slice(0, 7)}-01`;
@@ -87,48 +77,35 @@ export const Route = createFileRoute("/_authenticated/_clinic/finanzas")({
   component: FinanzasPage,
 });
 
-const CAMPO_FECHA =
-  "h-10 rounded-lg border border-input bg-card px-3 text-sm tabular-nums pointer-coarse:text-base outline-none transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
-
-function CampoFecha({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const id = useId();
-  return (
-    <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={id} className="kicker">
-        {label}
-      </label>
-      <input
-        id={id}
-        type="date"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={CAMPO_FECHA}
-      />
-    </div>
-  );
-}
-
-/** Conclusión del período en una frase: es lo que el dueño viene a saber. */
-function titularDelPeriodo(resumen: FinanceSummary | undefined) {
-  if (!resumen) return "Finanzas del período";
-  if (resumen.paymentsCount === 0 && resumen.expensesCount === 0) {
-    return "Sin movimientos en el período.";
-  }
-  if (resumen.resultCents < 0) return "El período va en negativo.";
-  if (resumen.resultCents === 0) return "El período cierra en cero.";
-  return "El período va en positivo.";
-}
-
 function plural(n: number, uno: string, varios: string) {
-  return `${n} ${n === 1 ? uno : varios}`;
+  return `${numero(n)} ${n === 1 ? uno : varios}`;
+}
+
+/** Conclusión del período en lenguaje simple: es lo que el dueño viene a saber. */
+function conclusionDelPeriodo(r: FinanceSummary, currency: string) {
+  if (r.paymentsCount === 0 && r.expensesCount === 0) {
+    return <>No hubo cobros ni gastos cargados en este período.</>;
+  }
+  const dinero = (c: number) => formatMoney(c, currency);
+  if (r.resultCents < 0) {
+    return (
+      <>
+        <b className="font-semibold text-foreground">El período va en negativo.</b> Los gastos
+        superan lo que entró por {dinero(Math.abs(r.resultCents))}.
+      </>
+    );
+  }
+  if (r.resultCents === 0) {
+    return <b className="font-semibold text-foreground">El período cierra en cero.</b>;
+  }
+  return (
+    <>
+      <b className="font-semibold text-foreground">El período va en positivo.</b> Quedan{" "}
+      {dinero(r.resultCents)} después de los gastos.
+      {r.expensesCount === 0 &&
+        " Sin gastos cargados, el resultado es igual a lo cobrado: carga arriendo, insumos y laboratorio para que refleje lo que de verdad queda."}
+    </>
+  );
 }
 
 function FinanzasPage() {
@@ -137,6 +114,7 @@ function FinanzasPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const clinicId = access.clinic?.id;
   const clinicTz = access.clinic?.timezone;
+  const hoy = hoyISO(clinicTz);
 
   const fetchSubscription = useServerFn(getMySubscription);
   const { data: sub } = useQuery({
@@ -150,7 +128,6 @@ function FinanzasPage() {
   const fetchSummary = useServerFn(getFinanceSummary);
   const {
     data: resumen,
-    isLoading,
     isError,
     isFetching,
     refetch,
@@ -178,126 +155,33 @@ function FinanzasPage() {
   const set = (patch: Partial<FinanzasSearch>) =>
     navigate({ search: (prev: FinanzasSearch) => ({ ...prev, ...patch }) });
 
-  const mesDesde = primerDiaDelMes(clinicTz);
-  const mesHasta = hoyISO(clinicTz);
-  const esEsteMes = search.desde === mesDesde && search.hasta === mesHasta;
-
   const currency = resumen?.currency ?? access.clinic?.currency ?? "CLP";
-  const agrupadoPorSemana = (resumen?.byDay.length ?? 0) > 30;
-  const serieCaja = resumen
-    ? agrupadoPorSemana
-      ? agruparPorSemana(resumen.byDay)
-      : resumen.byDay
-    : [];
-  const maxDia = Math.max(1, ...serieCaja.map((d) => d.totalCents));
-
-  const kpis: KpiFilete[] = resumen
-    ? [
-        {
-          label: "Cobrado",
-          valor: formatMoney(resumen.totalCents, currency),
-          nota:
-            resumen.retentionCents !== null && resumen.retentionCents > 0
-              ? `Entra ${formatMoney(resumen.netCents ?? 0, currency)} · retienen ${formatMoney(resumen.retentionCents, currency)}`
-              : plural(resumen.paymentsCount, "pago", "pagos"),
-        },
-        {
-          label: "Gastos",
-          valor: formatMoney(resumen.expensesCents, currency),
-          nota:
-            resumen.expensesCount === 0
-              ? "Sin gastos cargados"
-              : plural(resumen.expensesCount, "gasto", "gastos"),
-          tonoNota:
-            resumen.expensesCount === 0 && resumen.paymentsCount > 0 ? "warning" : undefined,
-        },
-        {
-          label: "Resultado",
-          // formatMoney ya pone el signo adelante: "-$120.000", nunca "$-120.000".
-          valor: formatMoney(resumen.resultCents, currency),
-          nota:
-            resumen.retentionCents === null
-              ? "Sobre lo facturado, sin retenciones"
-              : "Neto de retenciones, menos gastos",
-          tono:
-            resumen.resultCents < 0 ? "danger" : resumen.resultCents > 0 ? "success" : undefined,
-        },
-        // Regla 11: sin pagos no hay ticket promedio, no un $0 fabricado.
-        resumen.paymentsCount === 0
-          ? { label: "Ticket promedio", valor: "—", nota: "Sin pagos en el período" }
-          : {
-              label: "Ticket promedio",
-              valor: formatMoney(resumen.averageTicketCents, currency),
-              nota: "Promedio por pago",
-            },
-      ]
-    : ["Cobrado", "Gastos", "Resultado", "Ticket promedio"].map((label) => ({
-        label,
-        valor: "—",
-        nota: isError ? "Sin datos" : "",
-      }));
-
-  const kpisConversion: KpiFilete[] =
-    conversion && conversion.created > 0
-      ? [
-          {
-            label: "Conversión",
-            valor: conversion.conversionRate === null ? "—" : `${conversion.conversionRate}%`,
-            nota:
-              conversion.conversionRate === null
-                ? "Ninguno resuelto todavía"
-                : "De los aceptados o rechazados",
-          },
-          {
-            label: "Aceptados",
-            valor: String(conversion.accepted),
-            nota: `Por ${formatMoney(conversion.acceptedTotalCents, currency)}`,
-            tono: conversion.accepted > 0 ? "success" : undefined,
-          },
-          {
-            label: "Rechazados",
-            valor: String(conversion.rejected),
-            nota: conversion.rejected > 0 ? "Vale preguntar por qué" : "Ninguno",
-            tono: conversion.rejected > 0 ? "danger" : undefined,
-          },
-          {
-            label: "Pendientes",
-            valor: String(conversion.pending),
-            nota: conversion.pending > 0 ? "Esperan respuesta" : "Ninguno",
-            tono: conversion.pending > 0 ? "warning" : undefined,
-          },
-        ]
-      : [];
+  const periodo = nombreDelPeriodo(search.desde, search.hasta, hoy);
 
   return (
     <AppShell title="Finanzas" access={access}>
       {bloqueado ? (
         <TrialDesbloqueo pantalla="Finanzas" sub={sub ?? null} />
       ) : (
-        <div className="mx-auto max-w-6xl space-y-10">
-          <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
-            <div className="min-w-0">
-              <p className="kicker">
-                Reportes · {formatoFecha(search.desde)} — {formatoFecha(search.hasta)}
-              </p>
-              <h2 className="mt-2 font-display text-4xl font-normal leading-tight text-balance sm:text-[44px] sm:leading-none">
-                {isLoading ? "Finanzas del período" : titularDelPeriodo(resumen)}
-              </h2>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <CampoFecha label="Desde" value={search.desde} onChange={(desde) => set({ desde })} />
-              <CampoFecha label="Hasta" value={search.hasta} onChange={(hasta) => set({ hasta })} />
-              {!esEsteMes && (
-                <button
-                  type="button"
-                  onClick={() => set({ desde: mesDesde, hasta: mesHasta })}
-                  className={cn(buttonVariants({ variant: "ghost" }), "h-10")}
-                >
-                  Este mes
-                </button>
-              )}
-            </div>
-          </header>
+        <div className="mx-auto max-w-[84rem] space-y-[18px]">
+          <div className="space-y-4 pb-2">
+            <EncabezadoEditorial
+              seccion="Reportes"
+              pagina="Finanzas"
+              titulo={
+                <>
+                  Finanzas de <Destacado>{periodo}</Destacado>
+                </>
+              }
+              conclusion={resumen ? conclusionDelPeriodo(resumen, currency) : undefined}
+            />
+            <SelectorPeriodo
+              desde={search.desde}
+              hasta={search.hasta}
+              hoy={hoy}
+              onCambiar={(r) => set(r)}
+            />
+          </div>
 
           {isError ? (
             <ErrorDeCarga
@@ -305,209 +189,101 @@ function FinanzasPage() {
               onReintentar={() => void refetch()}
               reintentando={isFetching}
             />
+          ) : !resumen ? (
+            <TintaCargando texto="Cargando las finanzas del período…" />
           ) : (
-            <KpisEnFilete kpis={kpis} cargando={isLoading} />
-          )}
-
-          {resumen && (
             <>
-              <section aria-labelledby="fin-caja" className="space-y-3">
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 id="fin-caja" className="font-display text-2xl font-semibold">
-                    {agrupadoPorSemana ? "Caja por semana" : "Caja por día"}
-                  </h2>
-                  {serieCaja.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      Mejor {agrupadoPorSemana ? "semana" : "día"}:{" "}
-                      <span className="tabular-nums text-foreground">
-                        {formatMoney(maxDia, currency)}
-                      </span>
-                    </p>
-                  )}
-                </div>
-                {serieCaja.length === 0 ? (
-                  <Vacio
-                    titulo="No hay pagos registrados en este rango."
-                    detalle="Los cobros se registran desde la ficha de cada paciente, en Presupuestos y pagos, y aparecen acá día por día."
-                  />
-                ) : (
-                  <ul className="divide-y divide-hairline border-y border-border">
-                    {serieCaja.map((d) => (
-                      <li
-                        key={d.date}
-                        className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-3 py-2.5 sm:grid-cols-[9rem_minmax(0,1fr)_8rem] sm:gap-5"
-                      >
-                        <span className="truncate text-sm capitalize text-muted-foreground tabular-nums">
-                          {etiquetaBarra(d.date, agrupadoPorSemana)}
-                        </span>
-                        <span aria-hidden className="h-2 overflow-hidden rounded-sm bg-muted">
-                          <span
-                            className="block h-full rounded-sm bg-chart-1"
-                            style={{ width: `${Math.max(2, (d.totalCents / maxDia) * 100)}%` }}
-                          />
-                        </span>
-                        <span className="text-right text-sm cifra">
-                          {formatMoney(d.totalCents, currency)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
+              <ResumenDelPeriodo
+                resumen={resumen}
+                currency={currency}
+                desde={search.desde}
+                hasta={search.hasta}
+              />
 
-              <div className="grid gap-10 lg:grid-cols-2">
-                <section aria-labelledby="fin-metodos" className="min-w-0 space-y-3">
-                  <h2 id="fin-metodos" className="font-display text-2xl font-semibold">
-                    Por método de pago
-                  </h2>
-                  {resumen.byMethod.length === 0 ? (
-                    <Vacio
-                      titulo="Sin pagos en este rango."
-                      detalle="Cuando registres cobros vas a ver cuánto entró por efectivo, tarjeta o transferencia."
-                    />
-                  ) : (
-                    <Tabla columnas={["Método", "Pagos", "Monto"]}>
-                      {resumen.byMethod.map((m) => (
-                        <tr key={m.method}>
-                          <td className="py-3 pr-3">
-                            {PAYMENT_METHOD_LABELS[m.method as PaymentMethod] ?? m.method}
-                          </td>
-                          <td className="py-3 pr-3 text-right cifra text-muted-foreground">
-                            {m.count}
-                          </td>
-                          <td className="py-3 text-right cifra">
-                            {formatMoney(m.totalCents, currency)}
-                          </td>
-                        </tr>
-                      ))}
-                    </Tabla>
-                  )}
-                </section>
-
-                <section aria-labelledby="fin-produccion" className="min-w-0 space-y-3">
-                  <h2 id="fin-produccion" className="font-display text-2xl font-semibold">
-                    Producción por profesional
-                  </h2>
-                  {resumen.byProfessional.length === 0 ? (
-                    <Vacio
-                      titulo="Ningún tratamiento se completó en este rango."
-                      detalle="La producción cuenta los ítems del plan marcados como completados, no lo cobrado."
-                    />
-                  ) : (
-                    <Tabla columnas={["Profesional", "Ítems", "Producción"]}>
-                      {resumen.byProfessional.map((p) => (
-                        <tr key={p.professionalId}>
-                          <td className="py-3 pr-3">{p.professionalName}</td>
-                          <td className="py-3 pr-3 text-right cifra text-muted-foreground">
-                            {p.itemsCount}
-                          </td>
-                          <td className="py-3 text-right cifra">
-                            {formatMoney(p.totalCents, currency)}
-                          </td>
-                        </tr>
-                      ))}
-                    </Tabla>
-                  )}
-                </section>
+              <div className="grid items-start gap-[18px] lg:grid-cols-2">
+                <ProduccionPorProfesional resumen={resumen} currency={currency} />
+                <GastosPorCategoria
+                  resumen={resumen}
+                  currency={currency}
+                  desde={search.desde}
+                  hasta={search.hasta}
+                />
               </div>
 
-              <div className="grid gap-10 lg:grid-cols-2">
-                <section aria-labelledby="fin-gastos" className="min-w-0 space-y-3">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <h2 id="fin-gastos" className="font-display text-2xl font-semibold">
-                      Gastos por categoría
-                    </h2>
-                    <Link
-                      to="/gastos"
-                      search={{ desde: search.desde, hasta: search.hasta, categoria: "" }}
-                      className="text-sm text-brand-700 hover:underline"
-                    >
-                      Ver gastos →
-                    </Link>
-                  </div>
-                  {resumen.byExpenseCategory.length === 0 ? (
-                    <Vacio
-                      titulo="No hay gastos cargados en este rango."
-                      detalle="Sin gastos, el resultado es igual a lo cobrado. Carga arriendo, insumos y laboratorio para que refleje lo que de verdad queda."
-                      accion={
-                        <Link
-                          to="/gastos"
-                          search={{ desde: search.desde, hasta: search.hasta, categoria: "" }}
-                          className={buttonVariants({ variant: "outline", size: "sm" })}
-                        >
-                          Cargar un gasto
-                        </Link>
-                      }
-                    />
-                  ) : (
-                    <Tabla columnas={["Categoría", "Peso", "Monto"]}>
-                      {resumen.byExpenseCategory.map((c) => {
-                        const pct = resumen.expensesCents
-                          ? Math.round((c.totalCents / resumen.expensesCents) * 100)
-                          : 0;
-                        return (
-                          <tr key={c.category}>
-                            <td className="py-3 pr-3">{c.category}</td>
-                            <td className="w-[38%] py-3 pr-3">
-                              <span className="flex items-center gap-2.5">
-                                <span
-                                  aria-hidden
-                                  className="h-1.5 flex-1 overflow-hidden rounded-sm bg-muted"
-                                >
-                                  <span
-                                    className="block h-full rounded-sm bg-warning-border"
-                                    style={{ width: `${pct}%` }}
-                                  />
-                                </span>
-                                <span className="w-10 text-right text-muted-foreground cifra">
-                                  {pct}%
-                                </span>
-                              </span>
-                            </td>
-                            <td className="py-3 text-right cifra">
-                              {formatMoney(c.totalCents, currency)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </Tabla>
-                  )}
-                </section>
-
-                <section aria-labelledby="fin-conversion" className="min-w-0 space-y-3">
-                  <h2 id="fin-conversion" className="font-display text-2xl font-semibold">
-                    Conversión de presupuestos
-                  </h2>
-                  {conversionConError ? (
-                    <ErrorDeCarga
-                      mensaje="No pudimos cargar la conversión de presupuestos."
-                      onReintentar={() => void reintentarConversion()}
-                      reintentando={recargandoConversion}
-                    />
-                  ) : cargandoConversion ? (
-                    <p className="border-y border-border py-8 text-sm text-muted-foreground">
-                      Cargando presupuestos…
-                    </p>
-                  ) : !conversion || conversion.created === 0 ? (
-                    <Vacio
-                      titulo="No se crearon presupuestos en este rango."
-                      detalle="Los presupuestos se arman desde la ficha del paciente; acá vas a ver cuántos se aceptan."
-                    />
-                  ) : (
-                    <>
-                      <KpisEnFilete kpis={kpisConversion} columnas={2} tamano="md" />
-                      <p className="text-sm text-muted-foreground">
+              <section aria-labelledby="fin-conversion" className={cn(PANEL, "p-5")}>
+                <h2 id="fin-conversion" className={TITULO_PANEL}>
+                  Conversión de <Destacado>presupuestos</Destacado>
+                </h2>
+                {conversionConError ? (
+                  <ErrorDeCarga
+                    className="mt-4"
+                    mensaje="No pudimos cargar la conversión de presupuestos."
+                    onReintentar={() => void reintentarConversion()}
+                    reintentando={recargandoConversion}
+                  />
+                ) : cargandoConversion ? (
+                  <p className="mt-3 text-sm text-muted-foreground">Cargando presupuestos…</p>
+                ) : !conversion || conversion.created === 0 ? (
+                  <SinDatos
+                    className="px-0 pb-0"
+                    titulo="No se crearon presupuestos en este rango."
+                    detalle="Los presupuestos se arman desde la ficha del paciente; acá vas a ver cuántos se aceptan."
+                  />
+                ) : (
+                  <div className="mt-4 grid gap-6 md:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] md:items-start">
+                    <div>
+                      <p className="whitespace-nowrap font-display text-[56px] font-medium leading-none tracking-[-0.03em] [font-variant-numeric:lining-nums]">
+                        {conversion.conversionRate === null ? "—" : conversion.conversionRate}
+                        {conversion.conversionRate !== null && (
+                          <span className="text-brand-600">%</span>
+                        )}
+                      </p>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {conversion.conversionRate === null
+                          ? "Ninguno resuelto todavía."
+                          : "de los aceptados o rechazados se aceptó."}
+                      </p>
+                      <p className="mt-3 text-sm text-muted-foreground">
                         {plural(conversion.created, "presupuesto creado", "presupuestos creados")}{" "}
                         por{" "}
-                        <span className="tabular-nums">
+                        <span className="cifra text-foreground">
                           {formatMoney(conversion.createdTotalCents, currency)}
                         </span>
                         .
                       </p>
-                    </>
-                  )}
-                </section>
-              </div>
+                    </div>
+                    <div className="min-w-0">
+                      <BarraApilada
+                        sobre="papel"
+                        sinPorcentaje
+                        partes={[
+                          {
+                            clave: "aceptados",
+                            etiqueta: `Aceptados · ${formatMoney(conversion.acceptedTotalCents, currency)}`,
+                            valor: conversion.accepted,
+                            texto: String(conversion.accepted),
+                            color: "var(--color-success)",
+                          },
+                          {
+                            clave: "pendientes",
+                            etiqueta: "Pendientes · esperan respuesta",
+                            valor: conversion.pending,
+                            texto: String(conversion.pending),
+                            color: "var(--color-warning-border)",
+                          },
+                          {
+                            clave: "rechazados",
+                            etiqueta: "Rechazados · vale preguntar por qué",
+                            valor: conversion.rejected,
+                            texto: String(conversion.rejected),
+                            color: "var(--color-destructive)",
+                          },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                )}
+              </section>
             </>
           )}
         </div>
@@ -516,49 +292,237 @@ function FinanzasPage() {
   );
 }
 
-function Tabla({ columnas, children }: { columnas: string[]; children: React.ReactNode }) {
+function ResumenDelPeriodo({
+  resumen,
+  currency,
+  desde,
+  hasta,
+}: {
+  resumen: FinanceSummary;
+  currency: string;
+  desde: string;
+  hasta: string;
+}) {
+  const { porSemana, puntos } = serieDeCaja(resumen.byDay, desde, hasta);
+  const mejor = puntos.reduce((m, p) => (p.totalCents > m.totalCents ? p : m), {
+    date: "",
+    totalCents: 0,
+  });
+  const sinPagos = resumen.paymentsCount === 0;
+  const dinero = (c: number) => formatMoney(c, currency);
+
   return (
-    <div className="overflow-x-auto border-y border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-xs font-medium text-muted-foreground">
-            {columnas.map((c, i) => (
-              <th
-                key={c}
-                scope="col"
-                className={cn(
-                  "py-2.5 font-normal",
-                  i === 0 ? "pr-3 text-left" : "text-right",
-                  i > 0 && i < columnas.length - 1 && "pr-3",
-                )}
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-hairline border-t border-hairline">{children}</tbody>
-      </table>
-    </div>
+    <section
+      aria-label="Resumen del período"
+      className={cn(TINTA, "grid gap-7 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]")}
+    >
+      <div className="min-w-0">
+        <EtiquetaTinta>Cobrado en el período</EtiquetaTinta>
+        <MontoEnTinta cents={resumen.totalCents} currency={currency} />
+        <p className="mt-3.5 text-sm font-medium text-on-night-2">
+          {sinPagos ? (
+            "Todavía no hay pagos en este período."
+          ) : (
+            <>
+              <b className="font-semibold text-on-night">
+                {plural(resumen.paymentsCount, "pago", "pagos")}
+              </b>
+              {resumen.retentionCents !== null && resumen.retentionCents > 0 && (
+                <>
+                  {" · entra "}
+                  <b className="font-semibold text-on-night">{dinero(resumen.netCents ?? 0)}</b>
+                  {`, retienen ${dinero(resumen.retentionCents)}`}
+                </>
+              )}
+              {mejor.totalCents > 0 && (
+                <>
+                  {` · mejor ${porSemana ? "semana" : "día"} `}
+                  <b className="font-semibold text-on-night">{dinero(mejor.totalCents)}</b>
+                </>
+              )}
+            </>
+          )}
+        </p>
+        {puntos.length > 0 && (
+          <BarrasEnTinta
+            titulo={porSemana ? "Caja por semana" : "Caja por día"}
+            puntos={puntos.map((p) => ({
+              clave: p.date,
+              etiqueta: porSemana ? fechaCorta(p.date) : String(Number(p.date.slice(8))),
+              valor: p.totalCents,
+              descripcion: `${porSemana ? `Semana del ${fechaCorta(p.date)}` : diaSemana(p.date)}: ${
+                p.totalCents > 0 ? dinero(p.totalCents) : "sin cobros"
+              }`,
+            }))}
+          />
+        )}
+        <p className="mt-2 text-xs text-on-night-2">
+          {porSemana ? "Caja por semana, de lunes a domingo." : "Caja por día."}
+        </p>
+      </div>
+
+      <div className="flex min-w-0 flex-col">
+        <EtiquetaTinta>Por método de pago</EtiquetaTinta>
+        <BarraApilada
+          sobre="tinta"
+          vacio="Sin pagos en este período."
+          partes={resumen.byMethod.map((m) => ({
+            clave: m.method,
+            etiqueta: `${PAYMENT_METHOD_LABELS[m.method as PaymentMethod] ?? m.method} · ${m.count}`,
+            valor: m.totalCents,
+            texto: dinero(m.totalCents),
+          }))}
+        />
+        <div className="mt-auto pt-5">
+          <DatosEnTinta
+            columnas={3}
+            datos={[
+              {
+                label: "Gastos",
+                valor: dinero(resumen.expensesCents),
+                nota:
+                  resumen.expensesCount === 0
+                    ? "sin gastos cargados"
+                    : plural(resumen.expensesCount, "gasto", "gastos"),
+              },
+              {
+                label: "Resultado",
+                // formatMoney ya pone el signo adelante: "-$120.000".
+                valor: dinero(resumen.resultCents),
+                nota:
+                  resumen.resultCents < 0
+                    ? "en negativo"
+                    : resumen.retentionCents === null
+                      ? "sin retenciones"
+                      : "neto, menos gastos",
+              },
+              {
+                label: "Ticket promedio",
+                // Regla 11: sin pagos no hay ticket promedio, no un $0 fabricado.
+                valor: sinPagos ? "Sin datos" : dinero(resumen.averageTicketCents),
+                nota: sinPagos ? "sin pagos" : "por pago",
+              },
+            ]}
+          />
+        </div>
+      </div>
+    </section>
   );
 }
 
-function Vacio({
-  titulo,
-  detalle,
-  accion,
+function ProduccionPorProfesional({
+  resumen,
+  currency,
 }: {
-  titulo: string;
-  detalle: string;
-  accion?: React.ReactNode;
+  resumen: FinanceSummary;
+  currency: string;
+}) {
+  const max = Math.max(0, ...resumen.byProfessional.map((p) => p.totalCents));
+  return (
+    <section aria-labelledby="fin-produccion" className={cn(PANEL, "p-5")}>
+      <h2 id="fin-produccion" className={TITULO_PANEL}>
+        Producción por <Destacado>profesional</Destacado>
+      </h2>
+      {resumen.byProfessional.length === 0 ? (
+        <SinDatos
+          className="px-0 pb-0"
+          titulo="Ningún tratamiento se completó en este rango."
+          detalle="La producción cuenta los ítems del plan marcados como completados, no lo cobrado."
+        />
+      ) : (
+        <>
+          <ul className="mt-4 grid gap-3.5">
+            {resumen.byProfessional.map((p) => (
+              <li key={p.professionalId}>
+                <div className="flex justify-between gap-2.5 text-sm font-semibold">
+                  <span className="min-w-0 truncate">{p.professionalName}</span>
+                  <span className="cifra font-medium">{formatMoney(p.totalCents, currency)}</span>
+                </div>
+                <BarraFina
+                  className="mt-1.5"
+                  pct={max > 0 ? (p.totalCents / max) * 100 : 0}
+                  color={
+                    p.color === null ? "var(--color-muted-foreground)" : colorProfesional(p.color)
+                  }
+                />
+                <p className="mt-1 text-[12.5px] text-muted-foreground">
+                  {plural(p.itemsCount, "ítem completado", "ítems completados")}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Cada barra lleva el color del profesional en la agenda. Cuenta lo realizado, no lo
+            cobrado.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
+function GastosPorCategoria({
+  resumen,
+  currency,
+  desde,
+  hasta,
+}: {
+  resumen: FinanceSummary;
+  currency: string;
+  desde: string;
+  hasta: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-4 border-y border-border py-6">
-      <div className="max-w-prose space-y-1">
-        <p className="text-sm font-medium">{titulo}</p>
-        <p className="text-sm text-muted-foreground">{detalle}</p>
+    <section aria-labelledby="fin-gastos" className={cn(PANEL, "p-5")}>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 id="fin-gastos" className={TITULO_PANEL}>
+          Gastos por <Destacado>categoría</Destacado>
+        </h2>
+        <Link
+          to="/gastos"
+          search={{ desde, hasta, categoria: "" }}
+          className="rounded-sm text-sm font-medium text-brand-700 underline-offset-4 outline-none hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          Ver gastos →
+        </Link>
       </div>
-      {accion}
-    </div>
+      {resumen.byExpenseCategory.length === 0 ? (
+        <SinDatos
+          className="px-0 pb-0"
+          titulo="No hay gastos cargados en este rango."
+          detalle="Sin gastos, el resultado es igual a lo cobrado. Carga arriendo, insumos y laboratorio para que refleje lo que de verdad queda."
+          accion={
+            <Link
+              to="/gastos"
+              search={{ desde, hasta, categoria: "" }}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              Cargar un gasto
+            </Link>
+          }
+        />
+      ) : (
+        <ul className="mt-4 grid gap-3.5">
+          {resumen.byExpenseCategory.map((c) => {
+            const pct = resumen.expensesCents
+              ? Math.round((c.totalCents / resumen.expensesCents) * 100)
+              : 0;
+            return (
+              <li key={c.category}>
+                <div className="flex justify-between gap-2.5 text-sm font-semibold">
+                  <span className="min-w-0 truncate">{c.category}</span>
+                  <span className="cifra font-medium">{formatMoney(c.totalCents, currency)}</span>
+                </div>
+                <BarraFina className="mt-1.5" pct={pct} color="var(--color-warning-border)" />
+                <p className="mt-1 flex justify-between text-[12.5px] text-muted-foreground">
+                  <span>{plural(c.count, "gasto", "gastos")}</span>
+                  <span className="cifra">{pct}%</span>
+                </p>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }

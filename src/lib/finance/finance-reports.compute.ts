@@ -33,6 +33,8 @@ export interface FinanceSummary {
   byProfessional: {
     professionalId: string;
     professionalName: string;
+    /** Color del profesional en la agenda (AGE-06); null sin asignar. */
+    color: string | null;
     totalCents: number;
     itemsCount: number;
   }[];
@@ -136,11 +138,12 @@ export async function computeFinanceSummary(
   ];
   const { data: professionals, error: profError } = await supabase
     .from("professionals")
-    .select("id, full_name")
+    .select("id, full_name, color")
     .in("id", professionalIds.length ? professionalIds : [""]);
   if (profError)
     throw new Error(mensajeDb(profError, "No pudimos cargar los datos de los profesionales."));
   const nameById = new Map((professionals ?? []).map((p) => [p.id, p.full_name]));
+  const colorById = new Map((professionals ?? []).map((p) => [p.id, p.color]));
 
   const byProfMap = new Map<string, { totalCents: number; itemsCount: number }>();
   for (const it of items ?? []) {
@@ -155,6 +158,7 @@ export async function computeFinanceSummary(
       professionalId,
       professionalName:
         professionalId === SIN_ASIGNAR ? "Sin asignar" : (nameById.get(professionalId) ?? "—"),
+      color: colorById.get(professionalId) ?? null,
       ...v,
     }))
     .sort((a, b) => b.totalCents - a.totalCents);
