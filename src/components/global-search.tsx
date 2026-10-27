@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   CalendarPlus,
   CornerDownLeft,
+  Keyboard,
+  ListFilter,
   Loader2,
   LockOpen,
   Search,
@@ -38,6 +40,12 @@ import {
 } from "@/lib/shell";
 import { cn } from "@/lib/utils";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
+import {
+  atajosQueCoinciden,
+  expandirConSinonimos,
+  unirSinRepetir,
+  type AtajoDePantalla,
+} from "@/lib/search";
 
 const ICONO_ACCION: Record<AccionRapida["id"], LucideIcon> = {
   "nueva-cita": CalendarPlus,
@@ -143,12 +151,31 @@ export function GlobalSearch({
     );
   }, [access.role]);
 
+  // NAV-04: lo escrito y lo que significa ("abono" → Registrar pago, "hora"
+  // → Nueva cita, "configuración" → Ajustes). Se busca con cada término y se
+  // juntan los resultados, sin repetir.
+  const terminos = useMemo(() => expandirConSinonimos(q), [q]);
   // Desde el comienzo de una palabra: "isi" ya no trae "Reportes · Comisiones".
-  const paginasFiltradas = paginasQueCoinciden(paginas, q);
+  const paginasFiltradas = unirSinRepetir(
+    terminos.map((t) => paginasQueCoinciden(paginas, t)),
+    (p) => p.to,
+  ).slice(0, 8);
   // En solo lectura las acciones crean algo: no se ofrecen (el servidor
   // igual las rechazaría).
   const soloLectura = useSoloLectura();
-  const acciones = !soloLectura && !cobrando ? accionesRapidas(access.role, q) : [];
+  const acciones =
+    !soloLectura && !cobrando
+      ? unirSinRepetir(
+          terminos.map((t) => accionesRapidas(access.role, t)),
+          (a) => a.id,
+        )
+      : [];
+  // Vistas ya filtradas ("Pacientes con saldo") y "Ver atajos de teclado".
+  const atajos = cobrando
+    ? []
+    : atajosQueCoinciden(terminos, (permiso) =>
+        hasPermission(access.role, permiso as Parameters<typeof hasPermission>[1]),
+      );
 
   const clinicId = access.clinic?.id;
   const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
@@ -173,6 +200,21 @@ export function GlobalSearch({
     cerroNavegando.current = true;
     setAbierto(false);
     void navigate({ to });
+  }
+
+  function abrirAtajo(atajo: AtajoDePantalla) {
+    if (atajo.evento) {
+      setAbierto(false);
+      // Después de cerrar: la hoja de atajos no abre con otro diálogo encima.
+      const evento = atajo.evento;
+      window.setTimeout(() => window.dispatchEvent(new Event(evento)), 0);
+      return;
+    }
+    if (atajo.href) {
+      cerroNavegando.current = true;
+      setAbierto(false);
+      void navigate({ href: atajo.href });
+    }
   }
 
   /** Acción rápida: la ruta destino lee el pedido de la URL y abre su
@@ -309,6 +351,24 @@ export function GlobalSearch({
                     const Icono = ICONO_ACCION[a.id];
                     return (
                       <CommandItem key={a.id} value={`accion-${a.id}`} onSelect={() => ejecutar(a)}>
+                        <Icono className="text-muted-foreground" aria-hidden />
+                        <span className="flex-1 truncate">{a.label}</span>
+                        <span className="truncate text-xs text-muted-foreground">{a.detalle}</span>
+                      </CommandItem>
+                    );
+                  })}
+                </CommandGroup>
+              )}
+              {atajos.length > 0 && (
+                <CommandGroup heading="Atajos">
+                  {atajos.map((a) => {
+                    const Icono = a.evento ? Keyboard : ListFilter;
+                    return (
+                      <CommandItem
+                        key={a.id}
+                        value={`atajo-${a.id}`}
+                        onSelect={() => abrirAtajo(a)}
+                      >
                         <Icono className="text-muted-foreground" aria-hidden />
                         <span className="flex-1 truncate">{a.label}</span>
                         <span className="truncate text-xs text-muted-foreground">{a.detalle}</span>
