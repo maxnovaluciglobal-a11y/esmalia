@@ -1950,6 +1950,95 @@ export type Database = {
           },
         ];
       };
+      followup_tasks: {
+        Row: {
+          assigned_to: string | null;
+          clinic_id: string;
+          completed_at: string | null;
+          completed_by: string | null;
+          control_id: string | null;
+          created_at: string;
+          created_by: string;
+          due_on: string;
+          id: string;
+          kind: string;
+          notes: string | null;
+          patient_id: string | null;
+          postponed_count: number;
+          quote_id: string | null;
+          status: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          assigned_to?: string | null;
+          clinic_id: string;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          control_id?: string | null;
+          created_at?: string;
+          created_by: string;
+          due_on: string;
+          id?: string;
+          kind?: string;
+          notes?: string | null;
+          patient_id?: string | null;
+          postponed_count?: number;
+          quote_id?: string | null;
+          status?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          assigned_to?: string | null;
+          clinic_id?: string;
+          completed_at?: string | null;
+          completed_by?: string | null;
+          control_id?: string | null;
+          created_at?: string;
+          created_by?: string;
+          due_on?: string;
+          id?: string;
+          kind?: string;
+          notes?: string | null;
+          patient_id?: string | null;
+          postponed_count?: number;
+          quote_id?: string | null;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "followup_tasks_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "followup_tasks_control_id_fkey";
+            columns: ["control_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_controls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "followup_tasks_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "followup_tasks_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       import_batch_changes: {
         Row: {
           batch_id: string;
@@ -3525,6 +3614,211 @@ export type Database = {
           },
         ];
       };
+      outreach_campaign_recipients: {
+        Row: {
+          campaign_id: string;
+          channel: string;
+          clinic_id: string;
+          created_at: string;
+          destination: string;
+          id: string;
+          message_id: string | null;
+          patient_id: string;
+          processed_at: string | null;
+          processed_by: string | null;
+          reason: string | null;
+          recipient_for: string;
+          status: string;
+        };
+        Insert: {
+          campaign_id: string;
+          channel: string;
+          clinic_id: string;
+          created_at?: string;
+          destination: string;
+          id?: string;
+          message_id?: string | null;
+          patient_id: string;
+          processed_at?: string | null;
+          processed_by?: string | null;
+          reason?: string | null;
+          recipient_for?: string;
+          status?: string;
+        };
+        Update: {
+          campaign_id?: string;
+          channel?: string;
+          clinic_id?: string;
+          created_at?: string;
+          destination?: string;
+          id?: string;
+          message_id?: string | null;
+          patient_id?: string;
+          processed_at?: string | null;
+          processed_by?: string | null;
+          reason?: string | null;
+          recipient_for?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "outreach_campaign_recipients_campaign_id_fkey";
+            columns: ["campaign_id"];
+            isOneToOne: false;
+            referencedRelation: "outreach_campaigns";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "outreach_campaign_recipients_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "outreach_campaign_recipients_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "outreach_campaign_recipients_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      outreach_campaigns: {
+        Row: {
+          body: string;
+          cancelled_at: string | null;
+          channel: string;
+          clinic_id: string;
+          confirmed_at: string | null;
+          confirmed_by: string | null;
+          created_at: string;
+          created_by: string;
+          finished_at: string | null;
+          id: string;
+          name: string;
+          recipients_count: number;
+          segment: Json;
+          segment_label: string | null;
+          status: string;
+          subject: string | null;
+          template_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          body: string;
+          cancelled_at?: string | null;
+          channel: string;
+          clinic_id: string;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          created_by: string;
+          finished_at?: string | null;
+          id?: string;
+          name: string;
+          recipients_count?: number;
+          segment?: Json;
+          segment_label?: string | null;
+          status?: string;
+          subject?: string | null;
+          template_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          body?: string;
+          cancelled_at?: string | null;
+          channel?: string;
+          clinic_id?: string;
+          confirmed_at?: string | null;
+          confirmed_by?: string | null;
+          created_at?: string;
+          created_by?: string;
+          finished_at?: string | null;
+          id?: string;
+          name?: string;
+          recipients_count?: number;
+          segment?: Json;
+          segment_label?: string | null;
+          status?: string;
+          subject?: string | null;
+          template_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "outreach_campaigns_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "outreach_campaigns_template_id_fkey";
+            columns: ["template_id"];
+            isOneToOne: false;
+            referencedRelation: "outreach_templates";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      outreach_templates: {
+        Row: {
+          active: boolean;
+          body: string;
+          channel: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          name: string;
+          subject: string | null;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          active?: boolean;
+          body: string;
+          channel: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by: string;
+          id?: string;
+          name: string;
+          subject?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          active?: boolean;
+          body?: string;
+          channel?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          name?: string;
+          subject?: string | null;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "outreach_templates_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_consents: {
         Row: {
           alternatives_snapshot: string | null;
@@ -3651,6 +3945,76 @@ export type Database = {
             columns: ["treatment_item_id"];
             isOneToOne: false;
             referencedRelation: "treatment_items";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_controls: {
+        Row: {
+          appointment_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          due_on: string;
+          id: string;
+          months: number | null;
+          patient_id: string;
+          reason: string;
+          resolved_at: string | null;
+          resolved_by: string | null;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by: string;
+          due_on: string;
+          id?: string;
+          months?: number | null;
+          patient_id: string;
+          reason: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          appointment_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          due_on?: string;
+          id?: string;
+          months?: number | null;
+          patient_id?: string;
+          reason?: string;
+          resolved_at?: string | null;
+          resolved_by?: string | null;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_controls_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_controls_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_controls_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
             referencedColumns: ["id"];
           },
         ];
@@ -7909,6 +8273,10 @@ export type Database = {
         Args: { p_clinic_id: string; p_receivable_ids?: string[] };
         Returns: { last_paid_at: string; paid_cents: number; receivable_id: string }[];
       };
+      reclamar_envios_de_campana: {
+        Args: { p_campaign_id: string; p_limite?: number };
+        Returns: Database["public"]["Tables"]["outreach_campaign_recipients"]["Row"][];
+      };
       registrar_acceso_a_notas_restringidas: {
         Args: { p_clinic_id: string; p_note_ids: string[] };
         Returns: number;
@@ -7979,6 +8347,38 @@ export type Database = {
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       rut_es_valido: { Args: { p_rut: string }; Returns: boolean };
+      seguimiento_datos_de_pacientes: {
+        Args: { p_clinic_id: string };
+        Returns: {
+          cancelled_12m: number;
+          created_at: string;
+          full_name: string;
+          has_future: boolean;
+          last_visit_at: string | null;
+          no_shows_12m: number;
+          patient_id: string;
+          phone: string | null;
+          rejected_quotes_12m: number;
+          visits: number;
+        }[];
+      };
+      seguimiento_planes_activos: {
+        Args: { p_clinic_id: string };
+        Returns: {
+          completed_items: number;
+          has_future: boolean;
+          last_item_completed_at: string | null;
+          last_visit_at: string | null;
+          patient_id: string;
+          patient_name: string;
+          pending_items: number;
+          plan_created_at: string;
+          plan_id: string;
+          plan_name: string;
+          plan_started_at: string | null;
+          quote_id: string | null;
+        }[];
+      };
       set_patient_document_id: {
         Args: { p_document_id: string; p_patient_id: string };
         Returns: undefined;
