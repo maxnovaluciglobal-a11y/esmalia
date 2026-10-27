@@ -63,6 +63,8 @@ export const TABLES = [
   "notifications",
   "odontogram_condition_catalog",
   "odontogram_marks",
+  "online_booking_settings",
+  "online_booking_verifications",
   "operatories",
   "ortho_cases",
   "ortho_controls",

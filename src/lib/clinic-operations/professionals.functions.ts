@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireClinicPermission } from "@/lib/access/clinic-guards.server";
+import { atiendePacientes } from "@/lib/clinic-operations/cita-formulario";
 import { mensajeDb } from "@/lib/db-errors";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
@@ -17,6 +19,10 @@ export type ProfessionalDetail = {
   branchName: string | null;
   specialtyId: string | null;
   specialtyName: string | null;
+  /** EQU-04: marca explícita (null = se deduce del rol). */
+  attendsPatients: boolean | null;
+  /** Lo que vale hoy: la marca o, sin marca, lo deducido del rol (AGE-17). */
+  atiende: boolean;
 };
 
 /** Bloque de horario de un día de la semana. 0 = domingo … 6 = sábado
@@ -44,7 +50,7 @@ export const listProfessionalsDetailed = createServerFn({ method: "GET" })
     const { data: rows, error } = await supabase
       .from("professionals")
       .select(
-        "id, full_name, email, phone, license_number, color, is_active, branch_id, specialty_id",
+        "id, full_name, email, phone, license_number, color, is_active, branch_id, specialty_id, user_id, attends_patients",
       )
       .eq("clinic_id", data.clinicId)
       .order("full_name", { ascending: true });
@@ -57,19 +63,32 @@ export const listProfessionalsDetailed = createServerFn({ method: "GET" })
       ...new Set((rows ?? []).map((r) => r.specialty_id).filter(Boolean)),
     ] as string[];
 
-    const [{ data: branches, error: branchErr }, { data: specialties, error: specErr }] =
-      await Promise.all([
-        supabase
-          .from("branches")
-          .select("id, name")
-          .in("id", branchIds.length ? branchIds : [""]),
-        supabase
-          .from("specialties")
-          .select("id, name")
-          .in("id", specialtyIds.length ? specialtyIds : [""]),
-      ]);
+    const userIds = [...new Set((rows ?? []).map((r) => r.user_id).filter(Boolean))] as string[];
+
+    const [
+      { data: branches, error: branchErr },
+      { data: specialties, error: specErr },
+      { data: miembros, error: miembrosErr },
+    ] = await Promise.all([
+      supabase
+        .from("branches")
+        .select("id, name")
+        .in("id", branchIds.length ? branchIds : [""]),
+      supabase
+        .from("specialties")
+        .select("id, name")
+        .in("id", specialtyIds.length ? specialtyIds : [""]),
+      supabase
+        .from("clinic_members")
+        .select("user_id, role")
+        .eq("clinic_id", data.clinicId)
+        .in("user_id", userIds.length ? userIds : [""]),
+    ]);
     if (branchErr) throw new Error(mensajeDb(branchErr, "No pudimos cargar las sucursales."));
     if (specErr) throw new Error(mensajeDb(specErr, "No pudimos cargar las especialidades."));
+    if (miembrosErr)
+      throw new Error(mensajeDb(miembrosErr, "No pudimos cargar los roles del equipo."));
+    const rolPorUsuario = new Map((miembros ?? []).map((m) => [m.user_id, m.role]));
 
     const branchById = new Map((branches ?? []).map((b) => [b.id, b.name]));
     const specialtyById = new Map((specialties ?? []).map((s) => [s.id, s.name]));
@@ -86,6 +105,11 @@ export const listProfessionalsDetailed = createServerFn({ method: "GET" })
       branchName: r.branch_id ? (branchById.get(r.branch_id) ?? null) : null,
       specialtyId: r.specialty_id,
       specialtyName: r.specialty_id ? (specialtyById.get(r.specialty_id) ?? null) : null,
+      attendsPatients: r.attends_patients,
+      atiende: atiendePacientes(
+        r.user_id ? (rolPorUsuario.get(r.user_id) ?? null) : null,
+        r.attends_patients,
+      ),
     }));
   });
 
@@ -150,6 +174,41 @@ export const updateProfessional = createServerFn({ method: "POST" })
       .eq("id", data.professionalId)
       .eq("clinic_id", data.clinicId);
     if (error) throw new Error("No tienes permisos para editar este profesional.");
+    return { ok: true };
+  });
+
+/**
+ * EQU-04: marca "Atiende pacientes". true/false manda sobre el rol; null
+ * vuelve a deducirlo del rol (AGE-17). Solo owner/admin (par de la RLS de
+ * `professionals`, que ya restringe el UPDATE).
+ */
+export const setAtiendePacientes = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        professionalId: z.string().uuid(),
+        atiende: z.boolean().nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireClinicPermission(
+      context.supabase,
+      data.clinicId,
+      context.userId,
+      "settings:manage",
+      "No tienes permisos para cambiar quién atiende pacientes.",
+    );
+    const { data: fila, error } = await context.supabase
+      .from("professionals")
+      .update({ attends_patients: data.atiende })
+      .eq("id", data.professionalId)
+      .eq("clinic_id", data.clinicId)
+      .select("id")
+      .maybeSingle();
+    if (error || !fila) throw new Error("No tienes permisos para editar este profesional.");
     return { ok: true };
   });
 
