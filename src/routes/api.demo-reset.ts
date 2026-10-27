@@ -123,6 +123,11 @@ export const Route = createFileRoute("/api/demo-reset")({
         // Ola 13 · A: exámenes, sesiones de fotos y antes/después con imágenes
         // generadas (sin datos reales). Nunca lanza.
         await (await import("@/lib/demo/examenes.server")).sembrarExamenesDeLaDemo(supabaseAdmin);
+        // Ola 14 · B: citas grupales (una hoy y otra de ayer con asistencia) y
+        // ciclos de autoclave con paquetes etiquetados y usados. Nunca lanza.
+        await (
+          await import("@/lib/demo/grupales-esterilizacion.server")
+        ).sembrarGrupalesYEsterilizacionDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },
