@@ -56,6 +56,14 @@ const ODONTOGRAMA = [
   "components/periodontal-chart.tsx",
   "components/odontograma-sugerencia-presupuesto.tsx",
   "lib/clinical/odontograma-reglas.ts",
+  // Ola 9 (ODO-04 a ODO-08, PER-02/03).
+  "components/odontograma-sextantes.tsx",
+  "components/odontograma-varias.tsx",
+  "components/odontograma-observacion.tsx",
+  "components/odontograma-vista-presupuesto.tsx",
+  "components/odontograma-por-tratar.tsx",
+  "components/odontograma-muestra.tsx",
+  "components/periodontal-comparacion.tsx",
 ];
 
 function usosDeCobaltoFueraDeLugar(raiz: string, rutas: string[]): string[] {
