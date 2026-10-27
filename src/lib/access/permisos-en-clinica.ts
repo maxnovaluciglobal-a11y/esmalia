@@ -84,4 +84,3 @@ export async function tienePermisoEnClinica(
 ): Promise<boolean> {
   return (await permisosEfectivosEnClinica(supabase, clinicId, userId)).includes(permission);
 }
-

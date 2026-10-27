@@ -23,7 +23,8 @@
 --     traspasos (cash:manage); reversar pagos y anular cuentas por cobrar
 --     (payments:reverse); reglas y liquidaciones de comisiones, lo ajeno y lo
 --     propio por separado (commission:view-all / view-own).
---   · DAR: políticas PERMISIVAS `ajuste_da_*` nuevas, estrictamente acotadas:
+--   · DAR: se amplía con ALTER POLICY (mismo nombre, condición de siempre más un
+--     «o permiso_otorgado» acotado; la suite exige una sola permisiva por comando):
 --     solo de lectura para gastos y comisiones (finance:view,
 --     commission:view-all) y, para caja, solo la caja PROPIA de quien la abre.
 --     Solo se activan con un "dar" vigente Y admitido para el rol actual
@@ -290,81 +291,143 @@ create policy ajuste_quita_ver_comisiones_propias on public.commission_rule_vers
              where pr.id = commission_rule_versions.professional_id
                and pr.user_id = (select auth.uid())));
 
--- ─── 5. DAR · políticas permisivas acotadas ────────────────────────────────
+-- ─── 5. DAR · se suma «o tiene el permiso dado» a políticas permisivas ──────
+-- La suite exige UNA sola política permisiva por (rol, comando) y tabla
+-- (`tests/rls-politicas-por-comando.test.ts`), así que en vez de políticas
+-- paralelas se amplía cada política vigente con `or permiso_otorgado(...)`
+-- (ALTER POLICY: mismo nombre, misma condición de siempre y un «o» acotado).
+-- Sin ningún «dar», `permiso_otorgado` es falso y cada política queda
+-- exactamente como estaba.
 
 -- 5.a Finanzas (finance:view): solo LECTURA de gastos y gastos fijos. Escribir
 -- gastos sigue siendo de owner/admin/contabilidad por rol. Pagos, presupuestos,
 -- cuentas por cobrar y convenios ya los leen recepción y profesionales.
+alter policy expenses_select_finance_roles on public.expenses
+  using (
+    public.has_clinic_role(clinic_id, ARRAY['owner','admin','accounting']::public.app_role[])
+    or public.permiso_otorgado(clinic_id, 'finance:view')
+  );
 
-drop policy if exists ajuste_da_ver_finanzas on public.expenses;
-create policy ajuste_da_ver_finanzas on public.expenses
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'finance:view'));
-
-drop policy if exists ajuste_da_ver_finanzas on public.recurring_expenses;
-create policy ajuste_da_ver_finanzas on public.recurring_expenses
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'finance:view'));
+alter policy recurring_expenses_select_finance_roles on public.recurring_expenses
+  using (
+    public.has_clinic_role(clinic_id, array['owner','admin','accounting']::public.app_role[])
+    or public.permiso_otorgado(clinic_id, 'finance:view')
+  );
 
 -- 5.b Comisiones de todo el equipo (commission:view-all): solo lectura.
+alter policy commission_rules_select on public.commission_rules
+  using (
+    public.has_clinic_role(clinic_id, ARRAY['owner','admin','accounting']::public.app_role[])
+    or professional_id in (
+      select professionals.id from public.professionals
+       where professionals.user_id = (select auth.uid())
+    )
+    or public.permiso_otorgado(clinic_id, 'commission:view-all')
+  );
 
-drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_rules;
-create policy ajuste_da_ver_comisiones_de_todos on public.commission_rules
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'commission:view-all'));
+alter policy commission_settlements_select on public.commission_settlements
+  using (
+    public.has_clinic_role(clinic_id, ARRAY['owner','admin','accounting']::public.app_role[])
+    or professional_id in (
+      select professionals.id from public.professionals
+       where professionals.user_id = (select auth.uid())
+    )
+    or public.permiso_otorgado(clinic_id, 'commission:view-all')
+  );
 
-drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_settlements;
-create policy ajuste_da_ver_comisiones_de_todos on public.commission_settlements
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'commission:view-all'));
-
-drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_rule_versions;
-create policy ajuste_da_ver_comisiones_de_todos on public.commission_rule_versions
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'commission:view-all'));
+alter policy commission_rule_versions_select on public.commission_rule_versions
+  using (
+    public.has_clinic_role(clinic_id, array['owner','admin','accounting']::public.app_role[])
+    or professional_id in (
+      select professionals.id from public.professionals
+       where professionals.user_id = (select auth.uid())
+    )
+    or public.permiso_otorgado(clinic_id, 'commission:view-all')
+  );
 
 -- 5.c Caja (cash:manage): quien la recibe por persona maneja SU caja (la que
 -- abre a su nombre) y los traspasos que salen de ella. La caja general y las
 -- cajas de otras personas siguen siendo de recepción, contabilidad y
 -- administración.
+alter policy cash_registers_insert_cashiers on public.cash_registers
+  with check (
+    (
+      public.has_clinic_role(clinic_id, array['owner','admin','reception','accounting']::public.app_role[])
+      and opened_by = (select auth.uid())
+      and (operator_id is null or operator_id = (select auth.uid()))
+    )
+    or (
+      public.permiso_otorgado(clinic_id, 'cash:manage')
+      and opened_by = (select auth.uid())
+      and operator_id = (select auth.uid())
+    )
+  );
 
-drop policy if exists ajuste_da_caja_insert on public.cash_registers;
-create policy ajuste_da_caja_insert on public.cash_registers
-  for insert to authenticated
-  with check (public.permiso_otorgado(clinic_id, 'cash:manage')
-    and opened_by = (select auth.uid())
-    and operator_id = (select auth.uid()));
+alter policy cash_registers_update_cashiers on public.cash_registers
+  using (
+    (
+      public.has_clinic_role(clinic_id, array['owner','admin','reception','accounting']::public.app_role[])
+      and (
+        operator_id is null
+        or operator_id = (select auth.uid())
+        or public.can_manage_clinic(clinic_id)
+      )
+    )
+    or (public.permiso_otorgado(clinic_id, 'cash:manage') and operator_id = (select auth.uid()))
+  )
+  with check (
+    (
+      public.has_clinic_role(clinic_id, array['owner','admin','reception','accounting']::public.app_role[])
+      and (
+        operator_id is null
+        or operator_id = (select auth.uid())
+        or public.can_manage_clinic(clinic_id)
+      )
+    )
+    or (public.permiso_otorgado(clinic_id, 'cash:manage') and operator_id = (select auth.uid()))
+  );
 
-drop policy if exists ajuste_da_caja_update on public.cash_registers;
-create policy ajuste_da_caja_update on public.cash_registers
-  for update to authenticated
-  using (public.permiso_otorgado(clinic_id, 'cash:manage')
-    and operator_id = (select auth.uid()))
-  with check (public.permiso_otorgado(clinic_id, 'cash:manage')
-    and operator_id = (select auth.uid()));
+alter policy cash_movements_select on public.cash_movements
+  using (
+    public.has_clinic_role(clinic_id, array['owner','admin','reception','accounting']::public.app_role[])
+    or (
+      public.permiso_otorgado(clinic_id, 'cash:manage')
+      and exists (
+        select 1 from public.cash_registers r
+         where r.clinic_id = cash_movements.clinic_id
+           and r.id in (cash_movements.from_register_id, cash_movements.to_register_id)
+           and r.operator_id = (select auth.uid())
+      )
+    )
+  );
 
-drop policy if exists ajuste_da_caja_ver_movimientos on public.cash_movements;
-create policy ajuste_da_caja_ver_movimientos on public.cash_movements
-  for select to authenticated
-  using (public.permiso_otorgado(clinic_id, 'cash:manage')
-    and exists (
-      select 1 from public.cash_registers r
-       where r.clinic_id = cash_movements.clinic_id
-         and r.id in (cash_movements.from_register_id, cash_movements.to_register_id)
-         and r.operator_id = (select auth.uid())
-    ));
-
-drop policy if exists ajuste_da_caja_mover on public.cash_movements;
-create policy ajuste_da_caja_mover on public.cash_movements
-  for insert to authenticated
-  with check (public.permiso_otorgado(clinic_id, 'cash:manage')
-    and created_by = (select auth.uid())
-    and exists (
-      select 1 from public.cash_registers r
-       where r.id = cash_movements.from_register_id
-         and r.clinic_id = cash_movements.clinic_id
-         and r.operator_id = (select auth.uid())
-    ));
+alter policy cash_movements_insert on public.cash_movements
+  with check (
+    (
+      public.has_clinic_role(clinic_id, array['owner','admin','reception','accounting']::public.app_role[])
+      and created_by = (select auth.uid())
+      and exists (
+        select 1 from public.cash_registers r
+         where r.id = cash_movements.from_register_id
+           and r.clinic_id = cash_movements.clinic_id
+           and (
+             r.operator_id is null
+             or r.operator_id = (select auth.uid())
+             or public.can_manage_clinic(r.clinic_id)
+           )
+      )
+    )
+    or (
+      public.permiso_otorgado(clinic_id, 'cash:manage')
+      and created_by = (select auth.uid())
+      and exists (
+        select 1 from public.cash_registers r
+         where r.id = cash_movements.from_register_id
+           and r.clinic_id = cash_movements.clinic_id
+           and r.operator_id = (select auth.uid())
+      )
+    )
+  );
 
 -- ─── 6. Hoy respeta lo dado y lo quitado en dinero y caja ──────────────────
 -- Misma función que la vigente (20261107200000); solo cambian `v_finanzas` y
@@ -753,15 +816,6 @@ $$;
 -- de 20261106300200 (catálogo y trigger) y de 20261107200000 (panel_de_hoy) y 20261107100000 (informe_validar, informe_embudo).
 -- delete from public.clinic_member_permission_overrides
 --  where permission in ('finance:view','cash:manage','payments:reverse','commission:view-own','commission:view-all');
--- drop policy if exists ajuste_da_caja_mover on public.cash_movements;
--- drop policy if exists ajuste_da_caja_ver_movimientos on public.cash_movements;
--- drop policy if exists ajuste_da_caja_update on public.cash_registers;
--- drop policy if exists ajuste_da_caja_insert on public.cash_registers;
--- drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_rule_versions;
--- drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_settlements;
--- drop policy if exists ajuste_da_ver_comisiones_de_todos on public.commission_rules;
--- drop policy if exists ajuste_da_ver_finanzas on public.recurring_expenses;
--- drop policy if exists ajuste_da_ver_finanzas on public.expenses;
 -- drop policy if exists ajuste_quita_ver_comisiones_propias on public.commission_rule_versions;
 -- drop policy if exists ajuste_quita_ver_comisiones_propias on public.commission_settlements;
 -- drop policy if exists ajuste_quita_ver_comisiones_propias on public.commission_rules;
@@ -775,4 +829,7 @@ $$;
 -- drop policy if exists ajuste_quita_caja_insert on public.cash_registers;
 -- drop policy if exists ajuste_quita_ver_finanzas on public.recurring_expenses;
 -- drop policy if exists ajuste_quita_ver_finanzas on public.expenses;
+-- Las 9 políticas ampliadas vuelven a su texto original (ver 20260904180000,
+-- 20261106100000, 20261020120000, 20261106200100 y 20261106200000: quitar el «or …
+-- permiso_otorgado» de cada una).
 -- drop function if exists public.permiso_otorgado(uuid, text);

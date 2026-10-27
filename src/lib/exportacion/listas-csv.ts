@@ -63,10 +63,7 @@ export function puedeExportarLista(rol: SujetoDePermisos, lista: ListaCsv): bool
   return hasPermission(rol, LISTAS_CSV[lista].permiso);
 }
 
-export function puedeVerDineroEnLista(
-  rol: SujetoDePermisos,
-  lista: ListaCsv,
-): boolean {
+export function puedeVerDineroEnLista(rol: SujetoDePermisos, lista: ListaCsv): boolean {
   return hasPermission(rol, permisoDinero(lista));
 }
 

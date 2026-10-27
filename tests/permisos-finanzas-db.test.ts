@@ -296,7 +296,9 @@ describe("Cierre 11 · permisos por persona en finanzas, caja y comisiones (SQL)
     // Recepción abre (se retira su caja sembrada para poder abrir otra).
     await servicio(`DELETE FROM public.cash_registers WHERE id = $1`, [cajaAjena]);
     expect((await abrirCaja(usuarios.reception, usuarios.reception)).error).toBe("");
-    await servicio(`DELETE FROM public.cash_registers WHERE operator_id = $1`, [usuarios.reception]);
+    await servicio(`DELETE FROM public.cash_registers WHERE operator_id = $1`, [
+      usuarios.reception,
+    ]);
     const nueva = await servicio<{ id: string }>(
       `INSERT INTO public.cash_registers
          (clinic_id, currency, opening_amount_cents, opened_by, operator_id, status)
@@ -526,11 +528,9 @@ describe("Cierre 11 · permisos por persona en finanzas, caja y comisiones (SQL)
 
   it("Informes con montos respeta lo dado y lo quitado", async () => {
     const cobrado = (uid: string) =>
-      como(
-        uid,
-        `SELECT * FROM public.informe_metrica($1, 'cobrado', '2026-10-01', '2026-10-31')`,
-        [clinicId],
-      );
+      como(uid, `SELECT * FROM public.informe_metrica($1, 'cobrado', '2026-10-01', '2026-10-31')`, [
+        clinicId,
+      ]);
     expect((await cobrado(usuarios.accounting)).error).toBe("");
     expect((await cobrado(usuarios.reception)).error).toMatch(/permisos/);
     expect((await ajustar("reception", "finance:view", "grant")).error).toBe("");

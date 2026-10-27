@@ -213,7 +213,9 @@ describe("EQU-01 · regla 2 con ajustes por persona", () => {
     expect(sinFinanzas).toContain("commission:view-all");
 
     // Quitar la caja a recepción no le quita agenda ni pacientes.
-    const sinCaja = permisosEfectivos("reception", [{ permission: "cash:manage", effect: "revoke" }]);
+    const sinCaja = permisosEfectivos("reception", [
+      { permission: "cash:manage", effect: "revoke" },
+    ]);
     expect(sinCaja).not.toContain("cash:manage");
     expect(sinCaja).toContain("agenda:manage");
 
