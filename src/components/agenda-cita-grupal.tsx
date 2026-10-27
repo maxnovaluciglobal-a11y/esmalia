@@ -288,8 +288,10 @@ export function SeccionCitaGrupal({
 
       {listaPasable && resumen.vigentes > 0 && (
         <p className="mb-2.5 text-[13px] text-muted-foreground">
-          <span className="cifra">{resumen.asistieron}</span> asistieron ·{" "}
-          <span className="cifra">{resumen.ausentes}</span> ausentes ·{" "}
+          <span className="cifra">{resumen.asistieron}</span>{" "}
+          {resumen.asistieron === 1 ? "asistió" : "asistieron"} ·{" "}
+          <span className="cifra">{resumen.ausentes}</span>{" "}
+          {resumen.ausentes === 1 ? "ausente" : "ausentes"} ·{" "}
           <span className="cifra">{resumen.sinMarcar}</span> sin marcar
         </p>
       )}
