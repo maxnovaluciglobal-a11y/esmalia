@@ -9,6 +9,7 @@
  */
 import {
   MAX_BYTES_ARCHIVOS,
+  TABLAS_EXCLUIDAS_EXPORTACION,
   TABLAS_EXPORTACION,
   archivosDeStorage,
   armarZip,
@@ -27,6 +28,14 @@ import {
   type ContenidoFicha,
 } from "@/lib/exportacion/ficha-paciente";
 import { generarPdfFicha } from "@/lib/exportacion/ficha-pdf";
+import {
+  ARCHIVO_HUELLAS,
+  ARCHIVO_MANIFIESTO,
+  construirManifiesto,
+  huellasDeArchivos,
+  textoHuellas,
+  type Manifiesto,
+} from "@/lib/exportacion/manifiesto";
 
 interface DependenciasComunes {
   firmar: (args: {
@@ -74,7 +83,12 @@ export interface OpcionesExportacion {
   clinicId: string;
   clinicaNombre: string;
   generadoPor: string;
+  /** Usuario que exporta (va al manifiesto). */
+  generadoPorId?: string | null;
+  /** Fecha y hora legibles en la hora de la clínica. */
   generadoEn: string;
+  /** Mismo instante en ISO 8601 UTC (manifiesto). Por defecto, ahora. */
+  generadoEnUtc?: string;
   /** Zona horaria de la clínica (fechas de las fichas en PDF). */
   zonaHoraria?: string;
   onAvance?: (a: AvanceExportacion) => void;
@@ -102,14 +116,14 @@ interface Plan {
   /** Pacientes con PDF; null = todos los de la exportación. */
   fichas: string[] | null;
   incluirFinanzas: boolean;
-  paciente?: string;
+  paciente?: { id: string; nombre: string };
 }
 
 async function armarExportacion(
   deps: DependenciasComunes,
   op: OpcionesExportacion,
   plan: Plan,
-): Promise<{ zip: Uint8Array; conteos: Record<string, number> }> {
+): Promise<{ zip: Uint8Array; conteos: Record<string, number>; manifiesto: Manifiesto }> {
   const avisar = op.onAvance ?? (() => {});
   const ceder = deps.ceder ?? cederPorDefecto;
   const generarPdf = deps.generarPdf ?? generarPdfFicha;
@@ -235,6 +249,26 @@ async function armarExportacion(
     hecho: tablas.length,
     total: tablas.length,
   });
+  // Manifiesto y huellas (EXP-02): la huella de cada archivo tal como va al
+  // ZIP, el texto `huellas-sha256.txt` (verificable con `shasum -c`) y su
+  // propia huella como huella del conjunto. LEEME y manifiesto quedan fuera
+  // de las huellas porque las contienen.
+  const huellas = await huellasDeArchivos(textos, binarios);
+  const manifiesto = await construirManifiesto({
+    clinica: { id: op.clinicId, nombre: op.clinicaNombre },
+    generadoEnUtc: op.generadoEnUtc ?? new Date().toISOString(),
+    generadoEnLocal: op.generadoEn,
+    zonaHoraria: op.zonaHoraria ?? "UTC",
+    generadoPor: { nombre: op.generadoPor, userId: op.generadoPorId ?? null },
+    exportId,
+    paciente: plan.paciente ?? null,
+    tablas,
+    conteos,
+    huellas,
+    tablasExcluidas: TABLAS_EXCLUIDAS_EXPORTACION,
+  });
+  textos[ARCHIVO_HUELLAS] = textoHuellas(huellas);
+  textos[ARCHIVO_MANIFIESTO] = `${JSON.stringify(manifiesto, null, 2)}\n`;
   textos["LEEME.txt"] = conBom(
     construirLeeme({
       clinicaNombre: op.clinicaNombre,
@@ -247,19 +281,20 @@ async function armarExportacion(
       tablas,
       fichasPdf,
       fichasPdfOmitidas,
-      paciente: plan.paciente,
+      paciente: plan.paciente?.nombre,
       sinFinanzas: plan.paciente ? !plan.incluirFinanzas : undefined,
+      manifiesto,
     }),
   );
 
-  return { zip: armarZip(textos, binarios), conteos };
+  return { zip: armarZip(textos, binarios), conteos, manifiesto };
 }
 
 /** Exportación completa de la clínica (owner/admin). */
 export async function generarExportacion(
   deps: DependenciasExportacion,
   op: OpcionesExportacion,
-): Promise<{ zip: Uint8Array; conteos: Record<string, number> }> {
+): Promise<{ zip: Uint8Array; conteos: Record<string, number>; manifiesto: Manifiesto }> {
   op.onAvance?.({
     etapa: "registrando",
     detalle: "Registrando la exportación",
@@ -280,7 +315,7 @@ export async function generarExportacion(
 export async function generarExportacionPaciente(
   deps: DependenciasExportacionPaciente,
   op: OpcionesExportacionPaciente,
-): Promise<{ zip: Uint8Array; conteos: Record<string, number> }> {
+): Promise<{ zip: Uint8Array; conteos: Record<string, number>; manifiesto: Manifiesto }> {
   op.onAvance?.({
     etapa: "registrando",
     detalle: "Registrando la exportación",
@@ -295,6 +330,6 @@ export async function generarExportacionPaciente(
       deps.leer({ clinicId: op.clinicId, exportId, patientId: op.patientId, clave, offset }),
     fichas: [op.patientId],
     incluirFinanzas: op.incluirFinanzas,
-    paciente: op.pacienteNombre,
+    paciente: { id: op.patientId, nombre: op.pacienteNombre },
   });
 }
