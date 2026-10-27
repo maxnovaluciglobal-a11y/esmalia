@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { necesitaDesafioMfa } from "@/lib/auth/mfa";
+import { necesitaDesafioMfa, nivelAal } from "@/lib/auth/mfa";
+import { sesionCumpleSegundoPaso } from "@/lib/auth/mfa-sesion";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -31,9 +32,19 @@ export const Route = createFileRoute("/_authenticated")({
     // así que no rompe el modo sin conexión.
     // La demo es compartida: nunca se le pide código, aunque alguien le haya
     // inscrito un factor desde la consola (ver migración 20261019120000).
+    //
+    // Segundo paso por correo (26-oct-2026): no sube la sesión a `aal2`, así
+    // que si la sesión no es `aal2` se le pregunta a la base
+    // (`mi_estado_mfa`, con cache por sesión en memoria). Sin conexión
+    // (`null`) queda solo la regla de la app autenticadora, que no usa red.
     if (!esCuentaDemo(data.session.user.email)) {
       const { data: niveles } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (necesitaDesafioMfa(niveles)) throw redirect({ to: "/auth/verificar" });
+      if (nivelAal(niveles?.currentLevel) !== "aal2") {
+        const cumple = await sesionCumpleSegundoPaso(supabase, data.session);
+        if (cumple === false || (cumple === null && necesitaDesafioMfa(niveles))) {
+          throw redirect({ to: "/auth/verificar" });
+        }
+      }
     }
 
     return { user: data.session.user };

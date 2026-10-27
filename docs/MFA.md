@@ -1,6 +1,9 @@
-# Verificación en dos pasos (MFA TOTP)
+# Verificación en dos pasos (app autenticadora o código por correo)
 
-Hallazgo SEG-01 de la auditoría 360 (18-oct-2026). Implementado con la API TOTP de Supabase Auth (`supabase.auth.mfa.*`), sin librerías propias de TOTP.
+Hallazgo SEG-01 de la auditoría 360 (18-oct-2026). Dos métodos, que cada usuario activa por separado en `/preferencias` (Seguridad de tu cuenta):
+
+- **App autenticadora** (TOTP): la API TOTP de Supabase Auth (`supabase.auth.mfa.*`), sin librerías propias de TOTP.
+- **Código por correo** (26-oct-2026, pedido de Walter): propio de Esmalia, porque Supabase no tiene factor de correo. Ver la sección "Código por correo" más abajo.
 
 ## Qué hace hoy
 
@@ -60,6 +63,70 @@ Al pie de la migración, comentada. Orden: primero volver a correr la definició
 - Esto es una guarda de interfaz: quien tiene la contraseña puede iniciar sesión de nuevo y llamar `mfa.enroll` desde la consola. Lo que protege de verdad al staff es **que cada integrante ya tenga su factor inscrito**. Mientras no lo tenga, la contraseña sola alcanza para inscribirlo. Por eso, después del deploy, todo el staff activa su factor de inmediato y se verifica con `select user_id, status from auth.mfa_factors`.
 - **Demo:** el cliente nunca le pide el código a `demo@esmalia.com` (`_authenticated/route.tsx` y `/auth/verificar`). `/api/demo-reset` borra sus factores en cada reset (admin API), y la migración `20261019140000_demo_sin_mfa.sql` (**sin aplicar, requiere OK de Walter**) agrega un trigger que rechaza inscribirle factores y borra los existentes.
 
+## Código por correo (26-oct-2026)
+
+Pedido de Walter del 26-oct-2026: esperaba un correo con el código y Esmalia solo usaba Google Authenticator. Migración `20261026900000_mfa_por_correo.sql` (**sin aplicar, requiere OK de Walter**).
+
+### Por qué no es un factor de Supabase
+
+Supabase Auth solo tiene factores **TOTP** y **teléfono** (documentación oficial, consultada el 26-oct-2026); el correo existe como método de inicio de sesión (`otp`), no como segundo factor, y nada que no sea un factor sube la sesión a `aal2`. Por eso:
+
+- El servidor genera el código (6 dígitos uniformes, `generarCodigo`), guarda solo `sha256("mfa-correo:" + user_id + ":" + session_id + ":" + código)` y lo manda por Resend. Vence en 10 minutos, admite 5 intentos y sirve una vez; un código nuevo anula el anterior. Límites: 1 por minuto por sesión y 5 por hora por usuario (en la base), más un límite por IP en memoria.
+- Al validarlo, la base registra la verificación **ligada al `session_id` del JWT** en `mfa_email_verifications`. Vale mientras esa sesión exista en `auth.sessions` (cerrar sesión la borra) y el usuario tenga el correo activo.
+- `public.sesion_cumple_mfa()` pasa a ser: `aal2` **o** (sin TOTP verificado **y** sin correo activo) **o** demo **o** verificación por correo vigente para esta sesión. Parte de la definición de producción (consultada en solo lectura el 26-oct-2026, igual a `20261019230000`): para quien no activó el correo no cambia nada. Las 46 políticas `mfa_exige_aal2` y el guard de las RPC la usan, así que quedan cubiertas sin tocarlas.
+
+| Sesión                                                          | Resultado           |
+| --------------------------------------------------------------- | ------------------- |
+| Correo activo, sesión `aal1` sin código                         | Bloqueada (0 filas) |
+| Correo activo, código verificado en **esta** sesión             | Permitida           |
+| Correo activo, otra sesión del mismo usuario (otro dispositivo) | Bloqueada           |
+| Código verificado, después cierra sesión o desactiva el correo  | Ya no cuenta        |
+| TOTP + correo: `aal2` **o** código por correo                   | Permitida           |
+| Código vencido, usado o con 5 intentos fallidos                 | Rechazado           |
+
+Lo fija `tests/mfa-correo-db.test.ts` contra la base efímera.
+
+### Tablas y funciones
+
+- `mfa_email_settings` (activo, método preferido, autorización para sumar la app), `mfa_email_codes` (solo el hash), `mfa_email_verifications` (sesiones verificadas), `mfa_email_events` (bitácora: enviado, fallido, incorrecto, agotado, verificado, activado, desactivado, método preferido, app autorizada; nunca el código). Las cuatro con RLS **sin políticas**: solo `service_role`. Clasificadas en `TABLAS_SIN_AAL2` y en el backup.
+- `mfa_correo_emitir_codigo` y `mfa_correo_verificar_codigo`: solo `service_role` (las llama el servidor). `mi_estado_mfa()` y `sesion_mfa_por_correo_vigente()`: `authenticated`, solo leen lo del propio usuario y su sesión.
+- Trigger `exigir_correo_para_inscribir_factor` en `auth.mfa_factors`: con el correo activo, GoTrue dejaría inscribir un TOTP a una sesión `aal1` (no hay otro factor de Supabase), y con la contraseña sola se podía subir a `aal2` sin pasar por el correo. El trigger lo rechaza salvo que una sesión ya verificada lo autorice (`autorizarInscripcionApp`, 10 minutos).
+
+### Servidor (`src/lib/auth/mfa-correo.functions.ts`)
+
+- `session_id`, `aal` y `amr` salen del JWT verificado (`context.claims`), nunca del cliente. Ninguna función recibe una dirección: el código va al correo de la cuenta (leído con `service_role`), así que no se puede preguntar por otra ni saber si un correo existe.
+- **Activar** el correo exige inicio de sesión reciente (10 min) y, si la cuenta ya tiene la app, una sesión `aal2`: con la contraseña sola no se suma un método que esquive la app. La activación misma prueba que el correo es suyo (código) y deja verificada la sesión.
+- **Desactivar** o **cambiar el método preferido** exige una sesión que ya cumple (`mi_estado_mfa().sesion_cumple`).
+- Las POST no usan el middleware de escritura: son la seguridad de la cuenta y tienen que funcionar con la suscripción impaga (`ESCRITURA_EXENTA`).
+
+### Cuándo no se ofrece el correo
+
+`motivoCorreoNoDisponible` (`src/lib/auth/mfa-correo.ts`): cuenta demo, envío sin configurar (`RESEND_API_KEY`/`EMAIL_FROM`), cuenta sin correo, correo sin confirmar o de un dominio reservado (`example.com`, `.test`…). La tarjeta muestra el botón deshabilitado con el motivo (`AccionDeshabilitada`).
+
+**Sin modo de prueba:** el código va siempre al correo de la cuenta por Resend directo, sin `email_sandbox_config` de la clínica ni `LIFECYCLE_EMAIL_REDIRECT_TO`. Esos redirigen correos a otra dirección, y un código de acceso redirigido se lo entrega a otra persona. Es un correo de autenticación, como los de Supabase (confirmar cuenta, recuperar contraseña), que tampoco pasan por ahí.
+
+### Interfaz
+
+- `/preferencias` → tarjeta "Verificación en dos pasos": arriba, en una línea, qué se le pide al entrar; después la app y el correo con su estado (Activa / No activa) y sus botones; con los dos activos, "Al entrar, pedirme primero".
+- `/auth/verificar`: ofrece el preferido y "Usar el otro método". Con el correo, el código sale solo al abrir la pantalla, con "Reenviar el código" y cuenta regresiva. Con la app, la ayuda: "El código de la app no llega por correo: abre tu app autenticadora y escribe el número que muestra".
+- `_authenticated/route.tsx`: si la sesión no es `aal2`, pregunta a la base `mi_estado_mfa().sesion_cumple` (la misma función que la RLS) y guarda el `true` en memoria por `session_id`. Sin conexión cae a la regla de la app (sin red), como antes.
+
+### Staff de `/admin`: el correo no alcanza
+
+`requireEsmaliaStaffEmail` sigue exigiendo el claim `aal = "aal2"` del JWT, que solo da la app autenticadora. Decisión: `/admin` ve todas las clínicas, y el correo del staff es justamente lo que se recupera con la contraseña en un robo de cuenta típico; el TOTP vive en otro dispositivo. Un integrante del staff puede tener el correo activo para la app de clínica, pero para `/admin` necesita la app.
+
+### Plan de prueba después de aplicar
+
+1. Usuario sin segundo paso: entra y navega igual que antes.
+2. Activar el correo en `/preferencias` (sesión de menos de 10 min): llega el código, se escribe, queda "Activa" y la sesión sigue adentro.
+3. Cerrar sesión y entrar: pide el código por correo; `/rest/v1/patients` con el `access_token` antes de verificar → `[]`; después → filas.
+4. Sumar la app con el correo activo; elegir "pedirme primero" cada uno; en `/auth/verificar` probar "Usar el otro método".
+5. Control: `select event, count(*) from public.mfa_email_events group by 1;`
+
+### Reversa
+
+Al pie de la migración, comentada: primero se restaura `sesion_cumple_mfa()` a la definición anterior (que no usa las tablas nuevas), después se borran el trigger, las funciones y las tablas. Quien solo tenía el correo queda con la contraseña sola.
+
 ## Cómo volverla obligatoria (owners, o todos los que la activaron)
 
 1. **RLS.** Para quien ya tiene un factor, la exigencia de `aal2` ya está en la base (sección anterior). Para exigirla a **todo owner** aunque no haya inscrito un factor, la condición de `public.sesion_cumple_mfa()` pasaría a ser `(select auth.jwt()->>'aal') = 'aal2' or not public.has_clinic_role(clinic_id, array['owner']::public.app_role[])` en una política aparte por tabla (owner sin `aal2` no lee). Migración versionada, con test cross-tenant y con OK de Walter.
@@ -68,7 +135,7 @@ Al pie de la migración, comentada. Orden: primero volver a correr la definició
 
 3. **Comunicarlo antes**: aviso a las clínicas con fecha de corte, para que nadie quede afuera un lunes a las 9.
 
-## Recuperación (perdió el teléfono)
+## Recuperación (perdió el teléfono o el acceso al correo)
 
 La pantalla de desafío manda a `soporte@esmalia.com`. Procedimiento, solo con identidad verificada (respuesta desde el correo de la cuenta y, para owners, confirmación por un segundo canal conocido):
 
@@ -77,6 +144,8 @@ La pantalla de desafío manda a `soporte@esmalia.com`. Procedimiento, solo con i
 await supabaseAdmin.auth.admin.mfa.listFactors({ userId });
 await supabaseAdmin.auth.admin.mfa.deleteFactor({ userId, id: factorId });
 ```
+
+Si perdió el acceso al correo: `update public.mfa_email_settings set enabled = false where user_id = '<id>';` (con `service_role`, misma verificación de identidad).
 
 Después, pedirle que la vuelva a activar en `/preferencias`. Registrar quién, cuándo y por qué en el runbook de incidentes.
 

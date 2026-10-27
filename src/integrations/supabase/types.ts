@@ -2751,6 +2751,126 @@ export type Database = {
           },
         ];
       };
+      mfa_email_codes: {
+        Row: {
+          attempts: number;
+          code_hash: string;
+          consumed_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          ip: string | null;
+          purpose: string;
+          session_id: string;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          attempts?: number;
+          code_hash: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          ip?: string | null;
+          purpose: string;
+          session_id: string;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          attempts?: number;
+          code_hash?: string;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          ip?: string | null;
+          purpose?: string;
+          session_id?: string;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      mfa_email_events: {
+        Row: {
+          created_at: string;
+          detail: string | null;
+          event: string;
+          id: string;
+          ip: string | null;
+          session_id: string | null;
+          user_agent: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          detail?: string | null;
+          event: string;
+          id?: string;
+          ip?: string | null;
+          session_id?: string | null;
+          user_agent?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          detail?: string | null;
+          event?: string;
+          id?: string;
+          ip?: string | null;
+          session_id?: string | null;
+          user_agent?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      mfa_email_settings: {
+        Row: {
+          enabled: boolean;
+          enabled_at: string | null;
+          preferred_method: string;
+          totp_enroll_allowed_until: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          enabled?: boolean;
+          enabled_at?: string | null;
+          preferred_method?: string;
+          totp_enroll_allowed_until?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          enabled?: boolean;
+          enabled_at?: string | null;
+          preferred_method?: string;
+          totp_enroll_allowed_until?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+      mfa_email_verifications: {
+        Row: {
+          session_id: string;
+          user_id: string;
+          verified_at: string;
+        };
+        Insert: {
+          session_id: string;
+          user_id: string;
+          verified_at?: string;
+        };
+        Update: {
+          session_id?: string;
+          user_id?: string;
+          verified_at?: string;
+        };
+        Relationships: [];
+      };
       notification_preferences: {
         Row: {
           created_at: string;
@@ -6567,6 +6687,29 @@ export type Database = {
         Args: { p_clinic_id: string; p_source_id: string; p_target_id: string };
         Returns: undefined;
       };
+      mfa_correo_emitir_codigo: {
+        Args: {
+          p_code_hash: string;
+          p_ip: string;
+          p_proposito: string;
+          p_session_id: string;
+          p_user_agent: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      mfa_correo_verificar_codigo: {
+        Args: {
+          p_code_hash: string;
+          p_ip: string;
+          p_proposito: string;
+          p_session_id: string;
+          p_user_agent: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
+      mi_estado_mfa: { Args: never; Returns: Json };
       mis_datos_de_firma: {
         Args: { p_clinic_id: string };
         Returns: { nombre: string; origen: string; registro: string }[];
