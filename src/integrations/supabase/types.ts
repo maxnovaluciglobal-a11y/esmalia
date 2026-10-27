@@ -9892,6 +9892,10 @@ export type Database = {
         Args: { p_appointment_id: string; p_device_id: string; p_session_hash: string };
         Returns: Json;
       };
+      totem_paciente_de_sesion: {
+        Args: { p_device_id: string; p_session_hash: string };
+        Returns: string;
+      };
       totem_resumen: { Args: { p_device_id: string; p_session_hash: string }; Returns: Json };
       totem_terminar: { Args: { p_device_id: string; p_session_hash: string }; Returns: undefined };
       uso_de_almacenamiento: {
