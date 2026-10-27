@@ -224,6 +224,121 @@ export type Database = {
           },
         ];
       };
+      appointment_group_participants: {
+        Row: {
+          appointment_id: string;
+          attendance: string;
+          attendance_marked_at: string | null;
+          attendance_marked_by: string | null;
+          clinic_id: string;
+          enrolled_at: string;
+          enrolled_by: string | null;
+          id: string;
+          patient_id: string;
+          updated_at: string;
+          withdraw_reason: string | null;
+          withdrawn_at: string | null;
+          withdrawn_by: string | null;
+        };
+        Insert: {
+          appointment_id: string;
+          attendance?: string;
+          attendance_marked_at?: string | null;
+          attendance_marked_by?: string | null;
+          clinic_id: string;
+          enrolled_at?: string;
+          enrolled_by?: string | null;
+          id?: string;
+          patient_id: string;
+          updated_at?: string;
+          withdraw_reason?: string | null;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Update: {
+          appointment_id?: string;
+          attendance?: string;
+          attendance_marked_at?: string | null;
+          attendance_marked_by?: string | null;
+          clinic_id?: string;
+          enrolled_at?: string;
+          enrolled_by?: string | null;
+          id?: string;
+          patient_id?: string;
+          updated_at?: string;
+          withdraw_reason?: string | null;
+          withdrawn_at?: string | null;
+          withdrawn_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "appointment_group_participants_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointment_groups";
+            referencedColumns: ["appointment_id"];
+          },
+          {
+            foreignKeyName: "appointment_group_participants_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "appointment_group_participants_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      appointment_groups: {
+        Row: {
+          appointment_id: string;
+          capacity: number;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          appointment_id: string;
+          capacity: number;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          appointment_id?: string;
+          capacity?: number;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "appointment_groups_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: true;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "appointment_groups_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       appointment_requests: {
         Row: {
           clinic_id: string;
@@ -8432,6 +8547,203 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sterilization_cycles: {
+        Row: {
+          biological_indicator: string;
+          biological_lot: string | null;
+          biological_read_at: string | null;
+          branch_id: string | null;
+          chemical_indicator: string;
+          chemical_indicator_class: string | null;
+          clinic_id: string;
+          created_at: string;
+          cycle_type: string;
+          equipment: string;
+          equipment_serial: string | null;
+          exposure_minutes: number | null;
+          failure_reason: string | null;
+          id: string;
+          notes: string | null;
+          number: number;
+          pressure_bar: number | null;
+          recorded_by: string | null;
+          responsible_name: string;
+          result: string;
+          result_at: string | null;
+          run_at: string;
+          temperature_c: number | null;
+          updated_at: string;
+          year: number;
+        };
+        Insert: {
+          biological_indicator?: string;
+          biological_lot?: string | null;
+          biological_read_at?: string | null;
+          branch_id?: string | null;
+          chemical_indicator?: string;
+          chemical_indicator_class?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          cycle_type: string;
+          equipment: string;
+          equipment_serial?: string | null;
+          exposure_minutes?: number | null;
+          failure_reason?: string | null;
+          id?: string;
+          notes?: string | null;
+          number?: number;
+          pressure_bar?: number | null;
+          recorded_by?: string | null;
+          responsible_name: string;
+          result?: string;
+          result_at?: string | null;
+          run_at: string;
+          temperature_c?: number | null;
+          updated_at?: string;
+          year?: number;
+        };
+        Update: {
+          biological_indicator?: string;
+          biological_lot?: string | null;
+          biological_read_at?: string | null;
+          branch_id?: string | null;
+          chemical_indicator?: string;
+          chemical_indicator_class?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          cycle_type?: string;
+          equipment?: string;
+          equipment_serial?: string | null;
+          exposure_minutes?: number | null;
+          failure_reason?: string | null;
+          id?: string;
+          notes?: string | null;
+          number?: number;
+          pressure_bar?: number | null;
+          recorded_by?: string | null;
+          responsible_name?: string;
+          result?: string;
+          result_at?: string | null;
+          run_at?: string;
+          temperature_c?: number | null;
+          updated_at?: string;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sterilization_cycles_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sterilization_cycles_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sterilization_packages: {
+        Row: {
+          clinic_id: string;
+          code: string;
+          contents: string;
+          created_at: string;
+          created_by: string | null;
+          cycle_id: string;
+          discard_reason: string | null;
+          discarded_at: string | null;
+          discarded_by: string | null;
+          expires_on: string;
+          id: string;
+          number: number;
+          shelf_life_days: number;
+          status: string;
+          updated_at: string;
+          used_appointment_id: string | null;
+          used_at: string | null;
+          used_by: string | null;
+          used_patient_id: string | null;
+          year: number;
+        };
+        Insert: {
+          clinic_id: string;
+          code?: string;
+          contents: string;
+          created_at?: string;
+          created_by?: string | null;
+          cycle_id: string;
+          discard_reason?: string | null;
+          discarded_at?: string | null;
+          discarded_by?: string | null;
+          expires_on?: string;
+          id?: string;
+          number?: number;
+          shelf_life_days: number;
+          status?: string;
+          updated_at?: string;
+          used_appointment_id?: string | null;
+          used_at?: string | null;
+          used_by?: string | null;
+          used_patient_id?: string | null;
+          year?: number;
+        };
+        Update: {
+          clinic_id?: string;
+          code?: string;
+          contents?: string;
+          created_at?: string;
+          created_by?: string | null;
+          cycle_id?: string;
+          discard_reason?: string | null;
+          discarded_at?: string | null;
+          discarded_by?: string | null;
+          expires_on?: string;
+          id?: string;
+          number?: number;
+          shelf_life_days?: number;
+          status?: string;
+          updated_at?: string;
+          used_appointment_id?: string | null;
+          used_at?: string | null;
+          used_by?: string | null;
+          used_patient_id?: string | null;
+          year?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sterilization_packages_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sterilization_packages_cycle_id_fkey";
+            columns: ["cycle_id"];
+            isOneToOne: false;
+            referencedRelation: "sterilization_cycles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sterilization_packages_used_appointment_id_fkey";
+            columns: ["used_appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "sterilization_packages_used_patient_id_fkey";
+            columns: ["used_patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
             referencedColumns: ["id"];
           },
         ];

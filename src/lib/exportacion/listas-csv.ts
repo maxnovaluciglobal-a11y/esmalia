@@ -42,6 +42,9 @@ export const LISTAS_CSV = {
   // Ola 11 · frente A (INF-11): tablas y detalle de los informes. Los montos
   // salen solo con finanzas, como en el resto (columnas `dinero: true`).
   informes: { titulo: "Informe", permiso: "dashboard:view" },
+  // Ola 14 · frente B (MKT-10): registro de ciclos y rastreo para la autorización sanitaria.
+  esterilizacion: { titulo: "Ciclos de esterilización", permiso: "inventory:view" },
+  esterilizacion_rastreo: { titulo: "Rastreo de esterilización", permiso: "inventory:view" },
 } as const satisfies Record<string, { titulo: string; permiso: Permission }>;
 
 export type ListaCsv = keyof typeof LISTAS_CSV;

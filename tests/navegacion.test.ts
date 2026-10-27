@@ -127,8 +127,9 @@ describe("arquitectura de información (Ola 0, UX-13)", () => {
     );
   });
 
-  it("Inventario y Laboratorios viven en Operación, no en Reportes ni Pacientes", () => {
-    expect(rutasDe("operacion")).toEqual(["/inventario", "/laboratorios"]);
+  it("Inventario, Laboratorios y Esterilización viven en Operación, no en Reportes ni Pacientes", () => {
+    // Ola 14 (MKT-10): Esterilización se suma junto a Inventario y Laboratorios.
+    expect(rutasDe("operacion")).toEqual(["/inventario", "/laboratorios", "/esterilizacion"]);
     expect(rutasDe("reportes")).not.toContain("/inventario");
     expect(rutasDe("pacientes")).not.toContain("/laboratorios");
   });

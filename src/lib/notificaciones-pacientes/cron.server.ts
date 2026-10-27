@@ -296,6 +296,21 @@ async function correrClinica(
   let candidatos = await candidatosDeLaClinica(admin, ahora, c);
   if (candidatos.length === 0) return;
 
+  // AGE-22: una cita grupal no manda correos automáticos. Su `patient_id` es
+  // solo el titular (primer inscrito): mandarle "tu cita" a él y a nadie más
+  // sería engañoso. El equipo avisa a los inscritos desde la cita.
+  const grupales = await admin
+    .from("appointment_groups")
+    .select("appointment_id")
+    .eq("clinic_id", c.id)
+    .in("appointment_id", [...new Set(candidatos.map((x) => x.cita.id))]);
+  if (grupales.error) throw new Error(`citas grupales: ${grupales.error.message}`);
+  if (grupales.data?.length) {
+    const esGrupal = new Set(grupales.data.map((g) => g.appointment_id));
+    candidatos = candidatos.filter((x) => !esGrupal.has(x.cita.id));
+    if (candidatos.length === 0) return;
+  }
+
   // Lo que ya salió (o está saliendo): solo se reintenta un error.
   const ids = [...new Set(candidatos.map((x) => x.cita.id))];
   const { data: previos, error: errPrevios } = await admin

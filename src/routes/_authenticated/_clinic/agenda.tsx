@@ -50,6 +50,7 @@ import {
 import { LeyendaAgenda } from "@/components/agenda-leyenda";
 import { LeyendaEstados } from "@/components/agenda-estado";
 import { ProveedorCajonCita, type ContextoCajonCita } from "@/components/agenda-cajon-cita";
+import { etiquetaCupo } from "@/lib/clinic-operations/citas-grupales";
 import { tituloDeAgenda } from "@/components/agenda-titulo";
 import { iniciales } from "@/components/agenda-hueco";
 import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
@@ -1924,7 +1925,8 @@ function AgendaPage() {
           variante="boton"
         />
       )}
-      {puedeCobrar && (
+      {/* AGE-22: una cita grupal no se cobra desde la agenda (cada inscrito, en su ficha). */}
+      {puedeCobrar && !c.grupal && (
         <Link
           to="/pacientes/$pacienteId"
           params={{ pacienteId: c.pacienteId }}
@@ -2477,8 +2479,22 @@ function AgendaPage() {
                   className="grid gap-2 px-5 py-3.5 transition-colors hover:bg-secondary/50 max-md:px-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
                 >
                   <Link
-                    to="/pacientes/$pacienteId"
-                    params={{ pacienteId: c.pacienteId }}
+                    // AGE-22: una cita grupal abre su cajón (los inscritos), no la ficha del titular.
+                    {...(c.grupal
+                      ? {
+                          to: "/agenda" as const,
+                          search: {
+                            ...search,
+                            fecha: c.fecha,
+                            vista: "dia" as const,
+                            carril: undefined,
+                            cita: c.id,
+                          },
+                        }
+                      : {
+                          to: "/pacientes/$pacienteId" as const,
+                          params: { pacienteId: c.pacienteId },
+                        })}
                     className="grid gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:grid-cols-[auto_2fr_1.5fr_1fr] sm:items-center sm:gap-4"
                   >
                     <span className="cifra text-xs text-muted-foreground">
@@ -2488,7 +2504,13 @@ function AgendaPage() {
                     <div className="min-w-0">
                       <p className="flex items-center gap-1 truncate text-sm font-medium">
                         <span className="truncate">{c.paciente}</span>
-                        <AllergyAlertIcon allergies={allergyAlerts[c.pacienteId]} />
+                        {c.grupal ? (
+                          <span className="cifra shrink-0 text-xs text-muted-foreground">
+                            · grupal {etiquetaCupo(c.grupal, true)}
+                          </span>
+                        ) : (
+                          <AllergyAlertIcon allergies={allergyAlerts[c.pacienteId]} />
+                        )}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">{c.tratamiento}</p>
                       {choque && (
@@ -2519,11 +2541,13 @@ function AgendaPage() {
                   </Link>
                   {clinicId && hasPermission(access, "agenda:manage") ? (
                     <span className="flex items-center gap-1">
-                      <PatientConfirmedToggle
-                        clinicId={clinicId}
-                        appointmentId={c.id}
-                        confirmado={Boolean(c.pacienteConfirmo)}
-                      />
+                      {!c.grupal && (
+                        <PatientConfirmedToggle
+                          clinicId={clinicId}
+                          appointmentId={c.id}
+                          confirmado={Boolean(c.pacienteConfirmo)}
+                        />
+                      )}
                       <CambiarEstadoMenu
                         clinicId={clinicId}
                         userId={access.userId}
@@ -2544,7 +2568,7 @@ function AgendaPage() {
                   ) : (
                     <EstadoCitaPastilla cita={{ estado: c.estado }} />
                   )}
-                  {clinicId && access.clinic?.name && (
+                  {clinicId && access.clinic?.name && !c.grupal && (
                     <WhatsAppButton
                       clinicId={clinicId}
                       patientId={c.pacienteId}

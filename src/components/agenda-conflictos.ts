@@ -1,6 +1,7 @@
 import { horaDeMinutos } from "@/components/agenda-hueco";
 import type { Destino } from "@/components/agenda-movimiento";
 import type { Cita, Profesional } from "@/lib/clinic-operations/clinic-data";
+import { pacientesDeCita } from "@/lib/clinic-operations/citas-grupales";
 
 /**
  * Choques de horario en la agenda (UX-04, Ola 0; box real desde la Ola 2).
@@ -43,7 +44,7 @@ export type CitaConflicto = Pick<
   | "estado"
   | "tratamiento"
 > &
-  Partial<Pick<Cita, "boxId" | "box">>;
+  Partial<Pick<Cita, "boxId" | "box" | "grupal">>;
 
 export type ProfesionalConflicto = Pick<Profesional, "id" | "nombre" | "box" | "sucursalId"> &
   Partial<Pick<Profesional, "boxId">>;
@@ -125,7 +126,9 @@ function tiposEntre(
   porId: Map<string, ProfesionalConflicto>,
 ): TipoConflicto[] {
   const tipos: TipoConflicto[] = [];
-  if (a.pacienteId && a.pacienteId === b.pacienteId) tipos.push("paciente");
+  // AGE-22: en una cita grupal cuentan todos sus inscritos.
+  const deB = new Set(pacientesDeCita(b));
+  if (pacientesDeCita(a).some((id) => id && deB.has(id))) tipos.push("paciente");
   if (a.profesionalId === b.profesionalId) tipos.push("profesional");
   else {
     const ka = claveBox(a, porId);
@@ -204,6 +207,8 @@ export interface CitaCandidata {
   duracion: number;
   /** Box elegido en el formulario (vacío = el del profesional). */
   boxId?: string | null;
+  /** AGE-22: al mover una cita grupal, sus inscritos. */
+  grupal?: Cita["grupal"];
 }
 
 /**
@@ -230,6 +235,7 @@ export function conflictosDeCandidata(
     estado: "tentativa",
     tratamiento: "",
     boxId: candidata.boxId || null,
+    grupal: candidata.grupal,
   };
   const lista: Conflicto[] = [];
   for (const c of citas) {
@@ -259,6 +265,7 @@ export function choquesDelMovimiento(
     {
       id: cita.id,
       pacienteId: cita.pacienteId,
+      grupal: cita.grupal,
       profesionalId: destino.profesionalId,
       sucursalId,
       fecha: destino.fecha,

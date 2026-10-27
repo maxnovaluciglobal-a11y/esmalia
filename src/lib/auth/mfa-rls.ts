@@ -32,6 +32,8 @@ export const MIGRACION_AAL2 = "20261019230000_rls_exige_aal2.sql";
  * movimientos de dinero. Orden alfabético.
  */
 export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
+  appointment_group_participants: "pacientes inscritos en una cita grupal y su asistencia",
+  appointment_groups: "citas grupales: actividad y cupo de una cita con varios pacientes",
   appointment_requests: "pedidos de hora: paciente y motivo de consulta",
   appointments: "agenda: quién se atiende, cuándo y por qué",
   cash_movements: "caja: traspasos, retiros y depósitos de efectivo con su motivo",
@@ -108,6 +110,9 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   saved_reports: "informes guardados: qué cifras de la clínica mira cada persona",
   security_incident_updates: "seguimientos de incidentes que pueden describir datos de pacientes",
   security_incidents: "incidentes de seguridad: pueden describir datos de salud de pacientes",
+  sterilization_cycles:
+    "ciclos de autoclave: resultado, indicadores y responsable (registro sanitario)",
+  sterilization_packages: "paquetes de instrumental estéril y el paciente en que se usó cada uno",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
   treatment_plans: "planes de tratamiento",
   waiting_room_turns: "turnos y llamados de la sala de espera: qué paciente llegó y a qué box pasa",

@@ -128,6 +128,11 @@ export const Route = createFileRoute("/api/demo-reset")({
         await (
           await import("@/lib/dispositivos/demo.server")
         ).sembrarDispositivosDeLaDemo(supabaseAdmin);
+        // Ola 14 · B: citas grupales (una hoy y otra de ayer con asistencia) y
+        // ciclos de autoclave con paquetes etiquetados y usados. Nunca lanza.
+        await (
+          await import("@/lib/demo/grupales-esterilizacion.server")
+        ).sembrarGrupalesYEsterilizacionDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },

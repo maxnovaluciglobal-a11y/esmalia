@@ -34,6 +34,8 @@ interface Props<T> {
    */
   archivo?: string;
   className?: string;
+  /** Texto del botón cuando la pantalla tiene más de una exportación. */
+  etiqueta?: string;
 }
 
 /**
@@ -95,7 +97,7 @@ export function useExportarCsvLista<T>({
 }
 
 /** Botón "Exportar CSV" de una lista. No se muestra sin el permiso de la lista. */
-export function ExportarCsvLista<T>({ className, ...props }: Props<T>) {
+export function ExportarCsvLista<T>({ className, etiqueta, ...props }: Props<T>) {
   const { puede, enCurso, vacia, exportar } = useExportarCsvLista(props);
   if (!puede) return null;
 
@@ -114,7 +116,7 @@ export function ExportarCsvLista<T>({ className, ...props }: Props<T>) {
       ) : (
         <Download className="size-4" aria-hidden />
       )}
-      Exportar CSV
+      {etiqueta ?? "Exportar CSV"}
     </Button>
   );
 }

@@ -12,6 +12,7 @@ import { requireFinanceViewRole } from "@/lib/finance/finance-reports.functions"
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 import { revisarDisponibilidad } from "@/lib/clinic-operations/disponibilidad-db";
+import { infoGrupalDeCitas } from "@/lib/clinic-operations/citas-grupales.functions";
 
 const DEFAULT_TIMEZONE = "America/Santiago";
 
@@ -241,15 +242,23 @@ export const listAppointments = createServerFn({ method: "GET" })
 
     const nameByPatient = new Map(patients.map((p) => [p.id, p.full_name]));
     const tzByBranch = new Map((branches ?? []).map((b) => [b.id, b.timezone]));
+    // AGE-22: las grupales se dibujan con el nombre de la actividad y el cupo.
+    const grupales = await infoGrupalDeCitas(
+      supabase,
+      data.clinicId,
+      appointments.map((a) => a.id),
+    );
 
     return {
-      items: appointments.map((row) =>
-        mapAppointmentRow(
+      items: appointments.map((row) => {
+        const grupal = grupales.get(row.id);
+        const cita = mapAppointmentRow(
           row,
-          nameByPatient.get(row.patient_id) ?? "Paciente",
+          grupal?.titulo ?? nameByPatient.get(row.patient_id) ?? "Paciente",
           tzByBranch.get(row.branch_id) || DEFAULT_TIMEZONE,
-        ),
-      ),
+        );
+        return grupal ? { ...cita, grupal } : cita;
+      }),
       truncated,
     };
   });
@@ -761,7 +770,8 @@ export const setAppointmentStatus = createServerFn({ method: "POST" })
       .from("appointments")
       .update({ status: data.estado })
       .eq("id", data.appointmentId);
-    if (error) throw new Error("No tienes permisos para actualizar esta cita.");
+    // AGE-22: el aviso de "la grupal no se marca ausente entera" llega tal cual.
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para actualizar esta cita."));
     return { ok: true };
   });
 

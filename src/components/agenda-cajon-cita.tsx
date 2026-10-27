@@ -2,10 +2,11 @@ import { createContext, useContext, type ReactNode, type Ref } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowUpRight, Check, Circle, Globe, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, Circle, Globe, Loader2, Users } from "lucide-react";
 
 import { AvisoDeChoques } from "@/components/agenda-grid";
 import { ChipEstado } from "@/components/agenda-estado";
+import { BotonHacerGrupal, SeccionCitaGrupal } from "@/components/agenda-cita-grupal";
 import { BotonLlamarASala } from "@/components/dispositivos/boton-llamar";
 import { telefonoEnmascarado } from "@/components/agenda-titulo";
 import { boxEfectivo, nombreBoxDe, type Conflicto } from "@/components/agenda-conflictos";
@@ -121,7 +122,10 @@ export function CajonCita({
   renderAcciones?: (cita: Cita, profesional: Profesional) => ReactNode;
   refTitulo: Ref<HTMLHeadingElement>;
 }) {
-  const paciente = ctx.paciente(c.pacienteId);
+  // AGE-22: en una cita grupal no hay "el paciente": los datos, alertas,
+  // saldo y avisos por WhatsApp de uno solo (el titular) no se muestran.
+  const grupal = c.grupal;
+  const paciente = grupal ? undefined : ctx.paciente(c.pacienteId);
   const box = boxEfectivo(c, p, ctx.nombreBox);
   const telefono = telefonoEnmascarado(paciente?.telefono);
   const prevision = paciente?.prevision
@@ -142,20 +146,22 @@ export function CajonCita({
   const fetchAlertas = useServerFn(getAlertasClinicasDeCita);
   const { data: alertas } = useQuery({
     queryKey: ["alertas-cita", ctx.clinicId, c.pacienteId],
-    enabled: ctx.puedeVerClinico,
+    enabled: ctx.puedeVerClinico && !grupal,
     staleTime: 60_000,
     queryFn: () => fetchAlertas({ data: { clinicId: ctx.clinicId, patientId: c.pacienteId } }),
   });
   // Mientras llegan (o sin permiso clínico) quedan las alergias que la
   // agenda ya tenía cargadas.
-  const textosAlerta =
-    alertas?.map((a) => a.texto) ?? (allergies?.length ? [`Alergia: ${allergies.join(", ")}`] : []);
+  const textosAlerta = grupal
+    ? []
+    : (alertas?.map((a) => a.texto) ??
+      (allergies?.length ? [`Alergia: ${allergies.join(", ")}`] : []));
 
   // ── Plan y saldo (gate finance:view; requireFinanceViewRole en el servidor) ──
   const fetchResumen = useServerFn(getResumenFinancieroDeCita);
   const { data: resumen } = useQuery({
     queryKey: ["resumen-financiero-cita", ctx.clinicId, c.pacienteId],
-    enabled: ctx.puedeVerFinanzas,
+    enabled: ctx.puedeVerFinanzas && !grupal,
     staleTime: 60_000,
     queryFn: () => fetchResumen({ data: { clinicId: ctx.clinicId, patientId: c.pacienteId } }),
   });
@@ -164,7 +170,7 @@ export function CajonCita({
   const fetchMensajes = useServerFn(listMessages);
   const { data: mensajes } = useQuery({
     queryKey: ["messages", ctx.clinicId, c.pacienteId],
-    enabled: ctx.puedeGestionar,
+    enabled: ctx.puedeGestionar && !grupal,
     queryFn: () => fetchMensajes({ data: { clinicId: ctx.clinicId, patientId: c.pacienteId } }),
   });
 
@@ -206,7 +212,12 @@ export function CajonCita({
       : c.estado === "en-sala"
         ? { etiqueta: "Marcar finalizada", estado: "finalizada" }
         : null;
-  const puedeAusente = c.estado === "tentativa" || c.estado === "confirmada";
+  // En una grupal la asistencia es por paciente (sección Inscritos).
+  const puedeAusente = !grupal && (c.estado === "tentativa" || c.estado === "confirmada");
+  const puedeHacerGrupal =
+    !grupal &&
+    ctx.puedeGestionar &&
+    (c.estado === "tentativa" || c.estado === "confirmada" || c.estado === "en-sala");
 
   return (
     <div className="space-y-0">
@@ -227,7 +238,13 @@ export function CajonCita({
       <p className="mt-1.5 text-[15px] font-semibold">{c.tratamiento || "Sin tratamiento"}</p>
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         <ChipEstado estado={c.estado} />
-        {c.pacienteConfirmo && !ctx.puedeGestionar && <PatientConfirmedBadge />}
+        {grupal && (
+          <span className="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2 text-xs font-semibold leading-none">
+            <Users aria-hidden strokeWidth={2.4} className="size-3 shrink-0" />
+            Cita grupal
+          </span>
+        )}
+        {c.pacienteConfirmo && !ctx.puedeGestionar && !grupal && <PatientConfirmedBadge />}
         {c.reservaEnLinea && (
           <span className="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2 text-xs font-semibold leading-none text-muted-foreground">
             <Globe aria-hidden strokeWidth={2.4} className="size-3 shrink-0" />
@@ -290,7 +307,16 @@ export function CajonCita({
         </div>
       )}
 
-      {ctx.puedeGestionar && (
+      {grupal && (
+        <SeccionCitaGrupal
+          clinicId={ctx.clinicId}
+          cita={c}
+          zona={ctx.zona ?? "America/Santiago"}
+          puedeGestionar={ctx.puedeGestionar}
+        />
+      )}
+
+      {ctx.puedeGestionar && !grupal && (
         <Seccion titulo="Recordatorios por WhatsApp">
           <ul className="relative grid gap-2.5 before:absolute before:bottom-2 before:left-[6px] before:top-2 before:w-px before:bg-border">
             {avisos.map((a) => {
@@ -354,34 +380,37 @@ export function CajonCita({
         </Seccion>
       )}
 
-      {ctx.puedeVerFinanzas && resumen && (resumen.plan || resumen.saldoCents !== null) && (
-        <Seccion titulo="Del plan de tratamiento">
-          {resumen.plan && (
-            <p className="flex items-baseline justify-between gap-3 text-[13.5px]">
-              <span className="min-w-0 truncate">{resumen.plan.nombre}</span>
-              <b className="cifra text-[15px] font-medium">
-                {formatMoney(resumen.plan.totalCents, resumen.plan.currency)}
-              </b>
-            </p>
-          )}
-          <p className="mt-1.5 flex items-baseline justify-between gap-3 text-[13.5px] text-muted-foreground">
-            <span>Saldo del paciente</span>
-            {resumen.saldoCents === null ? (
-              <span>Sin datos</span>
-            ) : (
-              <b
-                className={cn(
-                  "cifra text-[15px] font-medium",
-                  resumen.saldoCents > 0 ? "text-destructive" : "text-foreground",
-                )}
-              >
-                {resumen.saldoCents < 0 ? "A favor " : ""}
-                {formatMoney(Math.abs(resumen.saldoCents), ctx.currency)}
-              </b>
+      {ctx.puedeVerFinanzas &&
+        !grupal &&
+        resumen &&
+        (resumen.plan || resumen.saldoCents !== null) && (
+          <Seccion titulo="Del plan de tratamiento">
+            {resumen.plan && (
+              <p className="flex items-baseline justify-between gap-3 text-[13.5px]">
+                <span className="min-w-0 truncate">{resumen.plan.nombre}</span>
+                <b className="cifra text-[15px] font-medium">
+                  {formatMoney(resumen.plan.totalCents, resumen.plan.currency)}
+                </b>
+              </p>
             )}
-          </p>
-        </Seccion>
-      )}
+            <p className="mt-1.5 flex items-baseline justify-between gap-3 text-[13.5px] text-muted-foreground">
+              <span>Saldo del paciente</span>
+              {resumen.saldoCents === null ? (
+                <span>Sin datos</span>
+              ) : (
+                <b
+                  className={cn(
+                    "cifra text-[15px] font-medium",
+                    resumen.saldoCents > 0 ? "text-destructive" : "text-foreground",
+                  )}
+                >
+                  {resumen.saldoCents < 0 ? "A favor " : ""}
+                  {formatMoney(Math.abs(resumen.saldoCents), ctx.currency)}
+                </b>
+              )}
+            </p>
+          </Seccion>
+        )}
 
       <div className="grid grid-cols-2 gap-2 border-t border-border pt-3.5 pb-3.5">
         {ctx.puedeGestionar && principal ? (
@@ -403,14 +432,16 @@ export function CajonCita({
             </button>
           </BloqueoEscritura>
         ) : null}
-        <Link
-          to="/pacientes/$pacienteId"
-          params={{ pacienteId: c.pacienteId }}
-          className={claseAccion(!(ctx.puedeGestionar && principal))}
-        >
-          Abrir ficha
-          <ArrowUpRight aria-hidden className="size-4" />
-        </Link>
+        {!grupal && (
+          <Link
+            to="/pacientes/$pacienteId"
+            params={{ pacienteId: c.pacienteId }}
+            className={claseAccion(!(ctx.puedeGestionar && principal))}
+          >
+            Abrir ficha
+            <ArrowUpRight aria-hidden className="size-4" />
+          </Link>
+        )}
         {ctx.puedeGestionar && esMovible(c) && (
           <BloqueoEscritura>
             <button type="button" onClick={() => ctx.onReagendar(c)} className={claseAccion()}>
@@ -431,18 +462,28 @@ export function CajonCita({
           </BloqueoEscritura>
         )}
         {/* Ola 14 · AUT-04: llamar al paciente que ya está en sala (TV de la sala). */}
-        {ctx.puedeGestionar && c.estado === "en-sala" && c.fecha === ctx.hoy && (
+        {ctx.puedeGestionar && !grupal && c.estado === "en-sala" && c.fecha === ctx.hoy && (
           <BloqueoEscritura>
             <BotonLlamarASala appointmentId={c.id} className={claseAccion()} />
           </BloqueoEscritura>
         )}
       </div>
 
+      {puedeHacerGrupal && (
+        <div className="pb-3.5">
+          <BotonHacerGrupal clinicId={ctx.clinicId} cita={c} className={claseAccion()} />
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Para charlas, controles escolares u ortodoncia grupal: varios pacientes en este mismo
+            horario.
+          </p>
+        </div>
+      )}
+
       {renderAcciones && (
         <div className="flex flex-wrap gap-2 pb-4 [&>*]:h-9">{renderAcciones(c, p)}</div>
       )}
 
-      {estadoIa?.habilitada !== true && <TarjetaPatty paciente={c.paciente} />}
+      {estadoIa?.habilitada !== true && !grupal && <TarjetaPatty paciente={c.paciente} />}
     </div>
   );
 }
