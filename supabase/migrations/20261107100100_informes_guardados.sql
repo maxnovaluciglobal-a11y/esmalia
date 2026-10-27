@@ -81,4 +81,5 @@ create policy mfa_exige_aal2 on public.saved_reports
 commit;
 
 -- ── Reversa ───────────────────────────────────────────────────────────────
+-- drop policy if exists mfa_exige_aal2 on public.saved_reports;
 -- drop table if exists public.saved_reports;

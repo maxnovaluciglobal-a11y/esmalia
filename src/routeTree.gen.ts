@@ -102,6 +102,7 @@ import { Route as AuthenticatedClinicGastosRouteImport } from './routes/_authent
 import { Route as AuthenticatedClinicGastosFijosRouteImport } from './routes/_authenticated/_clinic/gastos-fijos'
 import { Route as AuthenticatedClinicImplantesRouteImport } from './routes/_authenticated/_clinic/implantes'
 import { Route as AuthenticatedClinicIncidentesDeSeguridadRouteImport } from './routes/_authenticated/_clinic/incidentes-de-seguridad'
+import { Route as AuthenticatedClinicInformesRouteImport } from './routes/_authenticated/_clinic/informes'
 import { Route as AuthenticatedClinicInventarioRouteImport } from './routes/_authenticated/_clinic/inventario'
 import { Route as AuthenticatedClinicLaboratoriosRouteImport } from './routes/_authenticated/_clinic/laboratorios'
 import { Route as AuthenticatedClinicMediosDePagoRouteImport } from './routes/_authenticated/_clinic/medios-de-pago'
@@ -636,6 +637,12 @@ const AuthenticatedClinicIncidentesDeSeguridadRoute =
     path: '/incidentes-de-seguridad',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicInformesRoute =
+  AuthenticatedClinicInformesRouteImport.update({
+    id: '/informes',
+    path: '/informes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicInventarioRoute =
   AuthenticatedClinicInventarioRouteImport.update({
     id: '/inventario',
@@ -964,6 +971,7 @@ export interface FileRoutesByFullPath {
   '/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/implantes': typeof AuthenticatedClinicImplantesRoute
   '/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
+  '/informes': typeof AuthenticatedClinicInformesRoute
   '/inventario': typeof AuthenticatedClinicInventarioRoute
   '/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
@@ -1095,6 +1103,7 @@ export interface FileRoutesByTo {
   '/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/implantes': typeof AuthenticatedClinicImplantesRoute
   '/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
+  '/informes': typeof AuthenticatedClinicInformesRoute
   '/inventario': typeof AuthenticatedClinicInventarioRoute
   '/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
@@ -1231,6 +1240,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/_authenticated/_clinic/implantes': typeof AuthenticatedClinicImplantesRoute
   '/_authenticated/_clinic/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
+  '/_authenticated/_clinic/informes': typeof AuthenticatedClinicInformesRoute
   '/_authenticated/_clinic/inventario': typeof AuthenticatedClinicInventarioRoute
   '/_authenticated/_clinic/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/_authenticated/_clinic/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
@@ -1366,6 +1376,7 @@ export interface FileRouteTypes {
     | '/gastos-fijos'
     | '/implantes'
     | '/incidentes-de-seguridad'
+    | '/informes'
     | '/inventario'
     | '/laboratorios'
     | '/medios-de-pago'
@@ -1497,6 +1508,7 @@ export interface FileRouteTypes {
     | '/gastos-fijos'
     | '/implantes'
     | '/incidentes-de-seguridad'
+    | '/informes'
     | '/inventario'
     | '/laboratorios'
     | '/medios-de-pago'
@@ -1632,6 +1644,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/gastos-fijos'
     | '/_authenticated/_clinic/implantes'
     | '/_authenticated/_clinic/incidentes-de-seguridad'
+    | '/_authenticated/_clinic/informes'
     | '/_authenticated/_clinic/inventario'
     | '/_authenticated/_clinic/laboratorios'
     | '/_authenticated/_clinic/medios-de-pago'
@@ -2385,6 +2398,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicIncidentesDeSeguridadRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/informes': {
+      id: '/_authenticated/_clinic/informes'
+      path: '/informes'
+      fullPath: '/informes'
+      preLoaderRoute: typeof AuthenticatedClinicInformesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/inventario': {
       id: '/_authenticated/_clinic/inventario'
       path: '/inventario'
@@ -2695,6 +2715,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicGastosFijosRoute: typeof AuthenticatedClinicGastosFijosRoute
   AuthenticatedClinicImplantesRoute: typeof AuthenticatedClinicImplantesRoute
   AuthenticatedClinicIncidentesDeSeguridadRoute: typeof AuthenticatedClinicIncidentesDeSeguridadRoute
+  AuthenticatedClinicInformesRoute: typeof AuthenticatedClinicInformesRoute
   AuthenticatedClinicInventarioRoute: typeof AuthenticatedClinicInventarioRoute
   AuthenticatedClinicLaboratoriosRoute: typeof AuthenticatedClinicLaboratoriosRoute
   AuthenticatedClinicMediosDePagoRoute: typeof AuthenticatedClinicMediosDePagoRoute
@@ -2769,6 +2790,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicImplantesRoute: AuthenticatedClinicImplantesRoute,
     AuthenticatedClinicIncidentesDeSeguridadRoute:
       AuthenticatedClinicIncidentesDeSeguridadRoute,
+    AuthenticatedClinicInformesRoute: AuthenticatedClinicInformesRoute,
     AuthenticatedClinicInventarioRoute: AuthenticatedClinicInventarioRoute,
     AuthenticatedClinicLaboratoriosRoute: AuthenticatedClinicLaboratoriosRoute,
     AuthenticatedClinicMediosDePagoRoute: AuthenticatedClinicMediosDePagoRoute,
