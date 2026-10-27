@@ -54,7 +54,7 @@ export function StatusStrip({ access }: { access: ClinicAccess }) {
     !mfaPospuesto &&
     debeMostrarAvisoMfa({
       rolReal: access.realRole ?? access.role,
-      tieneFactor: mfa.tieneFactor,
+      tieneFactor: mfa.tieneFactor || mfa.correoActivo,
       esDemo: esDemo || mfa.esDemo,
     });
 
