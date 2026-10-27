@@ -3,19 +3,42 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  AlertTriangle,
+  CalendarClock,
+  Check,
+  CircleDashed,
   ClipboardList,
   History,
   Loader2,
   MoreHorizontal,
-  Package,
+  OctagonAlert,
   Pencil,
   Plus,
   Repeat,
+  TriangleAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ErrorDeCarga } from "@/components/estado-error";
+import {
+  BarraEnTinta,
+  Chips,
+  CifraEnTinta,
+  DatosEnTinta,
+  Destacado,
+  EncabezadoEditorial,
+  EtiquetaTinta,
+  FILA,
+  PANEL,
+  Pastilla,
+  SinDatos,
+  TablaAPlus,
+  TINTA,
+  TITULO_PANEL,
+  TintaCargando,
+  celda,
+  type ColumnaTabla,
+} from "@/components/reportes/aplus";
 import { ExportarCsvLista } from "@/components/exportar-csv-lista";
 import { montoPlanilla, siNoPlanilla } from "@/lib/exportacion/listas-csv";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
@@ -75,6 +98,17 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { fecha, fechaHora } from "@/lib/formato-fecha";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import {
+  filtrarInsumos,
+  resumenInventario,
+  type FiltroInsumo,
+} from "@/lib/clinic-operations/operacion-resumen";
+import { numero } from "@/lib/formato-fecha";
+import { cn } from "@/lib/utils";
+
+const CONTROL =
+  "h-[30px] rounded-full border border-control bg-card px-3 text-[12.5px] font-medium text-foreground pointer-coarse:h-11 pointer-coarse:text-base outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
 
 const MOVEMENT_LABELS: Record<InventoryMovementKind, string> = {
   entrada: "Entrada",
@@ -1116,273 +1150,413 @@ function InventarioPage() {
     enabled: !bloqueado,
   });
 
+  const [filtroEstado, setFiltroEstado] = useState<FiltroInsumo>("todos");
   const items = itemsQuery.data?.items ?? [];
   const activeItemsAll = items.filter((i) => i.isActive);
-  const activeItems = nameFilter.trim()
+  const porNombre = nameFilter.trim()
     ? activeItemsAll.filter((i) => i.name.toLowerCase().includes(nameFilter.trim().toLowerCase()))
     : activeItemsAll;
+  const activeItems = filtrarInsumos(porNombre, filtroEstado);
   const inactiveItems = items.filter((i) => !i.isActive);
-  const lowStockCount = activeItemsAll.filter((i) => i.belowMinStock).length;
   const expiringLots = expiringQuery.data ?? [];
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  const hoy = hoyISO(access.clinic!.timezone);
+  const resumen = resumenInventario(activeItemsAll, expiringLots, hoy);
+  const lowStockCount = resumen.bajoMinimo.length;
+  const stockDe = (item: InventoryItem) =>
+    warehouseFilter ? (stockPorBodega[item.id] ?? 0) : item.currentStock;
+  const conAccion = lowStockCount + expiringLots.length;
+  const columnas: ColumnaTabla[] = [
+    { label: "Insumo" },
+    { label: "Stock", derecha: true },
+    { label: "Estado" },
+    { label: "Mínimo", derecha: true, className: "hidden md:table-cell" },
+    { label: "Costo unitario", derecha: true, className: "hidden lg:table-cell" },
+    ...(multiSucursal ? [{ label: "Sucursal", className: "hidden xl:table-cell" }] : []),
+    { label: "", className: "w-0" },
+  ];
+  const n = columnas.length;
+
+  const conclusion = itemsQuery.isLoading ? undefined : activeItemsAll.length === 0 ? (
+    "Todavía no hay insumos cargados. Suma los que más usas y su stock mínimo para que Esmalia avise cuándo reponer."
+  ) : conAccion === 0 ? (
+    <>
+      <b className="font-semibold text-foreground">Nada que reponer.</b> Todo el stock está sobre el
+      mínimo configurado y ningún lote vence en los próximos 60 días.
+    </>
+  ) : (
+    <>
+      <b className="font-semibold text-foreground">
+        {lowStockCount === 0
+          ? "Ningún insumo bajo el mínimo."
+          : `${lowStockCount} ${lowStockCount === 1 ? "insumo está" : "insumos están"} bajo el mínimo.`}
+      </b>{" "}
+      {resumen.lotesVencidos > 0 &&
+        `${resumen.lotesVencidos} ${resumen.lotesVencidos === 1 ? "lote ya venció" : "lotes ya vencieron"}. `}
+      {resumen.lotesPorVencer > 0 &&
+        `${resumen.lotesPorVencer} ${resumen.lotesPorVencer === 1 ? "lote vence" : "lotes vencen"} en los próximos 60 días.`}
+    </>
+  );
 
   return (
     <AppShell title="Inventario" access={access}>
       {bloqueado ? (
         <TrialDesbloqueo pantalla="Inventario" sub={sub ?? null} />
       ) : (
-        <div className="space-y-8">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-display text-xl font-semibold">
-                Insumos y materiales de {access.clinic!.name}
-              </h2>
-              <p className="text-sm text-muted-foreground">
-                {itemsQuery.isLoading
-                  ? "Revisando el stock…"
-                  : lowStockCount > 0
-                    ? `${lowStockCount} ítem${lowStockCount === 1 ? "" : "s"} bajo el stock mínimo.`
-                    : "Todo el stock está sobre el mínimo configurado."}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="search"
-                value={nameFilter}
-                onChange={(e) => setNameFilter(e.target.value)}
-                placeholder="Buscar insumo…"
-                aria-label="Buscar insumo por nombre"
-                className="w-40 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              />
-              {multiSucursal && (
-                <select
-                  value={branchFilter}
-                  onChange={(e) => setBranchFilter(e.target.value)}
-                  aria-label="Filtrar por sucursal"
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  <option value="">Todas las sucursales</option>
-                  {sucursales.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nombre}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {multiBodega && (
-                <select
-                  value={warehouseFilter}
-                  onChange={(e) => setWarehouseFilter(e.target.value)}
-                  aria-label="Ver el stock de una bodega"
-                  className="rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                >
-                  <option value="">Stock total</option>
-                  {bodegas.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <ExportarCsvLista<InventoryItem>
-                clinicId={clinicId}
-                rol={access.role}
-                lista="inventario"
-                filas={activeItems}
-                timezone={access.clinic!.timezone}
-                filtros={{
-                  nombre: nameFilter.trim(),
-                  sucursal: branchFilter,
-                  bodega: warehouseFilter,
-                }}
-                columnas={[
-                  { header: "Insumo", value: (i) => i.name },
-                  { header: "Unidad", value: (i) => i.unit },
-                  {
-                    header: warehouseFilter ? "Stock en la bodega" : "Stock",
-                    value: (i) => (warehouseFilter ? (stockPorBodega[i.id] ?? 0) : i.currentStock),
-                  },
-                  { header: "Stock mínimo", value: (i) => i.minStock },
-                  { header: "Bajo el mínimo", value: (i) => siNoPlanilla(i.belowMinStock) },
-                  {
-                    header: "Sucursal",
-                    value: (i) => (i.branchId ? (branchNameById.get(i.branchId) ?? null) : null),
-                  },
-                  {
-                    header: "Costo unitario",
-                    value: (i) => montoPlanilla(i.costCents, currency),
-                    dinero: true,
-                  },
-                  { header: "Moneda", value: () => currency, dinero: true },
-                  { header: "Notas", value: (i) => i.notes },
-                ]}
-              />
-              {puedeGestionar && (
-                <CrearItemDialog clinicId={clinicId} currency={currency} sucursales={sucursales} />
-              )}
-            </div>
+        <div className="mx-auto max-w-[84rem] space-y-[18px]">
+          <div className="pb-2">
+            <EncabezadoEditorial
+              seccion="Operación"
+              pagina="Inventario"
+              detalle={access.clinic!.name}
+              titulo={
+                <>
+                  Insumos y <Destacado>materiales</Destacado>
+                </>
+              }
+              conclusion={conclusion}
+              acciones={
+                <>
+                  <ExportarCsvLista<InventoryItem>
+                    clinicId={clinicId}
+                    rol={access.role}
+                    lista="inventario"
+                    filas={activeItems}
+                    timezone={access.clinic!.timezone}
+                    filtros={{
+                      nombre: nameFilter.trim(),
+                      sucursal: branchFilter,
+                      bodega: warehouseFilter,
+                      estado: filtroEstado === "todos" ? "" : filtroEstado,
+                    }}
+                    columnas={[
+                      { header: "Insumo", value: (i) => i.name },
+                      { header: "Unidad", value: (i) => i.unit },
+                      {
+                        header: warehouseFilter ? "Stock en la bodega" : "Stock",
+                        value: (i) => stockDe(i),
+                      },
+                      { header: "Stock mínimo", value: (i) => i.minStock },
+                      { header: "Bajo el mínimo", value: (i) => siNoPlanilla(i.belowMinStock) },
+                      {
+                        header: "Sucursal",
+                        value: (i) =>
+                          i.branchId ? (branchNameById.get(i.branchId) ?? null) : null,
+                      },
+                      {
+                        header: "Costo unitario",
+                        value: (i) => montoPlanilla(i.costCents, currency),
+                        dinero: true,
+                      },
+                      { header: "Moneda", value: () => currency, dinero: true },
+                      { header: "Notas", value: (i) => i.notes },
+                    ]}
+                  />
+                  {puedeGestionar && (
+                    <CrearItemDialog
+                      clinicId={clinicId}
+                      currency={currency}
+                      sucursales={sucursales}
+                    />
+                  )}
+                </>
+              }
+            />
           </div>
 
-          {expiringLots.length > 0 && (
-            <section className="rounded-2xl border border-warning/30 bg-warning/5 p-5">
-              <h3 className="flex items-center gap-2 font-display text-sm font-semibold text-warning">
-                <AlertTriangle className="size-4" /> Lotes próximos a vencer (60 días)
-              </h3>
-              <ul className="mt-3 space-y-1.5 text-sm">
-                {expiringLots.map((lot) => {
-                  const vencido = lot.expirationDate < hoyISO;
-                  return (
-                    <li
-                      key={lot.movementId}
-                      className="flex flex-wrap items-center justify-between gap-2 border-t border-hairline/60 pt-1.5 first:border-t-0 first:pt-0"
-                    >
-                      <span>
-                        <span className="font-medium">{lot.itemName}</span>
-                        {lot.lotNumber && (
-                          <span className="text-muted-foreground"> · lote {lot.lotNumber}</span>
-                        )}
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {lot.quantity} {lot.unit}
-                        </span>
-                      </span>
-                      <Badge variant={vencido ? "destructive" : "secondary"}>
-                        {vencido ? "Vencido" : "Vence"} {fecha(lot.expirationDate)}
-                      </Badge>
-                    </li>
-                  );
-                })}
-              </ul>
+          {itemsQuery.isLoading ? (
+            <TintaCargando texto="Revisando el stock…" />
+          ) : (
+            <section
+              aria-label="Lo que requiere acción"
+              className={cn(TINTA, "grid gap-7 md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]")}
+            >
+              <div className="min-w-0">
+                <EtiquetaTinta>Bajo el stock mínimo</EtiquetaTinta>
+                <CifraEnTinta
+                  valor={numero(lowStockCount)}
+                  sufijo={lowStockCount === 1 ? " insumo" : " insumos"}
+                />
+                {resumen.bajoMinimo.length === 0 ? (
+                  <p className="mt-3.5 text-sm font-medium text-on-night-2">
+                    Todo el stock está sobre el mínimo configurado.
+                  </p>
+                ) : (
+                  <ul className="mt-5 grid gap-3">
+                    {resumen.bajoMinimo.slice(0, 5).map((i) => (
+                      <BarraEnTinta
+                        key={i.id}
+                        etiqueta={i.name}
+                        texto={`${numero(i.currentStock)} / ${numero(i.minStock ?? 0)} ${i.unit}`}
+                        pct={i.minStock ? (i.currentStock / i.minStock) * 100 : 0}
+                      />
+                    ))}
+                  </ul>
+                )}
+                {resumen.bajoMinimo.length > 5 && (
+                  <p className="mt-2 text-xs text-on-night-2">
+                    y {resumen.bajoMinimo.length - 5} más en la tabla.
+                  </p>
+                )}
+              </div>
+              <div className="flex min-w-0 flex-col">
+                <EtiquetaTinta>Lotes por vencer · 60 días</EtiquetaTinta>
+                {expiringLots.length === 0 ? (
+                  <p className="mt-3 text-sm text-on-night-2">Ningún lote vence en 60 días.</p>
+                ) : (
+                  <ul className="mt-3 grid gap-2.5">
+                    {expiringLots.slice(0, 6).map((lot) => {
+                      const vencido = lot.expirationDate < hoy;
+                      return (
+                        <li
+                          key={lot.movementId}
+                          className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2.5 border-b border-night-line pb-2.5 text-sm"
+                        >
+                          <span className="min-w-0">
+                            <span className="block truncate">{lot.itemName}</span>
+                            <span className="text-xs text-on-night-2">
+                              {lot.lotNumber ? `lote ${lot.lotNumber} · ` : ""}
+                              {numero(lot.quantity)} {lot.unit}
+                            </span>
+                          </span>
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 text-xs font-semibold whitespace-nowrap",
+                              vencido ? "text-brand-on-night" : "text-on-night",
+                            )}
+                          >
+                            {vencido ? (
+                              <OctagonAlert className="size-3.5" aria-hidden />
+                            ) : (
+                              <CalendarClock className="size-3.5" aria-hidden />
+                            )}
+                            {vencido ? "Vencido" : "Vence"}{" "}
+                            <span className="cifra font-normal">{fecha(lot.expirationDate)}</span>
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+                {expiringLots.length > 6 && (
+                  <p className="mt-2 text-xs text-on-night-2">
+                    y {expiringLots.length - 6} lotes más.
+                  </p>
+                )}
+                <div className="mt-auto pt-5">
+                  <DatosEnTinta
+                    columnas={3}
+                    datos={[
+                      { label: "Insumos activos", valor: numero(activeItemsAll.length) },
+                      { label: "En orden", valor: numero(resumen.enOrden) },
+                      {
+                        label: "Sin alerta",
+                        valor: numero(resumen.sinAlerta),
+                        nota: resumen.sinAlerta > 0 ? "sin mínimo configurado" : undefined,
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
             </section>
           )}
 
-          <section className="card-clinical divide-y divide-hairline">
+          <section aria-labelledby="inv-lista" className={cn(PANEL, "overflow-hidden")}>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-[18px] pb-3">
+              <h2 id="inv-lista" className={TITULO_PANEL}>
+                Stock
+              </h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <Chips<FiltroInsumo>
+                  etiqueta="Filtrar por estado"
+                  valor={filtroEstado}
+                  onCambiar={setFiltroEstado}
+                  opciones={[
+                    { valor: "todos", label: "Todos", cuenta: porNombre.length },
+                    {
+                      valor: "bajo-minimo",
+                      label: "Bajo el mínimo",
+                      cuenta: filtrarInsumos(porNombre, "bajo-minimo").length,
+                    },
+                    {
+                      valor: "sin-alerta",
+                      label: "Sin alerta",
+                      cuenta: filtrarInsumos(porNombre, "sin-alerta").length,
+                    },
+                  ]}
+                />
+                <input
+                  type="search"
+                  value={nameFilter}
+                  onChange={(e) => setNameFilter(e.target.value)}
+                  placeholder="Buscar insumo…"
+                  aria-label="Buscar insumo por nombre"
+                  className={cn(CONTROL, "w-40")}
+                />
+                {multiSucursal && (
+                  <select
+                    value={branchFilter}
+                    onChange={(e) => setBranchFilter(e.target.value)}
+                    aria-label="Filtrar por sucursal"
+                    className={CONTROL}
+                  >
+                    <option value="">Todas las sucursales</option>
+                    {sucursales.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.nombre}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {multiBodega && (
+                  <select
+                    value={warehouseFilter}
+                    onChange={(e) => setWarehouseFilter(e.target.value)}
+                    aria-label="Ver el stock de una bodega"
+                    className={CONTROL}
+                  >
+                    <option value="">Stock total</option>
+                    {bodegas.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </div>
+
             {itemsQuery.isLoading && (
-              <p className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
+              <p className="flex items-center gap-2 border-t border-hairline px-5 py-6 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" /> Cargando inventario…
               </p>
             )}
             {itemsQuery.isError && (
-              <p className="px-5 py-6 text-sm text-muted-foreground">
-                No pudimos cargar el inventario.
-              </p>
+              <ErrorDeCarga
+                className="mx-5 mb-5"
+                mensaje="No pudimos cargar el inventario."
+                onReintentar={() => void itemsQuery.refetch()}
+              />
             )}
             {itemsQuery.data && activeItems.length === 0 && (
-              <p className="flex items-center gap-2 px-5 py-6 text-sm text-muted-foreground">
-                <Package className="size-4" />
-                {nameFilter.trim() && activeItemsAll.length > 0
-                  ? `Ningún insumo coincide con "${nameFilter.trim()}".`
-                  : "Todavía no hay ítems de inventario cargados."}
-              </p>
+              <SinDatos
+                className="border-t border-hairline"
+                titulo={
+                  activeItemsAll.length > 0
+                    ? "Ningún insumo coincide con el filtro."
+                    : "Todavía no hay ítems de inventario cargados."
+                }
+                detalle={
+                  activeItemsAll.length > 0
+                    ? "Prueba con otro nombre o vuelve a Todos."
+                    : "Carga cada insumo con su unidad y su stock mínimo; el stock inicial entra con un movimiento de entrada."
+                }
+              />
             )}
             {activeItems.length > 0 && (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ítem</TableHead>
-                    <TableHead>Stock actual</TableHead>
-                    <TableHead>Mínimo</TableHead>
-                    <TableHead>Costo unitario</TableHead>
-                    {multiSucursal && <TableHead>Sucursal</TableHead>}
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {activeItems.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">
-                        {item.name}
-                        {item.notes && (
-                          <p className="mt-0.5 text-xs font-normal text-muted-foreground">
-                            {item.notes}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <span>
-                            {warehouseFilter ? (stockPorBodega[item.id] ?? 0) : item.currentStock}{" "}
-                            {item.unit}
-                          </span>
-                          {item.belowMinStock && (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="size-3" /> Bajo mínimo
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.minStock == null
-                          ? "Sin alerta configurada"
-                          : `${item.minStock} ${item.unit}`}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {item.costCents == null
-                          ? "Sin costo cargado"
-                          : formatMoney(item.costCents, currency)}
-                      </TableCell>
-                      {multiSucursal && (
-                        <TableCell className="text-muted-foreground">
-                          {item.branchId == null
-                            ? "Sin asignar"
-                            : (branchNameById.get(item.branchId) ?? "Sin asignar")}
-                        </TableCell>
+              <TablaAPlus columnas={columnas}>
+                {activeItems.map((item) => (
+                  <tr key={item.id} className={FILA}>
+                    <td className={celda(0, n, "min-w-[10rem]")}>
+                      <span className="font-medium">{item.name}</span>
+                      {item.notes && (
+                        <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
+                          {item.notes}
+                        </span>
                       )}
-                      <TableCell>
-                        <AccionesDeItem
-                          clinicId={clinicId}
-                          item={item}
-                          bodegas={bodegas}
-                          currency={currency}
-                          sucursales={sucursales}
-                          puedeRegistrarMovimiento={puedeRegistrarMovimiento}
-                          puedeGestionar={puedeGestionar}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                    </td>
+                    <td className={celda(1, n, "cifra text-right whitespace-nowrap")}>
+                      {numero(stockDe(item))}{" "}
+                      <span className="font-sans text-xs text-muted-foreground">{item.unit}</span>
+                    </td>
+                    <td className={celda(2, n)}>
+                      {item.belowMinStock ? (
+                        <Pastilla tono="danger" icono={TriangleAlert}>
+                          Bajo el mínimo
+                        </Pastilla>
+                      ) : item.minStock == null ? (
+                        <Pastilla tono="neutral" icono={CircleDashed}>
+                          Sin alerta
+                        </Pastilla>
+                      ) : (
+                        <Pastilla tono="success" icono={Check}>
+                          En orden
+                        </Pastilla>
+                      )}
+                    </td>
+                    <td
+                      className={celda(
+                        3,
+                        n,
+                        "cifra hidden text-right text-muted-foreground md:table-cell",
+                      )}
+                    >
+                      {item.minStock == null ? "—" : `${numero(item.minStock)} ${item.unit}`}
+                    </td>
+                    <td
+                      className={celda(
+                        4,
+                        n,
+                        "cifra hidden text-right whitespace-nowrap text-muted-foreground lg:table-cell",
+                      )}
+                    >
+                      {item.costCents == null ? "Sin costo" : formatMoney(item.costCents, currency)}
+                    </td>
+                    {multiSucursal && (
+                      <td className={celda(5, n, "hidden text-muted-foreground xl:table-cell")}>
+                        {item.branchId == null
+                          ? "Sin asignar"
+                          : (branchNameById.get(item.branchId) ?? "Sin asignar")}
+                      </td>
+                    )}
+                    <td className={celda(n - 1, n)}>
+                      <AccionesDeItem
+                        clinicId={clinicId}
+                        item={item}
+                        bodegas={bodegas}
+                        currency={currency}
+                        sucursales={sucursales}
+                        puedeRegistrarMovimiento={puedeRegistrarMovimiento}
+                        puedeGestionar={puedeGestionar}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </TablaAPlus>
             )}
           </section>
 
           {puedeGestionar && inactiveItems.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="font-display text-sm font-semibold text-muted-foreground">
-                Ítems dados de baja
-              </h3>
-              <div className="card-clinical divide-y divide-hairline">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Ítem</TableHead>
-                      <TableHead>Último stock</TableHead>
-                      <TableHead className="text-right">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {inactiveItems.map((item) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-muted-foreground">{item.name}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {item.currentStock} {item.unit}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <HistorialMovimientosDialog clinicId={clinicId} item={item} />
-                            <EditarItemDialog
-                              clinicId={clinicId}
-                              item={item}
-                              currency={currency}
-                              sucursales={sucursales}
-                            />
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+            <section aria-labelledby="inv-baja" className={cn(PANEL, "overflow-hidden")}>
+              <h2 id="inv-baja" className={cn(TITULO_PANEL, "px-5 pt-[18px] pb-3")}>
+                Dados de <Destacado>baja</Destacado>
+              </h2>
+              <TablaAPlus
+                columnas={[
+                  { label: "Insumo" },
+                  { label: "Último stock", derecha: true },
+                  { label: "", className: "w-0" },
+                ]}
+              >
+                {inactiveItems.map((item) => (
+                  <tr key={item.id} className={FILA}>
+                    <td className={celda(0, 3, "text-muted-foreground")}>{item.name}</td>
+                    <td className={celda(1, 3, "cifra text-right text-muted-foreground")}>
+                      {numero(item.currentStock)} {item.unit}
+                    </td>
+                    <td className={celda(2, 3)}>
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <HistorialMovimientosDialog clinicId={clinicId} item={item} />
+                        <EditarItemDialog
+                          clinicId={clinicId}
+                          item={item}
+                          currency={currency}
+                          sucursales={sucursales}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </TablaAPlus>
             </section>
           )}
         </div>

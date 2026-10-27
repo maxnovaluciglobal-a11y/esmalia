@@ -91,6 +91,8 @@ export const removeCommissionRule = createServerFn({ method: "POST" })
 export type CommissionLine = {
   professionalId: string;
   professionalName: string;
+  /** Color del profesional en la agenda (AGE-06), para su barra. */
+  color: string | null;
   kind: CommissionKind | null;
   /** Producción del período (suma de price_cents de items completados). */
   productionCents: number;
@@ -180,7 +182,7 @@ export const getCommissionReport = createServerFn({ method: "GET" })
       .lte("completed_at", toIso);
     let prosQuery = context.supabase
       .from("professionals")
-      .select("id, full_name")
+      .select("id, full_name, color")
       .eq("clinic_id", data.clinicId);
     if (professionalId) {
       itemsQuery = itemsQuery.eq("professional_id", professionalId);
@@ -248,6 +250,7 @@ export const getCommissionReport = createServerFn({ method: "GET" })
         return {
           professionalId: pro.id,
           professionalName: pro.full_name,
+          color: pro.color ?? null,
           kind: settlement.rule_kind as CommissionKind,
           productionCents: settlement.production_cents,
           procedureCount: settlement.procedure_count,
@@ -269,6 +272,7 @@ export const getCommissionReport = createServerFn({ method: "GET" })
       return {
         professionalId: pro.id,
         professionalName: pro.full_name,
+        color: pro.color ?? null,
         kind: rule?.kind ?? null,
         productionCents: acc.production,
         procedureCount: acc.count,
