@@ -29,6 +29,7 @@ function cargar(): Promise<typeof SentryNode> | null {
     Sentry.initWithoutDefaultIntegrations({
       dsn,
       environment: process.env.SENTRY_ENVIRONMENT ?? process.env.VERCEL_ENV ?? "development",
+      release: process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12),
       skipOpenTelemetrySetup: true,
       integrations: [
         Sentry.inboundFiltersIntegration(),
