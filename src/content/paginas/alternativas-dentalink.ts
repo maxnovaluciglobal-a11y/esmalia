@@ -78,7 +78,7 @@ export const pagina: PaginaContenido = {
           filas: [
             [
               "Esmalia",
-              "US$29/mes (1 profesional), US$69/mes (hasta 3)",
+              "US$19,99/mes (1 profesional), US$49,99/mes (hasta 3)",
               "No",
               "14 días sin tarjeta",
               "Precio claro, funciona sin internet, WhatsApp que revisa tu equipo, IA para notas SOAP en habilitación",
@@ -129,7 +129,7 @@ export const pagina: PaginaContenido = {
           items: [
             "**Doctocliq** tiene un plan gratis con 30 pacientes o citas al mes y planes pagos de US$19, US$29 y US$49, cada uno con un doctor. La facturación electrónica y Soyla IA son complementos con costo adicional.",
             "**AgendaPro** parte en $15.900 + IVA, pero ese plan no trae ficha clínica. La ficha aparece desde Premium, a $54.900 + IVA.",
-            "**Esmalia** cuesta US$29 al mes para un profesional y US$69 para hasta tres, con ficha clínica y odontograma desde el plan Solo. El cobro es en dólares por Stripe.",
+            "**Esmalia** cuesta US$19,99 al mes para un profesional y US$49,99 para hasta tres, con ficha clínica y odontograma desde el plan Solo. El cobro es en dólares por Stripe.",
           ],
         },
       ],
@@ -182,7 +182,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Qué alternativa a Dentalink es más barata?",
-      a: "Entre las que publican precio, Doctocliq tiene plan gratis y planes desde US$19 al mes. Esmalia cuesta US$29 al mes para un profesional. Dentalink no publica precios, así que la comparación exacta requiere cotizar.",
+      a: "Entre las que publican precio, Doctocliq tiene plan gratis y planes desde US$19 al mes. Esmalia cuesta US$19,99 al mes para un profesional. Dentalink no publica precios, así que la comparación exacta requiere cotizar.",
     },
     {
       q: "¿Hay una alternativa a Dentalink que emita boleta electrónica?",

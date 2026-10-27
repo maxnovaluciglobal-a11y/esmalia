@@ -11,7 +11,7 @@
  * Idempotente: busca por `lookup_key` / metadata antes de crear, así que se
  * puede correr de nuevo sin duplicar nada. Crea:
  *   - productos "Esmalia Solo" y "Esmalia Clínica" con precios mensuales en
- *     USD (29 y 69), lookup keys `esmalia_solo_monthly` / `esmalia_clinic_monthly`;
+ *     USD (19,99 y 49,99), lookup keys `esmalia_solo_monthly_1999` / `esmalia_clinic_monthly_4999`;
  *   - la configuración del portal de facturación (cambiar tarjeta, facturas,
  *     cancelar al fin del período);
  *   - el webhook https://esmalia.com/api/stripe/webhook con los eventos que
@@ -43,18 +43,20 @@ const WEBHOOK_EVENTS = [
 ];
 const PLANES = [
   {
-    lookup: "esmalia_solo_monthly",
+    lookup: "esmalia_solo_monthly_1999",
+    plan: "solo",
     nombre: "Esmalia Solo",
     descripcion: "1 profesional. Agenda, ficha clínica, recordatorios, caja y presupuestos.",
-    centavos: 2900,
+    centavos: 1999,
     envs: ["STRIPE_PRICE_ID_SOLO_MONTHLY", "VITE_STRIPE_PRICE_ID_SOLO_MONTHLY"],
   },
   {
-    lookup: "esmalia_clinic_monthly",
+    lookup: "esmalia_clinic_monthly_4999",
+    plan: "clinica",
     nombre: "Esmalia Clínica",
     descripcion:
       "Hasta 3 profesionales. Todo lo de Solo, más comisiones, roles y portal de pacientes.",
-    centavos: 6900,
+    centavos: 4999,
     envs: ["STRIPE_PRICE_ID_CLINIC_MONTHLY", "VITE_STRIPE_PRICE_ID_CLINIC_MONTHLY"],
   },
 ];
@@ -133,7 +135,7 @@ for (const p of PLANES) {
       recurring: { interval: "month" },
       lookup_key: p.lookup,
       tax_behavior: "unspecified",
-      metadata: { app: "esmalia" },
+      metadata: { app: "esmalia", plan: p.plan },
     });
     console.log(`  creado ${p.nombre}: ${price.id}`);
   } else {

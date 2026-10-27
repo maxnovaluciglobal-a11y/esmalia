@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/software-dental-peru",
   titulo: "Software dental en Perú: precio y alcance | Esmalia",
   descripcion:
-    "Software para consultorio dental en Perú: agenda en hora de Lima, soles (PEN) y WhatsApp. Desde US$29/mes (aprox. S/ 110). 14 días gratis.",
+    "Software para consultorio dental en Perú: agenda en hora de Lima, soles (PEN) y WhatsApp. Desde US$19,99/mes (aprox. S/ 70). 14 días gratis.",
   kicker: "Perú",
   h1: "Software dental para consultorios y clínicas del Perú",
   resumen:
-    "Esmalia es un software dental que un consultorio peruano configura al darse de alta: queda en soles y en hora de Lima. Cuesta US$29 al mes para un profesional o US$69 hasta tres, unos S/ 110 y S/ 260 de referencia, cobrados en dólares. No emite boletas ni facturas electrónicas de SUNAT.",
+    "Esmalia es un software dental que un consultorio peruano configura al darse de alta: queda en soles y en hora de Lima. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos S/ 70 y S/ 180 de referencia, cobrados en dólares. No emite boletas ni facturas electrónicas de SUNAT.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -59,8 +59,8 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["Plan", "Para quién", "Precio en USD", "Referencia en PEN"],
           filas: [
-            ["Solo", "1 profesional", "US$29 al mes", "aprox. S/ 110"],
-            ["Clínica", "Hasta 3 profesionales", "US$69 al mes", "aprox. S/ 260"],
+            ["Solo", "1 profesional", "US$19,99 al mes", "aprox. S/ 70"],
+            ["Clínica", "Hasta 3 profesionales", "US$49,99 al mes", "aprox. S/ 180"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida", "Se cotiza"],
           ],
           nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
@@ -141,7 +141,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software dental sirve para un consultorio en Perú?",
-      a: "Uno que trabaje en soles, en hora de Lima y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$29 al mes (aprox. S/ 110) para un profesional, con 14 días gratis y sin tarjeta.",
+      a: "Uno que trabaje en soles, en hora de Lima y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$19,99 al mes (aprox. S/ 70) para un profesional, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Esmalia emite boletas o facturas electrónicas de SUNAT?",
@@ -149,7 +149,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Me cobran en soles?",
-      a: "No, el cobro es en dólares vía Stripe: US$29 o US$69 al mes. Los montos en soles son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
+      a: "No, el cobro es en dólares vía Stripe: US$19,99 o US$49,99 al mes. Los montos en soles son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
     },
     {
       q: "¿Se conecta al RENHICE?",

@@ -22,6 +22,8 @@ type SubscriptionRow = {
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   stripe_price_id: string | null;
+  /** Plan guardado por el webhook (solo | clinica). Opcional: anterior a la migración 20261111100000. */
+  plan?: string | null;
   trial_end: string | null;
   current_period_end: string | null;
   cancel_at_period_end: boolean;
@@ -39,6 +41,7 @@ export function mapSubscription(row: SubscriptionRow): Subscription {
     stripeCustomerId: row.stripe_customer_id,
     stripeSubscriptionId: row.stripe_subscription_id,
     stripePriceId: row.stripe_price_id,
+    plan: row.plan === "solo" || row.plan === "clinica" ? row.plan : null,
     trialEnd: row.trial_end,
     currentPeriodEnd: row.current_period_end,
     cancelAtPeriodEnd: row.cancel_at_period_end,

@@ -108,7 +108,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Cuando vuelva, las funciones de notas estarán en la [ficha clínica](/funciones/ficha-clinica), que viene en todos los planes desde Solo (US$29 al mes), sin costo extra. La lectura de WhatsApp necesitará además el número de la clínica conectado a Meta. Mientras Patty está en habilitación, el editor lo dice y el mensaje de WhatsApp llega al equipo con el aviso de siempre. Revisa los [precios](/precios).",
+            "Cuando vuelva, las funciones de notas estarán en la [ficha clínica](/funciones/ficha-clinica), que viene en todos los planes desde Solo (US$19,99 al mes), sin costo extra. La lectura de WhatsApp necesitará además el número de la clínica conectado a Meta. Mientras Patty está en habilitación, el editor lo dice y el mensaje de WhatsApp llega al equipo con el aviso de siempre. Revisa los [precios](/precios).",
         },
       ],
     },

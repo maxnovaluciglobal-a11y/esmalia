@@ -28,8 +28,8 @@
 
 ## Precios
 
-- Solo (1 profesional): US$29 al mes.
-- Clínica (hasta 3 profesionales): US$69 al mes.
+- Solo (1 profesional): US$19,99 al mes.
+- Clínica (hasta 3 profesionales): US$49,99 al mes.
 - Red (varias sedes): a medida, se cotiza por WhatsApp.
 - 14 días gratis, sin tarjeta. El cobro es en dólares (USD) vía Stripe; el precio en moneda local que muestra la web es solo una referencia.
 - Se cancela cuando quieras desde el portal de pagos de Stripe, dentro de la app.

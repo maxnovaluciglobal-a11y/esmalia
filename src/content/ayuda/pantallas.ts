@@ -170,7 +170,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       {
         titulo: "Recorre las pestañas",
         texto:
-          "Odontograma, Periodontograma, Notas, Presupuesto y pagos, Anamnesis y datos, Documentos y Mensajes.",
+          "Odontograma, Periodontograma, Notas, Exámenes, Presupuesto y pagos, Anamnesis y datos, Documentos y Mensajes.",
       },
       {
         titulo: "Cobra y presupuesta",
@@ -191,8 +191,19 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       "Notas, odontograma clínico, periodontograma y documentos se ven solo con acceso clínico (propietario, administración, profesional y asistente con permiso).",
       "Una nota firmada no se edita: se corrige con una adenda.",
       "Cada apertura de la ficha queda registrada.",
+      "Exámenes (radiografías, fotos, escaneos 3D, CBCT): cada clínica tiene un cupo de almacenamiento, 15 GB en el plan Solo y 45 GB en el plan Clínica. Avisamos al 80 % y, al llegar al 100 %, no se pueden subir más archivos hasta ampliar el cupo. Cada archivo puede pesar hasta 50 MB (20 MB las fotos y radiografías): sube solo la serie que usas, no el estudio completo.",
     ],
-    palabras: ["ficha", "historia clinica", "odontograma", "notas", "anamnesis", "adenda"],
+    palabras: [
+      "ficha",
+      "historia clinica",
+      "examenes",
+      "almacenamiento",
+      "cupo",
+      "odontograma",
+      "notas",
+      "anamnesis",
+      "adenda",
+    ],
     video: {
       estado: "pendiente",
       duracion: "3 min",

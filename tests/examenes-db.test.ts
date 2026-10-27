@@ -293,12 +293,31 @@ describe("Ola 13 · exámenes y fotos clínicas (SQL)", () => {
         [clinicId],
       );
       expect(r.error).toBe("");
-      expect(Number(r.filas[0].cupo_bytes)).toBe(20 * 1024 * MB);
+      expect(Number(r.filas[0].cupo_bytes)).toBe(45 * 1024 * MB);
       expect(r.filas[0].plan).toBe("clinica");
       expect(Number(r.filas[0].usado_bytes)).toBe(0);
     });
 
-    it("con el precio de Solo cargado, la clínica Solo tiene 5 GB", async () => {
+    it("con el plan guardado en la suscripción (sin depender del ID de precio), la clínica Solo tiene 15 GB", async () => {
+      await servicio(
+        `INSERT INTO public.subscriptions (clinic_id, stripe_price_id, status, plan) VALUES ($1, 'price_nuevo_cualquiera', 'active', 'solo')
+         ON CONFLICT (clinic_id) DO UPDATE SET stripe_price_id = excluded.stripe_price_id, plan = excluded.plan`,
+        [clinicId],
+      );
+      const r = await como<{ cupo_bytes: string; plan: string }>(
+        usuarios.owner,
+        `SELECT * FROM public.uso_de_almacenamiento($1)`,
+        [clinicId],
+      );
+      expect(Number(r.filas[0].cupo_bytes)).toBe(15 * 1024 * MB);
+      expect(r.filas[0].plan).toBe("solo");
+      await servicio(
+        `UPDATE public.subscriptions SET plan = NULL, stripe_price_id = NULL WHERE clinic_id = $1`,
+        [clinicId],
+      );
+    });
+
+    it("con el precio de Solo cargado (suscripciones sin plan guardado), la clínica Solo tiene 15 GB", async () => {
       await servicio(
         `UPDATE public.storage_quota_plans SET stripe_price_id = 'price_solo_test' WHERE plan = 'solo'`,
       );
@@ -312,7 +331,7 @@ describe("Ola 13 · exámenes y fotos clínicas (SQL)", () => {
         `SELECT * FROM public.uso_de_almacenamiento($1)`,
         [clinicId],
       );
-      expect(Number(r.filas[0].cupo_bytes)).toBe(5 * 1024 * MB);
+      expect(Number(r.filas[0].cupo_bytes)).toBe(15 * 1024 * MB);
       expect(r.filas[0].plan).toBe("solo");
     });
 
@@ -375,18 +394,18 @@ describe("Ola 13 · exámenes y fotos clínicas (SQL)", () => {
       expect(Number(f.size_bytes)).toBe(5000);
     });
 
-    it("límite por archivo: 20 MB una foto, 200 MB un CBCT (código ES002)", async () => {
+    it("límite por archivo: 20 MB una foto, 50 MB un CBCT (código ES002)", async () => {
       expect((await subir(usuarios.dentist, { size: 20 * MB })).error).toBe("");
       expect((await subir(usuarios.dentist, { size: 20 * MB + 1 })).code).toBe("ES002");
       expect(
-        (await subir(usuarios.dentist, { kind: "cbct_dicom", size: 150 * MB, nombre: "ct.zip" }))
+        (await subir(usuarios.dentist, { kind: "cbct_dicom", size: 50 * MB, nombre: "ct.zip" }))
           .error,
       ).toBe("");
       expect(
         (
           await subir(usuarios.dentist, {
             kind: "cbct_dicom",
-            size: 200 * MB + 1,
+            size: 50 * MB + 1,
             nombre: "ct.zip",
           })
         ).code,

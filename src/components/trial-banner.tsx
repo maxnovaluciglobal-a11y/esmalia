@@ -46,7 +46,7 @@ export function TrialBanner({ clinicId }: { clinicId: string }) {
           to="/suscripcion"
           className="rounded-md border border-brand bg-transparent px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand/12"
         >
-          Ver plan · desde US$29/mes
+          Ver plan · desde US$19,99/mes
         </Link>
       </div>
     );

@@ -16,7 +16,7 @@ import recorridoCss from "@/components/marketing/v2/recorrido.css?url";
 
 const TITULO = "Recorrido por Esmalia · Agenda, ficha y caja para tu clínica dental";
 const DESCRIPCION =
-  "Pantallas reales de Esmalia: agenda por profesional, ficha con odontograma, caja con arqueo y recordatorios por WhatsApp. Desde US$29 al mes, 14 días gratis.";
+  "Pantallas reales de Esmalia: agenda por profesional, ficha con odontograma, caja con arqueo y recordatorios por WhatsApp. Desde US$19,99 al mes, 14 días gratis.";
 
 export const Route = createFileRoute("/recorrido")({
   head: () => {

@@ -9,7 +9,7 @@ export const pagina: PaginaContenido = {
   kicker: "Comparativa",
   h1: "Esmalia vs Dentalink: ¿cuál conviene a tu clínica?",
   resumen:
-    "Según su web, Dentalink tiene más de 16 años y más de 15.000 clínicas, y emite boleta electrónica si tu plan incluye el servicio; su precio se cotiza. Esmalia publica su precio (US$29 o US$69 al mes), da 14 días sin tarjeta, sigue funcionando sin internet y no envía WhatsApp sin que tu equipo lo revise. No emite boleta ni factura.",
+    "Según su web, Dentalink tiene más de 16 años y más de 15.000 clínicas, y emite boleta electrónica si tu plan incluye el servicio; su precio se cotiza. Esmalia publica su precio (US$19,99 o US$49,99 al mes), da 14 días sin tarjeta, sigue funcionando sin internet y no envía WhatsApp sin que tu equipo lo revise. No emite boleta ni factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -34,7 +34,7 @@ export const pagina: PaginaContenido = {
             [
               "Precio",
               "No publica; planes Esencial, Pro y Titanium a cotizar",
-              "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
+              "US$19,99/mes (1 profesional), US$49,99/mes (hasta 3), Red a medida",
             ],
             [
               "Prueba gratis",
@@ -102,7 +102,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "**Quieres saber cuánto pagas antes de hablar con nadie.** El precio está en [precios](/precios): US$29 al mes para un profesional, US$69 para hasta tres. El cobro es en dólares por Stripe y las clínicas fundadoras pagan la mitad durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
+            "**Quieres saber cuánto pagas antes de hablar con nadie.** El precio está en [precios](/precios): US$19,99 al mes para un profesional, US$49,99 para hasta tres. El cobro es en dólares por Stripe y las clínicas fundadoras pagan la mitad durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
             "**Tu internet falla.** Con Esmalia sigues viendo la agenda y las fichas, cobrando y marcando el odontograma sin conexión. Todo se sincroniza solo cuando vuelve. Ver [sin internet](/funciones/sin-internet).",
             "**Prefieres que la IA proponga y tú decidas.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior, pero no firma, no le escribe a pacientes y no mueve la agenda. Ver [Patty IA](/funciones/patty-ia).",
             "**Quieres WhatsApp sin depender de WhatsApp Web abierto.** Esmalia trabaja en modo manual desde el primer día y, si conectas tu número a Meta, envía desde tu propio número. En los dos modos, alguien de tu clínica dispara el mensaje. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",

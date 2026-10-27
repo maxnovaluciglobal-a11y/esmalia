@@ -40,7 +40,10 @@ import {
  */
 
 const MIG_CUPO = readFileSync(
-  new URL("../supabase/migrations/20261109100000_cupo_de_almacenamiento.sql", import.meta.url),
+  new URL(
+    "../supabase/migrations/20261111100100_limite_por_archivo_y_cupo_del_plan_actual.sql",
+    import.meta.url,
+  ),
   "utf8",
 );
 const MIG_EXAMENES = readFileSync(
@@ -48,12 +51,12 @@ const MIG_EXAMENES = readFileSync(
   "utf8",
 );
 
-describe("cupo por plan (propuesta 5 GB Solo / 20 GB Clínica, decisión de Walter)", () => {
+describe("cupo por plan (15 GB Solo / 45 GB Clínica, lo que aguanta el plan actual de Supabase)", () => {
   it("la app y la migración tienen los mismos valores", () => {
-    expect(CUPO_POR_PLAN.solo).toBe(5 * GB);
-    expect(CUPO_POR_PLAN.clinica).toBe(20 * GB);
-    expect(MIG_CUPO).toContain(`('solo', ${CUPO_POR_PLAN.solo})`);
-    expect(MIG_CUPO).toContain(`('clinica', ${CUPO_POR_PLAN.clinica})`);
+    expect(CUPO_POR_PLAN.solo).toBe(15 * GB);
+    expect(CUPO_POR_PLAN.clinica).toBe(45 * GB);
+    expect(MIG_CUPO).toContain(`quota_bytes = ${CUPO_POR_PLAN.solo}`);
+    expect(MIG_CUPO).toContain(`quota_bytes = ${CUPO_POR_PLAN.clinica}`);
   });
 
   it("estado normal, aviso desde el 80 % y lleno al 100 %", () => {
@@ -90,17 +93,17 @@ describe("tipos de examen", () => {
   });
 
   it("el límite por archivo es el mismo en la app y en la base", () => {
-    expect(limitePorArchivo("cbct_dicom")).toBe(200 * MB);
-    expect(limitePorArchivo("escaneo_intraoral")).toBe(200 * MB);
+    expect(limitePorArchivo("cbct_dicom")).toBe(50 * MB);
+    expect(limitePorArchivo("escaneo_intraoral")).toBe(50 * MB);
     for (const t of TIPOS_EXAMEN.filter((t) => t !== "cbct_dicom" && t !== "escaneo_intraoral")) {
       expect(limitePorArchivo(t), t).toBe(20 * MB);
     }
-    expect(MIG_EXAMENES).toContain(
+    expect(MIG_CUPO).toContain(
       `when p_kind in ('cbct_dicom', 'escaneo_intraoral') then ${LIMITE_PESADO}::bigint`,
     );
-    expect(MIG_EXAMENES).toContain(`else ${LIMITE_LIVIANO}::bigint`);
-    // El techo del bucket es el límite más alto.
-    expect(MIG_EXAMENES).toContain(`  ${LIMITE_PESADO}, -- 200 MB`);
+    expect(MIG_CUPO).toContain(`else ${LIMITE_LIVIANO}::bigint`);
+    // El techo del bucket es el límite más alto (y el límite global de Supabase: 50 MB).
+    expect(MIG_CUPO).toContain(`file_size_limit = ${LIMITE_PESADO}`);
   });
 
   it("los MIME admitidos son los del bucket", () => {
@@ -121,11 +124,9 @@ describe("tipos de examen", () => {
       "tamano",
     );
     expect(
-      problemaDeArchivo("escaneo_intraoral", { name: "arcada.stl", size: 150 * MB }),
+      problemaDeArchivo("escaneo_intraoral", { name: "arcada.stl", size: 40 * MB }),
     ).toBeNull();
-    expect(problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 201 * MB })?.tipo).toBe(
-      "tamano",
-    );
+    expect(problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 51 * MB })?.tipo).toBe("tamano");
     expect(problemaDeArchivo("panoramica", { name: "pano.dcm", size: 5 * MB })).toBeNull();
     expect(problemaDeArchivo("documento", { name: "x.pdf", size: 0 })?.tipo).toBe("vacio");
     expect(acceptDe("escaneo_intraoral")).toBe(".stl,.ply,.obj,.zip");

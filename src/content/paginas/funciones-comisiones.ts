@@ -103,7 +103,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Para clínicas donde atiende más de un profesional y alguien tiene que calcular a fin de mes cuánto le toca a cada uno. Las comisiones vienen en el plan Clínica (US$69 al mes, hasta 3 profesionales) y en Red, para varias sedes. Si la prueba de 14 días termina sin suscripción, la pantalla de comisiones se activa al suscribirte; la agenda y las fichas siguen abiertas. Revisa los [precios](/precios) o entra a la [demo](/demo).",
+            "Para clínicas donde atiende más de un profesional y alguien tiene que calcular a fin de mes cuánto le toca a cada uno. Las comisiones vienen en el plan Clínica (US$49,99 al mes, hasta 3 profesionales) y en Red, para varias sedes. Si la prueba de 14 días termina sin suscripción, la pantalla de comisiones se activa al suscribirte; la agenda y las fichas siguen abiertas. Revisa los [precios](/precios) o entra a la [demo](/demo).",
         },
       ],
     },

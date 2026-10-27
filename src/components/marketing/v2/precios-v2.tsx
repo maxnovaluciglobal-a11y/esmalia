@@ -3,12 +3,13 @@
 // 3). La landing no promete funciones exclusivas por plan: lo que incluye se
 // muestra una sola vez, para los dos.
 //
-// Montos: los dos tiers de Stripe (src/lib/stripe.server.ts), Solo US$29 y
-// Clínica US$69, con 14 días de prueba sin tarjeta. El cobro es en USD.
+// Montos: los dos tiers de Stripe (src/lib/stripe.server.ts), Solo US$19,99 y
+// Clínica US$49,99, con 14 días de prueba sin tarjeta. El cobro es en USD.
 import { Link } from "@tanstack/react-router";
 
 import { enlaceWhatsAppVentas } from "@/lib/marketing/contacto";
 import { registrarEvento } from "@/lib/marketing/eventos";
+import { etiquetaUsd, PRECIO_CLINICA_CENTS, PRECIO_SOLO_CENTS } from "@/lib/marketing/precio-lista";
 import { setPlanIntent, type PlanIntent } from "@/lib/marketing/plan-intent";
 import { cn } from "@/lib/utils";
 
@@ -25,14 +26,14 @@ const PLANES: readonly {
     nombre: "Solo",
     profesionales: "1 profesional",
     para: "Para el dentista que atiende por su cuenta.",
-    usd: 29,
+    usd: PRECIO_SOLO_CENTS / 100,
   },
   {
     id: "clinica",
     nombre: "Clínica",
     profesionales: "Hasta 3 profesionales",
     para: "Para equipos chicos que comparten agenda y caja.",
-    usd: 69,
+    usd: PRECIO_CLINICA_CENTS / 100,
     oscuro: true,
   },
 ];
@@ -45,6 +46,7 @@ const INCLUYE = [
   "Caja diaria con arqueo y comisiones",
   "Portal del paciente",
   "Importación CSV y exportación completa",
+  "Espacio para radiografías, fotos y escaneos: 15 GB en Solo y 45 GB en Clínica",
   "Funciona sin internet y sincroniza al volver",
 ] as const;
 
@@ -76,7 +78,7 @@ export function PreciosV2() {
               <h3 className="nm">{p.nombre}</h3>
               <p className="who">{p.para}</p>
               <p className="pr">
-                <b>US${p.usd}</b>
+                <b>{etiquetaUsd(Math.round(p.usd * 100))}</b>
                 <span>/ mes</span>
               </p>
               <p className="pros">{p.profesionales}</p>

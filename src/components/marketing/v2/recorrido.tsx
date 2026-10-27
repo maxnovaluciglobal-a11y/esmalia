@@ -207,7 +207,7 @@ const PANTALLAS: readonly Pantalla[] = [
 const DIFERENCIAS = [
   {
     t: "El precio está publicado",
-    d: "Solo US$29 al mes (1 profesional) o Clínica US$69 (hasta 3). No hay que pedirle el valor a un asesor.",
+    d: "Solo US$19,99 al mes (1 profesional) o Clínica US$49,99 (hasta 3). No hay que pedirle el valor a un asesor.",
   },
   {
     t: "Funciona sin internet",
@@ -242,7 +242,7 @@ const DUDAS = [
   },
   {
     q: "¿Cobran por dentista o por usuario?",
-    a: "El plan se define por cuántos profesionales atienden: Solo (1) a US$29 al mes o Clínica (hasta 3) a US$69. Se cobra en dólares, con tarjeta.",
+    a: "El plan se define por cuántos profesionales atienden: Solo (1) a US$19,99 al mes o Clínica (hasta 3) a US$49,99. Se cobra en dólares, con tarjeta.",
   },
   {
     q: "¿Mi equipo va a saber usarlo?",
@@ -349,7 +349,7 @@ export function Recorrido() {
             </p>
             <ul className="rc-hechos" aria-label="En resumen">
               <li>
-                <b>Desde US$29</b> al mes
+                <b>Desde US$19,99</b> al mes
               </li>
               <li>
                 <b>14 días</b> gratis, sin tarjeta

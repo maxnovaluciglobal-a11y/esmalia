@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/software-dental-chile",
   titulo: "Software dental en Chile: precio y alcance | Esmalia",
   descripcion:
-    "Software dental para clínicas en Chile: agenda en hora de Santiago, pesos sin decimales y WhatsApp. Desde US$29/mes (aprox. $26.700). 14 días gratis.",
+    "Software dental para clínicas en Chile: agenda en hora de Santiago, pesos sin decimales y WhatsApp. Desde US$19,99/mes (aprox. $18.400). 14 días gratis.",
   kicker: "Chile",
   h1: "Software dental para clínicas en Chile",
   resumen:
-    "Esmalia es un software dental que una clínica chilena configura en cuatro pasos: queda en pesos chilenos sin decimales y en hora de Santiago. Cuesta US$29 al mes para un profesional o US$69 hasta tres, unos $26.700 y $63.500 de referencia. No emite boleta ni factura electrónica del SII.",
+    "Esmalia es un software dental que una clínica chilena configura en cuatro pasos: queda en pesos chilenos sin decimales y en hora de Santiago. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $18.400 y $46.000 de referencia. No emite boleta ni factura electrónica del SII.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -73,8 +73,8 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["Plan", "Para quién", "Precio en USD", "Referencia en CLP"],
           filas: [
-            ["Solo", "1 profesional", "US$29 al mes", "aprox. $26.700"],
-            ["Clínica", "Hasta 3 profesionales", "US$69 al mes", "aprox. $63.500"],
+            ["Solo", "1 profesional", "US$19,99 al mes", "aprox. $18.400"],
+            ["Clínica", "Hasta 3 profesionales", "US$49,99 al mes", "aprox. $46.000"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida", "Se cotiza"],
           ],
           nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
@@ -150,7 +150,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software dental sirve para una clínica chica en Chile?",
-      a: "Uno que trabaje en pesos sin decimales, en hora de Santiago y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$29 al mes (aprox. $26.700) para un profesional, con 14 días gratis y sin tarjeta.",
+      a: "Uno que trabaje en pesos sin decimales, en hora de Santiago y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$19,99 al mes (aprox. $18.400) para un profesional, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Esmalia emite boletas de honorarios o facturas del SII?",
@@ -158,7 +158,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Me cobran en pesos chilenos?",
-      a: "No, el cobro es en dólares vía Stripe: US$29 o US$69 al mes. Los montos en pesos que ves en la web son una referencia aproximada; el valor final depende del tipo de cambio de tu banco.",
+      a: "No, el cobro es en dólares vía Stripe: US$19,99 o US$49,99 al mes. Los montos en pesos que ves en la web son una referencia aproximada; el valor final depende del tipo de cambio de tu banco.",
     },
     {
       q: "¿La agenda y los recordatorios usan la hora de Chile?",

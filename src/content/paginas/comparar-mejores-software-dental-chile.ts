@@ -122,7 +122,7 @@ export const pagina: PaginaContenido = {
             ],
             [
               "Esmalia",
-              "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
+              "US$19,99/mes (1 profesional), US$49,99/mes (hasta 3), Red a medida",
               "Sí, FDI versionado, con estado (existente o por realizar) y periodontograma",
               "Sí: recordatorios 48 h y 3 h; ninguno sale solo",
               "En habilitación: Patty, para notas SOAP y resúmenes",
@@ -215,7 +215,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Cuál es el software dental más barato en Chile?",
-      a: "Doctocliq tiene un plan gratis limitado a 30 pacientes o citas al mes. Entre los planes pagos con precio publicado, AgendaPro parte en $15.900 + IVA sin ficha clínica, Doctocliq en US$19 y Esmalia en US$29 con ficha y odontograma incluidos.",
+      a: "Doctocliq tiene un plan gratis limitado a 30 pacientes o citas al mes. Entre los planes pagos con precio publicado, AgendaPro parte en $15.900 + IVA sin ficha clínica, Doctocliq en US$19 y Esmalia en US$19,99 con ficha y odontograma incluidos.",
     },
     {
       q: "¿Qué software dental funciona sin internet?",

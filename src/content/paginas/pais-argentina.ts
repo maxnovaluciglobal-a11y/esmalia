@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/software-dental-argentina",
   titulo: "Software odontológico en Argentina | Esmalia",
   descripcion:
-    "Software odontológico para consultorios y clínicas de Argentina: turnos en hora local, pesos con centavos, WhatsApp e historia clínica. Desde US$29/mes.",
+    "Software odontológico para consultorios y clínicas de Argentina: turnos en hora local, pesos con centavos, WhatsApp e historia clínica. Desde US$19,99/mes.",
   kicker: "Argentina",
   h1: "Software odontológico para consultorios y clínicas de Argentina",
   resumen:
-    "Esmalia es un software odontológico que un consultorio argentino configura en cuatro pasos: queda en pesos argentinos con centavos y en hora de Buenos Aires. Cuesta US$29 al mes para un profesional o US$69 hasta tres, cobrados en dólares. No emite facturas electrónicas de ARCA.",
+    "Esmalia es un software odontológico que un consultorio argentino configura en cuatro pasos: queda en pesos argentinos con centavos y en hora de Buenos Aires. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, cobrados en dólares. No emite facturas electrónicas de ARCA.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -63,8 +63,8 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["Plan", "Para quién", "Precio"],
           filas: [
-            ["Solo", "1 profesional", "US$29 al mes"],
-            ["Clínica", "Hasta 3 profesionales", "US$69 al mes"],
+            ["Solo", "1 profesional", "US$19,99 al mes"],
+            ["Clínica", "Hasta 3 profesionales", "US$49,99 al mes"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida"],
           ],
           nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
@@ -135,7 +135,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software odontológico sirve para un consultorio en Argentina?",
-      a: "Uno que trabaje en pesos con centavos, en hora de Buenos Aires y que recuerde los turnos por WhatsApp. Esmalia hace eso desde US$29 al mes para un profesional, con 14 días gratis y sin tarjeta.",
+      a: "Uno que trabaje en pesos con centavos, en hora de Buenos Aires y que recuerde los turnos por WhatsApp. Esmalia hace eso desde US$19,99 al mes para un profesional, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Esmalia factura electrónicamente con ARCA o AFIP?",
@@ -143,7 +143,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Cuánto sale en pesos argentinos?",
-      a: "El precio es en dólares: US$29 o US$69 al mes, cobrados por Stripe. Esmalia no publica un precio en pesos argentinos; el monto final depende del tipo de cambio de tu banco o tarjeta.",
+      a: "El precio es en dólares: US$19,99 o US$49,99 al mes, cobrados por Stripe. Esmalia no publica un precio en pesos argentinos; el monto final depende del tipo de cambio de tu banco o tarjeta.",
     },
     {
       q: "¿Sirve para obras sociales y prepagas?",

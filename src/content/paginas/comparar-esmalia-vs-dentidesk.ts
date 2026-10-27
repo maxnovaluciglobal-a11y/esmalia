@@ -9,7 +9,7 @@ export const pagina: PaginaContenido = {
   kicker: "Comparativa",
   h1: "Esmalia vs Dentidesk: ¿cuál conviene a tu clínica?",
   resumen:
-    "Dentidesk es un software dental chileno que emite boletas y facturas integradas con el SII, da 15 días de prueba y tiene fichas de especialidad; no publica precios y su WhatsApp automático está anunciado como próximo. Esmalia publica su precio (US$29 o US$69 al mes), da 14 días sin tarjeta y sigue funcionando sin internet. No emite boleta ni factura.",
+    "Dentidesk es un software dental chileno que emite boletas y facturas integradas con el SII, da 15 días de prueba y tiene fichas de especialidad; no publica precios y su WhatsApp automático está anunciado como próximo. Esmalia publica su precio (US$19,99 o US$49,99 al mes), da 14 días sin tarjeta y sigue funcionando sin internet. No emite boleta ni factura.",
   publicado: "2026-10-19",
   actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -34,7 +34,7 @@ export const pagina: PaginaContenido = {
             [
               "Precio",
               "No publica; ofrece demo gratis con un asesor",
-              "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
+              "US$19,99/mes (1 profesional), US$49,99/mes (hasta 3), Red a medida",
             ],
             ["Prueba gratis", "15 días con acceso completo", "14 días sin tarjeta"],
             [
@@ -109,7 +109,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "**Quieres saber cuánto pagas antes de hablar con nadie.** US$29 al mes para un profesional y US$69 para hasta tres, en [precios](/precios). El cobro es en dólares por Stripe.",
+            "**Quieres saber cuánto pagas antes de hablar con nadie.** US$19,99 al mes para un profesional y US$49,99 para hasta tres, en [precios](/precios). El cobro es en dólares por Stripe.",
             "**Quieres recordatorios por WhatsApp desde el primer día.** Esmalia arma los avisos 48 h y 3 h antes y alguien de tu clínica los envía con un toque. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Se te corta internet.** Agenda, fichas, cobros y odontograma siguen funcionando y se sincronizan al volver la conexión. Ver [sin internet](/funciones/sin-internet).",
             "**Atiendes fuera de Chile.** Esmalia funciona en Chile, Perú, México, Colombia y Argentina, con la moneda y la zona horaria de tu país.",

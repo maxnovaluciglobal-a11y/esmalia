@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/software-dental-mexico",
   titulo: "Software dental en México: precio y alcance | Esmalia",
   descripcion:
-    "Software para consultorio dental en México: agenda en hora de Ciudad de México, pesos MXN y WhatsApp. Desde US$29/mes (aprox. $490). 14 días gratis.",
+    "Software para consultorio dental en México: agenda en hora de Ciudad de México, pesos MXN y WhatsApp. Desde US$19,99/mes (aprox. $340). 14 días gratis.",
   kicker: "México",
   h1: "Software para consultorio dental en México",
   resumen:
-    "Esmalia es un software dental que un consultorio en México configura al darse de alta: queda en pesos mexicanos y en hora de Ciudad de México. Cuesta US$29 al mes para un profesional o US$69 hasta tres, unos $490 y $1.200 MXN de referencia, cobrados en dólares. No emite CFDI.",
+    "Esmalia es un software dental que un consultorio en México configura al darse de alta: queda en pesos mexicanos y en hora de Ciudad de México. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $340 y $850 MXN de referencia, cobrados en dólares. No emite CFDI.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -68,8 +68,8 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["Plan", "Para quién", "Precio en USD", "Referencia en MXN"],
           filas: [
-            ["Solo", "1 profesional", "US$29 al mes", "aprox. $490"],
-            ["Clínica", "Hasta 3 profesionales", "US$69 al mes", "aprox. $1.200"],
+            ["Solo", "1 profesional", "US$19,99 al mes", "aprox. $340"],
+            ["Clínica", "Hasta 3 profesionales", "US$49,99 al mes", "aprox. $850"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida", "Se cotiza"],
           ],
           nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
@@ -150,7 +150,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software para consultorio dental sirve en México?",
-      a: "Uno que trabaje en pesos mexicanos, en la hora de tu ciudad y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$29 al mes (aprox. $490 MXN) para un profesional, con 14 días gratis y sin tarjeta.",
+      a: "Uno que trabaje en pesos mexicanos, en la hora de tu ciudad y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$19,99 al mes (aprox. $340 MXN) para un profesional, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Esmalia emite CFDI?",
@@ -158,7 +158,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Me cobran en pesos mexicanos?",
-      a: "No, el cobro es en dólares vía Stripe: US$29 o US$69 al mes. Los montos en pesos son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
+      a: "No, el cobro es en dólares vía Stripe: US$19,99 o US$49,99 al mes. Los montos en pesos son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
     },
     {
       q: "¿Los recordatorios por WhatsApp salen solos?",

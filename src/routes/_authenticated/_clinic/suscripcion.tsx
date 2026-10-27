@@ -14,6 +14,7 @@ import {
 } from "@/lib/billing.functions";
 import { SUBSCRIPTION_STATUS_LABELS, trialDaysLeft } from "@/lib/billing";
 import { approxLocalPricesLabel } from "@/lib/pricing-display";
+import { etiquetaUsd, PRECIO_CLINICA_CENTS, PRECIO_SOLO_CENTS } from "@/lib/marketing/precio-lista";
 import { consumePlanIntent } from "@/lib/marketing/plan-intent";
 import {
   registrarCheckoutIniciado,
@@ -48,19 +49,19 @@ const PLANS: Record<
   solo: {
     label: "Solo",
     blurb: "1 profesional / 1 sillón",
-    priceCents: 2900,
+    priceCents: PRECIO_SOLO_CENTS,
     priceEnvId: import.meta.env.VITE_STRIPE_PRICE_ID_SOLO_MONTHLY,
   },
   clinica: {
     label: "Clínica",
     blurb: "Hasta 3 profesionales / sillones",
-    priceCents: 6900,
+    priceCents: PRECIO_CLINICA_CENTS,
     priceEnvId: import.meta.env.VITE_STRIPE_PRICE_ID_CLINIC_MONTHLY,
   },
 };
 
 function usd(cents: number) {
-  return `US$${(cents / 100).toFixed(0)}`;
+  return etiquetaUsd(cents);
 }
 
 function planFromPriceId(priceId: string | null): PlanKey | null {
@@ -143,7 +144,7 @@ function BillingPage() {
     sub?.status !== "canceled" &&
     sub?.status !== "incomplete_expired";
   const ofrecerCheckout = !yaFacturando && !suscripcionViva;
-  const activePlan = planFromPriceId(sub?.stripePriceId ?? null);
+  const activePlan = sub?.plan ?? planFromPriceId(sub?.stripePriceId ?? null);
   const activePlanInfo = activePlan ? PLANS[activePlan] : null;
 
   // "Comprar Esmalia X" del landing termina acá: auth → onboarding → esta

@@ -8812,6 +8812,7 @@ export type Database = {
           dispute_id: string | null;
           disputed_at: string | null;
           past_due_since: string | null;
+          plan: string | null;
           status: string;
           stripe_customer_id: string | null;
           stripe_price_id: string | null;
@@ -8829,6 +8830,7 @@ export type Database = {
           dispute_id?: string | null;
           disputed_at?: string | null;
           past_due_since?: string | null;
+          plan?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;
@@ -8846,6 +8848,7 @@ export type Database = {
           dispute_id?: string | null;
           disputed_at?: string | null;
           past_due_since?: string | null;
+          plan?: string | null;
           status?: string;
           stripe_customer_id?: string | null;
           stripe_price_id?: string | null;

@@ -6,7 +6,7 @@
 //
 // Veracidad (ver el comentario al inicio de src/routes/index.tsx):
 // - Los montos son los de los dos tiers de Stripe (src/lib/stripe.server.ts):
-//   Solo US$29 y Clínica US$69, ambos con 14 días de trial sin tarjeta
+//   Solo US$19,99 y Clínica US$49,99, ambos con 14 días de trial sin tarjeta
 //   (`payment_method_collection: "if_required"`, billing.functions.ts).
 // - El precio en moneda local es decorativo (`precioEnMoneda`,
 //   pricing-display.ts): el cobro real siempre es en USD.
@@ -16,6 +16,7 @@ import { Link } from "@tanstack/react-router";
 import { buttonVariants } from "@/components/ui/button";
 import { enlaceWhatsAppVentas } from "@/lib/marketing/contacto";
 import { registrarEvento } from "@/lib/marketing/eventos";
+import { etiquetaUsd, PRECIO_CLINICA_CENTS, PRECIO_SOLO_CENTS } from "@/lib/marketing/precio-lista";
 import { detectarPaisVisitante, monedaPorPais } from "@/lib/marketing/pais-visitante";
 import { setPlanIntent, type PlanIntent } from "@/lib/marketing/plan-intent";
 import { MONEDAS_PRECIO, precioEnMoneda, type MonedaPrecio } from "@/lib/pricing-display";
@@ -39,12 +40,13 @@ const PLANES: readonly Plan[] = [
     id: "solo",
     alcance: "1 profesional",
     nombre: "Solo",
-    usd: 29,
+    usd: PRECIO_SOLO_CENTS / 100,
     incluye: [
       "Agenda y ficha clínica",
       "Recordatorios por WhatsApp",
       "Caja y presupuestos",
       "Importación de pacientes por planilla",
+      "15 GB para radiografías, fotos y escaneos",
       "Soporte directo con el equipo que lo construye",
     ],
   },
@@ -52,9 +54,14 @@ const PLANES: readonly Plan[] = [
     id: "clinica",
     alcance: "Hasta 3 profesionales",
     nombre: "Clínica",
-    usd: 69,
+    usd: PRECIO_CLINICA_CENTS / 100,
     recomendado: true,
-    incluye: ["Todo lo de Solo", "Comisiones y roles", "Portal de pacientes"],
+    incluye: [
+      "Todo lo de Solo",
+      "Comisiones y roles",
+      "Portal de pacientes",
+      "45 GB para radiografías, fotos y escaneos",
+    ],
   },
   {
     id: "red",
@@ -155,7 +162,7 @@ export function PreciosPlanes({
                   <span className="ml-1 font-body text-base text-muted-foreground">/mes</span>
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  US${p.usd} al mes
+                  {etiquetaUsd(Math.round(p.usd * 100))} al mes
                   {moneda !== "USD" && " · referencial, el cobro es en USD"}
                 </p>
               </>

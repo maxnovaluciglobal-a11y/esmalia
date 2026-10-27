@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/para/dentista-independiente",
   titulo: "Software para dentista independiente | Esmalia",
   descripcion:
-    "Qué necesita un dentista independiente en su software, qué le sobra con un sillón y cómo elegir. Plan Solo de Esmalia: US$29/mes, 14 días gratis.",
+    "Qué necesita un dentista independiente en su software, qué le sobra con un sillón y cómo elegir. Plan Solo de Esmalia: US$19,99/mes, 14 días gratis.",
   kicker: "Para dentistas independientes",
   h1: "Software dental para el dentista que atiende solo",
   resumen:
-    "Si atiendes solo con un sillón, necesitas agenda con recordatorios por WhatsApp, ficha con odontograma, presupuestos y saber quién te debe. Lo demás puede esperar. El plan Solo de Esmalia cubre eso por US$29 al mes, para un profesional, con 14 días gratis y sin tarjeta.",
+    "Si atiendes solo con un sillón, necesitas agenda con recordatorios por WhatsApp, ficha con odontograma, presupuestos y saber quién te debe. Lo demás puede esperar. El plan Solo de Esmalia cubre eso por US$19,99 al mes, para un profesional, con 14 días gratis y sin tarjeta.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -63,7 +63,7 @@ export const pagina: PaginaContenido = {
             ["Portal de pacientes para pedir hora", "Útil, no imprescindible", "Plan Clínica"],
             ["Multisede e inventario", "No", "Plan Red"],
           ],
-          nota: "Si más adelante sumas un colega o una asistente con su propio acceso, el plan Clínica cubre hasta 3 profesionales por US$69 al mes.",
+          nota: "Si más adelante sumas un colega o una asistente con su propio acceso, el plan Clínica cubre hasta 3 profesionales por US$49,99 al mes.",
         },
       ],
     },
@@ -100,7 +100,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "US$29 al mes para un profesional, cobrados en dólares por Stripe. Incluye agenda y ficha clínica, recordatorios por WhatsApp, caja y presupuestos, importación de pacientes por planilla y soporte directo con el equipo que lo construye. Las clínicas fundadoras pagan la mitad del precio durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
+            "US$19,99 al mes para un profesional, cobrados en dólares por Stripe. Incluye agenda y ficha clínica, recordatorios por WhatsApp, caja y presupuestos, importación de pacientes por planilla y soporte directo con el equipo que lo construye. Las clínicas fundadoras pagan la mitad del precio durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
         },
         {
           tipo: "p",
@@ -118,7 +118,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Cuál es el mejor software dental para un dentista independiente?",
-      a: "El que cubre agenda con recordatorios, ficha con odontograma, presupuestos y saldos sin cobrarte por módulos de clínica grande. Esmalia lo hace con el plan Solo, a US$29 al mes, con 14 días gratis y sin tarjeta.",
+      a: "El que cubre agenda con recordatorios, ficha con odontograma, presupuestos y saldos sin cobrarte por módulos de clínica grande. Esmalia lo hace con el plan Solo, a US$19,99 al mes, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Necesito comisiones o portal de pacientes si atiendo solo?",
@@ -130,7 +130,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Qué pasa si después contrato una asistente o sumo un colega?",
-      a: "Te cambias al plan Clínica: hasta 3 profesionales por US$69 al mes, con roles para que cada persona vea solo lo suyo, comisiones y portal de pacientes.",
+      a: "Te cambias al plan Clínica: hasta 3 profesionales por US$49,99 al mes, con roles para que cada persona vea solo lo suyo, comisiones y portal de pacientes.",
     },
   ],
   relacionados: [
@@ -142,5 +142,5 @@ export const pagina: PaginaContenido = {
     "/precios",
   ],
   enUnaLinea:
-    "Qué necesita y qué le sobra a un dentista que atiende solo, checklist para elegir software y plan Solo de Esmalia a US$29 al mes.",
+    "Qué necesita y qué le sobra a un dentista que atiende solo, checklist para elegir software y plan Solo de Esmalia a US$19,99 al mes.",
 };
