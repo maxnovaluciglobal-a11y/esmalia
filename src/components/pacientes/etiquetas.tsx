@@ -43,7 +43,7 @@ import { cn } from "@/lib/utils";
  * la RLS; acá solo se esconde lo que el rol no puede hacer.
  */
 
-export const CLAVE_ETIQUETAS = (clinicId: string | undefined) => ["patient-labels", clinicId];
+const CLAVE_ETIQUETAS = (clinicId: string | undefined) => ["patient-labels", clinicId];
 
 /** Catálogo de etiquetas de la clínica (compartido por la lista y la ficha). */
 export function useEtiquetas(clinicId: string | undefined) {
