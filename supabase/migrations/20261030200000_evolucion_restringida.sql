@@ -42,8 +42,10 @@ comment on column public.clinical_notes.restricted is
 
 -- ── 2. Quién puede ver una nota ───────────────────────────────────────────
 -- true si la nota (y su nota original, si es una adenda) no está restringida
--- o si quien pregunta es su autor u owner/admin. Una nota que no existe
--- devuelve true: las demás políticas deciden (no es esta la que da acceso).
+-- o si quien pregunta es su autor u owner/admin. Las adendas de una nota
+-- restringida las ve además el autor de esa nota (es el mismo registro). Una
+-- nota que no existe devuelve true: las demás políticas deciden (no es esta
+-- la que da acceso).
 create or replace function public.puede_ver_nota_clinica(p_note_id uuid)
 returns boolean
 language sql
@@ -57,8 +59,11 @@ as $$
       left join public.clinical_notes p on p.id = n.addendum_of
      where n.id = p_note_id
        and (
+         -- La nota restringida: su autor, el autor de la nota que corrige
+         -- (si es una adenda) y owner/admin.
          (n.restricted
            and n.created_by is distinct from auth.uid()
+           and p.created_by is distinct from auth.uid()
            and not public.has_clinic_role(n.clinic_id, array['owner','admin']::public.app_role[]))
          or
          (coalesce(p.restricted, false)
