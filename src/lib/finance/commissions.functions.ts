@@ -344,11 +344,7 @@ export const listCommissionRuleVersions = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ReglasDeComision> => {
     const { supabase } = context;
     const [{ data: clinic }, versiones, settlementsRes] = await Promise.all([
-      supabase
-        .from("clinics")
-        .select("timezone, currency")
-        .eq("id", data.clinicId)
-        .maybeSingle(),
+      supabase.from("clinics").select("timezone, currency").eq("id", data.clinicId).maybeSingle(),
       cargarVersiones(supabase, data.clinicId, data.professionalId),
       supabase
         .from("commission_settlements")
@@ -1077,11 +1073,7 @@ export const getMiDesempeno = createServerFn({ method: "GET" })
     );
 
     const [{ data: clinic }, { data: pros }, { data: propio }] = await Promise.all([
-      supabase
-        .from("clinics")
-        .select("timezone, currency")
-        .eq("id", data.clinicId)
-        .maybeSingle(),
+      supabase.from("clinics").select("timezone, currency").eq("id", data.clinicId).maybeSingle(),
       alcance.veTodo
         ? supabase
             .from("professionals")

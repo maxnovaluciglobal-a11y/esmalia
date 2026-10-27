@@ -657,7 +657,7 @@ export const getCajasDelDia = createServerFn({ method: "GET" })
     );
 
     const nombreDe = (c: CashRegister) =>
-      c.operatorId ? (c.operatorName?.trim() || "Otra persona") : "Caja general";
+      c.operatorId ? c.operatorName?.trim() || "Otra persona" : "Caja general";
 
     const salida: CajaDelDiaFila[] = cajas.map((c) => {
       const propios = pagos.filter((p) => p.cash_register_id === c.id);
