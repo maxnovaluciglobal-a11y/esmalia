@@ -107,6 +107,13 @@ export const Route = createFileRoute("/api/demo-reset")({
           await import("@/lib/demo/ola8-pacientes.server")
         ).sembrarEtiquetasYSegmentosDeLaDemo(supabaseAdmin);
 
+        // Ola 10 · B: caja por operador (dos cajas abiertas, traspaso y
+        // depósito) y comisiones con "rige desde", regla por prestación y el
+        // mes pasado liquidado. Va después de los cobros de hoy (nunca lanza).
+        await (
+          await import("@/lib/demo/caja-comisiones.server")
+        ).sembrarCajaYComisionesDeLaDemo(supabaseAdmin);
+
         return new Response("ok", { status: 200 });
       },
     },

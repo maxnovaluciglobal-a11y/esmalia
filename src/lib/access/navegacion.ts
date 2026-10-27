@@ -183,6 +183,12 @@ export const DESTINOS: readonly Destino[] = [
       },
       { to: "/morosidad", label: "Morosidad", permisos: ["finance:view"], sinonimos: ["deudas"] },
       { to: "/comisiones", label: "Comisiones", permisos: ["finance:view", "commission:view-own"] },
+      {
+        to: "/mi-desempeno",
+        label: "Mi desempeño",
+        permisos: ["finance:view", "commission:view-own"],
+        sinonimos: ["desempeño", "mi comisión", "mis liquidaciones", "producción"],
+      },
       { to: "/efectividad", label: "Efectividad", permisos: ["dashboard:view"] },
       {
         to: "/resultados-del-piloto",
