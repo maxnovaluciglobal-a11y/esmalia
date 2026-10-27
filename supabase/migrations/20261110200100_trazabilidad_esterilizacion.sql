@@ -369,8 +369,10 @@ $$;
 revoke all on function public.retirar_paquetes_de_ciclo_fallido() from public, anon, authenticated;
 
 drop trigger if exists sterilization_cycles_retirar_paquetes on public.sterilization_cycles;
+-- Sin lista de columnas: el resultado lo puede cambiar el trigger BEFORE
+-- (indicador fallido) sin que el UPDATE nombre `result`.
 create trigger sterilization_cycles_retirar_paquetes
-  after insert or update of result on public.sterilization_cycles
+  after insert or update on public.sterilization_cycles
   for each row execute function public.retirar_paquetes_de_ciclo_fallido();
 
 -- ── Reglas del paquete ────────────────────────────────────────────────────

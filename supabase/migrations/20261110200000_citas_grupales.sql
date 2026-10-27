@@ -317,7 +317,7 @@ begin
       raise exception 'El paciente no es de esta clínica o su ficha está archivada.'
         using errcode = '42501';
     end if;
-    new.enrolled_at := now();
+    new.enrolled_at := clock_timestamp();
     new.enrolled_by := coalesce(v_uid, new.enrolled_by);
     new.withdrawn_at := null;
     new.withdrawn_by := null;
@@ -337,7 +337,7 @@ begin
 
     if old.withdrawn_at is not null and new.withdrawn_at is null then
       -- Reincorporación: vuelve a ocupar cupo.
-      new.enrolled_at := now();
+      new.enrolled_at := clock_timestamp();
       new.enrolled_by := coalesce(v_uid, old.enrolled_by);
       new.withdrawn_by := null;
       new.withdraw_reason := null;
