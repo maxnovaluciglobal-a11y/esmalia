@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { SearchField } from "@/components/filters";
 import { ChipEstadoCuenta } from "@/components/finance/chip-estado-cuenta";
@@ -14,6 +16,7 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { getMySubscription } from "@/lib/billing.functions";
 import { informesBloqueados } from "@/lib/billing";
 import {
+  ETIQUETA_ESTADO_CUENTA,
   ETIQUETA_FILTRO_CUENTA,
   ETIQUETA_TRAMO,
   FILTROS_CUENTA,
@@ -70,6 +73,7 @@ function CuentasPorCobrarPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const clinicId = access.clinic!.id;
   const currency = access.clinic?.currency ?? "CLP";
+  const timezone = access.clinic?.timezone ?? "America/Santiago";
   const estado = search.estado ?? "por_cobrar";
   const tramo = search.tramo ?? "todos";
   const termino = search.q ?? "";
@@ -189,6 +193,52 @@ function CuentasPorCobrarPage() {
                   ))}
                 </select>
               </label>
+              <ExportarCsvLista<CuentaPorCobrar>
+                className="sm:ml-auto"
+                clinicId={clinicId}
+                rol={access.role}
+                lista="cuentas_por_cobrar"
+                filas={filtradas}
+                timezone={timezone}
+                filtros={{ estado, tramo, q: termino }}
+                columnas={[
+                  { header: "Paciente", value: (c) => c.patientName },
+                  { header: "Detalle", value: (c) => c.description },
+                  { header: "Estado", value: (c) => ETIQUETA_ESTADO_CUENTA[c.resumen.estado] },
+                  { header: "Emitida", value: (c) => fechaPlanilla(c.issuedOn, timezone) },
+                  { header: "Vencimiento", value: (c) => fechaPlanilla(c.dueOn, timezone) },
+                  {
+                    header: "Próximo vencimiento",
+                    value: (c) => fechaPlanilla(c.resumen.proximoVencimiento, timezone),
+                  },
+                  { header: "Días de atraso", value: (c) => c.resumen.diasDeAtraso },
+                  { header: "Antigüedad", value: (c) => ETIQUETA_TRAMO[c.resumen.tramo] },
+                  {
+                    header: "Monto",
+                    value: (c) => montoPlanilla(c.amountCents, c.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Pagado",
+                    value: (c) => montoPlanilla(c.resumen.pagadoCents, c.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Saldo",
+                    value: (c) => montoPlanilla(c.resumen.saldoCents, c.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Vencido",
+                    value: (c) => montoPlanilla(c.resumen.vencidoCents, c.currency),
+                    dinero: true,
+                  },
+                  { header: "Moneda", value: (c) => c.currency, dinero: true },
+                  { header: "Último pago", value: (c) => fechaPlanilla(c.ultimoPagoAt, timezone) },
+                  { header: "Anulada", value: (c) => fechaPlanilla(c.voidedAt, timezone) },
+                  { header: "Motivo de anulación", value: (c) => c.voidReason },
+                ]}
+              />
             </div>
           </div>
 

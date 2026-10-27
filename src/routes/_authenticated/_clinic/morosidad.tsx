@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { Badge } from "@/components/ui/badge";
@@ -104,10 +106,33 @@ function MorosidadPage() {
             </p>
           ) : (
             <>
-              <p className="text-sm font-medium">
-                Total pendiente: {formatMoney(totalCents, currency)} en {filas!.length} paciente
-                {filas!.length === 1 ? "" : "s"}
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-medium">
+                  Total pendiente: {formatMoney(totalCents, currency)} en {filas!.length} paciente
+                  {filas!.length === 1 ? "" : "s"}
+                </p>
+                <ExportarCsvLista<NonNullable<typeof filas>[number]>
+                  clinicId={clinicId}
+                  rol={access.role}
+                  lista="morosidad"
+                  filas={filas!}
+                  timezone={access.clinic?.timezone ?? "America/Santiago"}
+                  columnas={[
+                    { header: "Paciente", value: (f) => f.patientName },
+                    {
+                      header: "Saldo",
+                      value: (f) => montoPlanilla(f.balanceCents, f.currency),
+                      dinero: true,
+                    },
+                    { header: "Moneda", value: (f) => f.currency, dinero: true },
+                    { header: "Antigüedad", value: (f) => AGING_BUCKET_LABELS[f.bucket] },
+                    {
+                      header: "Fecha de referencia",
+                      value: (f) => fechaPlanilla(f.referenceDate, access.clinic?.timezone),
+                    },
+                  ]}
+                />
+              </div>
               <Table>
                 <TableHeader>
                   <TableRow>

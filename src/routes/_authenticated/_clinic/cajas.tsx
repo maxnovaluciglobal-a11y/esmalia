@@ -6,6 +6,8 @@ import { Loader2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaHoraPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import {
   ArqueoDenominaciones,
   type CierreArqueo,
@@ -418,9 +420,48 @@ function CajasPage() {
         )}
 
         <section aria-labelledby="caja-historial" className="space-y-3">
-          <h2 id="caja-historial" className="font-display text-2xl font-semibold">
-            Historial de turnos
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="caja-historial" className="font-display text-2xl font-semibold">
+              Historial de turnos
+            </h2>
+            {clinicId && (
+              <ExportarCsvLista<CashRegister>
+                clinicId={clinicId}
+                rol={access.role}
+                lista="caja"
+                filas={filas}
+                timezone={clinicTz ?? "America/Santiago"}
+                columnas={[
+                  { header: "Apertura", value: (r) => fechaHoraPlanilla(r.openedAt, clinicTz) },
+                  { header: "Cierre", value: (r) => fechaHoraPlanilla(r.closedAt, clinicTz) },
+                  { header: "Estado", value: (r) => CASH_REGISTER_STATUS_LABELS[r.status] },
+                  {
+                    header: "Monto de apertura",
+                    value: (r) => montoPlanilla(r.openingAmountCents, r.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Esperado",
+                    value: (r) => montoPlanilla(r.expectedClosingCents, r.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Contado",
+                    value: (r) => montoPlanilla(r.declaredClosingCents, r.currency),
+                    dinero: true,
+                  },
+                  {
+                    header: "Diferencia",
+                    value: (r) => montoPlanilla(r.differenceCents, r.currency),
+                    dinero: true,
+                  },
+                  { header: "Moneda", value: (r) => r.currency, dinero: true },
+                  { header: "Notas de apertura", value: (r) => r.openingNotes },
+                  { header: "Notas de cierre", value: (r) => r.closingNotes },
+                ]}
+              />
+            )}
+          </div>
           {historyConError ? (
             <ErrorDeCarga
               mensaje="No pudimos cargar el historial de cajas."

@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
 import { requirePermission } from "@/lib/access/route-guards";
@@ -73,6 +75,7 @@ function TratamientosPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const clinicId = access.clinic?.id;
+  const timezone = access.clinic?.timezone ?? "America/Santiago";
 
   const fetchPlans = useServerFn(listClinicTreatmentPlans);
   const {
@@ -138,6 +141,42 @@ function TratamientosPage() {
             onChange={(hasta) => set({ hasta })}
           />
         </FilterBar>
+
+        {clinicId && (
+          <div className="flex justify-end">
+            <ExportarCsvLista<(typeof filtrados)[number]>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="tratamientos"
+              filas={filtrados}
+              timezone={timezone}
+              filtros={{
+                q: search.q,
+                estado: search.estado,
+                desde: search.desde,
+                hasta: search.hasta,
+              }}
+              columnas={[
+                { header: "Paciente", value: (t) => t.patientName },
+                { header: "Documento", value: (t) => t.patientDocument ?? null },
+                { header: "Plan", value: (t) => t.name },
+                { header: "Estado", value: (t) => TREATMENT_PLAN_STATUS_LABELS[t.status] },
+                {
+                  header: "Inicio",
+                  value: (t) => fechaPlanilla(t.startedAt ?? t.createdAt, timezone),
+                },
+                { header: "Ítems completados", value: (t) => t.itemsCompleted },
+                { header: "Ítems totales", value: (t) => t.itemsCount },
+                {
+                  header: "Total",
+                  value: (t) => montoPlanilla(t.totalCents, t.currency),
+                  dinero: true,
+                },
+                { header: "Moneda", value: (t) => t.currency, dinero: true },
+              ]}
+            />
+          </div>
+        )}
 
         <div className="card-clinical overflow-hidden">
           <div className="divide-y divide-hairline">

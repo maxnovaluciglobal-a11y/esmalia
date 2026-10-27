@@ -34,6 +34,8 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, siNoPlanilla } from "@/lib/exportacion/listas-csv";
 import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
 import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
@@ -2075,6 +2077,47 @@ function AgendaPage() {
             options={estados}
           />
         </FilterBar>
+
+        {clinicId && vista === "lista" && (
+          <div className="flex justify-end">
+            <ExportarCsvLista<Cita>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="citas"
+              filas={ordenadas}
+              timezone={access.clinic?.timezone ?? "America/Santiago"}
+              filtros={{
+                desde: rangoDesde,
+                hasta: rangoHasta,
+                q: search.q,
+                sucursal: search.sucursal,
+                profesional: search.profesional,
+                estado: search.estado,
+              }}
+              columnas={[
+                { header: "Fecha", value: (c) => fechaPlanilla(c.fecha) },
+                { header: "Hora", value: (c) => horaDeCita(c.inicio) },
+                { header: "Duración (min)", value: (c) => c.duracion },
+                { header: "Paciente", value: (c) => c.paciente },
+                { header: "Tratamiento", value: (c) => c.tratamiento },
+                {
+                  header: "Profesional",
+                  value: (c) => profesionales.find((p) => p.id === c.profesionalId)?.nombre ?? null,
+                },
+                {
+                  header: "Sucursal",
+                  value: (c) => sucursales.find((s) => s.id === c.sucursalId)?.nombre ?? null,
+                },
+                { header: "Box", value: (c) => c.box ?? null },
+                { header: "Estado", value: (c) => etiquetaEstado[c.estado] },
+                {
+                  header: "Paciente confirmó",
+                  value: (c) => siNoPlanilla(c.pacienteConfirmo ?? false),
+                },
+              ]}
+            />
+          </div>
+        )}
 
         {/* `grid-cols-1` y `min-w-0`: sin ellos la columna implícita crece al
             ancho mínimo de la grilla de la agenda y, en celular, la página
