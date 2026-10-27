@@ -5,12 +5,20 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   CLINIC_ROLES,
+  PERMISSIONS,
+  PROFESIONES,
+  ajusteAdmitido,
+  ajustesDesdeFilas,
+  ajustesVigentes,
   isClinicRole,
+  isProfesion,
+  permisosEfectivos,
+  type AjustePermiso,
   type ClinicAccess,
   type ClinicMember,
   type ClinicRole,
 } from "@/lib/access/access";
-import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
+import { assertNotDemoClinic, requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { leerCookieConAnterior } from "@/lib/compat/nombres-anteriores";
 import { mensajeDb } from "@/lib/db-errors";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
@@ -63,7 +71,7 @@ export const getMyAccess = createServerFn({ method: "GET" })
       supabase
         .from("clinic_members")
         .select(
-          "role, clinics(id, name, onboarding_completed, timezone, country, is_demo, currency, onboarding_call_at)",
+          "id, role, profession, clinics(id, name, onboarding_completed, timezone, country, is_demo, currency, onboarding_call_at)",
         )
         .eq("user_id", userId)
         .order("created_at", { ascending: true }),
@@ -81,14 +89,26 @@ export const getMyAccess = createServerFn({ method: "GET" })
     // así /comisiones (y cualquier otra pantalla "ver lo mío") no tiene que
     // hacer esta query por su cuenta.
     let myProfessionalId: string | null = null;
+    // EQU-01: ajustes por persona del usuario en la clínica activa. Falla
+    // cerrada: si no se pueden leer, se usa el rol sin "dar" nada, pero un
+    // "quitar" que no se pudo leer igual lo cumple la base (RLS restrictiva).
+    let ajustes: AjustePermiso[] = [];
     if (membership?.clinics) {
-      const { data: myPro } = await supabase
-        .from("professionals")
-        .select("id")
-        .eq("clinic_id", membership.clinics.id)
-        .eq("user_id", userId)
-        .maybeSingle();
+      const [{ data: myPro }, { data: filasAjustes }] = await Promise.all([
+        supabase
+          .from("professionals")
+          .select("id")
+          .eq("clinic_id", membership.clinics.id)
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("clinic_member_permission_overrides")
+          .select("permission, effect")
+          .eq("clinic_id", membership.clinics.id)
+          .eq("member_id", membership.id),
+      ]);
       myProfessionalId = myPro?.id ?? null;
+      ajustes = role ? ajustesVigentes(role, ajustesDesdeFilas(filasAjustes)) : [];
     }
 
     return {
@@ -113,6 +133,10 @@ export const getMyAccess = createServerFn({ method: "GET" })
           }
         : null,
       role,
+      myProfessionalId,
+      permissions: permisosEfectivos(role, ajustes),
+      ajustes,
+      profession: isProfesion(membership?.profession) ? membership.profession : null,
     };
   });
 
@@ -150,30 +174,57 @@ export const listClinicMembers = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ClinicMember[]> => {
     const { data: rows, error } = await context.supabase
       .from("clinic_members")
-      .select("id, user_id, role")
+      .select("id, user_id, role, profession")
       .eq("clinic_id", data.clinicId)
       .order("created_at", { ascending: true });
 
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar el equipo de la clínica."));
 
     const userIds = (rows ?? []).map((row) => row.user_id);
-    const { data: profiles } = userIds.length
-      ? await context.supabase
-          .from("profiles")
-          .select("id, full_name, email, avatar_url")
-          .in("id", userIds)
-      : { data: [] };
+    // Ajustes por persona: la RLS devuelve todos a quien gestiona la clínica
+    // y solo los propios al resto (EQU-01).
+    const [{ data: profiles }, { data: filasAjustes }] = await Promise.all([
+      userIds.length
+        ? context.supabase
+            .from("profiles")
+            .select("id, full_name, email, avatar_url")
+            .in("id", userIds)
+        : Promise.resolve({
+            data: [] as {
+              id: string;
+              full_name: string | null;
+              email: string | null;
+              avatar_url: string | null;
+            }[],
+          }),
+      context.supabase
+        .from("clinic_member_permission_overrides")
+        .select("member_id, permission, effect")
+        .eq("clinic_id", data.clinicId),
+    ]);
 
     const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+    const ajustesPorMiembro = new Map<string, { permission: string; effect: string }[]>();
+    for (const f of filasAjustes ?? []) {
+      const lista = ajustesPorMiembro.get(f.member_id) ?? [];
+      lista.push(f);
+      ajustesPorMiembro.set(f.member_id, lista);
+    }
 
-    return (rows ?? []).map((row) => ({
-      id: row.id,
-      userId: row.user_id,
-      role: (isClinicRole(row.role) ? row.role : "assistant") as ClinicRole,
-      fullName: profileById.get(row.user_id)?.full_name ?? null,
-      email: profileById.get(row.user_id)?.email ?? null,
-      avatarUrl: profileById.get(row.user_id)?.avatar_url ?? null,
-    }));
+    return (rows ?? []).map((row) => {
+      // Un rol desconocido (otra versión de la app) cae al más acotado.
+      const role = (isClinicRole(row.role) ? row.role : "lab_technician") as ClinicRole;
+      return {
+        id: row.id,
+        userId: row.user_id,
+        role,
+        profession: isProfesion(row.profession) ? row.profession : null,
+        ajustes: ajustesVigentes(role, ajustesDesdeFilas(ajustesPorMiembro.get(row.id))),
+        fullName: profileById.get(row.user_id)?.full_name ?? null,
+        email: profileById.get(row.user_id)?.email ?? null,
+        avatarUrl: profileById.get(row.user_id)?.avatar_url ?? null,
+      };
+    });
   });
 
 /**
@@ -242,6 +293,7 @@ export const inviteMember = createServerFn({ method: "POST" })
         email: z.string().trim().toLowerCase().email("Email inválido."),
         fullName: z.string().trim().min(1, "El nombre es obligatorio.").max(200),
         role: z.enum(CLINIC_ROLES),
+        profession: z.enum(PROFESIONES).nullable().optional(),
       })
       .parse(input),
   )
@@ -323,6 +375,7 @@ export const inviteMember = createServerFn({ method: "POST" })
       clinic_id: data.clinicId,
       user_id: newUserId,
       role: data.role,
+      profession: data.profession ?? null,
     });
 
     if (memberError) {
@@ -362,5 +415,122 @@ export const removeMember = createServerFn({ method: "POST" })
 
     const { error } = await supabase.from("clinic_members").delete().eq("id", data.memberId);
     if (error) throw new Error("No tienes permisos para quitar integrantes.");
+    return { ok: true };
+  });
+
+/**
+ * EQU-03: carga la profesión de un integrante (o la propia). La RPC
+ * `definir_profesion_de_integrante` es la autoridad: cada uno la suya, la de
+ * los demás solo owner/admin, nunca en la demo. Acá se valida el valor.
+ */
+export const definirProfesion = createServerFn({ method: "POST" })
+  .middleware([requireEscrituraPorFila("clinic_members", "memberId")])
+  .validator((input: unknown) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        profession: z.enum(PROFESIONES).nullable(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("definir_profesion_de_integrante", {
+      p_member_id: data.memberId,
+      p_profession: data.profession ?? "",
+    });
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para cambiar la profesión."));
+    return { ok: true };
+  });
+
+/**
+ * EQU-01: da, quita o devuelve al rol un permiso puntual de un integrante.
+ * `effect: null` borra el ajuste (vuelve a lo que trae su rol).
+ *
+ * Tres capas, igual que el resto del módulo:
+ * 1. Acá: owner/admin con el rol REAL (no la simulación), nunca sobre uno
+ *    mismo ni sobre el propietario, solo ajustes del catálogo (`ajusteAdmitido`),
+ *    y escribir historia clínica exige verla.
+ * 2. RLS `permission_overrides_*`: solo `can_manage_clinic`.
+ * 3. Trigger `validar_ajuste_de_permiso`: misma clínica, reglas duras de la
+ *    regla 2 y el catálogo espejo en SQL. Aunque alguien llame directo a
+ *    PostgREST, la historia clínica no se abre a recepción ni los pagos a
+ *    asistente.
+ */
+export const guardarAjustePermiso = createServerFn({ method: "POST" })
+  .middleware([requireEscrituraPorFila("clinic_members", "memberId")])
+  .validator((input: unknown) =>
+    z
+      .object({
+        memberId: z.string().uuid(),
+        permission: z.enum(PERMISSIONS),
+        effect: z.enum(["grant", "revoke"]).nullable(),
+        reason: z.string().trim().max(300).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: member, error: readError } = await supabase
+      .from("clinic_members")
+      .select("id, user_id, clinic_id, role")
+      .eq("id", data.memberId)
+      .maybeSingle();
+    if (readError) throw new Error(mensajeDb(readError, "No pudimos cargar a ese integrante."));
+    if (!member || !isClinicRole(member.role)) throw new Error("No encontramos a ese integrante.");
+
+    await requireClinicRole(
+      supabase,
+      member.clinic_id,
+      userId,
+      ["owner", "admin"],
+      "Solo propietario y administración pueden ajustar permisos.",
+    );
+    if (member.user_id === userId) throw new Error("No puedes ajustar tus propios permisos.");
+    if (member.role === "owner")
+      throw new Error("El propietario tiene acceso completo: no se ajusta por persona.");
+    await assertNotDemoClinic(supabase, member.clinic_id);
+
+    if (data.effect === null) {
+      const { error } = await supabase
+        .from("clinic_member_permission_overrides")
+        .delete()
+        .eq("clinic_id", member.clinic_id)
+        .eq("member_id", member.id)
+        .eq("permission", data.permission);
+      if (error) throw new Error("No tienes permisos para ajustar permisos en esta clínica.");
+      return { ok: true };
+    }
+
+    if (!ajusteAdmitido(member.role, data.permission, data.effect)) {
+      throw new Error("Ese ajuste no está permitido para el rol de esta persona.");
+    }
+
+    if (data.permission === "clinical:write" && data.effect === "grant") {
+      const { data: filas } = await supabase
+        .from("clinic_member_permission_overrides")
+        .select("permission, effect")
+        .eq("clinic_id", member.clinic_id)
+        .eq("member_id", member.id);
+      const efectivos = permisosEfectivos(member.role, ajustesDesdeFilas(filas));
+      if (!efectivos.includes("clinical:view")) {
+        throw new Error("Para escribir historia clínica, primero tiene que poder verla.");
+      }
+    }
+
+    const { error } = await supabase.from("clinic_member_permission_overrides").upsert(
+      {
+        clinic_id: member.clinic_id,
+        member_id: member.id,
+        permission: data.permission,
+        effect: data.effect,
+        reason: data.reason?.trim() || null,
+      },
+      { onConflict: "member_id,permission" },
+    );
+    if (error)
+      throw new Error(
+        mensajeDb(error, "No tienes permisos para ajustar permisos en esta clínica."),
+      );
     return { ok: true };
   });

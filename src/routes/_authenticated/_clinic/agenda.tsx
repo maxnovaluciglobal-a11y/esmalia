@@ -1558,9 +1558,9 @@ function AgendaPage() {
   const clinicId = access.clinic?.id;
   const hoy = hoyISO(access.clinic?.timezone);
   const fecha = fechaDeAgenda(search.fecha, access.clinic?.timezone);
-  const puedeGestionarAgenda = Boolean(clinicId) && hasPermission(access.role, "agenda:manage");
+  const puedeGestionarAgenda = Boolean(clinicId) && hasPermission(access, "agenda:manage");
   // Mismo criterio que `puedeFacturar` en la ficha del paciente.
-  const puedeCobrar = hasPermission(access.role, "patients:manage");
+  const puedeCobrar = hasPermission(access, "patients:manage");
   // Sin `vista` en la URL: lista en el celular (UX-02), día en el resto. En
   // el servidor y en la hidratación vale "día"; en el celular se corrige al
   // montar.
@@ -1629,7 +1629,7 @@ function AgendaPage() {
   // (migración 20260826180000), no algo nuevo introducido acá.
   const { data: allergyAlerts = {} } = useQuery({
     queryKey: ["allergy-alerts", clinicId],
-    enabled: Boolean(clinicId) && hasPermission(access.role, "clinical:view"),
+    enabled: Boolean(clinicId) && hasPermission(access, "clinical:view"),
     queryFn: () => fetchAllergyAlerts({ data: { clinicId: clinicId! } }),
   });
 
@@ -1651,7 +1651,7 @@ function AgendaPage() {
   const pacientes = useMemo(() => pacientesRes?.items ?? [], [pacientesRes]);
   const refetchPacientes = useCallback(() => void refetchPacientesQuery(), [refetchPacientesQuery]);
   // Quién ve el atajo "Agrégalo en Profesionales" bajo el selector (AGE-17).
-  const puedeAdministrarProfesionales = hasPermission(access.role, "settings:manage");
+  const puedeAdministrarProfesionales = hasPermission(access, "settings:manage");
   const { data: listaEspera = [] } = useQuery({
     queryKey: ["waitlist", clinicId],
     enabled: Boolean(clinicId),
@@ -1883,7 +1883,7 @@ function AgendaPage() {
   // recepción sepa a quién cobrarle antes de que entre al box. Una sola
   // agregación por lote (igual que las alergias), acotada a la página y no a
   // la clínica entera. Gate `finance:view`: un asistente clínico no ve deudas.
-  const puedeVerSaldos = hasPermission(access.role, "finance:view");
+  const puedeVerSaldos = hasPermission(access, "finance:view");
   const pacienteIdsVisibles = useMemo(
     () => [...new Set(pagina.items.map((c) => c.pacienteId))].sort(),
     [pagina.items],
@@ -1984,7 +1984,7 @@ function AgendaPage() {
             hoy,
             puedeGestionar: puedeGestionarAgenda,
             puedeVerFinanzas: puedeVerSaldos,
-            puedeVerClinico: hasPermission(access.role, "clinical:view"),
+            puedeVerClinico: hasPermission(access, "clinical:view"),
             puedeConfirmar: (profesionalId) => puedeConfirmarCita(access, profesionalId),
             paciente: (id) => pacientes.find((x) => x.id === id),
             nombreBox: (id) => boxes.find((b) => b.id === id)?.nombre,
@@ -2149,7 +2149,7 @@ function AgendaPage() {
               </span>
             )}
           </Button>
-          {clinicId && hasPermission(access.role, "agenda:manage") && (
+          {clinicId && hasPermission(access, "agenda:manage") && (
             <NuevaCitaDialog
               clinicId={clinicId}
               userId={access.userId}
@@ -2177,7 +2177,7 @@ function AgendaPage() {
       </div>
 
       {/* PAN-05: componente aparte, encima de la grilla. */}
-      {clinicId && hasPermission(access.role, "agenda:manage") && (
+      {clinicId && hasPermission(access, "agenda:manage") && (
         <AvisoCitasPasadas clinicId={clinicId} timezone={access.clinic?.timezone} />
       )}
 
@@ -2448,7 +2448,7 @@ function AgendaPage() {
                 />
               )}
               {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
-              {clinicId && hasPermission(access.role, "agenda:manage") && (
+              {clinicId && hasPermission(access, "agenda:manage") && (
                 <div className="pointer-coarse:hidden">
                   <ImportarCitasDialog clinicId={clinicId} />
                 </div>
@@ -2511,7 +2511,7 @@ function AgendaPage() {
                       )}
                     </span>
                   </Link>
-                  {clinicId && hasPermission(access.role, "agenda:manage") ? (
+                  {clinicId && hasPermission(access, "agenda:manage") ? (
                     <span className="flex items-center gap-1">
                       <PatientConfirmedToggle
                         clinicId={clinicId}
@@ -2625,7 +2625,7 @@ function AgendaPage() {
                       <p className="text-[11px] text-muted-foreground">
                         Prefiere: {formatoFechaLarga(s.preferredDate)}
                       </p>
-                      {clinicId && hasPermission(access.role, "agenda:manage") && (
+                      {clinicId && hasPermission(access, "agenda:manage") && (
                         <div className="flex gap-2 pt-1">
                           <Button
                             size="sm"
@@ -2658,7 +2658,7 @@ function AgendaPage() {
             <section className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold text-muted-foreground">Lista de espera</h3>
-                {clinicId && hasPermission(access.role, "agenda:manage") && (
+                {clinicId && hasPermission(access, "agenda:manage") && (
                   <AgregarListaEsperaDialog clinicId={clinicId} pacientes={pacientes} />
                 )}
               </div>
@@ -2687,7 +2687,7 @@ function AgendaPage() {
                         )}
                       </div>
                     </div>
-                    {clinicId && hasPermission(access.role, "agenda:manage") && (
+                    {clinicId && hasPermission(access, "agenda:manage") && (
                       <div className="flex shrink-0 items-center gap-1.5">
                         {e.patientId && access.clinic?.name && (
                           <WhatsAppButton

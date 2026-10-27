@@ -394,7 +394,7 @@ function OrtodonciaPage() {
   const currency = access.clinic?.currency ?? "CLP";
   const queryClient = useQueryClient();
   const hoy = hoyISO(access.clinic?.timezone);
-  const puedeEditar = hasPermission(access.role, "clinical:write");
+  const puedeEditar = hasPermission(access, "clinical:write");
   const [etapa, setEtapa] = useState<OrthoStage | "sin" | "">("");
 
   const fetchCases = useServerFn(listOrthoCases);

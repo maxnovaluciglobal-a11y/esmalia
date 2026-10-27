@@ -1080,7 +1080,7 @@ function InventarioPage() {
   const { access } = Route.useRouteContext();
   const clinicId = access.clinic!.id;
   const currency = access.clinic!.currency;
-  const puedeGestionar = hasPermission(access.role, "inventory:manage");
+  const puedeGestionar = hasPermission(access, "inventory:manage");
   const puedeRegistrarMovimiento = access.role != null && MOVEMENT_ROLES.has(access.role);
 
   const fetchSubscription = useServerFn(getMySubscription);

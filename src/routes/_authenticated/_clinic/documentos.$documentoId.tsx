@@ -114,7 +114,7 @@ function DocumentoPage() {
 
   // DOC-07: copia al paciente por correo. La envía quien puede emitir
   // (clinical:write); el servidor repite el gate.
-  const puedeEnviar = hasPermission(access.role, "clinical:write");
+  const puedeEnviar = hasPermission(access, "clinical:write");
   const vistaCorreo = useServerFn(getCorreoDeDocumento);
   const enviarCorreo = useServerFn(enviarDocumentoPorCorreo);
   const listarEnvios = useServerFn(listEnviosDelDocumento);
@@ -125,7 +125,7 @@ function DocumentoPage() {
 
   // La base vuelve a exigirlo: quien lo emitió, o un administrador.
   const puedeAnular =
-    hasPermission(access.role, "clinical:write") &&
+    hasPermission(access, "clinical:write") &&
     (access.role === "owner" ||
       access.role === "admin" ||
       (access.role === "dentist" && Boolean(d?.emitidoPorMi)));
@@ -251,7 +251,7 @@ function DocumentoPage() {
               adjunto={`${d.title} ${folioDocumento(d.year, d.number)} (PDF)`}
               clinicId={clinicId}
               patientId={d.patientId}
-              puedeReactivar={hasPermission(access.role, "patients:manage")}
+              puedeReactivar={hasPermission(access, "patients:manage")}
               queryKey={["correo-documento", clinicId, documentoId]}
               cargarVista={() => vistaCorreo({ data: { clinicId, documentId: documentoId } })}
               enviar={(texto) =>

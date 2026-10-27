@@ -9,7 +9,7 @@ import { destinosVisibles } from "@/lib/access/navegacion";
  */
 export const Route = createFileRoute("/_authenticated/_clinic/mensajes")({
   beforeLoad: ({ context }) => {
-    const destino = destinosVisibles(context.access.role).find((d) => d.id === "mensajes");
+    const destino = destinosVisibles(context.access).find((d) => d.id === "mensajes");
     throw redirect({ to: destino?.pestanas[0]?.to ?? "/sin-acceso" });
   },
 });

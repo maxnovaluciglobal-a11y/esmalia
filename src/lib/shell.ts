@@ -1,4 +1,4 @@
-import { hasPermission, type ClinicAccess } from "@/lib/access/access";
+import { hasPermission, type ClinicAccess, type SujetoDePermisos } from "@/lib/access/access";
 import { coincideTermino } from "@/lib/search";
 
 /**
@@ -113,7 +113,7 @@ const ACCIONES: (AccionRapida & { permiso: Parameters<typeof hasPermission>[1] }
  * que después rebota. Lo escrito se busca en el nombre y en los sinónimos,
  * desde el comienzo de una palabra (`coincideTermino`).
  */
-export function accionesRapidas(role: ClinicAccess["role"], termino = ""): AccionRapida[] {
+export function accionesRapidas(role: SujetoDePermisos, termino = ""): AccionRapida[] {
   return ACCIONES.filter((a) => hasPermission(role, a.permiso))
     .filter((a) => coincideTermino(termino, a.label, ...a.sinonimos))
     .map(({ permiso: _permiso, ...a }) => a);

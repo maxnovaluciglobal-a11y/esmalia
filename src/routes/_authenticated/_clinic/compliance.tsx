@@ -38,7 +38,7 @@ function CompliancePage() {
           <ComplianceExport
             clinicId={access.clinic.id}
             clinicName={access.clinic.name}
-            puedeAbrirFichas={hasPermission(access.role, "patients:view")}
+            puedeAbrirFichas={hasPermission(access, "patients:view")}
           />
           <LecturasDeFichas clinicId={access.clinic.id} />
         </div>

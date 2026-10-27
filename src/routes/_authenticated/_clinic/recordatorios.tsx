@@ -550,7 +550,7 @@ function RecordatoriosPage() {
                 {kind === "hygiene_recall" && reserva !== undefined && (
                   <NotaReservaEnRecall
                     encendida={reserva.encendida}
-                    puedeConfigurar={hasPermission(access.role, "settings:manage")}
+                    puedeConfigurar={hasPermission(access, "settings:manage")}
                   />
                 )}
                 <OutreachList

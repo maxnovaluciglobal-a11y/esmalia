@@ -834,12 +834,64 @@ export type Database = {
           },
         ];
       };
+      clinic_member_permission_overrides: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          effect: string;
+          id: string;
+          member_id: string;
+          permission: string;
+          reason: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          effect: string;
+          id?: string;
+          member_id: string;
+          permission: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          effect?: string;
+          id?: string;
+          member_id?: string;
+          permission?: string;
+          reason?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_member_permission_overrides_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clinic_member_permission_overrides_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "clinic_members";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinic_members: {
         Row: {
           clinic_id: string;
           created_at: string;
           id: string;
           license_number: string | null;
+          profession: string | null;
           role: Database["public"]["Enums"]["app_role"];
           signature_name: string | null;
           user_id: string;
@@ -849,6 +901,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           license_number?: string | null;
+          profession?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
           signature_name?: string | null;
           user_id: string;
@@ -858,6 +911,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           license_number?: string | null;
+          profession?: string | null;
           role?: Database["public"]["Enums"]["app_role"];
           signature_name?: string | null;
           user_id?: string;
@@ -8119,6 +8173,10 @@ export type Database = {
         Args: { p_cuotas: Json; p_receivable_id: string };
         Returns: undefined;
       };
+      definir_profesion_de_integrante: {
+        Args: { p_member_id: string; p_profession: string };
+        Returns: undefined;
+      };
       emitir_receta: {
         Args: {
           p_allergy_alerts: Json;
@@ -8529,7 +8587,15 @@ export type Database = {
       vencer_presupuestos: { Args: { p_clinic_id?: string }; Returns: number };
     };
     Enums: {
-      app_role: "owner" | "admin" | "dentist" | "assistant" | "reception" | "accounting";
+      app_role:
+        | "owner"
+        | "admin"
+        | "dentist"
+        | "assistant"
+        | "reception"
+        | "accounting"
+        | "coordinator"
+        | "lab_technician";
       appointment_status:
         "tentativa" | "confirmada" | "en-sala" | "ausente" | "finalizada" | "cancelada";
       cash_register_status: "open" | "closed";
@@ -8725,7 +8791,16 @@ export const Constants = {
   },
   public: {
     Enums: {
-      app_role: ["owner", "admin", "dentist", "assistant", "reception", "accounting"],
+      app_role: [
+        "owner",
+        "admin",
+        "dentist",
+        "assistant",
+        "reception",
+        "accounting",
+        "coordinator",
+        "lab_technician",
+      ],
       appointment_status: [
         "tentativa",
         "confirmada",
