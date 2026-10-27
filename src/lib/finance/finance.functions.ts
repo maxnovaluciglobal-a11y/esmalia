@@ -6,7 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
-import { tienePermisoEnClinica } from "@/lib/access/clinic-guards.server";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { TOOTH_SURFACES } from "@/lib/clinical/odontogram";
 import { filaYaCreada } from "@/lib/idempotency";
 import { leerTodasLasPaginas } from "@/lib/paginacion";

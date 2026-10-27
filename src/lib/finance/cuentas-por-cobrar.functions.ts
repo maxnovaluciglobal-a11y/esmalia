@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { tienePermisoEnClinica } from "@/lib/access/clinic-guards.server";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDb } from "@/lib/db-errors";
 import {

@@ -5,7 +5,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { type Permission } from "@/lib/access/access";
-import { permisosEfectivosEnClinica, rolEnClinica } from "@/lib/access/clinic-guards.server";
+import { rolEnClinica } from "@/lib/access/clinic-guards.server";
+import { permisosEfectivosEnClinica } from "@/lib/access/permisos-en-clinica";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import {
   PAYMENT_METHOD_LABELS,

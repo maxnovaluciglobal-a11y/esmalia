@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
-import { tienePermisoEnClinica } from "@/lib/access/clinic-guards.server";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { LAB_ORDER_STATUSES, type Lab, type LabOrder, type Warehouse } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";

@@ -47,6 +47,12 @@ curl -sD - -o /dev/null "https://<preview>/auth" | grep -i -E "x-frame|content-s
 
 Y en un navegador real: una página local servida en otro origen (`python3 -m http.server 9100`) con un `<iframe>` hacia el preview debe mostrar el formulario; el mismo iframe hacia `/auth` debe quedar bloqueado. `tests/vercel-marco-widget.test.ts` vigila el archivo y `tests/reserva-en-linea.test.ts` la CSP.
 
+## Verificación hecha (27-oct-2026, PR #195)
+
+- Preview de Vercel (con el bypass de automatización que ya existe en el proyecto, sin crear nada): `/reservar/clinica-demo` responde 200 **sin** `x-frame-options` y con `frame-ancestors 'self' https:`; `/auth` responde con `x-frame-options: SAMEORIGIN` y `frame-ancestors 'self'`. Los demás headers (HSTS, nosniff, Referrer-Policy, Permissions-Policy) siguen en ambas.
+- Navegador real (Chrome): una página en otro origen (`https://localhost:9443`) con el snippet cargó el formulario de reserva («Reserva tu hora · Paso 1 de 5») dentro del iframe; en la misma página, un iframe hacia `/auth` quedó bloqueado («refused to connect», CSP `frame-ancestors 'self'`).
+- La regla de `vercel.json` también se compiló con `@vercel/routing-utils` (el paquete que usa Vercel): `/reservar/*` sin X-Frame-Options y todo lo demás con `SAMEORIGIN`.
+
 ## Cuando el preview está protegido
 
 Los preview deploys de Vercel pueden pedir autenticación de Vercel (Deployment Protection): ahí el iframe cargaría la pantalla de acceso de Vercel y no la reserva. La verificación definitiva del widget es en producción (`esmalia.com` no tiene esa protección).

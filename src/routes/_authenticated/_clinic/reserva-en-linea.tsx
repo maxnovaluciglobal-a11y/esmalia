@@ -458,8 +458,8 @@ function Compartir({ config, url }: { config: ConfiguracionReserva; url: string 
             <Copy className="size-4" aria-hidden /> Copiar código
           </Button>
           <p className="text-xs text-muted-foreground">
-            Pégalo en tu página. Si tu sitio no permite insertar páginas, usa el link de abajo del
-            código.
+            Pégalo en tu página. Funciona en sitios que cargan por https. Si tu sitio no permite
+            insertar páginas, usa el link de abajo del código.
           </p>
         </div>
         <div className="card-clinical flex flex-col items-center gap-3 p-4">

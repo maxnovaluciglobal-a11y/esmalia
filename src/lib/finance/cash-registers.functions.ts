@@ -6,10 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { mensajeDb } from "@/lib/db-errors";
 import { type ClinicRole } from "@/lib/access/access";
-import {
-  requireClinicPermission,
-  tienePermisoEnClinica,
-} from "@/lib/access/clinic-guards.server";
+import { permisosEnClinica, tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
 import {
@@ -71,7 +68,9 @@ async function requireCashManageRole(
 ): Promise<ClinicRole> {
   // Rol + ajustes por persona (EQU-01): un `cash:manage` quitado o dado se
   // respeta acá y, para lo quitado, también en la base (`ajuste_quita_*`).
-  return requireClinicPermission(supabase, clinicId, userId, "cash:manage", SIN_PERMISOS_CAJA);
+  const acceso = await permisosEnClinica(supabase, clinicId, userId);
+  if (!acceso || !acceso.permisos.includes("cash:manage")) throw new Error(SIN_PERMISOS_CAJA);
+  return acceso.rol;
 }
 
 type CashRegisterRow = {

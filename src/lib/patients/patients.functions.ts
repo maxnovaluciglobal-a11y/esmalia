@@ -34,7 +34,7 @@ import {
   MENSAJE_DOCUMENTO_DUPLICADO,
 } from "@/lib/patients/indice-ciego.server";
 import { esTipoDocumento, formatearRut } from "@/lib/patients/rut";
-import { permisosEfectivosEnClinica } from "@/lib/access/clinic-guards.server";
+import { permisosEfectivosEnClinica } from "@/lib/access/permisos-en-clinica";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
   active: "activo",

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { tienePermisoEnClinica } from "@/lib/access/clinic-guards.server";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { informesBloqueados } from "@/lib/billing";
 import { mapSubscription, SUBSCRIPTION_SELECT } from "@/lib/billing.functions";
 import type { Database } from "@/integrations/supabase/types";

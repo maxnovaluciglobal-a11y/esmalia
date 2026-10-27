@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { type ClinicRole } from "@/lib/access/access";
-import { permisosEfectivosEnClinica } from "@/lib/access/clinic-guards.server";
+import { permisosEfectivosEnClinica } from "@/lib/access/permisos-en-clinica";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
 import { mensajeDb } from "@/lib/db-errors";
