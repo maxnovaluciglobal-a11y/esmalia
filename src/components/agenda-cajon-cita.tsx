@@ -7,6 +7,7 @@ import { AlertTriangle, ArrowUpRight, Check, Circle, Globe, Loader2, Users } fro
 import { AvisoDeChoques } from "@/components/agenda-grid";
 import { ChipEstado } from "@/components/agenda-estado";
 import { BotonHacerGrupal, SeccionCitaGrupal } from "@/components/agenda-cita-grupal";
+import { BotonLlamarASala } from "@/components/dispositivos/boton-llamar";
 import { telefonoEnmascarado } from "@/components/agenda-titulo";
 import { boxEfectivo, nombreBoxDe, type Conflicto } from "@/components/agenda-conflictos";
 import { rangoHorarioCita } from "@/components/cita-acciones";
@@ -458,6 +459,12 @@ export function CajonCita({
             >
               No asistió
             </button>
+          </BloqueoEscritura>
+        )}
+        {/* Ola 14 · AUT-04: llamar al paciente que ya está en sala (TV de la sala). */}
+        {ctx.puedeGestionar && !grupal && c.estado === "en-sala" && c.fecha === ctx.hoy && (
+          <BloqueoEscritura>
+            <BotonLlamarASala appointmentId={c.id} className={claseAccion()} />
           </BloqueoEscritura>
         )}
       </div>

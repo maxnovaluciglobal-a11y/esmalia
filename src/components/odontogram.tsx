@@ -1,7 +1,17 @@
-import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import {
+  Fragment,
+  Suspense,
+  lazy,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  Box,
   History,
   Info,
   List,
@@ -99,6 +109,10 @@ import { HallazgosPorTratar } from "@/components/odontograma-por-tratar";
 import { cn } from "@/lib/utils";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
+
+// ODO-10: la vista 3D (y three.js) va en un chunk aparte que solo se baja al
+// tocar "Ver en 3D"; el diagrama 2D sigue siendo la vista principal.
+const Odontograma3D = lazy(() => import("@/components/odontograma-3d/odontograma-3d"));
 
 /** Colores del esquema de superficies (tokens con modo oscuro, ver styles.css). */
 const ESQUEMA: Record<ReturnType<typeof colorDeMarca>, string> = {
@@ -647,7 +661,7 @@ export function Odontogram({
   const [selection, setSelection] = useState<ToothClick | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [denticion, setDenticion] = useState<Denticion>(() => denticionPorEdad(edad));
-  const [vista, setVista] = useState<"grafico" | "tabla">("grafico");
+  const [vista, setVista] = useState<"grafico" | "tabla" | "3d">("grafico");
   // ODO-06: modo del odontograma. "presupuesto" muestra lo presupuestado sobre las piezas.
   const [modo, setModo] = useState<"clinico" | "presupuesto">("clinico");
   // ODO-05: selección múltiple. `modoVarias` es el interruptor táctil
@@ -1120,6 +1134,36 @@ export function Odontogram({
     </>
   ) : null;
 
+  // Sin panel lateral, la pieza elegida se trabaja en un popover. En la vista
+  // 3D se ancla debajo del modelo para que aparezca junto a la pieza tocada.
+  const popoverSeleccion =
+    selection && !panelLateral && modo === "clinico" ? (
+      <Popover open onOpenChange={(o) => !o && cerrarPopover()}>
+        <PopoverTrigger asChild>
+          <span className="sr-only">Selección abierta</span>
+        </PopoverTrigger>
+        <PopoverContent className={cn(sugerencia ? "w-80" : "w-72")} side="top">
+          <div className="mb-2 flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium">Pieza {selection.tooth}</p>
+              <p className="text-xs text-muted-foreground">
+                {toothCommonName(selection.tooth) ? `${toothCommonName(selection.tooth)} · ` : ""}
+                {SURFACE_LABELS[selection.surface]}
+              </p>
+            </div>
+            <button
+              onClick={cerrarPopover}
+              aria-label="Cerrar"
+              className="rounded p-1 text-muted-foreground hover:bg-secondary"
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+          {cuerpoSeleccion}
+        </PopoverContent>
+      </Popover>
+    ) : null;
+
   return (
     <section
       aria-labelledby="odontograma-titulo"
@@ -1213,6 +1257,22 @@ export function Odontogram({
               )}
             >
               <List className="size-3" /> Tabla
+            </button>
+            <button
+              onClick={() => {
+                terminarVarias();
+                setVista("3d");
+              }}
+              aria-pressed={vista === "3d"}
+              title="Modelo 3D de solo lectura: las marcas se hacen en el diagrama"
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium",
+                vista === "3d"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Box className="size-3" /> Ver en 3D
             </button>
           </div>
           <button
@@ -1310,6 +1370,30 @@ export function Odontogram({
             <TablaOdontograma teeth={visibles} byTooth={byTooth} observaciones={observaciones} />
           )}
 
+          {!isLoading && modo === "clinico" && vista === "3d" && (
+            <Suspense
+              fallback={
+                <p className="flex h-[340px] items-center justify-center gap-1.5 rounded-xl border border-hairline text-xs text-muted-foreground sm:h-[440px]">
+                  <Loader2 className="size-3.5 animate-spin" /> Cargando el modelo 3D…
+                </p>
+              }
+            >
+              <Odontograma3D
+                piezas={visibles}
+                porPieza={byTooth}
+                denticion={denticion}
+                seleccionada={selection?.tooth ?? null}
+                bajoElModelo={popoverSeleccion}
+                onElegir={(tooth) => {
+                  setSugerencia(null);
+                  setVarias(new Set());
+                  setAncla(tooth);
+                  setSelection({ tooth, surface: "whole" });
+                }}
+              />
+            </Suspense>
+          )}
+
           {!isLoading && modo === "clinico" && vista === "grafico" && (
             <div className="space-y-4 overflow-x-auto">
               {/* `w-max mx-auto` y no `items-center` en el contenedor con scroll:
@@ -1374,34 +1458,7 @@ export function Odontogram({
             />
           )}
 
-          {selection && !panelLateral && modo === "clinico" && (
-            <Popover open onOpenChange={(o) => !o && cerrarPopover()}>
-              <PopoverTrigger asChild>
-                <span className="sr-only">Selección abierta</span>
-              </PopoverTrigger>
-              <PopoverContent className={cn(sugerencia ? "w-80" : "w-72")} side="top">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-medium">Pieza {selection.tooth}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {toothCommonName(selection.tooth)
-                        ? `${toothCommonName(selection.tooth)} · `
-                        : ""}
-                      {SURFACE_LABELS[selection.surface]}
-                    </p>
-                  </div>
-                  <button
-                    onClick={cerrarPopover}
-                    aria-label="Cerrar"
-                    className="rounded p-1 text-muted-foreground hover:bg-secondary"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                </div>
-                {cuerpoSeleccion}
-              </PopoverContent>
-            </Popover>
-          )}
+          {vista !== "3d" && popoverSeleccion}
 
           {showHistory && (
             <div className="mt-6 space-y-1.5 border-t border-hairline pt-4">

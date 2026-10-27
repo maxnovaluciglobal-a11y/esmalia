@@ -2801,6 +2801,8 @@ const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
  * acá: así, una tabla nueva obliga a decidir.
  */
 export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
+  clinic_devices:
+    "Tablets y pantallas vinculadas a la clínica (tótem, sala de espera, box): guardan la huella de su token de acceso, que nunca sale de Esmalia, y se vuelven a vincular en otro sistema.",
   clinic_counters:
     "Contadores internos de los correlativos; los números ya salen en cada presupuesto, receta o documento.",
   email_sandbox_config: "Configuración técnica del envío de correos de prueba de Esmalia.",
@@ -2817,7 +2819,11 @@ export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
     "Informes guardados del constructor (qué métrica, corte y período mirar): son preferencias de cada persona, no guardan cifras ni datos de pacientes y se recalculan al abrirlos.",
   stripe_events: "Eventos del cobro de la suscripción a Esmalia (Stripe).",
   subscriptions: "Suscripción de la clínica a Esmalia; se consulta en el portal de facturación.",
+  totem_identifications:
+    "Intentos de identificación en el tótem (solo huellas) y sesiones de 3 minutos; son conteos antiabuso, no datos clínicos.",
   trial_extensions: "Extensiones del período de prueba que otorga el equipo de Esmalia.",
+  waiting_room_turns:
+    "Número de turno y llamados del día en la sala de espera; la llegada del paciente sale en citas.csv (arrived_at).",
   whatsapp_accounts:
     "Conexión técnica con la API de WhatsApp de Meta; se rehace al conectar otro sistema.",
   whatsapp_credentials: "Credenciales cifradas de WhatsApp: nunca salen de Esmalia.",
