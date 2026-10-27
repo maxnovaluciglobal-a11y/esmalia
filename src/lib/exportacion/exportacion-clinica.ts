@@ -1444,8 +1444,34 @@ const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
     tabla: "clinic_members",
     archivo: "equipo.csv",
     descripcion:
-      "Personas con acceso a la clínica: usuario, rol, y nombre y registro con que firman documentos.",
-    columnas: ["id", "user_id", "role", "signature_name", "license_number", "created_at"],
+      "Personas con acceso a la clínica: usuario, rol, profesión, y nombre y registro con que firman documentos.",
+    columnas: [
+      "id",
+      "user_id",
+      "role",
+      "profession",
+      "signature_name",
+      "license_number",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "permisos_por_persona",
+    tabla: "clinic_member_permission_overrides",
+    archivo: "permisos-por-persona.csv",
+    descripcion:
+      "Permisos dados (grant) o quitados (revoke) a cada integrante además de su rol, con su motivo.",
+    columnas: [
+      "id",
+      "member_id",
+      "permission",
+      "effect",
+      "reason",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
     orden: ["id"],
   },
   {

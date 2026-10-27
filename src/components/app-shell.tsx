@@ -222,7 +222,7 @@ export function AppShell({
 
   // Seis destinos + Ajustes (rediseño, fase 3). Las rutas de siempre
   // aparecen como pestañas dentro de su destino; ver `navegacion.ts`.
-  const destinos = destinosVisibles(access.role);
+  const destinos = destinosVisibles(access);
   const destinoActual = destinoDeRuta(pathname, destinos);
   const enAjustes = !destinoActual && esRutaDeAjustes(pathname);
 
@@ -237,7 +237,7 @@ export function AppShell({
   // puro) porque varios de los candidatos vencen por TIEMPO, no por una
   // escritura nueva en la DB (ej. cooldown de hygiene_recall a los 90 días).
   const clinicId = access.clinic?.id;
-  const puedeVerRecordatorios = hasPermission(access.role, "agenda:manage") && Boolean(clinicId);
+  const puedeVerRecordatorios = hasPermission(access, "agenda:manage") && Boolean(clinicId);
   const fetchReminders = useServerFn(listPendingReminders);
   const { data: recordatoriosPendientes = [] } = useQuery({
     queryKey: ["pending-reminders", clinicId],

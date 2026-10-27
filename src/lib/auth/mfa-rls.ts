@@ -36,6 +36,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   appointments: "agenda: quién se atiende, cuándo y por qué",
   cash_movements: "caja: traspasos, retiros y depósitos de efectivo con su motivo",
   cash_registers: "caja: montos de apertura, cierre y diferencias",
+  clinic_member_permission_overrides: "permisos dados o quitados a cada integrante",
   clinical_access_log: "quién abrió qué sección de qué ficha",
   clinical_note_audit: "bitácora de la historia clínica",
   clinical_note_entities: "entidades clínicas extraídas de las notas",

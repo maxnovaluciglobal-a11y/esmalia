@@ -26,7 +26,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { hasPermission, type ClinicRole, type Permission } from "@/lib/access/access";
+import {
+  hasPermission,
+  rolDeSujeto,
+  type Permission,
+  type SujetoDePermisos,
+} from "@/lib/access/access";
 import { coincideTermino } from "@/lib/search";
 
 export { coincideTermino, normalizarTexto } from "@/lib/search";
@@ -457,20 +462,21 @@ export const AJUSTES_SOLO_DUENO: readonly ItemAjustes[] = AJUSTES.flatMap((g) =>
   g.items.filter((i) => i.soloPropietario),
 );
 
-export function puedeVer(role: ClinicRole | null | undefined, p: Pestana): boolean {
-  if (p.soloPropietario && role !== "owner") return false;
-  return p.permisos.some((perm) => hasPermission(role ?? null, perm));
+/** `sujeto`: el acceso del usuario (con ajustes por persona, EQU-01) o un rol. */
+export function puedeVer(sujeto: SujetoDePermisos, p: Pestana): boolean {
+  if (p.soloPropietario && rolDeSujeto(sujeto) !== "owner") return false;
+  return p.permisos.some((perm) => hasPermission(sujeto, perm));
 }
 
 /** Destinos con al menos una pestaña visible, cada uno con solo las suyas. */
-export function destinosVisibles(role: ClinicRole | null | undefined): Destino[] {
+export function destinosVisibles(role: SujetoDePermisos): Destino[] {
   return DESTINOS.map((d) => ({
     ...d,
     pestanas: d.pestanas.filter((p) => puedeVer(role, p)),
   })).filter((d) => d.pestanas.length > 0);
 }
 
-export function ajustesVisibles(role: ClinicRole | null | undefined): GrupoAjustes[] {
+export function ajustesVisibles(role: SujetoDePermisos): GrupoAjustes[] {
   return AJUSTES.map((g) => ({ ...g, items: g.items.filter((i) => puedeVer(role, i)) })).filter(
     (g) => g.items.length > 0,
   );

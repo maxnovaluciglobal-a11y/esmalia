@@ -24,6 +24,7 @@ export const TABLES = [
   "clinic_counters",
   "clinic_data_exports",
   "clinic_medications",
+  "clinic_member_permission_overrides",
   "clinic_members",
   "clinic_patient_options",
   "clinical_access_log",

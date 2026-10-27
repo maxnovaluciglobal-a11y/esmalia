@@ -140,9 +140,9 @@ describe("diálogo Editar datos", () => {
 });
 
 describe("quién edita los datos de un paciente", () => {
-  it("owner, admin, dentist y reception; no assistant ni accounting", () => {
+  it("owner, admin, coordinación, dentist y reception; no assistant ni accounting", () => {
     const pueden = CLINIC_ROLES.filter((r) => puedeEditarPaciente(r));
-    expect(pueden).toEqual(["owner", "admin", "dentist", "reception"]);
+    expect(pueden).toEqual(["owner", "admin", "coordinator", "dentist", "reception"]);
     expect(puedeEditarPaciente(null)).toBe(false);
   });
 
@@ -158,7 +158,10 @@ describe("quién edita los datos de un paciente", () => {
     );
     expect(roles).toHaveLength(2); // USING y WITH CHECK
     for (const r of roles) {
-      expect(r).toEqual(CLINIC_ROLES.filter((x) => puedeEditarPaciente(x)).sort());
+      // Coordinación entra por has_clinic_role (cuenta como reception, 20261106300100).
+      expect(r).toEqual(
+        CLINIC_ROLES.filter((x) => puedeEditarPaciente(x) && x !== "coordinator").sort(),
+      );
     }
     // Ninguna migración posterior la redefine (si alguien la cambia, este
     // test tiene que revisarse junto con la matriz de access.ts).

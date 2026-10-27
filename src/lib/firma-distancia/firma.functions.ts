@@ -28,11 +28,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, Json } from "@/integrations/supabase/types";
-import { permissionsForRole, type Permission } from "@/lib/access/access";
+import type { Permission } from "@/lib/access/access";
 import {
   assertNotDemoClinic,
   requireClinicPermission,
-  rolEnClinica,
+  permisosEnClinica,
 } from "@/lib/access/clinic-guards.server";
 import { appOrigin } from "@/lib/app-origin.server";
 import { mensajeDb } from "@/lib/db-errors";
@@ -105,8 +105,9 @@ async function exigirPermiso(
   userId: string,
   tipo: TipoSolicitud,
 ) {
-  const rol = await rolEnClinica(supabase, clinicId, userId);
-  if (!rol || !permissionsForRole(rol).includes(permisoPara(tipo))) {
+  // Con los ajustes por persona (EQU-01).
+  const acceso = await permisosEnClinica(supabase, clinicId, userId);
+  if (!acceso || !acceso.permisos.includes(permisoPara(tipo))) {
     throw new Error(tipo === "documento" ? SIN_PERMISO_DOCUMENTO : SIN_PERMISO_PRESUPUESTO);
   }
 }

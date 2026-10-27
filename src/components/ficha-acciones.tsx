@@ -75,13 +75,13 @@ export function AccionesDeLaFicha({
   const clinic = access.clinic;
   const clinicId = clinic?.id;
 
-  const puedeAgendar = hasPermission(access.role, "agenda:manage");
-  const puedeCobrar = hasPermission(access.role, "patients:manage");
+  const puedeAgendar = hasPermission(access, "agenda:manage");
+  const puedeCobrar = hasPermission(access, "patients:manage");
   // La bandeja de conversaciones respeta la baja de WhatsApp y cae a wa.me
   // cuando la clínica no tiene la API conectada (replyToConversation).
   const puedeEscribir = puedeAgendar && Boolean(paciente.telefono);
   const puedeEditar = Boolean(clinicId) && puedeEditarPaciente(access.role);
-  const puedeArchivar = Boolean(clinicId) && hasPermission(access.role, "settings:manage");
+  const puedeArchivar = Boolean(clinicId) && hasPermission(access, "settings:manage");
   const puedeExportar = Boolean(clinic) && puedeExportarPaciente(access.role);
   // FIC-13 (Ola 8): programar un control; mismos roles que la agenda.
   const puedeProgramarControl = Boolean(clinicId) && puedeAgendar;
@@ -210,7 +210,7 @@ export function AccionesDeLaFicha({
           patientId={paciente.id}
           patientName={paciente.nombre}
           generadoPor={access.fullName ?? access.email ?? "Usuario de la clínica"}
-          incluirFinanzas={hasPermission(access.role, "finance:view")}
+          incluirFinanzas={hasPermission(access, "finance:view")}
           abierto={dialogo === "exportar"}
           onAbiertoChange={cerrar}
         />
