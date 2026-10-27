@@ -118,14 +118,14 @@ function panoramica(): Buffer {
 }
 
 /** Foto clínica esquemática (sonrisa): encía rosada y piezas, más blancas "después". */
-function sonrisa(blanco: number): Buffer {
+function sonrisa(diente: [number, number, number]): Buffer {
   return pngGenerado(480, 360, (x, y) => {
     const boca = elipse(x, y, 240, 190, 200, 95);
     if (boca >= 1) return [196, 140, 120];
     for (let i = 0; i < 6; i++) {
       const cx = 115 + i * 50;
       if (elipse(x, y, cx, 175, 22, 38) < 1) {
-        return [blanco, blanco - 8, Math.max(0, blanco - (255 - blanco) * 1.4 - 18)];
+        return diente;
       }
     }
     return y < 160 ? [205, 105, 115] : [120, 40, 50];
@@ -251,7 +251,7 @@ export async function sembrarExamenesDeLaDemo(admin: Admin): Promise<void> {
         kind: "foto_clinica",
         nombre: "sonrisa-antes.png",
         mime: "image/png",
-        datos: sonrisa(214),
+        datos: sonrisa([232, 211, 158]),
         dias: -120,
         teeth: [11, 12, 13, 21, 22, 23],
         notes: null,
@@ -261,7 +261,7 @@ export async function sembrarExamenesDeLaDemo(admin: Admin): Promise<void> {
         kind: "foto_clinica",
         nombre: "sonrisa-despues.png",
         mime: "image/png",
-        datos: sonrisa(250),
+        datos: sonrisa([250, 247, 238]),
         dias: -7,
         teeth: [11, 12, 13, 21, 22, 23],
         notes: null,

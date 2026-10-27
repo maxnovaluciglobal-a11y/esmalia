@@ -1,6 +1,12 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import {
+  busquedaConPestana,
+  parsePieza,
+  pestanaVisible,
+  validarBusquedaFicha,
+} from "../src/components/ficha-busqueda";
 import { parPorDefecto } from "../src/lib/examenes/antes-despues";
 import {
   CUPO_POR_PLAN,
@@ -153,6 +159,22 @@ describe("tipos de examen", () => {
     expect(formatearBytes(-1)).toBe("Sin datos");
     expect(nombreSeguro("Radiografía pieza 16.jpg")).toBe("Radiografia_pieza_16.jpg");
     expect(nombreSeguro("../../etc")).toBe("etc");
+  });
+});
+
+describe("FIC-17: pestaña Exámenes y filtro por pieza en la URL", () => {
+  it("la pestaña es clínica y la pieza solo vale en Exámenes", () => {
+    expect(pestanaVisible("examenes", false)).toBe("resumen");
+    expect(validarBusquedaFicha({ pestana: "examenes", pieza: "36" })).toEqual({
+      pestana: "examenes",
+      pieza: 36,
+    });
+    expect(validarBusquedaFicha({ pestana: "notas", pieza: "36" })).toEqual({ pestana: "notas" });
+    expect(parsePieza("19")).toBeNull();
+    expect(parsePieza(85)).toBe(85);
+    expect(busquedaConPestana({ pestana: "examenes", pieza: 36 }, "notas")).toEqual({
+      pestana: "notas",
+    });
   });
 });
 

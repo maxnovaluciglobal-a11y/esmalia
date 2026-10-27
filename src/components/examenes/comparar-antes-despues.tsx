@@ -182,7 +182,7 @@ export function CompararAntesDespues({
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[14px] border border-border bg-muted/40 select-none">
+            <div className="relative mx-auto aspect-[4/3] w-full max-w-[calc(62dvh*4/3)] overflow-hidden rounded-[14px] border border-border bg-muted/40 select-none">
               <div className="absolute inset-0">
                 {imagen(urlB.data, `Después: ${fotoB?.filename ?? ""}`)}
               </div>
