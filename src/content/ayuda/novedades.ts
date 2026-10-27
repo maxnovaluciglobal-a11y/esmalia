@@ -10,7 +10,7 @@ export const NOVEDADES: readonly Novedad[] = [
   // ── Ola 12 ──────────────────────────────────────────────────────────────
   {
     id: "ayuda-en-cada-pantalla",
-    fecha: "2026-10-28",
+    fecha: "2026-10-27",
     titulo: "Ayuda en cada pantalla, recorridos y Academia",
     texto:
       "El botón de ayuda (junto a la campana) explica la pantalla en que estás, ofrece un recorrido guiado y busca en todos los artículos. La Academia tiene lecciones cortas para cada rol.",
@@ -18,14 +18,14 @@ export const NOVEDADES: readonly Novedad[] = [
   },
   {
     id: "reportar-con-captura",
-    fecha: "2026-10-28",
+    fecha: "2026-10-27",
     titulo: "Cuéntanos un problema con una captura",
     texto:
       "Desde la ayuda puedes mandarnos un problema o una sugerencia con una captura de la pantalla. Antes de enviarla puedes tapar lo que no quieras mostrar.",
   },
   {
     id: "confirmar-acciones",
-    fecha: "2026-10-28",
+    fecha: "2026-10-27",
     titulo: "Te avisamos antes de lo que no tiene vuelta atrás",
     texto:
       "Cerrar la caja, cancelar una cita, cambiar el rol de alguien, cerrar comisiones o marcarlas pagadas ahora piden confirmar y te dicen qué va a pasar, con la cifra.",
