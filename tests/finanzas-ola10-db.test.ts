@@ -355,6 +355,38 @@ describe("Ola 10 · finanzas (SQL)", () => {
     });
   });
 
+  describe("roles de la Ola 10 · C", () => {
+    it("Coordinación cobra cuotas como recepción; Técnico/a dental no ve dinero", async () => {
+      const coord = randomUUID();
+      const tecnico = randomUUID();
+      await servicio(
+        `INSERT INTO public.clinic_members (clinic_id, user_id, role)
+         VALUES ($1, $2, 'coordinator'), ($1, $3, 'lab_technician')`,
+        [clinicId, coord, tecnico],
+      );
+      const pl = await plan(clinicId, usuarios.owner);
+      await inscribir(clinicId, pacientes[0], pl, "2026-10-01", usuarios.owner);
+      await servicio(`SELECT * FROM public.generar_cuotas_de_membresia($1, '2026-10-01', true)`, [
+        clinicId,
+      ]);
+      const cobrar = await como<{ status: string }>(
+        coord,
+        `UPDATE public.membership_charges SET status = 'paid' WHERE clinic_id = $1 RETURNING status`,
+        [clinicId],
+      );
+      expect(cobrar.error).toBe("");
+      expect(cobrar.filas).toEqual([{ status: "paid" }]);
+      for (const tabla of TABLAS) {
+        const r = await como<{ n: number }>(
+          tecnico,
+          `SELECT count(*)::int AS n FROM public.${tabla} WHERE clinic_id = $1`,
+          [clinicId],
+        );
+        expect(r.filas[0].n, tabla).toBe(0);
+      }
+    });
+  });
+
   describe("gastos fijos (FIN-09)", () => {
     it("confirmar crea el gasto del mes una sola vez, con el monto ajustado", async () => {
       const r = await servicio<{ id: string }>(

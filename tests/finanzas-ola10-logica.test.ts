@@ -219,6 +219,7 @@ describe("empresas con convenio (FIN-11)", () => {
 
   it("assistant no ve ni edita la empresa ni la membresía (regla 2)", () => {
     expect(ROLES_AFILIACION).not.toContain("assistant");
+    expect(ROLES_AFILIACION).not.toContain("lab_technician");
     expect(ROLES_AFILIACION).toContain("reception");
   });
 });

@@ -20,6 +20,8 @@ import { formatMoney } from "@/lib/finance/finance";
 export const ROLES_AFILIACION: readonly ClinicRole[] = [
   "owner",
   "admin",
+  // EQU-02: en la base, Coordinación cuenta como recepción o contabilidad.
+  "coordinator",
   "dentist",
   "reception",
   "accounting",
