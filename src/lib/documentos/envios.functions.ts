@@ -27,8 +27,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
-import { permissionsForRole, type Permission } from "@/lib/access/access";
-import { rolEnClinica } from "@/lib/access/clinic-guards.server";
+import type { Permission } from "@/lib/access/access";
+import { permisosEnClinica } from "@/lib/access/clinic-guards.server";
 import {
   LARGO_MAXIMO_ASUNTO,
   LARGO_MAXIMO_MENSAJE,
@@ -68,8 +68,9 @@ async function requireAlgunPermiso(
   permisos: readonly Permission[],
   mensaje: string,
 ) {
-  const rol = await rolEnClinica(supabase, clinicId, userId);
-  const tiene = rol ? permissionsForRole(rol) : [];
+  // Con los ajustes por persona (EQU-01).
+  const acceso = await permisosEnClinica(supabase, clinicId, userId);
+  const tiene = acceso?.permisos ?? [];
   if (!permisos.some((p) => tiene.includes(p))) throw new Error(mensaje);
 }
 

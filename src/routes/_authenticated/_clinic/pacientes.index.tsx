@@ -289,10 +289,10 @@ function PacientesPage() {
   }, [navigate]);
 
   const fetchPatients = useServerFn(listPatients);
-  const veFinanzas = hasPermission(access.role, "finance:view");
-  const puedeGestionar = hasPermission(access.role, "patients:manage");
+  const veFinanzas = hasPermission(access, "finance:view");
+  const puedeGestionar = hasPermission(access, "patients:manage");
   // Archivar es de owner/admin (el par de servidor es `patients_controlar_archivo`).
-  const puedeArchivar = hasPermission(access.role, "settings:manage");
+  const puedeArchivar = hasPermission(access, "settings:manage");
   const puedeSeleccionar = Boolean(clinicId) && (puedeGestionar || puedeArchivar);
   const fetchBranches = useServerFn(listBranches);
   const archivo: FiltroDeArchivo = search.archivo ?? "activas";
@@ -529,7 +529,7 @@ function PacientesPage() {
               )}
               {clinicId && puedeGestionar && (
                 <>
-                  {hasPermission(access.role, "settings:manage") && (
+                  {hasPermission(access, "settings:manage") && (
                     <Link to="/migracion" className={BOTON_PASTILLA}>
                       <FileUp className="size-4" aria-hidden /> Importar
                     </Link>
@@ -969,9 +969,9 @@ function PacientesPage() {
                         paciente={p}
                         soloLectura={soloLectura}
                         permisos={{
-                          agendar: hasPermission(access.role, "agenda:manage"),
+                          agendar: hasPermission(access, "agenda:manage"),
                           cobrar: puedeGestionar,
-                          escribir: hasPermission(access.role, "agenda:manage"),
+                          escribir: hasPermission(access, "agenda:manage"),
                           etiquetar: puedeGestionar,
                           archivar: puedeArchivar,
                         }}

@@ -69,7 +69,8 @@ export function RoleSimulationBar({
       {simulado ? (
         <>
           <span className="text-xs text-muted-foreground">
-            {ROLE_DESCRIPTIONS[simulado]} Los permisos reales no cambian.
+            {ROLE_DESCRIPTIONS[simulado]} Se ve el rol tal cual, sin ajustes por persona. Los
+            permisos reales no cambian.
           </span>
           <button
             type="button"

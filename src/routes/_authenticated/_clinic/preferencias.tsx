@@ -225,7 +225,7 @@ function PreferenciasPage() {
   const bloqueado = isLoading || isError || mutation.isPending;
   const emailsActivos = prefs.emailEnabled && !desuscrito;
 
-  const puedeGestionarConfig = hasPermission(access.role, "settings:manage");
+  const puedeGestionarConfig = hasPermission(access, "settings:manage");
 
   return (
     <AppShell title="Preferencias" access={access}>
@@ -236,7 +236,7 @@ function PreferenciasPage() {
 
         {/* DOC-06: la firma para documentos es personal, como los avisos. */}
         {access.clinic &&
-          hasPermission(access.role, "clinical:write") &&
+          hasPermission(access, "clinical:write") &&
           (access.role === "owner" || access.role === "admin" || access.role === "dentist") && (
             <MiFirmaCard clinicId={access.clinic.id} esDemo={access.clinic.isDemo} />
           )}

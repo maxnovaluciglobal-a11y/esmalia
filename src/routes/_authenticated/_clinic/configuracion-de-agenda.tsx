@@ -97,7 +97,7 @@ function ConfiguracionDeAgendaPage() {
             clinicId={clinicId}
             clinicName={access.clinic?.name}
             hoy={hoyISO(access.clinic?.timezone)}
-            puedeMover={hasPermission(access.role, "agenda:manage")}
+            puedeMover={hasPermission(access, "agenda:manage")}
           />
         </div>
       ) : null}
