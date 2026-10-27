@@ -93,16 +93,19 @@ import { Route as AuthenticatedClinicDatosDeLaClinicaRouteImport } from './route
 import { Route as AuthenticatedClinicDerechosDePacientesRouteImport } from './routes/_authenticated/_clinic/derechos-de-pacientes'
 import { Route as AuthenticatedClinicDominioEmailRouteImport } from './routes/_authenticated/_clinic/dominio-email'
 import { Route as AuthenticatedClinicEfectividadRouteImport } from './routes/_authenticated/_clinic/efectividad'
+import { Route as AuthenticatedClinicEmpresasConConvenioRouteImport } from './routes/_authenticated/_clinic/empresas-con-convenio'
 import { Route as AuthenticatedClinicEquipoRouteImport } from './routes/_authenticated/_clinic/equipo'
 import { Route as AuthenticatedClinicEstadosDeCitaRouteImport } from './routes/_authenticated/_clinic/estados-de-cita'
 import { Route as AuthenticatedClinicFinanzasRouteImport } from './routes/_authenticated/_clinic/finanzas'
 import { Route as AuthenticatedClinicFusionarFichasRouteImport } from './routes/_authenticated/_clinic/fusionar-fichas'
 import { Route as AuthenticatedClinicGastosRouteImport } from './routes/_authenticated/_clinic/gastos'
+import { Route as AuthenticatedClinicGastosFijosRouteImport } from './routes/_authenticated/_clinic/gastos-fijos'
 import { Route as AuthenticatedClinicImplantesRouteImport } from './routes/_authenticated/_clinic/implantes'
 import { Route as AuthenticatedClinicIncidentesDeSeguridadRouteImport } from './routes/_authenticated/_clinic/incidentes-de-seguridad'
 import { Route as AuthenticatedClinicInventarioRouteImport } from './routes/_authenticated/_clinic/inventario'
 import { Route as AuthenticatedClinicLaboratoriosRouteImport } from './routes/_authenticated/_clinic/laboratorios'
 import { Route as AuthenticatedClinicMediosDePagoRouteImport } from './routes/_authenticated/_clinic/medios-de-pago'
+import { Route as AuthenticatedClinicMembresiasRouteImport } from './routes/_authenticated/_clinic/membresias'
 import { Route as AuthenticatedClinicMensajesRouteImport } from './routes/_authenticated/_clinic/mensajes'
 import { Route as AuthenticatedClinicMiAgendaRouteImport } from './routes/_authenticated/_clinic/mi-agenda'
 import { Route as AuthenticatedClinicMigracionRouteImport } from './routes/_authenticated/_clinic/migracion'
@@ -578,6 +581,12 @@ const AuthenticatedClinicEfectividadRoute =
     path: '/efectividad',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicEmpresasConConvenioRoute =
+  AuthenticatedClinicEmpresasConConvenioRouteImport.update({
+    id: '/empresas-con-convenio',
+    path: '/empresas-con-convenio',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicEquipoRoute =
   AuthenticatedClinicEquipoRouteImport.update({
     id: '/equipo',
@@ -608,6 +617,12 @@ const AuthenticatedClinicGastosRoute =
     path: '/gastos',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicGastosFijosRoute =
+  AuthenticatedClinicGastosFijosRouteImport.update({
+    id: '/gastos-fijos',
+    path: '/gastos-fijos',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicImplantesRoute =
   AuthenticatedClinicImplantesRouteImport.update({
     id: '/implantes',
@@ -636,6 +651,12 @@ const AuthenticatedClinicMediosDePagoRoute =
   AuthenticatedClinicMediosDePagoRouteImport.update({
     id: '/medios-de-pago',
     path: '/medios-de-pago',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicMembresiasRoute =
+  AuthenticatedClinicMembresiasRouteImport.update({
+    id: '/membresias',
+    path: '/membresias',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
 const AuthenticatedClinicMensajesRoute =
@@ -927,16 +948,19 @@ export interface FileRoutesByFullPath {
   '/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
+  '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
   '/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
   '/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/gastos': typeof AuthenticatedClinicGastosRoute
+  '/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/implantes': typeof AuthenticatedClinicImplantesRoute
   '/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
   '/inventario': typeof AuthenticatedClinicInventarioRoute
   '/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
+  '/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
@@ -1054,16 +1078,19 @@ export interface FileRoutesByTo {
   '/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
+  '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
   '/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
   '/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/gastos': typeof AuthenticatedClinicGastosRoute
+  '/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/implantes': typeof AuthenticatedClinicImplantesRoute
   '/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
   '/inventario': typeof AuthenticatedClinicInventarioRoute
   '/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
+  '/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
@@ -1186,16 +1213,19 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
   '/_authenticated/_clinic/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/_authenticated/_clinic/efectividad': typeof AuthenticatedClinicEfectividadRoute
+  '/_authenticated/_clinic/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/_authenticated/_clinic/equipo': typeof AuthenticatedClinicEquipoRoute
   '/_authenticated/_clinic/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
   '/_authenticated/_clinic/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/_authenticated/_clinic/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/_authenticated/_clinic/gastos': typeof AuthenticatedClinicGastosRoute
+  '/_authenticated/_clinic/gastos-fijos': typeof AuthenticatedClinicGastosFijosRoute
   '/_authenticated/_clinic/implantes': typeof AuthenticatedClinicImplantesRoute
   '/_authenticated/_clinic/incidentes-de-seguridad': typeof AuthenticatedClinicIncidentesDeSeguridadRoute
   '/_authenticated/_clinic/inventario': typeof AuthenticatedClinicInventarioRoute
   '/_authenticated/_clinic/laboratorios': typeof AuthenticatedClinicLaboratoriosRoute
   '/_authenticated/_clinic/medios-de-pago': typeof AuthenticatedClinicMediosDePagoRoute
+  '/_authenticated/_clinic/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/_authenticated/_clinic/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/_authenticated/_clinic/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/_authenticated/_clinic/migracion': typeof AuthenticatedClinicMigracionRoute
@@ -1317,16 +1347,19 @@ export interface FileRouteTypes {
     | '/derechos-de-pacientes'
     | '/dominio-email'
     | '/efectividad'
+    | '/empresas-con-convenio'
     | '/equipo'
     | '/estados-de-cita'
     | '/finanzas'
     | '/fusionar-fichas'
     | '/gastos'
+    | '/gastos-fijos'
     | '/implantes'
     | '/incidentes-de-seguridad'
     | '/inventario'
     | '/laboratorios'
     | '/medios-de-pago'
+    | '/membresias'
     | '/mensajes'
     | '/mi-agenda'
     | '/migracion'
@@ -1444,16 +1477,19 @@ export interface FileRouteTypes {
     | '/derechos-de-pacientes'
     | '/dominio-email'
     | '/efectividad'
+    | '/empresas-con-convenio'
     | '/equipo'
     | '/estados-de-cita'
     | '/finanzas'
     | '/fusionar-fichas'
     | '/gastos'
+    | '/gastos-fijos'
     | '/implantes'
     | '/incidentes-de-seguridad'
     | '/inventario'
     | '/laboratorios'
     | '/medios-de-pago'
+    | '/membresias'
     | '/mensajes'
     | '/mi-agenda'
     | '/migracion'
@@ -1575,16 +1611,19 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/derechos-de-pacientes'
     | '/_authenticated/_clinic/dominio-email'
     | '/_authenticated/_clinic/efectividad'
+    | '/_authenticated/_clinic/empresas-con-convenio'
     | '/_authenticated/_clinic/equipo'
     | '/_authenticated/_clinic/estados-de-cita'
     | '/_authenticated/_clinic/finanzas'
     | '/_authenticated/_clinic/fusionar-fichas'
     | '/_authenticated/_clinic/gastos'
+    | '/_authenticated/_clinic/gastos-fijos'
     | '/_authenticated/_clinic/implantes'
     | '/_authenticated/_clinic/incidentes-de-seguridad'
     | '/_authenticated/_clinic/inventario'
     | '/_authenticated/_clinic/laboratorios'
     | '/_authenticated/_clinic/medios-de-pago'
+    | '/_authenticated/_clinic/membresias'
     | '/_authenticated/_clinic/mensajes'
     | '/_authenticated/_clinic/mi-agenda'
     | '/_authenticated/_clinic/migracion'
@@ -2270,6 +2309,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicEfectividadRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/empresas-con-convenio': {
+      id: '/_authenticated/_clinic/empresas-con-convenio'
+      path: '/empresas-con-convenio'
+      fullPath: '/empresas-con-convenio'
+      preLoaderRoute: typeof AuthenticatedClinicEmpresasConConvenioRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/equipo': {
       id: '/_authenticated/_clinic/equipo'
       path: '/equipo'
@@ -2305,6 +2351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicGastosRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/gastos-fijos': {
+      id: '/_authenticated/_clinic/gastos-fijos'
+      path: '/gastos-fijos'
+      fullPath: '/gastos-fijos'
+      preLoaderRoute: typeof AuthenticatedClinicGastosFijosRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/implantes': {
       id: '/_authenticated/_clinic/implantes'
       path: '/implantes'
@@ -2338,6 +2391,13 @@ declare module '@tanstack/react-router' {
       path: '/medios-de-pago'
       fullPath: '/medios-de-pago'
       preLoaderRoute: typeof AuthenticatedClinicMediosDePagoRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/membresias': {
+      id: '/_authenticated/_clinic/membresias'
+      path: '/membresias'
+      fullPath: '/membresias'
+      preLoaderRoute: typeof AuthenticatedClinicMembresiasRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
     '/_authenticated/_clinic/mensajes': {
@@ -2606,16 +2666,19 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicDerechosDePacientesRoute: typeof AuthenticatedClinicDerechosDePacientesRoute
   AuthenticatedClinicDominioEmailRoute: typeof AuthenticatedClinicDominioEmailRoute
   AuthenticatedClinicEfectividadRoute: typeof AuthenticatedClinicEfectividadRoute
+  AuthenticatedClinicEmpresasConConvenioRoute: typeof AuthenticatedClinicEmpresasConConvenioRoute
   AuthenticatedClinicEquipoRoute: typeof AuthenticatedClinicEquipoRoute
   AuthenticatedClinicEstadosDeCitaRoute: typeof AuthenticatedClinicEstadosDeCitaRoute
   AuthenticatedClinicFinanzasRoute: typeof AuthenticatedClinicFinanzasRoute
   AuthenticatedClinicFusionarFichasRoute: typeof AuthenticatedClinicFusionarFichasRoute
   AuthenticatedClinicGastosRoute: typeof AuthenticatedClinicGastosRoute
+  AuthenticatedClinicGastosFijosRoute: typeof AuthenticatedClinicGastosFijosRoute
   AuthenticatedClinicImplantesRoute: typeof AuthenticatedClinicImplantesRoute
   AuthenticatedClinicIncidentesDeSeguridadRoute: typeof AuthenticatedClinicIncidentesDeSeguridadRoute
   AuthenticatedClinicInventarioRoute: typeof AuthenticatedClinicInventarioRoute
   AuthenticatedClinicLaboratoriosRoute: typeof AuthenticatedClinicLaboratoriosRoute
   AuthenticatedClinicMediosDePagoRoute: typeof AuthenticatedClinicMediosDePagoRoute
+  AuthenticatedClinicMembresiasRoute: typeof AuthenticatedClinicMembresiasRoute
   AuthenticatedClinicMensajesRoute: typeof AuthenticatedClinicMensajesRoute
   AuthenticatedClinicMiAgendaRoute: typeof AuthenticatedClinicMiAgendaRoute
   AuthenticatedClinicMigracionRoute: typeof AuthenticatedClinicMigracionRoute
@@ -2672,6 +2735,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
       AuthenticatedClinicDerechosDePacientesRoute,
     AuthenticatedClinicDominioEmailRoute: AuthenticatedClinicDominioEmailRoute,
     AuthenticatedClinicEfectividadRoute: AuthenticatedClinicEfectividadRoute,
+    AuthenticatedClinicEmpresasConConvenioRoute:
+      AuthenticatedClinicEmpresasConConvenioRoute,
     AuthenticatedClinicEquipoRoute: AuthenticatedClinicEquipoRoute,
     AuthenticatedClinicEstadosDeCitaRoute:
       AuthenticatedClinicEstadosDeCitaRoute,
@@ -2679,12 +2744,14 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicFusionarFichasRoute:
       AuthenticatedClinicFusionarFichasRoute,
     AuthenticatedClinicGastosRoute: AuthenticatedClinicGastosRoute,
+    AuthenticatedClinicGastosFijosRoute: AuthenticatedClinicGastosFijosRoute,
     AuthenticatedClinicImplantesRoute: AuthenticatedClinicImplantesRoute,
     AuthenticatedClinicIncidentesDeSeguridadRoute:
       AuthenticatedClinicIncidentesDeSeguridadRoute,
     AuthenticatedClinicInventarioRoute: AuthenticatedClinicInventarioRoute,
     AuthenticatedClinicLaboratoriosRoute: AuthenticatedClinicLaboratoriosRoute,
     AuthenticatedClinicMediosDePagoRoute: AuthenticatedClinicMediosDePagoRoute,
+    AuthenticatedClinicMembresiasRoute: AuthenticatedClinicMembresiasRoute,
     AuthenticatedClinicMensajesRoute: AuthenticatedClinicMensajesRoute,
     AuthenticatedClinicMiAgendaRoute: AuthenticatedClinicMiAgendaRoute,
     AuthenticatedClinicMigracionRoute: AuthenticatedClinicMigracionRoute,
