@@ -40,6 +40,40 @@ const EJEMPLOS: { name: string; config: ConfigInforme }[] = [
   },
 ];
 
+const COMUNAS = ["Providencia", "Las Condes", "Ñuñoa", "Santiago", "La Florida", "Maipú"];
+const PREVISIONES = ["fonasa", "isapre", "fonasa", "particular", "isapre", "fonasa"];
+const ORIGENES = ["Instagram", "Google", "Recomendación", "Recomendación", "Convenio", "Google"];
+
+/**
+ * La semilla SQL crea pacientes sin comuna, previsión ni origen, así que los
+ * cortes demográficos (INF-08) salían 100% "Sin dato". Se completan solo los
+ * que siguen vacíos, con un reparto fijo (mismo resultado en cada reset).
+ */
+async function completarDatosDemograficos(admin: Admin): Promise<void> {
+  const { data: pacientes } = await admin
+    .from("patients")
+    .select("id, commune, health_plan, acquisition_source")
+    .eq("clinic_id", DEMO_CLINIC_ID)
+    .order("created_at")
+    .order("id");
+  for (const [i, p] of (pacientes ?? []).entries()) {
+    const cambios: { commune?: string; health_plan?: string; acquisition_source?: string } = {};
+    if (!p.commune) cambios.commune = COMUNAS[i % COMUNAS.length];
+    if (!p.health_plan) cambios.health_plan = PREVISIONES[i % PREVISIONES.length];
+    if (!p.acquisition_source) cambios.acquisition_source = ORIGENES[i % ORIGENES.length];
+    if (Object.keys(cambios).length === 0) continue;
+    const { error } = await admin
+      .from("patients")
+      .update(cambios)
+      .eq("id", p.id)
+      .eq("clinic_id", DEMO_CLINIC_ID);
+    if (error) {
+      console.error("[demo-reset] datos demográficos:", error.message);
+      return;
+    }
+  }
+}
+
 export async function sembrarInformesDeLaDemo(admin: Admin): Promise<void> {
   try {
     const { data: clinica } = await admin
@@ -49,6 +83,7 @@ export async function sembrarInformesDeLaDemo(admin: Admin): Promise<void> {
       .eq("is_demo", true)
       .maybeSingle();
     if (!clinica) return;
+    await completarDatosDemograficos(admin);
     const { count } = await admin
       .from("saved_reports")
       .select("id", { count: "exact", head: true })

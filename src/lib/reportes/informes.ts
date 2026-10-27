@@ -432,9 +432,10 @@ export function unirComparacion(
       anterior: b[i]?.valor ?? null,
     })).filter((f) => f.valor !== null);
   }
+  // Un período sin ningún registro no es "0 en cada fila": es sin datos.
   const previo = new Map(b.map((f) => [f.clave, f.valor]));
   const claves = new Set<string | null>([...a.map((f) => f.clave), ...previo.keys()]);
-  return ordenarPorCorte(
+  const ordenadas = ordenarPorCorte(
     corte,
     [...claves].map((clave) => ({
       clave,
@@ -442,6 +443,11 @@ export function unirComparacion(
       anterior: previo.get(clave) ?? 0,
     })),
   );
+  return ordenadas.map((f) => ({
+    clave: f.clave,
+    valor: a.length ? f.valor : null,
+    anterior: b.length ? f.anterior : null,
+  }));
 }
 
 // ─── Formato de valores ──────────────────────────────────────────────────

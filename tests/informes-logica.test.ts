@@ -140,6 +140,9 @@ describe("INF-02 · comparación entre períodos", () => {
       { clave: "b", valor: 2, anterior: 0 },
       { clave: "c", valor: 0, anterior: 4 },
     ]);
+    expect(unirComparacion("profesional", [fila("a", 5)], [])).toEqual([
+      { clave: "a", valor: 5, anterior: null },
+    ]);
     const porDia = unirComparacion(
       "dia",
       [fila("2026-10-02", 1), fila("2026-10-01", 2)],
