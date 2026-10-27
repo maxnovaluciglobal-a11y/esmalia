@@ -171,6 +171,8 @@ export async function crearCheckoutOPortal(
       // Con trial el total del checkout es 0 y Stripe no pide tarjeta; sin
       // trial (prueba ya usada o vencida) el cobro es inmediato y la pide.
       payment_method_collection: "if_required",
+      // Código promocional (p. ej. FUNDADOR50: 50 % por 12 meses para clínicas fundadoras).
+      allow_promotion_codes: true,
       metadata: { clinic_id: p.clinicId, clinic_name: p.clinicName, plan: p.plan },
       subscription_data: {
         ...(trial ?? {}),
