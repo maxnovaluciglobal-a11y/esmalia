@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BoxRouteImport } from './routes/box'
 import { Route as CajaRouteImport } from './routes/caja'
 import { Route as CalculadoraRentabilidadDentalRouteImport } from './routes/calculadora-rentabilidad-dental'
 import { Route as DemoRouteImport } from './routes/demo'
@@ -26,6 +27,7 @@ import { Route as PortalLaboratorioRouteImport } from './routes/portal-laborator
 import { Route as PreciosRouteImport } from './routes/precios'
 import { Route as PrivacidadRouteImport } from './routes/privacidad'
 import { Route as RecorridoRouteImport } from './routes/recorrido'
+import { Route as SalaRouteImport } from './routes/sala'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SoftwareDentalArgentinaRouteImport } from './routes/software-dental-argentina'
 import { Route as SoftwareDentalChileRouteImport } from './routes/software-dental-chile'
@@ -34,6 +36,7 @@ import { Route as SoftwareDentalLatamRouteImport } from './routes/software-denta
 import { Route as SoftwareDentalMexicoRouteImport } from './routes/software-dental-mexico'
 import { Route as SoftwareDentalPeruRouteImport } from './routes/software-dental-peru'
 import { Route as TerminosRouteImport } from './routes/terminos'
+import { Route as TotemRouteImport } from './routes/totem'
 import { Route as V2RouteImport } from './routes/v2'
 import { Route as AuthenticatedClinicRouteRouteImport } from './routes/_authenticated/_clinic/route'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -91,6 +94,7 @@ import { Route as AuthenticatedClinicCuentasPorCobrarRouteImport } from './route
 import { Route as AuthenticatedClinicDashboardRouteImport } from './routes/_authenticated/_clinic/dashboard'
 import { Route as AuthenticatedClinicDatosDeLaClinicaRouteImport } from './routes/_authenticated/_clinic/datos-de-la-clinica'
 import { Route as AuthenticatedClinicDerechosDePacientesRouteImport } from './routes/_authenticated/_clinic/derechos-de-pacientes'
+import { Route as AuthenticatedClinicDispositivosRouteImport } from './routes/_authenticated/_clinic/dispositivos'
 import { Route as AuthenticatedClinicDominioEmailRouteImport } from './routes/_authenticated/_clinic/dominio-email'
 import { Route as AuthenticatedClinicEfectividadRouteImport } from './routes/_authenticated/_clinic/efectividad'
 import { Route as AuthenticatedClinicEmpresasConConvenioRouteImport } from './routes/_authenticated/_clinic/empresas-con-convenio'
@@ -164,6 +168,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BoxRoute = BoxRouteImport.update({
+  id: '/box',
+  path: '/box',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CajaRoute = CajaRouteImport.update({
   id: '/caja',
   path: '/caja',
@@ -235,6 +244,11 @@ const RecorridoRoute = RecorridoRouteImport.update({
   path: '/recorrido',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SalaRoute = SalaRouteImport.update({
+  id: '/sala',
+  path: '/sala',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -273,6 +287,11 @@ const SoftwareDentalPeruRoute = SoftwareDentalPeruRouteImport.update({
 const TerminosRoute = TerminosRouteImport.update({
   id: '/terminos',
   path: '/terminos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TotemRoute = TotemRouteImport.update({
+  id: '/totem',
+  path: '/totem',
   getParentRoute: () => rootRouteImport,
 } as any)
 const V2Route = V2RouteImport.update({
@@ -575,6 +594,12 @@ const AuthenticatedClinicDerechosDePacientesRoute =
   AuthenticatedClinicDerechosDePacientesRouteImport.update({
     id: '/derechos-de-pacientes',
     path: '/derechos-de-pacientes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicDispositivosRoute =
+  AuthenticatedClinicDispositivosRouteImport.update({
+    id: '/dispositivos',
+    path: '/dispositivos',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
 const AuthenticatedClinicDominioEmailRoute =
@@ -924,6 +949,7 @@ const AuthenticatedClinicAyudaPantallaPantallaRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/box': typeof BoxRoute
   '/caja': typeof CajaRoute
   '/calculadora-rentabilidad-dental': typeof CalculadoraRentabilidadDentalRoute
   '/demo': typeof DemoRoute
@@ -938,6 +964,7 @@ export interface FileRoutesByFullPath {
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
   '/recorrido': typeof RecorridoRoute
+  '/sala': typeof SalaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -946,6 +973,7 @@ export interface FileRoutesByFullPath {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/totem': typeof TotemRoute
   '/v2': typeof V2Route
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
@@ -1002,6 +1030,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
+  '/dispositivos': typeof AuthenticatedClinicDispositivosRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
@@ -1064,6 +1093,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/box': typeof BoxRoute
   '/caja': typeof CajaRoute
   '/calculadora-rentabilidad-dental': typeof CalculadoraRentabilidadDentalRoute
   '/demo': typeof DemoRoute
@@ -1076,6 +1106,7 @@ export interface FileRoutesByTo {
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
   '/recorrido': typeof RecorridoRoute
+  '/sala': typeof SalaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -1084,6 +1115,7 @@ export interface FileRoutesByTo {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/totem': typeof TotemRoute
   '/v2': typeof V2Route
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
@@ -1140,6 +1172,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
+  '/dispositivos': typeof AuthenticatedClinicDispositivosRoute
   '/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
@@ -1204,6 +1237,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/box': typeof BoxRoute
   '/caja': typeof CajaRoute
   '/calculadora-rentabilidad-dental': typeof CalculadoraRentabilidadDentalRoute
   '/demo': typeof DemoRoute
@@ -1218,6 +1252,7 @@ export interface FileRoutesById {
   '/precios': typeof PreciosRoute
   '/privacidad': typeof PrivacidadRoute
   '/recorrido': typeof RecorridoRoute
+  '/sala': typeof SalaRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/software-dental-argentina': typeof SoftwareDentalArgentinaRoute
   '/software-dental-chile': typeof SoftwareDentalChileRoute
@@ -1226,6 +1261,7 @@ export interface FileRoutesById {
   '/software-dental-mexico': typeof SoftwareDentalMexicoRoute
   '/software-dental-peru': typeof SoftwareDentalPeruRoute
   '/terminos': typeof TerminosRoute
+  '/totem': typeof TotemRoute
   '/v2': typeof V2Route
   '/_authenticated/_clinic': typeof AuthenticatedClinicRouteRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
@@ -1283,6 +1319,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/dashboard': typeof AuthenticatedClinicDashboardRoute
   '/_authenticated/_clinic/datos-de-la-clinica': typeof AuthenticatedClinicDatosDeLaClinicaRoute
   '/_authenticated/_clinic/derechos-de-pacientes': typeof AuthenticatedClinicDerechosDePacientesRoute
+  '/_authenticated/_clinic/dispositivos': typeof AuthenticatedClinicDispositivosRoute
   '/_authenticated/_clinic/dominio-email': typeof AuthenticatedClinicDominioEmailRoute
   '/_authenticated/_clinic/efectividad': typeof AuthenticatedClinicEfectividadRoute
   '/_authenticated/_clinic/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
@@ -1347,6 +1384,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/box'
     | '/caja'
     | '/calculadora-rentabilidad-dental'
     | '/demo'
@@ -1361,6 +1399,7 @@ export interface FileRouteTypes {
     | '/precios'
     | '/privacidad'
     | '/recorrido'
+    | '/sala'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1369,6 +1408,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/totem'
     | '/v2'
     | '/onboarding'
     | '/sin-acceso'
@@ -1425,6 +1465,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/datos-de-la-clinica'
     | '/derechos-de-pacientes'
+    | '/dispositivos'
     | '/dominio-email'
     | '/efectividad'
     | '/empresas-con-convenio'
@@ -1487,6 +1528,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/box'
     | '/caja'
     | '/calculadora-rentabilidad-dental'
     | '/demo'
@@ -1499,6 +1541,7 @@ export interface FileRouteTypes {
     | '/precios'
     | '/privacidad'
     | '/recorrido'
+    | '/sala'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1507,6 +1550,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/totem'
     | '/v2'
     | '/onboarding'
     | '/sin-acceso'
@@ -1563,6 +1607,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/datos-de-la-clinica'
     | '/derechos-de-pacientes'
+    | '/dispositivos'
     | '/dominio-email'
     | '/efectividad'
     | '/empresas-con-convenio'
@@ -1626,6 +1671,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/box'
     | '/caja'
     | '/calculadora-rentabilidad-dental'
     | '/demo'
@@ -1640,6 +1686,7 @@ export interface FileRouteTypes {
     | '/precios'
     | '/privacidad'
     | '/recorrido'
+    | '/sala'
     | '/sitemap.xml'
     | '/software-dental-argentina'
     | '/software-dental-chile'
@@ -1648,6 +1695,7 @@ export interface FileRouteTypes {
     | '/software-dental-mexico'
     | '/software-dental-peru'
     | '/terminos'
+    | '/totem'
     | '/v2'
     | '/_authenticated/_clinic'
     | '/_authenticated/onboarding'
@@ -1705,6 +1753,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/dashboard'
     | '/_authenticated/_clinic/datos-de-la-clinica'
     | '/_authenticated/_clinic/derechos-de-pacientes'
+    | '/_authenticated/_clinic/dispositivos'
     | '/_authenticated/_clinic/dominio-email'
     | '/_authenticated/_clinic/efectividad'
     | '/_authenticated/_clinic/empresas-con-convenio'
@@ -1769,6 +1818,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  BoxRoute: typeof BoxRoute
   CajaRoute: typeof CajaRoute
   CalculadoraRentabilidadDentalRoute: typeof CalculadoraRentabilidadDentalRoute
   DemoRoute: typeof DemoRoute
@@ -1783,6 +1833,7 @@ export interface RootRouteChildren {
   PreciosRoute: typeof PreciosRoute
   PrivacidadRoute: typeof PrivacidadRoute
   RecorridoRoute: typeof RecorridoRoute
+  SalaRoute: typeof SalaRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SoftwareDentalArgentinaRoute: typeof SoftwareDentalArgentinaRoute
   SoftwareDentalChileRoute: typeof SoftwareDentalChileRoute
@@ -1791,6 +1842,7 @@ export interface RootRouteChildren {
   SoftwareDentalMexicoRoute: typeof SoftwareDentalMexicoRoute
   SoftwareDentalPeruRoute: typeof SoftwareDentalPeruRoute
   TerminosRoute: typeof TerminosRoute
+  TotemRoute: typeof TotemRoute
   V2Route: typeof V2Route
   AlternativasSlugRoute: typeof AlternativasSlugRoute
   ApiDailyDigestRoute: typeof ApiDailyDigestRoute
@@ -1844,6 +1896,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/box': {
+      id: '/box'
+      path: '/box'
+      fullPath: '/box'
+      preLoaderRoute: typeof BoxRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/caja': {
@@ -1944,6 +2003,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RecorridoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sala': {
+      id: '/sala'
+      path: '/sala'
+      fullPath: '/sala'
+      preLoaderRoute: typeof SalaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -1998,6 +2064,13 @@ declare module '@tanstack/react-router' {
       path: '/terminos'
       fullPath: '/terminos'
       preLoaderRoute: typeof TerminosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/totem': {
+      id: '/totem'
+      path: '/totem'
+      fullPath: '/totem'
+      preLoaderRoute: typeof TotemRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/v2': {
@@ -2397,6 +2470,13 @@ declare module '@tanstack/react-router' {
       path: '/derechos-de-pacientes'
       fullPath: '/derechos-de-pacientes'
       preLoaderRoute: typeof AuthenticatedClinicDerechosDePacientesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/dispositivos': {
+      id: '/_authenticated/_clinic/dispositivos'
+      path: '/dispositivos'
+      fullPath: '/dispositivos'
+      preLoaderRoute: typeof AuthenticatedClinicDispositivosRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
     '/_authenticated/_clinic/dominio-email': {
@@ -2824,6 +2904,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicDashboardRoute: typeof AuthenticatedClinicDashboardRoute
   AuthenticatedClinicDatosDeLaClinicaRoute: typeof AuthenticatedClinicDatosDeLaClinicaRoute
   AuthenticatedClinicDerechosDePacientesRoute: typeof AuthenticatedClinicDerechosDePacientesRoute
+  AuthenticatedClinicDispositivosRoute: typeof AuthenticatedClinicDispositivosRoute
   AuthenticatedClinicDominioEmailRoute: typeof AuthenticatedClinicDominioEmailRoute
   AuthenticatedClinicEfectividadRoute: typeof AuthenticatedClinicEfectividadRoute
   AuthenticatedClinicEmpresasConConvenioRoute: typeof AuthenticatedClinicEmpresasConConvenioRoute
@@ -2900,6 +2981,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
       AuthenticatedClinicDatosDeLaClinicaRoute,
     AuthenticatedClinicDerechosDePacientesRoute:
       AuthenticatedClinicDerechosDePacientesRoute,
+    AuthenticatedClinicDispositivosRoute: AuthenticatedClinicDispositivosRoute,
     AuthenticatedClinicDominioEmailRoute: AuthenticatedClinicDominioEmailRoute,
     AuthenticatedClinicEfectividadRoute: AuthenticatedClinicEfectividadRoute,
     AuthenticatedClinicEmpresasConConvenioRoute:
@@ -3057,6 +3139,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  BoxRoute: BoxRoute,
   CajaRoute: CajaRoute,
   CalculadoraRentabilidadDentalRoute: CalculadoraRentabilidadDentalRoute,
   DemoRoute: DemoRoute,
@@ -3071,6 +3154,7 @@ const rootRouteChildren: RootRouteChildren = {
   PreciosRoute: PreciosRoute,
   PrivacidadRoute: PrivacidadRoute,
   RecorridoRoute: RecorridoRoute,
+  SalaRoute: SalaRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SoftwareDentalArgentinaRoute: SoftwareDentalArgentinaRoute,
   SoftwareDentalChileRoute: SoftwareDentalChileRoute,
@@ -3079,6 +3163,7 @@ const rootRouteChildren: RootRouteChildren = {
   SoftwareDentalMexicoRoute: SoftwareDentalMexicoRoute,
   SoftwareDentalPeruRoute: SoftwareDentalPeruRoute,
   TerminosRoute: TerminosRoute,
+  TotemRoute: TotemRoute,
   V2Route: V2Route,
   AlternativasSlugRoute: AlternativasSlugRoute,
   ApiDailyDigestRoute: ApiDailyDigestRoute,

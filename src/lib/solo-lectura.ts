@@ -191,6 +191,28 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
     "Gestión de la cita (sin login): el paciente mira horas para cambiar la suya.",
   reagendarMiCita:
     "Gestión de la cita (sin login): el paciente cambia su hora; con la clínica en solo lectura se niega adentro.",
+  // Dispositivos de la clínica (Ola 14, sin login: token de dispositivo).
+  vincularDispositivo:
+    "Vincular una tablet o pantalla con el código que generó la clínica; no toca datos de pacientes.",
+  verDispositivo: "Pantalla de dispositivo: solo lee qué dispositivo es.",
+  estadoDeSala: "TV de la sala de espera: solo lee los llamados del día.",
+  estadoDeBox: "Pantalla del box: solo lee las citas de hoy del box.",
+  llamarDesdeBox:
+    "Pantalla del box: llama al paciente que ya está en sala; atender a quien llegó no se frena por el pago.",
+  identificarEnTotem:
+    "Tótem (sin login): el paciente se identifica; solo abre una sesión de 3 minutos.",
+  resumenDelTotem: "Tótem (sin login): el paciente ve sus citas de hoy y su saldo.",
+  marcarLlegadaEnTotem:
+    "Tótem (sin login): el paciente marca su llegada a una cita que ya existe; atender a quien llegó no se frena por el pago.",
+  opcionesParaAgendar:
+    "Tótem (sin login): solo lee los motivos; con la clínica en solo lectura no se ofrece agendar (se revisa adentro).",
+  horasParaAgendar:
+    "Tótem (sin login): solo lee horas libres; con la clínica en solo lectura no se ofrece agendar (se revisa adentro).",
+  agendarEnTotem:
+    "Tótem (sin login): crea una cita tentativa; la clínica en solo lectura no recibe reservas (se revisa adentro).",
+  terminarSesionDelTotem: "Tótem (sin login): cierra la sesión del paciente; nunca se bloquea.",
+  revocarDispositivo:
+    "Revocar una tablet o pantalla es una acción de seguridad: siempre se puede, también en solo lectura.",
   submitMarketingLead: "Formulario público de la web.",
   ensureDemoClinicFresh: "Clínica demo pública (ya es de solo lectura por trigger).",
 

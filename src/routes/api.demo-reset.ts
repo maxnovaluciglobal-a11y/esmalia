@@ -123,6 +123,11 @@ export const Route = createFileRoute("/api/demo-reset")({
         // Ola 13 · A: exámenes, sesiones de fotos y antes/después con imágenes
         // generadas (sin datos reales). Nunca lanza.
         await (await import("@/lib/demo/examenes.server")).sembrarExamenesDeLaDemo(supabaseAdmin);
+        // Ola 14 · A: tótem, TV de sala y pantalla de box de ejemplo, sin
+        // vincular (ningún token usable público). Nunca lanza.
+        await (
+          await import("@/lib/dispositivos/demo.server")
+        ).sembrarDispositivosDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },
