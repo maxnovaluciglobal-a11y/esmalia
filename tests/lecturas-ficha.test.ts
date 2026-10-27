@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -24,6 +24,18 @@ const MIGRACION = readFileSync(
   "utf8",
 );
 
+/**
+ * El CHECK de `section` vigente: el de la última migración que lo redefine
+ * (la Ola 13 agregó 'examenes' en 20261109100100).
+ */
+const DIR_MIGRACIONES = new URL("../supabase/migrations/", import.meta.url);
+const CHECK_VIGENTE = readdirSync(DIR_MIGRACIONES)
+  .filter((f) => f.endsWith(".sql"))
+  .sort()
+  .map((f) => readFileSync(new URL(f, DIR_MIGRACIONES), "utf8"))
+  .filter((sql) => /clinical_access_log_section_check CHECK \(\s*section IN/.test(sql))
+  .pop()!;
+
 const ARGS = {
   clinicId: "aaaaaaaa-0000-4000-8000-000000000001",
   patientId: "11111111-0000-4000-8000-000000000001",
@@ -42,7 +54,7 @@ beforeEach(() => {
 
 describe("vocabulario de secciones", () => {
   it("es el mismo en la app y en el CHECK de la tabla", () => {
-    const check = MIGRACION.match(/section IN \(([^)]*)\)/);
+    const check = CHECK_VIGENTE.match(/^\s*section IN \(([^)]*)\)/m);
     expect(check, "no se encontró el CHECK de section en la migración").not.toBeNull();
     const enSql = [...check![1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
     expect(enSql).toEqual([...SECCIONES_FICHA]);
