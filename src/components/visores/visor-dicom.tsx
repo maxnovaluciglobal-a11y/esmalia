@@ -432,23 +432,28 @@ function VistaCorte({
   useEffect(() => {
     const canvas = canvasRef.current;
     const fuera = fueraRef.current;
-    if (!canvas || !fuera || !tam.w || !tam.h) return;
+    if (!canvas || !fuera) return;
+    // El tamaño se lee del canvas al pintar (tam solo dispara el repintado):
+    // así el mapa de bits siempre calza con su tamaño en pantalla.
+    const W = canvas.clientWidth;
+    const H = canvas.clientHeight;
+    if (!W || !H) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.round(tam.w * dpr);
-    canvas.height = Math.round(tam.h * dpr);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, tam.w, tam.h);
+    ctx.clearRect(0, 0, W, H);
     const [sx, sy] = corte.espaciado;
     const mmW = corte.ancho * sx;
     const mmH = corte.alto * sy;
-    const base = Math.min(tam.w / mmW, tam.h / mmH) * 0.96;
+    const base = Math.min(W / mmW, H / mmH) * 0.96;
     const s = base * t.zoom;
     const dw = mmW * s;
     const dh = mmH * s;
-    const ox = (tam.w - dw) / 2 + t.x;
-    const oy = (tam.h - dh) / 2 + t.y;
+    const ox = (W - dw) / 2 + t.x;
+    const oy = (H - dh) / 2 + t.y;
     geometria.current = { ox, oy, escalaX: sx * s, escalaY: sy * s };
     ctx.imageSmoothingEnabled = t.zoom < 3;
     ctx.drawImage(fuera, ox, oy, dw, dh);
