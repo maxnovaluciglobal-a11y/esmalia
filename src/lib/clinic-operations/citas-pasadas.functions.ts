@@ -161,6 +161,28 @@ export const cerrarCitasPasadas = createServerFn({ method: "POST" })
     const grupos = agruparCambiosPorEstado(data.cambios);
     const pedidas = [...grupos.values()].reduce((s, ids) => s + ids.length, 0);
 
+    // AGE-22: una cita grupal no se marca "ausente" entera (la asistencia es
+    // por paciente y la base lo rechaza). Se saca del bloque para que no tumbe
+    // a las demás; queda como omitida y se pasa lista desde su cajón.
+    const ausentes = grupos.get("ausente");
+    if (ausentes?.length) {
+      const grupales = new Set<string>();
+      for (const bloque of enBloques(ausentes)) {
+        const { data: filas } = await supabase
+          .from("appointment_groups")
+          .select("appointment_id")
+          .eq("clinic_id", data.clinicId)
+          .in("appointment_id", bloque);
+        for (const f of filas ?? []) grupales.add(f.appointment_id);
+      }
+      if (grupales.size) {
+        grupos.set(
+          "ausente",
+          ausentes.filter((id) => !grupales.has(id)),
+        );
+      }
+    }
+
     const porEstado: Partial<Record<EstadoDeCierre, number>> = {};
     let cerradas = 0;
     for (const [estado, ids] of grupos) {
