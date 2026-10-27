@@ -36,7 +36,7 @@ Bucket privado en Backblaze B2 (su nombre está en la variable de Actions `B2_BU
 
 ## Cómo restaurar
 
-Lo más rápido para practicar o verificar un backup: `scripts/restore-drill.sh` (ver "Ensayo de restauración" más abajo). Hace los pasos de esta sección contra un Postgres local descartable, verifica conteos e integridad, y borra todo al terminar.
+Lo más rápido para practicar o verificar un backup: `scripts/simulacro/simulacro.sh` (Supabase efímero en Docker, ver "Simulacro automático") o `scripts/restore-drill.sh` (Postgres pelado, ver "Ensayo de restauración"). Hace los pasos de esta sección contra un Postgres local descartable, verifica conteos e integridad, y borra todo al terminar.
 
 ```bash
 # 1) Bajar el backup cifrado de B2 (o usar el botón "download" en el dashboard de B2)
@@ -49,7 +49,7 @@ age -d -i ~/Library/"Mobile Documents"/com~apple~CloudDocs/esmalia-backups/.esma
 # 3) El JSON tiene forma { exportedAt, tables: { patients: [...], ... }, auth_users: [...] }
 #    No es un dump SQL: se corre primero el esquema (supabase/migrations/ con
 #    `psql -f`, una por una, en orden) y después se re-insertan las filas.
-#    El SQL de carga probado está en scripts/restore-drill.sh, paso 3
+#    El SQL de carga probado está en scripts/simulacro/cargar-datos.sql
 #    (TRUNCATE de lo sembrado + INSERT … jsonb_populate_recordset por tabla con
 #    session_replication_role = replica, y secuencias al máximo). Contra un
 #    Supabase real: usuarios primero (ver abajo), después ese paso 3.
@@ -90,6 +90,66 @@ age -d -i <clave> esmalia_storage_<stamp>.tar.gz.age | tar -xzf - -C /tmp/storag
 ```
 
 El bucket `clinical-documents` lo crea la migración `20260826200000` (con sus límites de tamaño y mimetypes). Después, por cada objeto del manifest: `admin.storage.from(bucket).upload(path, bytes, { contentType: mimetype, upsert: false })` con service role. Las rutas son `{clinic_id}/{patient_id}/…`, así que las policies de RLS vuelven a funcionar sin tocar nada, y `patient_documents.storage_path` / `quotes` siguen apuntando bien. Revisar `failed` del manifest: esos archivos no están en este backup (buscar en uno anterior).
+
+## Simulacro automático (SEG-05)
+
+Desde el 27-oct-2026 el ensayo de restauración corre solo: `.github/workflows/simulacro-restauracion.yml`, **el día 3 de cada mes a las 10:00 UTC** (después del backup de las 07:15) y a mano desde GitHub → Actions → "Simulacro de restauración" → Run workflow.
+
+**Qué hace** (`scripts/simulacro/simulacro.sh`, el ensayo del 10-oct llevado a un Supabase de verdad):
+
+1. Baja de B2 el último `db/esmalia_<sello>.json.gz.age` y su gemelo `storage/esmalia_storage_<sello>.tar.gz.age`.
+2. Los descifra con `age` y levanta un **Supabase efímero en Docker dentro del runner** (db, auth, rest, storage; `scripts/simulacro/levantar.sh`) con `preseed.sql` y las migraciones una por una en autocommit. **Nunca producción**: los pasos que escriben se niegan si `SUPABASE_URL` no es `127.0.0.1`.
+3. Recrea los usuarios con `auth.admin.createUser` y **su mismo id** (`restaurar-auth.mjs`), carga las tablas con el mismo SQL que el ensayo manual (`scripts/simulacro/cargar-datos.sql`, que ahora usa también `restore-drill.sh`) y sube los archivos con la API de Storage (`restaurar-storage.mjs`).
+4. Verifica (`verificar.sql` + `evaluar.mjs`): migraciones sin error, **conteo de cada tabla igual al del backup**, **0 filas huérfanas** en todas las FKs de una columna, **todos los usuarios del backup con su id y su correo** y **cada archivo del manifiesto en su bucket con el mismo tamaño**.
+5. Mide cada paso: el **RTO medido** suma bajar + descifrar + levantar y migrar + usuarios + tablas + archivos (la verificación no cuenta).
+6. Apaga el Supabase descartando volúmenes y borra el directorio de trabajo y los archivos bajados.
+
+**Dónde se ve**: el resumen del run y un artefacto `simulacro-restauracion-…` (90 días) con `reporte.md` y `reporte.json`. Solo nombres de tabla, conteos y tiempos: ningún dato de pacientes. Si falla, el job queda en rojo y abre (o comenta) un Issue con la etiqueta `simulacro-fallido`, el mismo canal que el backup diario.
+
+**Modos**:
+
+- **real** (el programado): necesita el secret `BACKUP_AGE_KEY`. **Mientras no esté cargado, el simulacro queda _omitido_ con el motivo en el resumen** (job `simulacro` en gris, aviso en `preparar`): ni verde falso ni rojo.
+- **juguete**: arma un backup de prueba en el runner (Supabase efímero con la clínica demo que siembran las migraciones + 2 usuarios y un archivo por bucket, los scripts de backup **de verdad** y una clave `age` descartable) y lo restaura igual que el real. No usa ningún secret. Corre en cada PR que toque `scripts/simulacro/**`, los scripts de backup o `preseed.sql`, y a mano con modo `juguete`.
+
+### Lo que falta para el modo real (solo Walter)
+
+1. **Cargar la clave privada como secret** sin que pase por la pantalla ni por el portapapeles (solo la línea `AGE-SECRET-KEY-1…`, sin los comentarios del archivo):
+
+   ```bash
+   grep '^AGE-SECRET-KEY-1' ~/Library/"Mobile Documents"/com~apple~CloudDocs/esmalia-backups/.esmalia-backup-age.key \
+     | gh secret set BACKUP_AGE_KEY --repo maxnovaluciglobal-a11y/esmalia
+   ```
+
+   Verificar con `gh secret list --repo maxnovaluciglobal-a11y/esmalia` (muestra el nombre, nunca el valor) y correr el workflow a mano en modo `real`.
+
+2. **Que la Application Key de B2 pueda listar y leer** (`listFiles` + `readFiles`), no solo escribir. Si la key actual es de solo escritura, el paso "Bajar el último backup de B2" falla con 401: crear en Backblaze una key nueva para el mismo bucket con lectura y escritura y reemplazar `B2_ACCOUNT_ID`/`B2_APPLICATION_KEY` (o ampliar la actual).
+
+**Qué se decide al cargarla**: con `BACKUP_AGE_KEY` en GitHub, quien pueda editar workflows del repo podría leer los backups. Es el mismo nivel de confianza que ya tiene `SUPABASE_SERVICE_ROLE_KEY` (que lee la base entera de producción), así que no agrega exposición nueva a los datos actuales; sí permite leer backups viejos de hasta 90 días. La clave solo la ve el paso que descifra, se escribe a un archivo `600` que se borra al terminar, y los PRs desde forks no reciben secrets. Si se prefiere no subirla: el modo `juguete` sigue probando el circuito todos los meses que se corra, y el real se hace en la Mac con la clave de iCloud (abajo).
+
+### Correrlo en local
+
+Requisitos: Docker, `age`, `node`, el Supabase CLI (global o el de `npm ci`).
+
+```bash
+# Backup de juguete (sin datos reales). SIMULACRO_PUERTO evita chocar con otro Supabase local.
+SIMULACRO_PUERTO=53300 bash scripts/simulacro/juguete.sh
+
+# Un backup real bajado de B2, con la clave de iCloud:
+SIMULACRO_PUERTO=53300 bash scripts/simulacro/simulacro.sh \
+  ~/Downloads/esmalia_YYYYMMDD_HHMMSS.json.gz.age \
+  ~/Library/"Mobile Documents"/com~apple~CloudDocs/esmalia-backups/.esmalia-backup-age.key \
+  ~/Downloads/esmalia_storage_YYYYMMDD_HHMMSS.tar.gz.age
+```
+
+El reporte queda en `./simulacro-reporte/` (cambiar con `SIMULACRO_SALIDA`). `KEEP=1` deja el Supabase arriba para inspeccionarlo (ojo: con un backup real tiene datos de pacientes; apagarlo con `supabase stop --project-id esmalia-simulacro --no-backup`).
+
+### Primer resultado (27-oct-2026, modo juguete, local)
+
+204 migraciones sin error · 136/136 tablas con el mismo conteo (521 filas) · 310 FKs, 0 huérfanos · 3/3 usuarios con su id · 4/4 archivos en 4 buckets. **RTO medido: 40 s**, casi todo levantar Supabase y aplicar migraciones (39 s); usuarios, tablas y archivos, menos de 1 s a este volumen. El primer simulacro con un backup real queda para cuando esté `BACKUP_AGE_KEY`.
+
+El RTO medido es el **camino de datos**. Un incidente real suma lo que no es automatizable en un runner: crear el proyecto Supabase, configurar Google OAuth/SMTP/plantillas, cambiar las variables de Vercel y redeployar (la tabla "RTO estimado" de abajo: ~45-60 min en total).
+
+**Cómo revertir**: borrar `.github/workflows/simulacro-restauracion.yml` (y, si se cargó, `gh secret delete BACKUP_AGE_KEY`). `scripts/simulacro/` no se ejecuta solo.
 
 ## Ensayo de restauración
 
@@ -157,3 +217,4 @@ Requisitos: `age`, `node`, Postgres 16 en `/opt/homebrew/opt/postgresql@16/bin` 
 
 - **2026-08-17**: primer backup manual hecho a mano (no por el workflow, que todavía no tiene los secrets) — 33 tablas, 115 filas, verificado por round-trip. Cierra el riesgo de "cero backups con pacientes reales en prod" mientras se completa el setup de B2. Guardado también en iCloud junto a la clave privada (redundancia geográfica real desde el día uno, no solo local).
 - **2026-10-10**: el backup suma `auth_users` y los archivos de Storage (`storage.tar.gz.age` en `b2:<B2_BUCKET>/storage/`). Primer ensayo de restauración, local, con el backup del 18-ago: 3,0 s, 33/33 tablas, 0 huérfanos (ver "Ensayo de restauración").
+- **2026-10-27**: simulacro de restauración automático y mensual (SEG-05, `.github/workflows/simulacro-restauracion.yml`) sobre un Supabase efímero en el runner. Primer resultado en modo juguete: 40 s, todo verde. El modo real espera el secret `BACKUP_AGE_KEY` (ver "Simulacro automático").
