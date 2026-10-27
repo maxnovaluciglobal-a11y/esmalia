@@ -6,6 +6,9 @@ import { ArrowRight, Loader2, Package, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { ETIQUETA_ESTADO_PLAN } from "@/lib/finance/estados-presupuesto";
+import { fechaHoraPlanilla, fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { SearchField, SelectField } from "@/components/filters";
 import {
@@ -148,6 +151,45 @@ function PresupuestosPage() {
             se aceptó. Para crear uno, abre la ficha del paciente.
           </p>
           <div className="flex flex-wrap items-center gap-2">
+            <ExportarCsvLista<PresupuestoDeClinica>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="presupuestos"
+              filas={filtrados}
+              timezone={tz}
+              filtros={{ estado, q: termino, profesional }}
+              columnas={[
+                { header: "Número", value: (p) => p.number },
+                { header: "Paciente", value: (p) => p.patientName },
+                { header: "Profesional", value: (p) => p.professionalName },
+                { header: "Estado", value: (p) => ETIQUETA_ESTADO_PLAN[estadoDe(p, hoy)] },
+                { header: "Creado", value: (p) => fechaPlanilla(p.createdAt, tz) },
+                { header: "Enviado", value: (p) => fechaPlanilla(p.sentAt, tz) },
+                { header: "Válido hasta", value: (p) => fechaPlanilla(p.validUntil, tz) },
+                { header: "Aceptado", value: (p) => fechaPlanilla(p.acceptedAt, tz) },
+                { header: "Rechazado", value: (p) => fechaPlanilla(p.rejectedAt, tz) },
+                {
+                  header: "Total",
+                  value: (p) => montoPlanilla(p.totalCents, p.currency),
+                  dinero: true,
+                },
+                {
+                  header: "Total aceptado",
+                  value: (p) => montoPlanilla(p.acceptedTotalCents, p.currency),
+                  dinero: true,
+                },
+                { header: "Moneda", value: (p) => p.currency, dinero: true },
+                {
+                  header: "Último contacto",
+                  value: (p) => fechaHoraPlanilla(p.ultimoContactoAt, tz),
+                },
+                { header: "Próxima acción", value: (p) => p.proximaAccion },
+                {
+                  header: "Fecha próxima acción",
+                  value: (p) => fechaPlanilla(p.proximaAccionOn, tz),
+                },
+              ]}
+            />
             {puedeConfigurar && <ConfigurarValidez clinicId={clinicId} />}
             <Button size="sm" variant="outline" asChild>
               <Link to="/presupuestos/paquetes">

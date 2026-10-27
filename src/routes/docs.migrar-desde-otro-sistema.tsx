@@ -29,9 +29,9 @@ function MigrarDesdeOtroSistema() {
         Migrar desde otro sistema o desde Excel
       </h1>
       <LegalP>
-        Puedes traer tus pacientes y tus citas futuras con dos archivos CSV. No tienes que dejar tu
-        sistema actual el primer día: la forma más tranquila es usar los dos en paralelo la primera
-        semana y apagar el viejo cuando confíes.
+        Puedes traer tus pacientes y tus citas (pasadas y futuras) con dos archivos CSV o Excel. No
+        tienes que dejar tu sistema actual el primer día: la forma más tranquila es usar los dos en
+        paralelo la primera semana y apagar el viejo cuando confíes.
       </LegalP>
 
       <LegalH2>1. Descarga las plantillas</LegalH2>
@@ -67,15 +67,16 @@ function MigrarDesdeOtroSistema() {
       <LegalP>
         Si ya tienes una planilla o puedes exportar desde tu sistema actual a Excel o CSV, no hace
         falta que cambies los nombres de las columnas: Esmalia reconoce los más comunes (por ejemplo
-        nombre, rut, dni, celular, correo) y, si alguno no lo reconoce, te deja elegir a mano qué
-        columna corresponde a cada campo antes de importar.
+        nombre, rut, dni, celular, correo) y siempre te deja revisar y cambiar a mano qué columna
+        corresponde a cada campo antes de importar. Para Dentalink hay un perfil de columnas propio
+        (provisional: revisa el mapeo antes de importar).
       </LegalP>
       <LegalUl>
-        <LegalLi>Fechas de nacimiento como AAAA-MM-DD (por ejemplo 1985-03-27).</LegalLi>
         <LegalLi>
-          Fecha y hora de las citas como AAAA-MM-DD HH:mm (por ejemplo 2026-11-10 10:30).
+          Fechas como DD/MM/AAAA o AAAA-MM-DD (por ejemplo 27/03/1985). La hora de las citas puede
+          ir en su propia columna o junto a la fecha.
         </LegalLi>
-        <LegalLi>Hasta 2.000 filas por carga. Si tienes más, súbelas en varios archivos.</LegalLi>
+        <LegalLi>Hasta 5.000 filas por archivo. Si tienes más, súbelas en varios archivos.</LegalLi>
         <LegalLi>
           Guarda como CSV UTF-8 para que las tildes y las eñes lleguen bien. En Excel: Guardar como
           → CSV UTF-8.
@@ -84,12 +85,20 @@ function MigrarDesdeOtroSistema() {
 
       <LegalH2>3. Importa primero los pacientes y después las citas</LegalH2>
       <LegalP>
-        En Pacientes usa "Importar CSV". Verás una vista previa con las filas que se crearán, las
-        que ya existen (se detectan por documento) y las que se saltan, con el motivo de cada una.
-        Luego, en la Agenda, usa "Importar citas": las citas se asocian al paciente por su
-        documento, así que el paciente tiene que existir antes. Si tu clínica tiene más de un
-        profesional o más de una sucursal, la cita tiene que indicar cuál; si hay uno solo, se
-        asigna sola.
+        En Ajustes → Migración de datos (solo propietario o administrador) cada archivo se importa
+        como un lote. Antes de escribir nada ves una vista previa con las filas válidas, las que
+        tienen errores y las duplicadas (mismo documento, mismo id del sistema anterior o mismo
+        nombre y fecha de nacimiento), y confirmas con la cifra exacta. Las citas se asocian al
+        paciente por el id del sistema anterior, el documento o el nombre, así que los pacientes
+        tienen que existir antes; los profesionales del archivo que no estén en Esmalia los eliges
+        en la misma vista previa.
+      </LegalP>
+      <LegalP>
+        Si algo salió mal, puedes deshacer el lote completo mientras nadie haya trabajado sobre lo
+        importado. Las fichas importadas muestran el sello "Importado de…" con los datos tal como
+        venían; las citas pasadas quedan como historial de solo lectura. A los pacientes importados
+        no se les envía nada, y las citas futuras importadas no aparecen en Recordatorios salvo que
+        lo elijas.
       </LegalP>
 
       <LegalH2>4. Qué no se importa</LegalH2>
@@ -99,11 +108,10 @@ function MigrarDesdeOtroSistema() {
           Historial clínico y odontogramas: se siguen llenando en Esmalia a medida que atiendes.
         </LegalLi>
         <LegalLi>
-          Alergias, antecedentes, dirección, previsión o seguro y notas del paciente: no tienen
-          columna en el importador. Si son críticos para ti, pásalos a mano a la ficha de los
-          pacientes que ya estés atendiendo.
+          Alergias, antecedentes y notas del paciente: no tienen campo en el importador. Quedan
+          visibles en los datos de origen de la ficha, pero si son críticos pásalos a la anamnesis.
         </LegalLi>
-        <LegalLi>Citas pasadas, pagos y presupuestos antiguos.</LegalLi>
+        <LegalLi>Pagos y presupuestos antiguos.</LegalLi>
       </LegalUl>
 
       <LegalH2>5. Corre los dos sistemas en paralelo</LegalH2>

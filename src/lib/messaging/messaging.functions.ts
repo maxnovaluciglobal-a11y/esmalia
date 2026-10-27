@@ -491,6 +491,9 @@ export const listPendingReminders = createServerFn({ method: "GET" })
       .select("id, patient_id, professional_id, branch_id, treatment_label, starts_at")
       .eq("clinic_id", data.clinicId)
       .neq("status", "cancelada")
+      // REC-06: una cita importada entra en Recordatorios solo si el lote se
+      // importó con esa casilla (o se activó después en /migracion).
+      .eq("reminders_muted", false)
       .gte("starts_at", desde3h)
       .lte("starts_at", hasta48h)
       .order("starts_at", { ascending: true });

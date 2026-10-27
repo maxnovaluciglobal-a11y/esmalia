@@ -1,48 +1,23 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Check, FileUp, Loader2, Plus } from "lucide-react";
-import { toast } from "sonner";
+import { Check, FileUp } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla, type ColumnaLista } from "@/lib/exportacion/listas-csv";
+import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { requirePermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { etiquetaEstadoPaciente, type EstadoPaciente } from "@/lib/clinic-operations/clinic-data";
 import { formatMoney } from "@/lib/finance/finance";
 import { listBranches, listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
-import {
-  createPatient,
-  importPatients,
-  listPatients,
-  previewImportPatients,
-  type ImportPatientsResult,
-  type ImportPreviewRow,
-} from "@/lib/patients/patients.functions";
+import { listPatients } from "@/lib/patients/patients.functions";
 import { coincide, num, paginar, str } from "@/lib/search";
 import { cn } from "@/lib/utils";
-import { CsvColumnMapper } from "@/components/csv-column-mapper";
-import {
-  aplicarMapeo,
-  autoDetectMapping,
-  faltanCamposObligatorios,
-  parseCsvRaw,
-  type CsvFieldSpec,
-} from "@/lib/csv/column-mapping";
-import { mensajeDeError } from "@/lib/mensaje-error";
 import {
   ETIQUETA_FILTRO_DE_ARCHIVO,
   parseFiltroDeArchivo,
@@ -129,303 +104,42 @@ const estados: { value: EstadoPaciente; label: string }[] = (
   ["activo", "nuevo", "inactivo"] as EstadoPaciente[]
 ).map((e) => ({ value: e, label: etiquetaEstadoPaciente[e] }));
 
-interface FilaCsv {
-  nombre: string;
-  documento?: string;
-  fechaNacimiento?: string;
-  telefono?: string;
-  email?: string;
+/** Columnas del CSV de la lista (EXP-04): lo que muestra la tabla, legible en Excel. */
+function columnasCsvPacientes(
+  sucursales: readonly { id: string; nombre: string }[],
+  profesionales: readonly { id: string; nombre: string }[],
+  currency: string,
+  timezone: string,
+): ColumnaLista<Paciente>[] {
+  const sucursal = new Map(sucursales.map((s) => [s.id, s.nombre]));
+  const profesional = new Map(profesionales.map((p) => [p.id, p.nombre]));
+  return [
+    { header: "Nombre", value: (p) => p.nombre },
+    { header: "Documento", value: (p) => p.documento || null },
+    { header: "Fecha de nacimiento", value: (p) => fechaPlanilla(p.fechaNacimiento, timezone) },
+    { header: "Teléfono", value: (p) => p.telefono || null },
+    { header: "Correo", value: (p) => p.email || null },
+    { header: "Sucursal", value: (p) => sucursal.get(p.sucursalId) ?? null },
+    { header: "Profesional", value: (p) => profesional.get(p.profesionalId) ?? null },
+    { header: "Estado", value: (p) => etiquetaEstadoPaciente[p.estado] },
+    { header: "Última visita", value: (p) => fechaPlanilla(p.ultimaVisitaISO, timezone) },
+    { header: "Próximo control", value: (p) => p.proximoControl },
+    { header: "Etiquetas", value: (p) => p.etiquetas.join(", ") || null },
+    { header: "Saldo", value: (p) => montoPlanilla(p.saldo, currency), dinero: true },
+    { header: "Moneda", value: () => currency, dinero: true },
+    { header: "Archivada el", value: (p) => fechaPlanilla(p.archivadaEl, timezone) },
+  ];
 }
 
-const MAX_FILAS_IMPORT = 2000;
-
-/** Especificacion de columnas para el mapeo manual (recomendacion #5 del
- *  benchmark de onboarding, 25-sep-2026) - ver src/lib/csv/column-mapping.ts.
- *  Los alias cubren los exports mas comunes; cuando no alcanzan,
- *  `CsvColumnMapper` deja elegir la columna a mano en vez de descartar
- *  filas en silencio. */
-const CAMPOS_PACIENTE: CsvFieldSpec[] = [
-  {
-    key: "nombre",
-    label: "Nombre",
-    required: true,
-    aliases: ["nombre", "nombre_completo"],
-  },
-  {
-    key: "documento",
-    label: "Documento",
-    required: false,
-    aliases: ["documento", "rut", "dni", "documento_id"],
-  },
-  {
-    key: "fechaNacimiento",
-    label: "Fecha nacimiento",
-    required: false,
-    aliases: ["fecha_nacimiento", "fecha_de_nacimiento", "nacimiento"],
-  },
-  { key: "telefono", label: "Telefono", required: false, aliases: ["telefono", "celular"] },
-  { key: "email", label: "Email", required: false, aliases: ["email", "correo", "mail"] },
-];
-
-function ImportarPacientesDialog({ clinicId }: { clinicId: string }) {
-  const [open, setOpen] = useState(false);
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [rawRows, setRawRows] = useState<Record<string, string>[]>([]);
-  const [mapeo, setMapeo] = useState<Record<string, string | null>>({});
-  const [necesitaMapeo, setNecesitaMapeo] = useState(false);
-  const [filas, setFilas] = useState<FilaCsv[]>([]);
-  const [sinNombre, setSinNombre] = useState(0);
-  const [truncado, setTruncado] = useState(false);
-  const [resultado, setResultado] = useState<ImportPatientsResult | null>(null);
-  const [preview, setPreview] = useState<ImportPreviewRow[] | null>(null);
-
-  const queryClient = useQueryClient();
-  const importFn = useServerFn(importPatients);
-  const previewFn = useServerFn(previewImportPatients);
-
-  const reset = () => {
-    setHeaders([]);
-    setRawRows([]);
-    setMapeo({});
-    setNecesitaMapeo(false);
-    setFilas([]);
-    setSinNombre(0);
-    setTruncado(false);
-    setResultado(null);
-    setPreview(null);
-  };
-
-  const construirFilas = (
-    mapping: Record<string, string | null>,
-    rows: Record<string, string>[],
-  ) => {
-    const mapeadas = aplicarMapeo(rows, mapping, CAMPOS_PACIENTE);
-    const parseadas: FilaCsv[] = [];
-    let sinNombreCount = 0;
-    for (const m of mapeadas) {
-      if (!m.nombre) {
-        sinNombreCount += 1;
-        continue;
-      }
-      parseadas.push({
-        nombre: m.nombre,
-        documento: m.documento || undefined,
-        fechaNacimiento: m.fechaNacimiento || undefined,
-        telefono: m.telefono || undefined,
-        email: m.email || undefined,
-      });
-    }
-    setSinNombre(sinNombreCount);
-    setTruncado(parseadas.length > MAX_FILAS_IMPORT);
-    setFilas(parseadas.slice(0, MAX_FILAS_IMPORT));
-    setNecesitaMapeo(false);
-  };
-
-  const onFile = async (file: File) => {
-    reset();
-    // Import dinamico: papaparse solo hace falta en esta accion puntual de
-    // onboarding (una vez por clinica), pero se cargaba estatico y era la
-    // mayor parte del peso de /pacientes - la ruta que el staff abre mas
-    // veces por dia de toda la app (auditoria de rendimiento, 01-sep).
-    try {
-      const { headers: hs, rows } = await parseCsvRaw(file);
-      const auto = autoDetectMapping(hs, CAMPOS_PACIENTE);
-      setHeaders(hs);
-      setRawRows(rows);
-      setMapeo(auto);
-      if (faltanCamposObligatorios(auto, CAMPOS_PACIENTE)) {
-        setNecesitaMapeo(true);
-      } else {
-        construirFilas(auto, rows);
-      }
-    } catch (err) {
-      toast.error("No pudimos leer el CSV: " + (err instanceof Error ? err.message : String(err)));
-    }
-  };
-
-  const cargarPreview = useMutation({
-    mutationFn: () => previewFn({ data: { clinicId, rows: filas } }),
-    onSuccess: (res) => setPreview(res),
-    onError: (e: Error) => toast.error(mensajeDeError(e)),
-  });
-
-  const importar = useMutation({
-    mutationFn: () => importFn({ data: { clinicId, rows: filas } }),
-    onSuccess: (res) => {
-      setResultado(res);
-      queryClient.invalidateQueries({ queryKey: ["patients", clinicId] });
-    },
-    onError: (e: Error) => toast.error(mensajeDeError(e)),
-  });
-
-  const aCrear = (preview ?? []).filter((p) => p.action === "create").length;
-  const aSaltear = (preview ?? []).filter((p) => p.action === "skip_duplicate").length;
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o) reset();
-      }}
-    >
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <FileUp className="size-4" /> Importar CSV
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Importar pacientes desde CSV</DialogTitle>
-          <DialogDescription>
-            Columnas reconocidas: nombre, documento, fecha_nacimiento, telefono, email. Solo nombre
-            es obligatorio. No importa citas — eso se sigue cargando desde la agenda.{" "}
-            <a
-              href="/plantillas/plantilla-pacientes.csv"
-              download
-              className="font-medium text-brand-700 underline underline-offset-2"
-            >
-              Descargar plantilla
-            </a>{" "}
-            (trae una fila de ejemplo: bórrala antes de subirla).
-          </DialogDescription>
-        </DialogHeader>
-
-        {!resultado && !preview && necesitaMapeo && (
-          <CsvColumnMapper
-            fields={CAMPOS_PACIENTE}
-            headers={headers}
-            sampleRow={rawRows[0]}
-            mapping={mapeo}
-            onChange={(key, header) => setMapeo((prev) => ({ ...prev, [key]: header }))}
-          />
-        )}
-
-        {!resultado && !preview && !necesitaMapeo && (
-          <div className="space-y-3">
-            <input
-              type="file"
-              accept=".csv,text/csv"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void onFile(file);
-              }}
-              className="w-full rounded-lg border border-dashed border-hairline px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-xs file:font-medium"
-            />
-
-            {filas.length > 0 && (
-              <div className="rounded-lg border border-hairline p-3 text-xs text-muted-foreground">
-                <p>
-                  <strong className="text-foreground">{filas.length}</strong> paciente
-                  {filas.length === 1 ? "" : "s"} listo{filas.length === 1 ? "" : "s"} para revisar.
-                  {sinNombre > 0 && ` ${sinNombre} fila(s) sin nombre se ignoraron.`}
-                </p>
-                {truncado && (
-                  <p className="mt-1 flex items-center gap-1 text-warning">
-                    <AlertTriangle className="size-3.5" /> El archivo tiene más de{" "}
-                    {MAX_FILAS_IMPORT} filas — se importarán solo las primeras {MAX_FILAS_IMPORT}.
-                  </p>
-                )}
-                <ul className="mt-2 max-h-32 space-y-1 overflow-y-auto">
-                  {filas.slice(0, 5).map((f, i) => (
-                    <li key={i} className="truncate">
-                      {f.nombre} {f.documento ? `· ${f.documento}` : ""}
-                    </li>
-                  ))}
-                  {filas.length > 5 && <li>… y {filas.length - 5} más.</li>}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-
-        {!resultado && preview && (
-          <div className="space-y-2 rounded-lg border border-hairline p-3 text-sm">
-            <p>
-              <strong className="text-foreground">{aCrear}</strong> se van a crear
-              {aSaltear > 0 && (
-                <>
-                  {" "}
-                  · <strong className="text-muted-foreground">{aSaltear}</strong> se van a saltear
-                  (documento duplicado)
-                </>
-              )}
-              .
-            </p>
-            <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-muted-foreground">
-              {preview.map((p) => (
-                <li
-                  key={p.row}
-                  className={cn("truncate", p.action === "skip_duplicate" && "line-through")}
-                >
-                  {p.nombre} {p.documento ? `· ${p.documento}` : ""}
-                  {p.warning && ` · ${p.warning}`}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {resultado && (
-          <div className="space-y-2 rounded-lg border border-hairline p-3 text-sm">
-            <p>
-              <strong className="text-success">{resultado.created}</strong> pacientes importados.
-            </p>
-            {resultado.skipped > 0 && (
-              <p className="text-muted-foreground">
-                {resultado.skipped} se saltearon por documento duplicado.
-              </p>
-            )}
-            {resultado.warnings.length > 0 && (
-              <p className="text-warning">
-                {resultado.warnings.length} con fecha de nacimiento inválida (se importaron sin
-                ella).
-              </p>
-            )}
-            {resultado.errors.length > 0 && (
-              <p className="text-destructive">
-                {resultado.errors.length} lote(s) fallaron: {resultado.errors[0].message}
-              </p>
-            )}
-          </div>
-        )}
-
-        <DialogFooter>
-          {resultado ? (
-            <Button onClick={() => setOpen(false)}>Listo</Button>
-          ) : preview ? (
-            <>
-              <Button variant="outline" onClick={() => setPreview(null)}>
-                Volver
-              </Button>
-              <Button
-                onClick={() => importar.mutate()}
-                disabled={aCrear === 0 || importar.isPending}
-              >
-                {importar.isPending && <Loader2 className="size-3.5 animate-spin" />}
-                Confirmar importación ({aCrear})
-              </Button>
-            </>
-          ) : necesitaMapeo ? (
-            <Button
-              onClick={() => construirFilas(mapeo, rawRows)}
-              disabled={faltanCamposObligatorios(mapeo, CAMPOS_PACIENTE)}
-            >
-              Continuar
-            </Button>
-          ) : (
-            <Button
-              onClick={() => cargarPreview.mutate()}
-              disabled={filas.length === 0 || cargarPreview.isPending}
-            >
-              {cargarPreview.isPending && <Loader2 className="size-3.5 animate-spin" />}
-              Ver vista previa
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+/** Filtros de la URL, como texto, para el registro de la exportación. */
+function filtrosParaRegistro(search: Record<string, unknown>): Record<string, string> {
+  const salida: Record<string, string> = {};
+  for (const [clave, valor] of Object.entries(search)) {
+    if (clave === "page" || clave === "porPagina" || clave === "nuevo") continue;
+    if (valor === undefined || valor === null || valor === "") continue;
+    salida[clave] = String(valor).slice(0, 200);
+  }
+  return salida;
 }
 
 function PacientesPage() {
@@ -497,6 +211,8 @@ function PacientesPage() {
     [pacientes, search],
   );
 
+  const timezone = access.clinic?.timezone ?? "America/Santiago";
+
   const porPagina = search.porPagina ?? POR_PAGINA_POR_DEFECTO;
   const pagina = paginar(filtrados, search.page, porPagina);
   const columnas = columnasConDatos(pagina.items, sucursales.length);
@@ -519,10 +235,28 @@ function PacientesPage() {
   return (
     <AppShell title="Pacientes" access={access}>
       <div className="space-y-6">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {clinicId && (
+            <ExportarCsvLista<Paciente>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="pacientes"
+              filas={filtrados}
+              columnas={columnasCsvPacientes(sucursales, profesionales, currency, timezone)}
+              timezone={timezone}
+              filtros={filtrosParaRegistro(search)}
+            />
+          )}
           {clinicId && hasPermission(access.role, "patients:manage") && (
             <>
-              <ImportarPacientesDialog clinicId={clinicId} />
+              {hasPermission(access.role, "settings:manage") && (
+                <Link
+                  to="/migracion"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-secondary"
+                >
+                  <FileUp className="size-4" aria-hidden /> Importar
+                </Link>
+              )}
               <NuevoPacienteDialog
                 clinicId={clinicId}
                 pais={access.clinic?.country ?? null}

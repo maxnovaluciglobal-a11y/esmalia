@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { montoPlanilla, siNoPlanilla } from "@/lib/exportacion/listas-csv";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1182,6 +1184,39 @@ function InventarioPage() {
                   ))}
                 </select>
               )}
+              <ExportarCsvLista<InventoryItem>
+                clinicId={clinicId}
+                rol={access.role}
+                lista="inventario"
+                filas={activeItems}
+                timezone={access.clinic!.timezone}
+                filtros={{
+                  nombre: nameFilter.trim(),
+                  sucursal: branchFilter,
+                  bodega: warehouseFilter,
+                }}
+                columnas={[
+                  { header: "Insumo", value: (i) => i.name },
+                  { header: "Unidad", value: (i) => i.unit },
+                  {
+                    header: warehouseFilter ? "Stock en la bodega" : "Stock",
+                    value: (i) => (warehouseFilter ? (stockPorBodega[i.id] ?? 0) : i.currentStock),
+                  },
+                  { header: "Stock mínimo", value: (i) => i.minStock },
+                  { header: "Bajo el mínimo", value: (i) => siNoPlanilla(i.belowMinStock) },
+                  {
+                    header: "Sucursal",
+                    value: (i) => (i.branchId ? (branchNameById.get(i.branchId) ?? null) : null),
+                  },
+                  {
+                    header: "Costo unitario",
+                    value: (i) => montoPlanilla(i.costCents, currency),
+                    dinero: true,
+                  },
+                  { header: "Moneda", value: () => currency, dinero: true },
+                  { header: "Notas", value: (i) => i.notes },
+                ]}
+              />
               {puedeGestionar && (
                 <CrearItemDialog clinicId={clinicId} currency={currency} sucursales={sucursales} />
               )}

@@ -75,7 +75,8 @@ import {
   setProcedureFavorite,
 } from "@/lib/clinic-operations/cita-formulario.functions";
 import { coincide, str } from "@/lib/search";
-import { exportarCsv } from "@/lib/csv-export";
+import { useExportarCsvLista } from "@/components/exportar-csv-lista";
+import { montoPlanilla, siNoPlanilla } from "@/lib/exportacion/listas-csv";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
@@ -969,6 +970,55 @@ function ArancelesPage() {
     [procedures, search.q, search.categoria, search.especialidad, especialidadPorId],
   );
 
+  const exportarArancel = useExportarCsvLista<Procedure>({
+    clinicId: clinicId!,
+    rol: access.role,
+    lista: "arancel",
+    filas: filtradas,
+    timezone: zona ?? "America/Santiago",
+    filtros: { q: search.q, categoria: search.categoria, especialidad: search.especialidad },
+    columnas: [
+      { header: "Código", value: (p) => p.code },
+      { header: "Nombre", value: (p) => p.name },
+      {
+        header: "Especialidad",
+        value: (p) => (p.specialtyId && especialidadPorId.get(p.specialtyId)?.name) || null,
+      },
+      { header: "Categoría", value: (p) => p.category },
+      {
+        header: "Precio",
+        value: (p) => montoPlanilla(p.defaultPriceCents, currency),
+        dinero: true,
+      },
+      {
+        header: "Valor referencial",
+        value: (p) => montoPlanilla(p.referencePriceCents, currency),
+        dinero: true,
+      },
+      {
+        header: "Costo laboratorio",
+        value: (p) => montoPlanilla(p.labCostCents, currency),
+        dinero: true,
+      },
+      { header: "Moneda", value: () => currency, dinero: true },
+      { header: "Duración", value: (p) => p.durationMin },
+      { header: "Permite descuento", value: (p) => siNoPlanilla(p.allowsDiscount) },
+      { header: "Código Fonasa", value: (p) => p.fonasaCode ?? null },
+      { header: "MAI", value: (p) => siNoPlanilla(p.isMai) },
+      {
+        header: "Rango mínimo",
+        value: (p) => montoPlanilla(p.suggestedMinCents, currency),
+        dinero: true,
+      },
+      {
+        header: "Rango máximo",
+        value: (p) => montoPlanilla(p.suggestedMaxCents, currency),
+        dinero: true,
+      },
+      { header: "Activa", value: (p) => siNoPlanilla(p.isActive) },
+    ],
+  });
+
   // Agrupa por especialidad (ADM-02) para que el arancel se lea como la lista
   // de precios que es, y no como una tabla plana de 300 filas.
   const grupos = useMemo(
@@ -1026,38 +1076,10 @@ function ArancelesPage() {
                 <DropdownMenuItem onSelect={() => setHerramienta("historial")}>
                   <History className="size-4" aria-hidden /> Historial de precios
                 </DropdownMenuItem>
-                {procedures.length > 0 && (
+                {procedures.length > 0 && exportarArancel.puede && (
                   <DropdownMenuItem
-                    onSelect={() =>
-                      exportarCsv<Procedure>(
-                        filtradas,
-                        [
-                          { header: "Código", value: (p) => p.code },
-                          { header: "Nombre", value: (p) => p.name },
-                          {
-                            header: "Especialidad",
-                            value: (p) =>
-                              (p.specialtyId && especialidadPorId.get(p.specialtyId)?.name) || null,
-                          },
-                          { header: "Categoría", value: (p) => p.category },
-                          { header: "Precio", value: (p) => p.defaultPriceCents },
-                          { header: "Valor referencial", value: (p) => p.referencePriceCents },
-                          { header: "Costo laboratorio", value: (p) => p.labCostCents },
-                          { header: "Duración", value: (p) => p.durationMin },
-                          {
-                            header: "Permite descuento",
-                            value: (p) => (p.allowsDiscount ? "Sí" : "No"),
-                          },
-                          { header: "Código Fonasa", value: (p) => p.fonasaCode ?? null },
-                          { header: "MAI", value: (p) => (p.isMai ? "Sí" : "No") },
-                          { header: "Rango mínimo", value: (p) => p.suggestedMinCents ?? null },
-                          { header: "Rango máximo", value: (p) => p.suggestedMaxCents ?? null },
-                          { header: "Activa", value: (p) => (p.isActive ? "Sí" : "No") },
-                        ],
-                        "arancel",
-                        hoyISO(access.clinic?.timezone),
-                      )
-                    }
+                    disabled={exportarArancel.enCurso || exportarArancel.vacia}
+                    onSelect={() => void exportarArancel.exportar()}
                   >
                     <Download className="size-4" aria-hidden /> Exportar CSV
                   </DropdownMenuItem>

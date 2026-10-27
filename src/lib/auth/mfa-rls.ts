@@ -45,6 +45,8 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   data_subject_request_events: "bitácora de las solicitudes de derechos de cada paciente",
   data_subject_requests: "solicitudes de derechos del paciente (Ley 21.719): quién pidió qué",
   expenses: "gastos de la clínica",
+  import_batch_changes: "migración: datos de pacientes que completó un lote importado",
+  import_batches: "migración: lotes importados desde otro sistema (archivo y conteos)",
   issued_documents: "documentos emitidos a un paciente: certificados, informes y reembolsos",
   lab_orders: "órdenes de laboratorio de un paciente",
   messages: "conversaciones con pacientes (WhatsApp, correo)",
