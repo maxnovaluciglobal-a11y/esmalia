@@ -344,6 +344,25 @@ function VisorDicomListo({ vol }: { vol: Volumen }) {
 
 type Transformacion = { zoom: number; x: number; y: number };
 const SIN_TRANSFORMACION: Transformacion = { zoom: 1, x: 0, y: 0 };
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 16;
+const CENTRO = { x: 0, y: 0 };
+
+/**
+ * Zoom hacia un punto: lo que estaba bajo `antes` queda bajo `despues`
+ * (coordenadas relativas al centro de la vista). Así la pinza y Ctrl + rueda
+ * acercan donde están los dedos o el cursor, no al centro.
+ */
+function zoomHacia(
+  t0: Transformacion,
+  zoom: number,
+  antes: { x: number; y: number },
+  despues: { x: number; y: number },
+): Transformacion {
+  const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoom));
+  const k = z / t0.zoom;
+  return { zoom: z, x: despues.x - k * (antes.x - t0.x), y: despues.y - k * (antes.y - t0.y) };
+}
 
 function VistaCorte({
   vol,
@@ -389,7 +408,9 @@ function VistaCorte({
   useEffect(() => {
     const el = marcoRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setTam({ w: el.clientWidth, h: el.clientHeight }));
+    const medir = () => setTam({ w: el.clientWidth, h: el.clientHeight });
+    medir();
+    const ro = new ResizeObserver(medir);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -485,16 +506,25 @@ function VistaCorte({
     ventana: Ventana;
   } | null>(null);
 
+  /** Punto de pantalla relativo al centro de la vista. */
+  const relativo = (x: number, y: number) => {
+    const r = marcoRef.current?.getBoundingClientRect();
+    return r ? { x: x - r.left - r.width / 2, y: y - r.top - r.height / 2 } : { x: 0, y: 0 };
+  };
   const medio = () => {
     const ps = [...punteros.current.values()];
     return {
       dist: Math.hypot(ps[0].x - ps[1].x, ps[0].y - ps[1].y),
-      medio: { x: (ps[0].x + ps[1].x) / 2, y: (ps[0].y + ps[1].y) / 2 },
+      medio: relativo((ps[0].x + ps[1].x) / 2, (ps[0].y + ps[1].y) / 2),
     };
   };
 
   const alBajar = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // Puntero sintético o ya liberado: el gesto sigue sin captura.
+    }
     punteros.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (punteros.current.size === 1) {
       gesto.current = {
@@ -516,15 +546,8 @@ function VistaCorte({
     const g = gesto.current;
     if (g.pinza && punteros.current.size >= 2) {
       const m = medio();
-      const zoom = Math.max(
-        0.5,
-        Math.min(16, g.pinza.t.zoom * (m.dist / Math.max(1, g.pinza.dist))),
-      );
-      setT({
-        zoom,
-        x: g.pinza.t.x + (m.medio.x - g.pinza.medio.x),
-        y: g.pinza.t.y + (m.medio.y - g.pinza.medio.y),
-      });
+      const zoom = g.pinza.t.zoom * (m.dist / Math.max(1, g.pinza.dist));
+      setT(zoomHacia(g.pinza.t, zoom, g.pinza.medio, m.medio));
       return;
     }
     const dx = e.clientX - g.ultimo.x;
@@ -562,10 +585,9 @@ function VistaCorte({
     const alRodar = (e: WheelEvent) => {
       e.preventDefault();
       if (e.ctrlKey || e.metaKey) {
-        setT((prev) => ({
-          ...prev,
-          zoom: Math.max(0.5, Math.min(16, prev.zoom * Math.exp(-e.deltaY * 0.01))),
-        }));
+        const r = el.getBoundingClientRect();
+        const cursor = { x: e.clientX - r.left - r.width / 2, y: e.clientY - r.top - r.height / 2 };
+        setT((prev) => zoomHacia(prev, prev.zoom * Math.exp(-e.deltaY * 0.01), cursor, cursor));
       } else if (Math.abs(e.deltaY) > 0.5) {
         onIndiceRef.current(indiceRef.current + Math.sign(e.deltaY));
       }
@@ -589,9 +611,9 @@ function VistaCorte({
       PageDown: () => onIndice(indice - 10),
       Home: () => onIndice(0),
       End: () => onIndice(total - 1),
-      "+": () => setT((p) => ({ ...p, zoom: Math.min(16, p.zoom * 1.25) })),
-      "=": () => setT((p) => ({ ...p, zoom: Math.min(16, p.zoom * 1.25) })),
-      "-": () => setT((p) => ({ ...p, zoom: Math.max(0.5, p.zoom / 1.25) })),
+      "+": () => setT((p) => zoomHacia(p, p.zoom * 1.25, CENTRO, CENTRO)),
+      "=": () => setT((p) => zoomHacia(p, p.zoom * 1.25, CENTRO, CENTRO)),
+      "-": () => setT((p) => zoomHacia(p, p.zoom / 1.25, CENTRO, CENTRO)),
       "0": () => setT(SIN_TRANSFORMACION),
       m: () => onHerramienta(herramienta === "medir" ? "mover" : "medir"),
       M: () => onHerramienta(herramienta === "medir" ? "mover" : "medir"),

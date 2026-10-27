@@ -1,10 +1,11 @@
 // Página de prueba de los visores, solo para desarrollo (no es una ruta de
 // la app ni entra al build). Se abre con `npm run dev` en:
-//   http://localhost:8080/src/components/visores/prueba/index.html
+//   npx vite --config src/components/visores/prueba/vite.config.ts
+//   http://localhost:8096/src/components/visores/prueba/index.html (con el vite.config.ts de esta carpeta)
 //
 // Genera archivos de ejemplo en el momento (arcada procedural y un fantoma
 // de CBCT, sin datos de pacientes) y permite abrir archivos locales.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
 import "@/styles.css";
@@ -125,6 +126,20 @@ function Pagina() {
       }),
     },
   ];
+
+  // ?ejemplo=N abre el ejemplo N al cargar y ?oscuro=1 pasa a modo oscuro
+  // (capturas automáticas sin clics).
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    if (q.get("oscuro") === "1") {
+      document.documentElement.classList.add("dark");
+      setOscuro(true);
+    }
+    const n = Number(q.get("ejemplo"));
+    if (q.has("ejemplo") && ejemplos[n]) setAbierto(ejemplos[n].abrir());
+    // Solo al montar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const abrirLocales = (lista: FileList | null) => {
     if (!lista?.length) return;

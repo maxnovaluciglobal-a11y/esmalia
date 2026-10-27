@@ -208,11 +208,17 @@ export function crearEscena(
   const observador = new ResizeObserver(redimensionar);
   observador.observe(contenedor);
 
-  const distanciaInicial = (radio / Math.sin((camara.fov * Math.PI) / 360)) * 1.05;
+  // Distancia para que el modelo entre entero: con pantalla vertical (teléfono)
+  // manda el campo horizontal, que es el más angosto.
+  const distanciaInicial = () => {
+    const vertical = (camara.fov * Math.PI) / 180;
+    const horizontal = 2 * Math.atan(Math.tan(vertical / 2) * camara.aspect);
+    return (radio / Math.sin(Math.min(vertical, horizontal) / 2)) * 1.05;
+  };
   const vista = (v: Vista) => {
     // Z es la dirección oclusal en la mayoría de los escáneres; Y, la
     // anteroposterior. "Frontal" mira desde −Y (vestibular de los anteriores).
-    const d = distanciaInicial;
+    const d = distanciaInicial();
     const posiciones: Record<Vista, [number, number, number]> = {
       inicial: [0, -d * 0.7, d * 0.7],
       // Un pelo corrido en Y: justo en el polo la órbita queda indefinida.

@@ -5,6 +5,7 @@ import { unzipSync } from "fflate";
 
 import { parsearDicom, pareceDicom, type CorteDicom, type Vec3 } from "./dicom";
 import { ErrorDeVisor, MAX_BYTES_DICOM, MAX_VOXELES, MAX_VOXELES_EQUIPO_CHICO } from "./limites";
+import { formatoPropietario } from "./malla";
 
 export { MAX_BYTES_DICOM, MAX_VOXELES, MAX_VOXELES_EQUIPO_CHICO };
 
@@ -73,7 +74,11 @@ export function abrirArchivosDicom(archivos: Uint8Array[]): CorteDicom[] {
   const cortes: CorteDicom[] = [];
   let primerError: unknown = null;
   for (const c of crudos) {
-    if (!pareceDicom(c)) continue;
+    if (!pareceDicom(c)) {
+      const propietario = formatoPropietario(c);
+      if (propietario) primerError ??= new ErrorDeVisor(propietario);
+      continue;
+    }
     try {
       const corte = parsearDicom(c);
       if (corte.pixeles) cortes.push(corte);

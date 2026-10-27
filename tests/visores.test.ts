@@ -133,6 +133,14 @@ describe("formatos propietarios", () => {
     expect(formatoPropietario(hps)).toMatch(/3Shape/);
     expect(() => parsearDicom(hps)).toThrow(/3Shape/);
     expect(() => parsearMalla(hps, "stl")).toThrow(/3Shape/);
+    // Abierto como estudio DICOM (lo que hace el visor) explica lo mismo.
+    expect(() => abrirArchivosDicom([hps])).toThrow(/3Shape/);
+  });
+
+  it("un archivo que no es DICOM se explica", () => {
+    expect(() => abrirArchivosDicom([new TextEncoder().encode("hola")])).toThrow(
+      /ninguna imagen DICOM/,
+    );
   });
 
   it("un proyecto de Exocad pide exportar a STL o PLY", () => {

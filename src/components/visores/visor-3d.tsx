@@ -194,7 +194,7 @@ function Visor3DListo({ malla, formato }: { malla: Malla; formato: FormatoMalla 
 
         <GrupoChips etiqueta="Medir distancia">
           <Chip activo={midiendo} onClick={() => setMidiendo((v) => !v)} titulo="Tecla M">
-            {midiendo ? "Midiendo" : "Medir"}
+            Medir
           </Chip>
           <Chip
             onClick={() => escenaRef.current?.limpiarMedida()}
