@@ -38,8 +38,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["inicio", "panel", "resumen", "dashboard", "alertas"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-hoy.mp4",
+      duracion: "44 s",
       guion:
         "Recorrer Hoy con la demo: alertas arriba y a dónde llevan, cerrar citas pasadas, tarjeta del día por profesional y los botones Agendar cita y Nuevo paciente.",
     },
@@ -83,8 +84,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["cita", "citas", "turno", "hora", "agendar", "calendario", "reagendar", "box"],
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-agenda.mp4",
+      duracion: "55 s",
       guion:
         "Crear una cita con la tecla N, cambiar de vista, abrir el panel de una cita y pasarla a sala, arrastrar una cita en Semana y abrir Solicitudes y espera.",
     },
@@ -110,8 +112,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["mis citas", "aceptar", "tentativa", "confirmar"],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-mi-agenda.mp4",
+      duracion: "31 s",
       guion: "Aceptar una cita tentativa desde Mi agenda y revisar el día propio.",
     },
   },
@@ -152,8 +155,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["paciente", "ficha", "cartera", "buscar", "rut", "etiqueta", "segmento", "archivar"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-pacientes.mp4",
+      duracion: "42 s",
       guion:
         "Buscar por RUT, filtrar con la franja de cifras, crear un paciente con Guardar y agendar, etiquetar dos fichas en lote y guardar un segmento.",
     },
@@ -205,8 +209,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       "adenda",
     ],
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ficha.mp4",
+      duracion: "45 s",
       guion:
         "Abrir una ficha de la demo, leer los datos clave, recorrer las pestañas, crear un presupuesto desde el odontograma y registrar un pago con Cobrar.",
     },
@@ -238,8 +243,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["presupuesto", "cotizacion", "plan de tratamiento", "aceptar", "vencido"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-presupuestos.mp4",
+      duracion: "38 s",
       guion:
         "Filtrar presupuestos por vencer, abrir uno, enviarlo en PDF por correo y aceptarlo en parte.",
     },
@@ -285,8 +291,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       "turno",
     ],
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-caja.mp4",
+      duracion: "42 s",
       guion:
         "Abrir la caja con monto inicial, registrar un pago desde una ficha, anotar un retiro y cerrar con arqueo por billete, incluyendo el aviso de confirmación.",
     },
@@ -315,8 +322,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["deuda", "saldo", "morosidad", "cuotas", "vencido"],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-cuentas-por-cobrar.mp4",
+      duracion: "31 s",
       guion: "Filtrar cuentas vencidas y abrir la ficha para cobrar una cuota.",
     },
   },
@@ -341,8 +349,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["ingresos", "gastos", "produccion", "utilidad", "folios", "contador"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-finanzas.mp4",
+      duracion: "31 s",
       guion:
         "Cambiar el período de Finanzas, leer producción por profesional y gastos por categoría, y exportar el CSV para el contador.",
     },
@@ -376,8 +385,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["reportes", "estadisticas", "indicadores", "metricas", "embudo", "ocupacion"],
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-informes.mp4",
+      duracion: "79 s",
       guion:
         "Abrir Cómo vamos, tocar una cifra para ver el detalle, armar un informe por profesional y guardarlo, y ver el mapa de calor de la agenda.",
     },
@@ -406,8 +416,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["tareas", "controles", "recall", "abandono", "pendientes"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-seguimiento.mp4",
+      duracion: "52 s",
       guion:
         "Crear una tarea, revisar controles pendientes y escribir a un paciente con tratamiento detenido.",
     },
@@ -443,8 +454,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["campana", "marketing", "masivo", "correo", "segmento", "plantillas"],
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-campanas.mp4",
+      duracion: "36 s",
       guion:
         "Crear una campaña a un segmento, confirmar la cifra, enviar los correos y despachar la cola de WhatsApp a mano.",
     },
@@ -474,8 +486,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["recordatorio", "aviso", "whatsapp", "confirmar", "48 h"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-recordatorios.mp4",
+      duracion: "37 s",
       guion:
         "Enviar el recordatorio de 48 h a un paciente por WhatsApp y usar Enviar todos con la cola guiada.",
     },
@@ -501,8 +514,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["whatsapp", "mensajes", "chat", "conversacion", "responder"],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-mensajes.mp4",
+      duracion: "32 s",
       guion: "Filtrar sin responder y contestar con Abrir WhatsApp.",
     },
   },
@@ -533,8 +547,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["reserva", "agendamiento", "online", "enlace", "qr", "widget"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-reserva-en-linea.mp4",
+      duracion: "38 s",
       guion:
         "Configurar reglas, encender la reserva, copiar el enlace y mostrar cómo llega una reserva por confirmar a la agenda.",
     },
@@ -561,8 +576,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     tenEnCuenta: ["Solo propietario y administración revocan el enlace del portal."],
     palabras: ["laboratorio", "orden", "protesis", "corona", "color vita"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-laboratorios.mp4",
+      duracion: "36 s",
       guion: "Crear una orden con color VITA, seguir su estado y compartir el portal.",
     },
   },
@@ -587,8 +603,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["stock", "insumos", "materiales", "bodega", "vencimiento"],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-inventario.mp4",
+      duracion: "33 s",
       guion: "Registrar una salida de insumo y un conteo físico.",
     },
   },
@@ -618,8 +635,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["comision", "liquidacion", "porcentaje", "desempeno", "sueldo"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-comisiones.mp4",
+      duracion: "33 s",
       guion: "Revisar comisiones del mes, cerrar el período y marcar una liquidación pagada.",
     },
   },
@@ -647,8 +665,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["usuarios", "roles", "invitar", "permisos", "acceso", "integrante"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-equipo.mp4",
+      duracion: "39 s",
       guion: "Invitar a una recepcionista, cambiarle el rol y quitarle un permiso puntual.",
     },
   },
@@ -672,8 +691,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     palabras: ["avisos", "campana", "alertas"],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-notificaciones.mp4",
+      duracion: "31 s",
       guion: "Abrir la campana, ir a Notificaciones, filtrar sin leer y marcar todo.",
     },
   },
@@ -699,8 +719,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     tenEnCuenta: ["Muchos ajustes son solo de propietario y administración."],
     palabras: ["configuracion", "preferencias", "datos de la clinica", "exportar", "rol"],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ajustes.mp4",
+      duracion: "31 s",
       guion:
         "Buscar un ajuste, usar Ver como otro rol y descargar la exportación completa de la clínica.",
     },

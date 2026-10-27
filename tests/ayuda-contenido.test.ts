@@ -164,7 +164,7 @@ describe("contenido de la ayuda", () => {
   it("todo video está pendiente o tiene un enlace https real (nunca uno inventado)", () => {
     for (const { donde, video } of todosLosVideos()) {
       expect(video.guion.length, donde).toBeGreaterThan(20);
-      expect(video.duracion, donde).toMatch(/^\d+ min$/);
+      expect(video.duracion, donde).toMatch(/^\d+ (min|s)$/);
       if (video.estado === "listo") expect(video.url, donde).toMatch(/^https:\/\//);
     }
   });
