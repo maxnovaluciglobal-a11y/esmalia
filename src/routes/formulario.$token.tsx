@@ -12,7 +12,7 @@ import {
 import { PublicPageShell } from "@/components/site-chrome";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { PREGUNTAS_RIESGO, type CuestionarioRiesgo } from "@/lib/clinical/anamnesis";
+import { preguntasPorGrupo, type CuestionarioRiesgo } from "@/lib/clinical/anamnesis";
 import { fechaLarga, hora } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import {
@@ -264,57 +264,63 @@ function Cuestionario({
             Responde lo que sepas. Lo que dejes sin responder se conversa en la cita.
           </p>
         </div>
-        <ul className="divide-y divide-hairline">
-          {PREGUNTAS_RIESGO.map((p) => {
-            const r = cuestionario[p.key];
-            return (
-              <li key={p.key} className="space-y-2 py-3 first:pt-0">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-base font-medium">{p.label}</p>
-                    {p.ayuda && <p className="text-sm text-muted-foreground">{p.ayuda}</p>}
-                  </div>
-                  <GrupoDeChips
-                    id={`${fid}-${p.key}`}
-                    etiqueta={p.label}
-                    permitirVacio
-                    opciones={[
-                      { value: "yes", label: "Sí" },
-                      { value: "no", label: "No" },
-                    ]}
-                    value={r?.answer ?? null}
-                    onChange={(v) =>
-                      setCuestionario((prev) => {
-                        const siguiente = { ...prev };
-                        if (v === "yes" || v === "no") {
-                          siguiente[p.key] = { answer: v, detail: prev[p.key]?.detail };
-                        } else {
-                          delete siguiente[p.key];
+        {/* FIC-09: las mismas preguntas que la ficha, por grupo. */}
+        {preguntasPorGrupo().map((g) => (
+          <div key={g.key} className="space-y-1">
+            <h3 className="font-display text-xl font-semibold">{g.label}</h3>
+            <ul className="divide-y divide-hairline">
+              {g.preguntas.map((p) => {
+                const r = cuestionario[p.key];
+                return (
+                  <li key={p.key} className="space-y-2 py-3 first:pt-0">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-base font-medium">{p.label}</p>
+                        {p.ayuda && <p className="text-sm text-muted-foreground">{p.ayuda}</p>}
+                      </div>
+                      <GrupoDeChips
+                        id={`${fid}-${p.key}`}
+                        etiqueta={p.label}
+                        permitirVacio
+                        opciones={[
+                          { value: "yes", label: "Sí" },
+                          { value: "no", label: "No" },
+                        ]}
+                        value={r?.answer ?? null}
+                        onChange={(v) =>
+                          setCuestionario((prev) => {
+                            const siguiente = { ...prev };
+                            if (v === "yes" || v === "no") {
+                              siguiente[p.key] = { answer: v, detail: prev[p.key]?.detail };
+                            } else {
+                              delete siguiente[p.key];
+                            }
+                            return siguiente;
+                          })
                         }
-                        return siguiente;
-                      })
-                    }
-                  />
-                </div>
-                {r?.answer === "yes" && (
-                  <input
-                    aria-label={`Detalle: ${p.label}`}
-                    placeholder="Cuéntanos un poco más (opcional)"
-                    maxLength={300}
-                    value={r.detail ?? ""}
-                    onChange={(e) =>
-                      setCuestionario((prev) => ({
-                        ...prev,
-                        [p.key]: { answer: "yes", detail: e.target.value },
-                      }))
-                    }
-                    className={cn(CLASE_CAMPO, "text-base")}
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ul>
+                      />
+                    </div>
+                    {r?.answer === "yes" && (
+                      <input
+                        aria-label={`Detalle: ${p.label}`}
+                        placeholder="Cuéntanos un poco más (opcional)"
+                        maxLength={300}
+                        value={r.detail ?? ""}
+                        onChange={(e) =>
+                          setCuestionario((prev) => ({
+                            ...prev,
+                            [p.key]: { answer: "yes", detail: e.target.value },
+                          }))
+                        }
+                        className={cn(CLASE_CAMPO, "text-base")}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
 
         <div className="space-y-1.5">
           <Label htmlFor={`${fid}-alergias`}>Alergias</Label>

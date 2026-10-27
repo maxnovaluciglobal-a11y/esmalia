@@ -1207,6 +1207,9 @@ export type Database = {
           id: string;
           patient_name: string | null;
           patient_ref: string;
+          restricted: boolean;
+          restricted_at: string | null;
+          restricted_by: string | null;
           review_requested_at: string | null;
           review_requested_by: string | null;
           review_status: string;
@@ -1232,6 +1235,9 @@ export type Database = {
           id?: string;
           patient_name?: string | null;
           patient_ref: string;
+          restricted?: boolean;
+          restricted_at?: string | null;
+          restricted_by?: string | null;
           review_requested_at?: string | null;
           review_requested_by?: string | null;
           review_status?: string;
@@ -1257,6 +1263,9 @@ export type Database = {
           id?: string;
           patient_name?: string | null;
           patient_ref?: string;
+          restricted?: boolean;
+          restricted_at?: string | null;
+          restricted_by?: string | null;
           review_requested_at?: string | null;
           review_requested_by?: string | null;
           review_status?: string;
@@ -1283,6 +1292,56 @@ export type Database = {
           },
           {
             foreignKeyName: "clinical_notes_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      clinical_protocols: {
+        Row: {
+          active: boolean;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          indications: string | null;
+          name: string;
+          procedure_label: string | null;
+          steps: Json;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          active?: boolean;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          indications?: string | null;
+          name: string;
+          procedure_label?: string | null;
+          steps?: Json;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          active?: boolean;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          indications?: string | null;
+          name?: string;
+          procedure_label?: string | null;
+          steps?: Json;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinical_protocols_clinic_id_fkey";
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
@@ -3888,6 +3947,158 @@ export type Database = {
           },
         ];
       };
+      patient_implant_controls: {
+        Row: {
+          clinic_id: string;
+          controlled_on: string;
+          created_at: string;
+          finding: string;
+          id: string;
+          implant_id: string;
+          isq: number | null;
+          patient_id: string;
+          recorded_by: string | null;
+          status_after: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          controlled_on: string;
+          created_at?: string;
+          finding: string;
+          id?: string;
+          implant_id: string;
+          isq?: number | null;
+          patient_id: string;
+          recorded_by?: string | null;
+          status_after?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          controlled_on?: string;
+          created_at?: string;
+          finding?: string;
+          id?: string;
+          implant_id?: string;
+          isq?: number | null;
+          patient_id?: string;
+          recorded_by?: string | null;
+          status_after?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_implant_controls_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_implant_controls_implant_id_fkey";
+            columns: ["implant_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_implants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_implant_controls_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_implants: {
+        Row: {
+          brand: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          diameter_mm: number | null;
+          id: string;
+          length_mm: number | null;
+          lot: string;
+          model: string | null;
+          notes: string | null;
+          patient_id: string;
+          placed_on: string;
+          professional_id: string | null;
+          professional_name: string | null;
+          reference: string | null;
+          removed_on: string | null;
+          status: string;
+          tooth: number;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          brand: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          diameter_mm?: number | null;
+          id?: string;
+          length_mm?: number | null;
+          lot: string;
+          model?: string | null;
+          notes?: string | null;
+          patient_id: string;
+          placed_on: string;
+          professional_id?: string | null;
+          professional_name?: string | null;
+          reference?: string | null;
+          removed_on?: string | null;
+          status?: string;
+          tooth: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          brand?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          diameter_mm?: number | null;
+          id?: string;
+          length_mm?: number | null;
+          lot?: string;
+          model?: string | null;
+          notes?: string | null;
+          patient_id?: string;
+          placed_on?: string;
+          professional_id?: string | null;
+          professional_name?: string | null;
+          reference?: string | null;
+          removed_on?: string | null;
+          status?: string;
+          tooth?: number;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_implants_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_implants_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_implants_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_intake_forms: {
         Row: {
           appointment_id: string | null;
@@ -4222,6 +4433,103 @@ export type Database = {
             columns: ["professional_id"];
             isOneToOne: false;
             referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_referrals: {
+        Row: {
+          cancel_reason: string | null;
+          cancelled_at: string | null;
+          clinic_id: string;
+          closed_at: string | null;
+          created_at: string;
+          destination: string | null;
+          destination_contact: string | null;
+          id: string;
+          issued_document_id: string | null;
+          patient_id: string;
+          reason: string;
+          request: string | null;
+          requested_at: string;
+          requested_by: string | null;
+          responded_at: string | null;
+          response: string | null;
+          response_recorded_by: string | null;
+          sent_at: string | null;
+          specialty: string;
+          status: string;
+          updated_at: string;
+          urgency: string;
+        };
+        Insert: {
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          clinic_id: string;
+          closed_at?: string | null;
+          created_at?: string;
+          destination?: string | null;
+          destination_contact?: string | null;
+          id?: string;
+          issued_document_id?: string | null;
+          patient_id: string;
+          reason: string;
+          request?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          responded_at?: string | null;
+          response?: string | null;
+          response_recorded_by?: string | null;
+          sent_at?: string | null;
+          specialty: string;
+          status?: string;
+          updated_at?: string;
+          urgency?: string;
+        };
+        Update: {
+          cancel_reason?: string | null;
+          cancelled_at?: string | null;
+          clinic_id?: string;
+          closed_at?: string | null;
+          created_at?: string;
+          destination?: string | null;
+          destination_contact?: string | null;
+          id?: string;
+          issued_document_id?: string | null;
+          patient_id?: string;
+          reason?: string;
+          request?: string | null;
+          requested_at?: string;
+          requested_by?: string | null;
+          responded_at?: string | null;
+          response?: string | null;
+          response_recorded_by?: string | null;
+          sent_at?: string | null;
+          specialty?: string;
+          status?: string;
+          updated_at?: string;
+          urgency?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_referrals_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_referrals_issued_document_id_fkey";
+            columns: ["issued_document_id"];
+            isOneToOne: false;
+            referencedRelation: "issued_documents";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_referrals_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
             referencedColumns: ["id"];
           },
         ];
@@ -7308,6 +7616,10 @@ export type Database = {
           version: number;
         }[];
       };
+      contar_notas_restringidas_ocultas: {
+        Args: { p_clinic_id: string; p_patient_refs: string[] };
+        Returns: number;
+      };
       definir_cuotas: {
         Args: { p_cuotas: Json; p_receivable_id: string };
         Returns: undefined;
@@ -7580,6 +7892,7 @@ export type Database = {
         Args: { p_clinic_id: string; p_desde: string; p_limite?: number };
         Returns: { procedure_id: string; usos: number }[];
       };
+      puede_ver_nota_clinica: { Args: { p_note_id: string }; Returns: boolean };
       realinear_precios: {
         Args: {
           p_amount_cents: number | null;
@@ -7595,6 +7908,10 @@ export type Database = {
       receivable_paid_totals: {
         Args: { p_clinic_id: string; p_receivable_ids?: string[] };
         Returns: { last_paid_at: string; paid_cents: number; receivable_id: string }[];
+      };
+      registrar_acceso_a_notas_restringidas: {
+        Args: { p_clinic_id: string; p_note_ids: string[] };
+        Returns: number;
       };
       registrar_envio_de_presupuesto: {
         Args: { p_message_id: string; p_redirigido_a?: string };

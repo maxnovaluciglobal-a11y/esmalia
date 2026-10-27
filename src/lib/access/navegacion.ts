@@ -81,6 +81,12 @@ export const DESTINOS: readonly Destino[] = [
       { to: "/tratamientos", label: "Tratamientos", permisos: ["treatments:view"] },
       { to: "/ortodoncia", label: "Ortodoncia", permisos: ["clinical:write"] },
       {
+        to: "/implantes",
+        label: "Implantes",
+        permisos: ["clinical:view"],
+        sinonimos: ["lote", "retiro de lote", "implante", "fabricante"],
+      },
+      {
         to: "/fusionar-fichas",
         label: "Fichas duplicadas",
         permisos: ["patients:manage"],
@@ -251,6 +257,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         label: "Consentimientos",
         detalle: "Plantillas para firmar",
         permisos: ["settings:manage"],
+      },
+      {
+        to: "/protocolos-clinicos",
+        label: "Protocolos clínicos",
+        detalle: "Pasos e indicaciones por procedimiento, para aplicar en la nota clínica",
+        permisos: ["clinical:write"],
+        sinonimos: ["protocolo", "indicaciones", "procedimiento", "pasos", "post operatorio"],
       },
       {
         to: "/plantillas-de-documentos",
