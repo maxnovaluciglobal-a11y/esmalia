@@ -34,15 +34,17 @@ SaaS de gestión para clínicas dentales de LatAm (CL/MX/CO/PE/AR). Repo, carpet
 
 TanStack Start (SSR) + React 19 + Vite 8 + TypeScript + Tailwind 4 + shadcn/ui (`src/components/ui/`) + Supabase (auth/DB/storage/realtime) + Sentry v10 (activo con `VITE_SENTRY_DSN`). Sin luxon (usar `Intl.DateTimeFormat`), sin libphonenumber, sin Twilio.
 
-## Estado (19-oct-2026)
+## Estado (27-oct-2026)
 
-Producción con cobro en USD por Stripe (`/precios`: Solo US$29, Clínica US$69). Lo último que cambió cómo se trabaja (PRs #64-#79, auditoría 360 del 18-oct-2026):
+Producción con cobro en USD por Stripe: **Solo US$19,99 y Clínica US$49,99** (`/precios`; fuente única `src/lib/marketing/precio-lista.ts`; fundador 50 % × 12 meses con el cupón `FUNDADOR50`). El plan maestro (olas 0 a 14) y el plan de cierre están en producción. Lo que cambia cómo se trabaja (PRs #64-#198):
 
-- **Patty (IA) pausada** (#70): interruptor de servidor `AI_ENABLED` (apagado salvo `"true"`). Con él apagado no sale ningún dato a un modelo; los textos públicos la dan "en habilitación". Cómo reactivarla: `docs/IA.md`.
-- **MFA TOTP** (#65): obligatorio (`aal2`) para el staff de `/admin`, recomendado al owner, opcional al resto; la demo no puede inscribir factores. RLS que exige `aal2` a quien tiene MFA: PR #72, pendiente. `docs/MFA.md`.
-- **Pacientes se archivan, no se borran** (#79): sin política ni permiso de DELETE en `patients`; `archived_at`/`archived_by` por trigger (owner/admin). Las FKs clínicas → `patients` son `RESTRICT`. Las notas firmadas no vuelven a borrador: se corrigen con **adenda**; la firma registra nombre, matrícula y hash; nota + versión se guardan juntas con `guardar_nota_clinica`. La fusión de fichas no mueve documentos firmados: se leen desde la ficha destino.
-- **Exportación completa de la clínica** (#67): owner/admin desde `/ajustes` (ZIP de CSVs armado en el cliente). Cada exportación queda en `clinic_data_exports` vía RPC `SECURITY DEFINER`.
-- **CI con base efímera** (#71), lecturas de ficha registradas y `document_id` cifrado (#74), medición del embudo sin cookies (#68), WhatsApp con baja en servidor (#66, #75).
+- **Olas 0-14 (22-27 oct):** agenda con boxes y grilla, ficha y odontograma ampliados, finanzas, caja y comisiones, motor de documentos y recetas, firma a distancia (Ley 19.799), derechos del titular y brechas (Ley 21.719), exportación e importación asistida, reserva en línea y correos automáticos al paciente, CRM, informes, panel por rol, ayuda y Academia, exámenes e imágenes con visores 3D/DICOM, tótem y pantallas de sala, citas grupales y esterilización. El detalle y los límites de cada ola están en `../../00 - Gestion/ESTADO.md`.
+- **Cierre de fase (27-oct):** precio nuevo; `subscriptions.plan` (lo escribe el webhook) en vez de deducir el plan por el ID de precio; cupo de imágenes por clínica (**15 GB Solo, 45 GB Clínica, 50 MB por archivo**, lo que aguanta el plan Pro de Supabase: 100 GB para todo el proyecto); cuotas de membresía como pagos reales en la caja; descuentos de convenio y membresía en el presupuesto; "Comisiones del día"; fusión de fichas completa; sexo opcional; permisos por persona en finanzas, caja y comisiones; widget de reserva embebible (`/reservar` sin `X-Frame-Options`, ver `docs/RESERVA_EMBEBIDA.md`); 49 videos de ayuda en el bucket público `videos-ayuda`.
+- **Patty (IA) pausada**: interruptor `AI_ENABLED` (apagado salvo `"true"`). Cómo reactivarla: `docs/IA.md`.
+- **MFA TOTP** obligatorio (`aal2`) para el staff de `/admin`; RLS que exige `aal2` a quien tiene MFA (`sesion_cumple_mfa()`; las tablas nuevas van en `TABLAS_CON_AAL2`, `src/lib/auth/mfa-rls.ts`). `docs/MFA.md`.
+- **Pacientes se archivan, no se borran**; las notas firmadas se corrigen con adenda; la fusión de fichas mueve todo lo del paciente salvo documentos firmados (se leen desde la ficha destino).
+- **Exportación completa** de la clínica (ZIP de CSV con manifiesto y huellas) y "Exportar CSV" en las listas; `tests/exportacion-cobertura.test.ts` exige que toda tabla o columna nueva se exporte o se excluya con motivo.
+- **Simulacro de restauración** mensual (`simulacro-restauracion.yml`): queda _omitido con motivo_ hasta que se cargue el secret `BACKUP_AGE_KEY` (`docs/BACKUPS.md`).
 
 ## Reglas obligatorias
 
@@ -63,6 +65,10 @@ Producción con cobro en USD por Stripe (`/precios`: Solo US$29, Clínica US$69)
 15. **Todo gate de permiso de la UI tiene su par en el servidor** (el JWT vive en `localStorage`). Dinero: `requireFinanceView`.
 16. **La auditoría la escribe la base**: no insertar en `clinical_note_audit` desde la app (falla por RLS); los eventos no observables van por `registrar_evento_de_nota()`.
 17. **Textos de UI en tuteo neutro** (sin voseo) y **colores solo con tokens** (nada de `amber-600` y similares): `tests/tuteo-neutro.test.ts` y `tests/sistema-color.test.ts`.
+18. **GRANT explícito en toda tabla nueva**, en la misma migración: `grant select, insert, update, delete on public.<tabla> to authenticated; grant all on public.<tabla> to service_role;` (desde el 30-oct-2026 Supabase no los da solo; lo vigila `tests/grants-explicitos.test.ts`). Una tabla de solo servidor lo declara con el comentario `-- sin-grant-authenticated: <motivo>`.
+19. **Rangos de migración por frente:** cada frente trabaja en su rango de versiones (`AAAAMMDD` + `10xxxx`, `20xxxx`, `30xxxx`), siempre mayor que lo ya aplicado en producción. Una función que dos frentes redefinen se rehace desde la definición vigente en producción (`select pg_get_functiondef('public.fn'::regproc)`), nunca desde la del PR de otro frente.
+20. **La demo se resetea con `gh workflow run demo-reset.yml`** (llama a `/api/demo-reset`); los datos de ejemplo de una función nueva se suman a `crearCuentasDeLaDemo`. La demo es de solo lectura (`block_demo_writes`).
+21. **Validación en producción** después de cada merge: scripts Playwright en `../../00 - Gestion/auditorias/2026-10-22-validacion-olas/` (`regresion.mjs <carpeta> <clave-demo>` con las 45 pantallas, a 1440 claro y 390 oscuro; debe dar `{"fallas":[],"errores":[]}`; sumar las rutas nuevas) y `ola*.mjs` por frente. Los tests puros se corren con `.env.test` y `VITE_SUPABASE_URL=http://127.0.0.1:54321` (el `.env` apunta a producción y la guardia aborta).
 
 ## Patrón de server function
 
