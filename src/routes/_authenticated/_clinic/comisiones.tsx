@@ -245,7 +245,7 @@ function ComisionesPage() {
         <div className="mx-auto max-w-[84rem] space-y-[18px]">
           <div className="space-y-4 pb-2">
             <EncabezadoEditorial
-              seccion="Reportes"
+              seccion="Finanzas"
               pagina="Comisiones"
               titulo={
                 <>

@@ -27,17 +27,20 @@ import {
   destinoDeRuta,
   destinosVisibles,
   esRutaDeAjustes,
-  esSubpaginaDeAjustes,
+  gruposVisibles,
+  migasDeAjustes,
   pestanaActiva,
 } from "@/lib/access/navegacion";
+import { PuestaEnMarchaLateral } from "@/components/puesta-en-marcha";
 import { propsItemNav } from "@/lib/shell";
 import { cn } from "@/lib/utils";
 
 /**
  * Barra inferior del celular (<768px, rediseño fase 5): los cinco destinos
  * del mostrador — Hoy, Agenda, Pacientes, Mensajes, Caja — con objetivos de
- * 44px+. Reportes, Operación, Ajustes y Ayuda van en "Más", para que la barra no pase
- * de seis toques posibles.
+ * 44px+. El resto (Operación, Finanzas, Reportes), Ajustes y Ayuda van en
+ * "Más", agrupados igual que en el menú lateral (NAV-01), para que la barra
+ * no pase de seis toques posibles.
  */
 const DESTINOS_BARRA = ["hoy", "agenda", "pacientes", "mensajes", "caja"] as const;
 
@@ -110,44 +113,75 @@ function BarraInferior({
           className="rounded-t-lg pb-[max(1.5rem,env(safe-area-inset-bottom))]"
         >
           <SheetTitle className="font-display text-xl">Más</SheetTitle>
-          <ul className="mt-4 divide-y divide-hairline border-y border-border">
-            {[
-              ...resto.map((d) => ({ to: d.pestanas[0].to, label: d.label })),
-              { to: "/ajustes", label: "Ajustes" },
-            ].map((l) => (
-              <li key={l.to}>
+          <div className="mt-2 max-h-[70dvh] overflow-y-auto">
+            {gruposVisibles(resto).map((g) => (
+              <section key={g.id} aria-label={g.titulo} className="mt-3">
+                <h3 className="kicker text-muted-foreground">{g.titulo}</h3>
+                <ul className="mt-1 divide-y divide-hairline border-y border-border">
+                  {g.destinos.map((d) => {
+                    const activo = d.id === destinoActualId;
+                    return (
+                      <li key={d.id}>
+                        <Link
+                          to={d.pestanas[0].to}
+                          onClick={() => setMasAbierto(false)}
+                          aria-current={activo ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-12 flex-col justify-center py-1.5",
+                            activo && "text-brand-800",
+                          )}
+                        >
+                          <span className="text-base">{d.label}</span>
+                          {(d.pestanas.length > 1 || d.pestanas[0].label !== d.label) && (
+                            <span className="truncate text-xs text-muted-foreground">
+                              {d.pestanas.map((p) => p.label).join(" · ")}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))}
+            <ul className="mt-4 divide-y divide-hairline border-y border-border">
+              <li>
                 <Link
-                  to={l.to}
+                  to="/ajustes"
                   onClick={() => setMasAbierto(false)}
-                  className="flex min-h-12 items-center text-base"
+                  aria-current={enAjustes ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-12 items-center text-base",
+                    enAjustes && "text-brand-800",
+                  )}
                 >
-                  {l.label}
+                  Ajustes
                 </Link>
               </li>
-            ))}
-            <li>
-              <AyudaMenu
-                clinicName={clinicName}
-                className="flex min-h-12 w-full items-center text-left text-base"
-              >
-                Ayuda
-              </AyudaMenu>
-            </li>
-            <li className="flex min-h-12 items-center justify-between">
-              <span className="text-base">Tema</span>
-              <ThemeToggle />
-            </li>
-            <li>
-              <button
-                type="button"
-                onClick={onSignOut}
-                disabled={signingOut}
-                className="flex min-h-12 w-full items-center gap-2 text-base text-destructive disabled:opacity-60"
-              >
-                <LogOut className="size-4" aria-hidden /> Cerrar sesión
-              </button>
-            </li>
-          </ul>
+              <li>
+                <AyudaMenu
+                  clinicName={clinicName}
+                  className="flex min-h-12 w-full items-center text-left text-base"
+                >
+                  Ayuda
+                </AyudaMenu>
+              </li>
+              <li className="flex min-h-12 items-center justify-between">
+                <span className="text-base">Tema</span>
+                <ThemeToggle />
+              </li>
+              <li>
+                <button
+                  type="button"
+                  onClick={onSignOut}
+                  disabled={signingOut}
+                  className="flex min-h-12 w-full items-center gap-2 text-base text-destructive disabled:opacity-60"
+                >
+                  <LogOut className="size-4" aria-hidden /> Cerrar sesión
+                </button>
+              </li>
+            </ul>
+          </div>
         </SheetContent>
       </Sheet>
     </nav>
@@ -220,9 +254,11 @@ export function AppShell({
   // sincronizaciones competirían por la misma cola.
   useSincronizacionAutomatica(access.userId);
 
-  // Seis destinos + Ajustes (rediseño, fase 3). Las rutas de siempre
+  // Destinos en tres grupos + Ajustes (NAV-01, Ola 12). Las rutas de siempre
   // aparecen como pestañas dentro de su destino; ver `navegacion.ts`.
   const destinos = destinosVisibles(access);
+  const grupos = gruposVisibles(destinos);
+  const migas = migasDeAjustes(pathname);
   const destinoActual = destinoDeRuta(pathname, destinos);
   const enAjustes = !destinoActual && esRutaDeAjustes(pathname);
 
@@ -331,35 +367,52 @@ export function AppShell({
           <GlobalSearch access={access} atajo />
         </div>
 
-        <nav aria-label="Principal" className="flex-1 overflow-y-auto px-3">
-          <ul className="space-y-0.5">
-            {destinos.map(({ id, label, icon: Icon, pestanas }) => {
-              const activo = destinoActual?.id === id;
-              const badge = badgePorDestino[id] ?? 0;
-              return (
-                <li key={id}>
-                  <Link to={pestanas[0].to} {...propsItemNav(activo)}>
-                    <Icon
-                      className={cn("size-4", activo ? "text-brand-on-night" : "text-on-night-2")}
-                    />
-                    <span>{label}</span>
-                    {badge > 0 && (
-                      <>
-                        <span
-                          aria-hidden
-                          className="ml-auto min-w-5 rounded-sm bg-brand-on-night px-1 text-center text-[11px] leading-5 text-night tabular-nums"
-                        >
-                          {badge > 9 ? "9+" : badge}
-                        </span>
-                        <span className="sr-only">{` (${badge} pendientes)`}</span>
-                      </>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+        <nav aria-label="Principal" className="flex-1 space-y-4 overflow-y-auto px-3 pb-2">
+          {grupos.map((g) => (
+            <div key={g.id} role="group" aria-labelledby={`nav-grupo-${g.id}`}>
+              <p
+                id={`nav-grupo-${g.id}`}
+                className="px-3 pb-1 text-[11px] uppercase tracking-[0.12em] text-on-night-2"
+              >
+                {g.titulo}
+              </p>
+              <ul className="space-y-0.5">
+                {g.destinos.map(({ id, label, icon: Icon, pestanas }) => {
+                  const activo = destinoActual?.id === id;
+                  const badge = badgePorDestino[id] ?? 0;
+                  return (
+                    <li key={id}>
+                      <Link to={pestanas[0].to} {...propsItemNav(activo)}>
+                        <Icon
+                          className={cn(
+                            "size-4",
+                            activo ? "text-brand-on-night" : "text-on-night-2",
+                          )}
+                        />
+                        <span>{label}</span>
+                        {badge > 0 && (
+                          <>
+                            <span
+                              aria-hidden
+                              className="ml-auto min-w-5 rounded-sm bg-brand-on-night px-1 text-center text-[11px] leading-5 text-night tabular-nums"
+                            >
+                              {badge > 9 ? "9+" : badge}
+                            </span>
+                            <span className="sr-only">{` (${badge} pendientes)`}</span>
+                          </>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
+
+        <div className="px-2 pt-2 empty:hidden">
+          <PuestaEnMarchaLateral access={access} />
+        </div>
 
         <div className="px-5 pt-3">
           <PastillaConexion userId={access.userId} className="bg-night-2" />
@@ -392,6 +445,8 @@ export function AppShell({
             <div className="sm:w-56 md:w-64 lg:hidden">
               <GlobalSearch access={access} enBarraSuperior />
             </div>
+            {/* NAV-06 (frente A, Ola 12): el botón de ayuda va acá, antes de
+                la campana. Este hueco queda libre a propósito. */}
             <NotificationsBell userId={access.userId} />
             <div className="hidden md:block">
               <ThemeToggle />
@@ -526,15 +581,35 @@ export function AppShell({
         <div className="flex-1 p-5 pb-28 sm:p-8 md:pb-8">
           {/* Toda sub-página de Ajustes tiene la vuelta al índice a la vista
               (UX-13 g): sin esto, en el celular la única salida era "Más". */}
-          {esSubpaginaDeAjustes(pathname) && (
+          {/* NAV-01: migas Ajustes › tema › página. El tema lleva a su grupo
+              en el índice. */}
+          {migas && (
             <nav aria-label="Ruta" className="-mt-1 mb-5 sm:-mt-3">
-              <Link
-                to="/ajustes"
-                className="inline-flex min-h-9 items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-              >
-                <ChevronLeft className="size-4" aria-hidden />
-                Ajustes
-              </Link>
+              <ol className="flex flex-wrap items-center gap-x-1 text-sm text-muted-foreground">
+                <li>
+                  <Link
+                    to="/ajustes"
+                    className="inline-flex min-h-9 items-center gap-1 transition-colors hover:text-foreground"
+                  >
+                    <ChevronLeft className="size-4" aria-hidden />
+                    Ajustes
+                  </Link>
+                </li>
+                <li aria-hidden>›</li>
+                <li>
+                  <Link
+                    to="/ajustes"
+                    hash={migas.ancla}
+                    className="inline-flex min-h-9 items-center transition-colors hover:text-foreground"
+                  >
+                    {migas.grupo}
+                  </Link>
+                </li>
+                <li aria-hidden>›</li>
+                <li aria-current="page" className="text-foreground">
+                  {migas.pagina}
+                </li>
+              </ol>
             </nav>
           )}
           <ZonaClinicaContext.Provider value={access.clinic?.timezone ?? undefined}>
