@@ -10,8 +10,9 @@ import {
 import { EVENTO_ABRIR_ATAJOS, esAtajoAyuda, gruposDeAtajos, hayDialogoAbierto } from "@/lib/atajos";
 
 /**
- * Hoja de atajos (NAV-05 lite, Ola 1). Se abre con `?` o desde Ayuda →
- * "Atajos de teclado". La monta una sola vez el buscador que escucha ⌘K
+ * Hoja de atajos (NAV-05). Se abre con `?`, desde Ayuda → "Atajos de
+ * teclado" o desde el ⌘K ("atajos"). Ola 8: suma los sinónimos del buscador
+ * y los atajos de Pacientes. La monta una sola vez el buscador que escucha ⌘K
  * (`GlobalSearch` con `atajo`), así no hay dos copias escuchando la tecla.
  */
 export function HojaDeAtajos({ esMac }: { esMac: boolean }) {
@@ -38,7 +39,7 @@ export function HojaDeAtajos({ esMac }: { esMac: boolean }) {
 
   return (
     <Dialog open={abierta} onOpenChange={setAbierta}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[85dvh] max-w-md overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Atajos de teclado</DialogTitle>
           <DialogDescription>

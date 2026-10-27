@@ -7,6 +7,7 @@ import { AlertTriangle, CalendarClock, Gift, Pencil, ShieldAlert, Tag } from "lu
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { EtiquetasDeLaFicha } from "@/components/pacientes/etiquetas-de-la-ficha";
 import { SelloImportado } from "@/components/migracion/sello-importado";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -544,10 +545,14 @@ function PacienteDetalle() {
 
         {paciente.archivadaEl && (
           <p className="mt-4 rounded-lg border border-hairline bg-secondary/60 px-4 py-2.5 text-sm text-muted-foreground">
-            Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en los
+            Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}
+            {paciente.motivoArchivo ? ` (${paciente.motivoArchivo})` : ""}. No aparece en los
             listados ni en la búsqueda; su historia clínica se conserva completa.
           </p>
         )}
+
+        {/* PAC-07: etiquetas de la ficha (se editan desde la lista). */}
+        {clinicId && <EtiquetasDeLaFicha clinicId={clinicId} patientId={paciente.id} />}
 
         {clinicId && (
           <SelloImportado

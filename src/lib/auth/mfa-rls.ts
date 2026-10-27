@@ -70,10 +70,13 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   patient_implant_controls: "controles de los implantes de un paciente (hallazgos, ISQ, estado)",
   patient_implants: "implantes de un paciente: pieza, marca, lote, fecha y estado",
   patient_intake_forms: "formulario antes de la cita: contacto y anamnesis que envió el paciente",
+  patient_label_assignments: 'etiquetas de cada paciente (pueden decir "deudor" o "VIP")',
+  patient_labels: "catálogo de etiquetas de pacientes de la clínica",
   patient_medical_history: "anamnesis",
   patient_medical_history_audit: "cambios de la anamnesis",
   patient_nps_responses: "encuesta de satisfacción: nota y comentario de cada paciente",
   patient_referrals: "interconsultas: motivo clínico, especialista y su respuesta",
+  patient_segments: "segmentos de pacientes: filtros con nombre (saldo, previsión, etiquetas)",
   patient_signature_events: "bitácora de la firma a distancia: IP y dispositivo del paciente",
   patient_signature_requests:
     "firma a distancia: documento firmado por el paciente, su RUT enmascarado y la evidencia",

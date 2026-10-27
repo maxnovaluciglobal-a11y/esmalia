@@ -102,6 +102,10 @@ export const Route = createFileRoute("/api/demo-reset")({
         await (
           await import("@/lib/demo/seguimiento.server")
         ).sembrarSeguimientoDeLaDemo(supabaseAdmin);
+        // Ola 8 · A: etiquetas de pacientes y segmentos guardados (nunca lanza).
+        await (
+          await import("@/lib/demo/ola8-pacientes.server")
+        ).sembrarEtiquetasYSegmentosDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },

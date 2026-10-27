@@ -4548,6 +4548,90 @@ export type Database = {
           },
         ];
       };
+      patient_label_assignments: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          label_id: string;
+          patient_id: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          label_id: string;
+          patient_id: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          label_id?: string;
+          patient_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_label_assignments_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_label_assignments_label_fkey";
+            columns: ["label_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "patient_labels";
+            referencedColumns: ["id", "clinic_id"];
+          },
+          {
+            foreignKeyName: "patient_label_assignments_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_labels: {
+        Row: {
+          clinic_id: string;
+          color: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          name: string;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          color?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          color?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_labels_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_medical_history: {
         Row: {
           allergies: string[];
@@ -4894,6 +4978,50 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_segments: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          description: string | null;
+          filters: Json;
+          id: string;
+          name: string;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          filters?: Json;
+          id?: string;
+          name: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          description?: string | null;
+          filters?: Json;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_segments_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
         ];
@@ -5443,6 +5571,7 @@ export type Database = {
           agreement_member_id: string | null;
           ai_summary: string | null;
           ai_summary_updated_at: string | null;
+          archive_reason: string | null;
           archived_at: string | null;
           archived_by: string | null;
           avatar_url: string | null;
@@ -5497,6 +5626,7 @@ export type Database = {
           agreement_member_id?: string | null;
           ai_summary?: string | null;
           ai_summary_updated_at?: string | null;
+          archive_reason?: string | null;
           archived_at?: string | null;
           archived_by?: string | null;
           avatar_url?: string | null;
@@ -5551,6 +5681,7 @@ export type Database = {
           agreement_member_id?: string | null;
           ai_summary?: string | null;
           ai_summary_updated_at?: string | null;
+          archive_reason?: string | null;
           archived_at?: string | null;
           archived_by?: string | null;
           avatar_url?: string | null;
@@ -8211,6 +8342,16 @@ export type Database = {
       patient_balances: {
         Args: { p_clinic_id: string; p_patient_ids?: string[] };
         Returns: { billed_cents: number; paid_cents: number; patient_id: string }[];
+      };
+      patient_lifetime_values: {
+        Args: { p_clinic_id: string; p_patient_ids?: string[] };
+        Returns: {
+          first_paid_at: string;
+          last_paid_at: string;
+          paid_cents: number;
+          patient_id: string;
+          payments_count: number;
+        }[];
       };
       pilot_results: {
         Args: { p_clinic_id: string; p_desde: string; p_hasta: string };
