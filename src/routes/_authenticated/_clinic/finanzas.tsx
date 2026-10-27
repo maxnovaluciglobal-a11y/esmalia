@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
+import { BoletasDelPeriodo, VistaGeneralFinanzas } from "@/components/finanzas/vista-general";
 import {
   BarraApilada,
   BarraFina,
@@ -65,7 +66,8 @@ export const Route = createFileRoute("/_authenticated/_clinic/finanzas")({
       { title: "Finanzas | Esmalia" },
       {
         name: "description",
-        content: "Caja del período, desglose por método de pago y producción por profesional.",
+        content:
+          "Ingresos, por cobrar, gastos y resultado del período, venta real, sucursales y folios de boletas.",
       },
       { property: "og:title", content: "Finanzas | Esmalia" },
       {
@@ -200,6 +202,17 @@ function FinanzasPage() {
                 hasta={search.hasta}
               />
 
+              {clinicId && (
+                <VistaGeneralFinanzas
+                  clinicId={clinicId}
+                  desde={search.desde}
+                  hasta={search.hasta}
+                  currency={currency}
+                  timezone={clinicTz ?? "America/Santiago"}
+                  rol={access.role}
+                />
+              )}
+
               <div className="grid items-start gap-[18px] lg:grid-cols-2">
                 <ProduccionPorProfesional resumen={resumen} currency={currency} />
                 <GastosPorCategoria
@@ -284,6 +297,17 @@ function FinanzasPage() {
                   </div>
                 )}
               </section>
+
+              {clinicId && (
+                <BoletasDelPeriodo
+                  clinicId={clinicId}
+                  desde={search.desde}
+                  hasta={search.hasta}
+                  currency={currency}
+                  timezone={clinicTz ?? "America/Santiago"}
+                  rol={access.role}
+                />
+              )}
             </>
           )}
         </div>

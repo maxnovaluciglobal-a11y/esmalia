@@ -107,6 +107,8 @@ export const Route = createFileRoute("/api/demo-reset")({
           await import("@/lib/demo/ola8-pacientes.server")
         ).sembrarEtiquetasYSegmentosDeLaDemo(supabaseAdmin);
 
+        // Ola 10 · A: gastos fijos, empresa con convenio, membresías y folios (nunca lanza).
+        await (await import("@/lib/demo/finanzas.server")).sembrarFinanzasDeLaDemo(supabaseAdmin);
         // Ola 10 · B: caja por operador (dos cajas abiertas, traspaso y
         // depósito) y comisiones con "rige desde", regla por prestación y el
         // mes pasado liquidado. Va después de los cobros de hoy (nunca lanza).

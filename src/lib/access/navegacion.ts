@@ -168,6 +168,19 @@ export const DESTINOS: readonly Destino[] = [
         sinonimos: ["cuotas", "cobranza", "por cobrar"],
       },
       { to: "/gastos", label: "Gastos", permisos: ["finance:view"], sinonimos: ["egresos"] },
+      // Ola 10 · frente A: gastos fijos (FIN-09) y membresías (FIN-12).
+      {
+        to: "/gastos-fijos",
+        label: "Gastos fijos",
+        permisos: ["finance:view"],
+        sinonimos: ["arriendo", "sueldos", "servicios", "gasto recurrente", "gasto mensual"],
+      },
+      {
+        to: "/membresias",
+        label: "Membresías",
+        permisos: ["cash:manage"],
+        sinonimos: ["membresía", "plan de membresía", "suscripción del paciente", "cuota mensual"],
+      },
     ],
   },
   {
@@ -370,6 +383,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         detalle: "Seguros y descuentos",
         permisos: ["settings:manage"],
         sinonimos: ["seguros"],
+      },
+      {
+        to: "/empresas-con-convenio",
+        label: "Empresas con convenio",
+        detalle: "Descuento a trabajadores y descuento por planilla",
+        permisos: ["finance:view"],
+        sinonimos: ["empresa", "planilla", "descuento por planilla", "convenio de empresa"],
       },
       {
         to: "/medios-de-pago",

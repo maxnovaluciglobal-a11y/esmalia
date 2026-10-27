@@ -34,6 +34,11 @@ export const LISTAS_CSV = {
   laboratorio: { titulo: "Órdenes de laboratorio", permiso: "treatments:view" },
   arancel: { titulo: "Arancel", permiso: "settings:manage" },
   implantes: { titulo: "Implantes por lote", permiso: "clinical:view" },
+  // Ola 10 · frente A (FIN-13): planilla del período y listas de finanzas.
+  finanzas: { titulo: "Finanzas del período", permiso: "finance:view" },
+  gastos_fijos: { titulo: "Gastos fijos", permiso: "finance:view" },
+  empresas_convenio: { titulo: "Empresas con convenio", permiso: "finance:view" },
+  membresias: { titulo: "Cuotas de membresía", permiso: "cash:manage" },
 } as const satisfies Record<string, { titulo: string; permiso: Permission }>;
 
 export type ListaCsv = keyof typeof LISTAS_CSV;
@@ -45,7 +50,7 @@ export const CLAVES_LISTAS_CSV = Object.keys(LISTAS_CSV) as [ListaCsv, ...ListaC
  * resto, `finance:view`.
  */
 export function permisoDinero(lista: ListaCsv): Permission {
-  return lista === "caja" ? "cash:manage" : "finance:view";
+  return lista === "caja" || lista === "membresias" ? "cash:manage" : "finance:view";
 }
 
 export function puedeExportarLista(rol: ClinicRole | null | undefined, lista: ListaCsv): boolean {
