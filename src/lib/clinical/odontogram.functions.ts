@@ -336,3 +336,135 @@ export const setOdontogramMark = createServerFn({ method: "POST" })
     }
     return { id: inserted.id };
   });
+
+export type OdontogramBatchResult =
+  { ids: string[]; conflict?: false } | { conflict: true; piezas: number[] };
+
+/**
+ * Registra el mismo hallazgo o tratamiento en varias piezas de una vez
+ * (Ola 9, ODO-05). Una sola sentencia INSERT: o se guardan todas o ninguna.
+ * Cada fila pasa por los mismos triggers que una marca suelta (validación del
+ * catálogo y cierre de lo que reemplaza), así que nunca hay UPDATE de una
+ * marca guardada (regla 9).
+ *
+ * Igual que `setOdontogramMark`, el cliente manda por pieza las marcas que
+ * calculó que la nueva cierra; si alguna pieza cambió mientras tanto, no se
+ * guarda nada y se devuelven las piezas en conflicto para refrescar y volver
+ * a confirmar.
+ */
+export const setOdontogramMarks = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        patientId: z.string().uuid(),
+        marcas: z
+          .array(
+            z.object({
+              id: z.string().uuid(),
+              toothNumber: TOOTH_NUMBER,
+              surface: TOOTH_SURFACE_ENUM,
+              condition: TOOTH_CONDITION_ENUM,
+              status: z.enum(MARK_STATUSES),
+              conservation: z.enum(MARK_CONSERVATIONS).nullable(),
+              baseMarkIds: z.array(z.string().uuid()).max(50),
+            }),
+          )
+          .min(1, "Elige al menos una pieza.")
+          .max(52, "Elige como máximo 52 piezas por vez."),
+        notes: z.string().trim().max(500).optional(),
+      })
+      .superRefine((v, ctx) => {
+        const piezas = new Set<number>();
+        v.marcas.forEach((m, i) => {
+          if (m.condition === "observacion") {
+            ctx.addIssue({
+              code: "custom",
+              message: "La observación se escribe pieza por pieza.",
+              path: ["marcas", i, "condition"],
+            });
+          }
+          const problema = validarMarca(m);
+          if (problema) ctx.addIssue({ code: "custom", message: problema, path: ["marcas", i] });
+          if (piezas.has(m.toothNumber)) {
+            ctx.addIssue({
+              code: "custom",
+              message: `La pieza ${m.toothNumber} viene dos veces.`,
+              path: ["marcas", i, "toothNumber"],
+            });
+          }
+          piezas.add(m.toothNumber);
+        });
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<OdontogramBatchResult> => {
+    const { supabase } = context;
+    const ids = data.marcas.map((m) => m.id);
+
+    // Reintento: el lote ya se guardó entero en un intento anterior.
+    const { data: yaGuardadas } = await supabase
+      .from("odontogram_marks")
+      .select("id")
+      .eq("clinic_id", data.clinicId)
+      .in("id", ids);
+    if ((yaGuardadas ?? []).length === ids.length) return { ids };
+
+    const { rows, error: lecturaError } = await seleccionarMarcas((columnas) =>
+      supabase
+        .from("odontogram_marks")
+        .select(columnas)
+        .eq("clinic_id", data.clinicId)
+        .eq("patient_id", data.patientId)
+        .in(
+          "tooth_number",
+          data.marcas.map((m) => m.toothNumber),
+        )
+        .is("superseded_at", null),
+    );
+    if (lecturaError) {
+      throw new Error(mensajeDb(lecturaError, "No pudimos revisar el odontograma del paciente."));
+    }
+    const sinNombres = new Map<string, string | null>();
+    const vigentes = rows.map((r) => mapRow(r, sinNombres));
+    const enConflicto = data.marcas
+      .filter((m) => {
+        const reales = marcasQueReemplaza(vigentes, m);
+        return [...m.baseMarkIds].sort().join(",") !== reales.join(",");
+      })
+      .map((m) => m.toothNumber);
+    if (enConflicto.length) return { conflict: true, piezas: enConflicto };
+
+    const filas = data.marcas.map((m) => ({
+      id: m.id,
+      clinic_id: data.clinicId,
+      patient_id: data.patientId,
+      tooth_number: m.toothNumber,
+      surface: m.surface,
+      condition: m.condition,
+      status: m.status,
+      conservation: m.conservation,
+      notes: data.notes || null,
+    }));
+    const { error } = await supabase.from("odontogram_marks").insert(filas);
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "23514") throw new Error(mensajeDb(error, "Alguna de las marcas no es válida."));
+      if (code === "22P02") {
+        throw new Error(
+          "Esa condición todavía no está activada en el odontograma. Avísale al equipo de Esmalia.",
+        );
+      }
+      if (code === "23505") {
+        throw new Error("Estas marcas ya se guardaron. Refresca el odontograma.");
+      }
+      if (isUndefinedColumnError(error)) {
+        throw new Error(
+          "El odontograma todavía no tiene activados los estados. Avísale al equipo de Esmalia.",
+        );
+      }
+      throw new Error("No tienes permisos para modificar el odontograma.");
+    }
+    return { ids };
+  });

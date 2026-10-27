@@ -78,6 +78,7 @@ export function condicionesDisponibles(
 ): ToothCondition[] {
   return TOOTH_CONDITIONS.filter(
     (c) =>
+      c !== "observacion" &&
       superficiesPermitidas(c).includes(surface) &&
       (status === "existente" || admitePlanificado(c)),
   );
@@ -130,12 +131,22 @@ function mismaZona(v: MarcaRegla, n: MarcaNueva): boolean {
  * 4. Ausente (existente) cierra todo lo de la pieza: lo que estaba en un
  *    diente que ya no está deja de ser vigente. Salvo implante, puente o
  *    prótesis, que se hacen justamente sobre la ausencia.
+ * 5. La observación de la pieza (ODO-08) va aparte: solo la reemplaza otra
+ *    observación de la misma pieza, y ella no cierra nada más (migración
+ *    20261030100000).
  */
 export function marcasQueReemplaza(vigentes: readonly MarcaRegla[], n: MarcaNueva): string[] {
   const grupoNuevo = CONDITION_CATALOG[n.condition].grupo;
   const ids: string[] = [];
   for (const v of vigentes) {
     if (v.supersededAt || v.toothNumber !== n.toothNumber || (n.id && v.id === n.id)) continue;
+
+    const obsNueva = n.condition === "observacion";
+    const obsVigente = v.condition === "observacion";
+    if (obsNueva || obsVigente) {
+      if (obsNueva && obsVigente) ids.push(v.id);
+      continue;
+    }
 
     let cierra = false;
     if (n.condition === "sano") {

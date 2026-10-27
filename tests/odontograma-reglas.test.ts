@@ -309,13 +309,22 @@ describe("dentición por edad (CLI-04)", () => {
 
 // ── La base y la app con el mismo catálogo ─────────────────────────────────
 
-const MIGRACION = readFileSync(
+const MIGRACION_BASE = readFileSync(
   new URL(
     "../supabase/migrations/20261019170000_odontograma_multicondicion_y_estado.sql",
     import.meta.url,
   ),
   "utf8",
 );
+// Ola 9 (ODO-08): la observación por pieza suma una condición al catálogo.
+const MIGRACION_OBSERVACION = readFileSync(
+  new URL(
+    "../supabase/migrations/20261030100000_odontograma_observacion_por_pieza.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const MIGRACION = `${MIGRACION_BASE}\n${MIGRACION_OBSERVACION}`;
 
 describe("catálogo de la migración = catálogo de la app", () => {
   it("cada fila del INSERT coincide con CONDITION_CATALOG", () => {
@@ -348,7 +357,7 @@ describe("catálogo de la migración = catálogo de la app", () => {
   });
 
   it("las excepciones de 'ausente' son las mismas en SQL y en TypeScript", () => {
-    const m = MIGRACION.match(/m\.condition::text NOT IN \(([^)]+)\)/);
+    const m = MIGRACION_BASE.match(/m\.condition::text NOT IN \(([^)]+)\)/);
     expect(m).not.toBeNull();
     const sql = [...m![1].matchAll(/'([a-z_]+)'/g)].map((x) => x[1]).sort();
     expect(sql).toEqual([...REHABILITA_AUSENCIA].sort());
