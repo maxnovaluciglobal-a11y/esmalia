@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 import { DetalleCita } from "@/components/agenda-grid";
-import { Button } from "@/components/ui/button";
+import { CajonCita, useContextoCajonCita } from "@/components/agenda-cajon-cita";
 import { useMovimiento } from "@/hooks/use-movimiento";
 import type { Conflicto } from "@/components/agenda-conflictos";
 import {
@@ -13,18 +13,21 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Panel lateral de la cita elegida en la semana (PR 10b del plan A+).
+ * Cajón lateral de la cita elegida (día, semana y box; PR 10b del plan A+ y
+ * pase de fidelidad del 26-oct).
  *
- * Es un cajón que se superpone y no achica la semana, sin capa que bloquee:
- * se puede seguir eligiendo otra cita con el panel abierto. En el celular
- * sube desde abajo como hoja, con un velo que la cierra al tocar afuera
- * (también la usa la grilla de día en el celular, donde el popover lateral
- * quedaba fuera de la pantalla). Al abrir o cambiar de cita el foco va al título; Escape
- * o la X lo cierran y el foco vuelve a la cita.
+ * Se superpone a la derecha y no achica la semana, sin capa que bloquee: se
+ * puede seguir eligiendo otra cita con el cajón abierto. En el celular sube
+ * desde abajo como hoja, con un velo que la cierra al tocar afuera. Al abrir
+ * o cambiar de cita el foco va al título; Escape o la X lo cierran y el foco
+ * vuelve a la cita.
+ *
+ * Con el contexto de la agenda (`ProveedorCajonCita`) muestra el cajón
+ * completo (`CajonCita`); sin él, el resumen de siempre (`DetalleCita`).
  *
  * El revelado (`clip-path`) solo corre si se puede animar: respeta
- * `prefers-reduced-motion` y "Pausar movimiento" (`useMovimiento`). Sin
- * animación, el contenido aparece entero de una vez.
+ * `prefers-reduced-motion` y "Pausar movimiento" (`useMovimiento`). Es
+ * movimiento como respuesta a un clic, nunca de fondo.
  */
 export function PanelCita({
   cita,
@@ -45,6 +48,7 @@ export function PanelCita({
 }) {
   const { animar } = useMovimiento();
   const refTitulo = useRef<HTMLHeadingElement>(null);
+  const ctx = useContextoCajonCita();
 
   useEffect(() => {
     refTitulo.current?.focus();
@@ -77,7 +81,7 @@ export function PanelCita({
         id="agenda-panel-cita"
         aria-labelledby="agenda-panel-titulo"
         className={cn(
-          "fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-2xl pb-[env(safe-area-inset-bottom)] border-t border-hairline bg-card shadow-2xl",
+          "fixed inset-x-0 bottom-0 z-40 max-h-[86dvh] overflow-y-auto overscroll-contain rounded-t-[18px] border-t border-border bg-card pb-[env(safe-area-inset-bottom)] text-base shadow-2xl",
           "md:inset-y-0 md:left-auto md:right-0 md:max-h-none md:w-[400px] md:rounded-none md:border-l md:border-t-0",
         )}
       >
@@ -85,39 +89,53 @@ export function PanelCita({
           aria-hidden="true"
           className="mx-auto mt-2 h-1 w-10 rounded-full bg-border md:hidden"
         />
+        <button
+          type="button"
+          onClick={onCerrar}
+          aria-label="Cerrar el panel de la cita"
+          className="sticky top-3 z-10 float-right mr-3 mt-3 grid size-[42px] place-items-center rounded-full border border-border bg-card text-foreground transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+        >
+          <X aria-hidden className="size-[17px]" strokeWidth={1.8} />
+        </button>
         <div
           key={cita.id}
-          className={cn("space-y-4 p-5 md:p-6", animar && "animate-agenda-revelar")}
+          className={cn(
+            "px-[26px] pb-[30px] pt-6 md:pt-[52px]",
+            animar && "animate-agenda-revelar",
+          )}
         >
-          <div className="flex items-start justify-between gap-3">
-            <h2
-              id="agenda-panel-titulo"
-              ref={refTitulo}
-              tabIndex={-1}
-              className="min-w-0 rounded-sm text-xs cifra capitalize text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <span className="sr-only">Cita de {cita.paciente}, </span>
-              {formatoFechaLarga(cita.fecha) || cita.fecha}
-            </h2>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="-mr-2 -mt-2 shrink-0 pointer-coarse:size-11"
-              onClick={onCerrar}
-              aria-label="Cerrar el panel de la cita"
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
-          <DetalleCita
-            cita={cita}
-            profesional={profesional}
-            allergies={allergies}
-            renderAcciones={renderAcciones}
-            conflictos={conflictos}
-            nombreProfesional={nombreProfesional}
-          />
+          {ctx ? (
+            <CajonCita
+              ctx={ctx}
+              cita={cita}
+              profesional={profesional}
+              allergies={allergies}
+              conflictos={conflictos}
+              nombreProfesional={nombreProfesional}
+              renderAcciones={renderAcciones}
+              refTitulo={refTitulo}
+            />
+          ) : (
+            <div className="space-y-4">
+              <h2
+                id="agenda-panel-titulo"
+                ref={refTitulo}
+                tabIndex={-1}
+                className="min-w-0 rounded-sm text-xs cifra capitalize text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span className="sr-only">Cita de {cita.paciente}, </span>
+                {formatoFechaLarga(cita.fecha) || cita.fecha}
+              </h2>
+              <DetalleCita
+                cita={cita}
+                profesional={profesional}
+                allergies={allergies}
+                renderAcciones={renderAcciones}
+                conflictos={conflictos}
+                nombreProfesional={nombreProfesional}
+              />
+            </div>
+          )}
         </div>
       </aside>
     </>

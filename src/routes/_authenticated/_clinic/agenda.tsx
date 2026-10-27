@@ -14,6 +14,7 @@ import {
   AlertTriangle,
   CalendarDays,
   CalendarX2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleAlert,
@@ -23,11 +24,9 @@ import {
   FileUp,
   Inbox,
   Loader2,
-  MoveRight,
-  PanelRightClose,
-  PanelRightOpen,
   Pencil,
   Plus,
+  Search,
   Wallet,
   X,
 } from "lucide-react";
@@ -36,10 +35,9 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { PatientConfirmedToggle } from "@/components/patient-confirmed-toggle";
-import { FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
+import { Paginacion } from "@/components/filters";
 import { AgendaGrid, AvisoDeChoques, type ArrastreGrilla } from "@/components/agenda-grid";
 import {
-  boxDe,
   boxEfectivo,
   choquesDelMovimiento,
   conflictosDeCandidata,
@@ -48,6 +46,18 @@ import {
   type Conflicto,
 } from "@/components/agenda-conflictos";
 import { LeyendaAgenda } from "@/components/agenda-leyenda";
+import { LeyendaEstados } from "@/components/agenda-estado";
+import { ProveedorCajonCita, type ContextoCajonCita } from "@/components/agenda-cajon-cita";
+import { tituloDeAgenda } from "@/components/agenda-titulo";
+import { iniciales } from "@/components/agenda-hueco";
+import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { QUERY_MOVIL, useMediaQuery } from "@/hooks/use-media-query";
 import { enfocarCita } from "@/hooks/use-arrastre-cita";
 import {
@@ -732,7 +742,11 @@ function NuevaCitaDialog({
     >
       <BloqueoEscritura>
         <DialogTrigger asChild>
-          <Button ref={triggerRef} size="sm" aria-keyshortcuts="N">
+          <Button
+            ref={triggerRef}
+            aria-keyshortcuts="N"
+            className="h-10 rounded-full bg-foreground px-4 text-[14.5px] font-semibold text-background hover:bg-brand-700 pointer-coarse:h-11"
+          >
             <Plus className="size-4" /> Nueva cita
           </Button>
         </DialogTrigger>
@@ -1547,10 +1561,9 @@ function AgendaPage() {
   // montar.
   const movil = useMediaQuery(QUERY_MOVIL);
   const vista: VistaAgenda = search.vista ?? (movil ? "lista" : "dia");
-  // Semana: el panel lateral (solicitudes, lista de espera) se pliega para
-  // que la grilla tenga el ancho entero (UX-01). Se abre a pedido.
-  const [panelEnSemana, setPanelEnSemana] = useState(false);
-  const panelPlegado = vista === "semana" && !panelEnSemana;
+  // Solicitudes del portal, lista de espera y sin confirmar: un cajón que se
+  // abre a pedido; la grilla tiene siempre el ancho entero (UX-01, A+).
+  const [bandejaAbierta, setBandejaAbierta] = useState(false);
   const refFecha = useRef<HTMLInputElement>(null);
   const [semillaHueco, setSemillaHueco] = useState<
     (SemillaCita & { origen?: HTMLElement | null }) | null
@@ -1779,6 +1792,13 @@ function AgendaPage() {
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
+  // `profesional` acepta varios ids separados por coma (chips de la barra):
+  // vacío = todos. Un solo id sigue funcionando igual que antes.
+  const profesionalesElegidos = useMemo(
+    () => (search.profesional ? search.profesional.split(",").filter(Boolean) : []),
+    [search.profesional],
+  );
+
   const set = (patch: Partial<AgendaSearch>) =>
     navigate({ search: (prev: AgendaSearch) => ({ ...prev, ...patch, page: patch.page ?? 1 }) });
 
@@ -1802,7 +1822,8 @@ function AgendaPage() {
         if (!coincide(search.q, c.paciente, c.tratamiento, profesionalNombre)) return false;
         if (c.fecha < rangoDesde || c.fecha > rangoHasta) return false;
         if (search.sucursal && c.sucursalId !== search.sucursal) return false;
-        if (search.profesional && c.profesionalId !== search.profesional) return false;
+        if (profesionalesElegidos.length && !profesionalesElegidos.includes(c.profesionalId))
+          return false;
         if (search.estado && c.estado !== search.estado) return false;
         return true;
       }),
@@ -1811,7 +1832,7 @@ function AgendaPage() {
       profesionales,
       search.q,
       search.sucursal,
-      search.profesional,
+      profesionalesElegidos,
       search.estado,
       rangoDesde,
       rangoHasta,
@@ -1832,10 +1853,10 @@ function AgendaPage() {
           !sucursalesDeProfesional[p.id]?.includes(search.sucursal)
         )
           return false;
-        if (search.profesional && p.id !== search.profesional) return false;
+        if (profesionalesElegidos.length && !profesionalesElegidos.includes(p.id)) return false;
         return true;
       }),
-    [profesionales, search.sucursal, search.profesional, sucursalesDeProfesional],
+    [profesionales, search.sucursal, profesionalesElegidos, sucursalesDeProfesional],
   );
 
   // Ocupación de la semana: solo los filtros que cambian qué sillones se miden
@@ -1899,83 +1920,202 @@ function AgendaPage() {
           search={{ cobrar: 1 }}
           className={cn(
             buttonVariants({ variant: "outline", size: "sm" }),
-            "justify-start pointer-coarse:h-11",
+            "rounded-full pointer-coarse:h-11",
           )}
         >
           <Wallet aria-hidden /> Cobrar
         </Link>
       )}
-      {clinicId && access.clinic?.name && (
-        <WhatsAppButton
-          variant="full"
-          label="Recordatorio por WhatsApp"
-          className="h-8 justify-start text-sm pointer-coarse:h-11"
-          clinicId={clinicId}
-          patientId={c.pacienteId}
-          appointmentId={c.id}
-          templateKind="appointment_reminder"
-          variables={{
-            tratamiento: c.tratamiento,
-            fecha_larga: formatoFechaLarga(c.fecha),
-            hora: horaDeCita(c.inicio),
-            profesional: p.nombre,
-            clinica: access.clinic.name,
-          }}
-        />
-      )}
-      {puedeGestionarAgenda && esMovible(c) && (
-        <BloqueoEscritura>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="justify-start pointer-coarse:h-11"
-            onClick={() => setCitaAMover(c)}
-          >
-            <MoveRight aria-hidden /> Mover a…
-          </Button>
-        </BloqueoEscritura>
-      )}
     </>
   );
 
-  return (
-    <AppShell title="Agenda" access={access}>
-      <div className="space-y-6 max-md:space-y-4">
-        <p className="sr-only" aria-live="polite" aria-atomic="true">
-          {reprogramar.anuncio}
-        </p>
-        <MoverCitaDialog
-          cita={citaAMover}
-          profesionales={profesionales}
-          horarios={horarios}
-          validar={validarMovimiento}
-          onMover={(c, d) => {
-            moverCita(c, d);
-            enfocarCita(c.id);
-          }}
-          onClose={() => setCitaAMover(null)}
-        />
-        <ConfirmarMovimientoConChoque
-          pendiente={movimientoConChoque}
-          nombreProfesional={nombreProfesional}
-          onConfirmar={(m) => {
-            setMovimientoConChoque(null);
-            void reprogramar.mover(m.cita, m.destino);
-            enfocarCita(m.cita.id);
-          }}
-          onCancelar={() => {
-            if (movimientoConChoque) enfocarCita(movimientoConChoque.cita.id);
-            setMovimientoConChoque(null);
-          }}
-        />
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
-          {clinicId && hasPermission(access.role, "agenda:manage") && (
-            <div className="pointer-coarse:hidden">
-              <ImportarCitasDialog clinicId={clinicId} />
-            </div>
-          )}
+  // ── Encabezado editorial (A+) ──
+  const titulo = tituloDeAgenda(vista, fecha);
+  const sucursalVisible = search.sucursal
+    ? sucursales.find((s) => s.id === search.sucursal)?.nombre
+    : sucursales.length === 1
+      ? sucursales[0].nombre
+      : sucursales.length > 1
+        ? `${sucursales.length} sucursales`
+        : null;
+  const boxesVisibles = boxes.filter((b) => !search.sucursal || b.sucursalId === search.sucursal);
+  const contexto = [
+    sucursalVisible,
+    boxesVisibles.length > 0
+      ? `${boxesVisibles.length} ${boxesVisibles.length === 1 ? "box" : "boxes"}`
+      : null,
+  ].filter(Boolean);
+  const vistaActiva: OpcionVista = search.carril === "box" && vista === "dia" ? "box" : vista;
+
+  // Chips de profesional: los de la sucursal elegida (o todos).
+  const profesionalesDeChips = profesionales.filter(
+    (p) =>
+      !search.sucursal ||
+      p.sucursalId === search.sucursal ||
+      sucursalesDeProfesional[p.id]?.includes(search.sucursal),
+  );
+  function alternarProfesional(id: string) {
+    const visibles = profesionalesElegidos.length
+      ? profesionalesElegidos
+      : profesionalesDeChips.map((p) => p.id);
+    let siguiente = visibles.includes(id) ? visibles.filter((x) => x !== id) : [...visibles, id];
+    // Apagar el único que quedaba vuelve a mostrarlos a todos.
+    if (siguiente.length === 0) siguiente = [];
+    if (profesionalesDeChips.every((p) => siguiente.includes(p.id))) siguiente = [];
+    set({ profesional: siguiente.join(",") });
+  }
+
+  const pendientesBandeja = solicitudes.length + sinConfirmar48h.length;
+
+  const contextoCajon = useMemo<ContextoCajonCita | null>(
+    () =>
+      clinicId
+        ? {
+            clinicId,
+            userId: access.userId,
+            clinicName: access.clinic?.name,
+            currency: access.clinic?.currency ?? "CLP",
+            zona: access.clinic?.timezone,
+            hoy,
+            puedeGestionar: puedeGestionarAgenda,
+            puedeVerFinanzas: puedeVerSaldos,
+            puedeVerClinico: hasPermission(access.role, "clinical:view"),
+            puedeConfirmar: (profesionalId) => puedeConfirmarCita(access, profesionalId),
+            paciente: (id) => pacientes.find((x) => x.id === id),
+            nombreBox: (id) => boxes.find((b) => b.id === id)?.nombre,
+            onReagendar: (c) => setCitaAMover(c),
+          }
+        : null,
+    [clinicId, access, hoy, puedeGestionarAgenda, puedeVerSaldos, pacientes, boxes],
+  );
+
+  const contenido = (
+    <div className="space-y-5 text-base max-md:space-y-4">
+      <p className="sr-only" aria-live="polite" aria-atomic="true">
+        {reprogramar.anuncio}
+      </p>
+      <MoverCitaDialog
+        cita={citaAMover}
+        profesionales={profesionales}
+        horarios={horarios}
+        validar={validarMovimiento}
+        onMover={(c, d) => {
+          moverCita(c, d);
+          enfocarCita(c.id);
+        }}
+        onClose={() => setCitaAMover(null)}
+      />
+      <ConfirmarMovimientoConChoque
+        pendiente={movimientoConChoque}
+        nombreProfesional={nombreProfesional}
+        onConfirmar={(m) => {
+          setMovimientoConChoque(null);
+          void reprogramar.mover(m.cita, m.destino);
+          enfocarCita(m.cita.id);
+        }}
+        onCancelar={() => {
+          if (movimientoConChoque) enfocarCita(movimientoConChoque.cita.id);
+          setMovimientoConChoque(null);
+        }}
+      />
+
+      {/* Encabezado editorial: contexto chico, título en Cormorant con el
+          período en itálica ocre, y a la derecha la navegación, la vista y
+          la acción principal (prototipo A+ del 19-oct). */}
+      <div className="flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pt-1">
+        <div className="min-w-0">
+          <p className="mb-2 flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
+            <b className="font-semibold text-foreground/80">{access.clinic?.name}</b>
+            {contexto.map((t) => (
+              <span key={t}>· {t}</span>
+            ))}
+          </p>
+          <h2 className="font-display text-[clamp(2.25rem,3.6vw,3.5rem)] font-medium leading-none tracking-[-0.02em] text-balance">
+            {titulo.antes} <em className="text-brand-600">{titulo.enfasis}</em>
+          </h2>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex items-center gap-2">
+            <button
+              type="button"
+              aria-label="Período anterior"
+              onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, -1) })}
+              className={claseBotonRedondo}
+            >
+              <ChevronLeft aria-hidden className="size-[17px]" strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              onClick={() => set({ fecha: hoy })}
+              className="h-10 rounded-full border border-border bg-card px-4 text-[14.5px] font-semibold transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11"
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              aria-label="Período siguiente"
+              onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, 1) })}
+              className={claseBotonRedondo}
+            >
+              <ChevronRight aria-hidden className="size-[17px]" strokeWidth={1.8} />
+            </button>
+            {/* Ir a una fecha lejana: reemplaza el filtro "Fecha" que
+                repetía la navegación. */}
+            <button
+              type="button"
+              aria-label="Ir a una fecha"
+              title="Ir a una fecha"
+              onClick={() => {
+                const input = refFecha.current;
+                if (!input) return;
+                try {
+                  input.showPicker();
+                } catch {
+                  input.focus();
+                }
+              }}
+              className={cn(claseBotonRedondo, "text-muted-foreground hover:text-foreground")}
+            >
+              <CalendarDays aria-hidden className="size-[17px]" strokeWidth={1.8} />
+            </button>
+            <input
+              ref={refFecha}
+              type="date"
+              tabIndex={-1}
+              aria-hidden="true"
+              value={fecha}
+              onChange={(e) => e.target.value && set({ fecha: e.target.value })}
+              className="pointer-events-none absolute size-px opacity-0"
+            />
+          </div>
+          <div
+            role="group"
+            aria-label="Vista"
+            className="flex max-w-full gap-0.5 overflow-x-auto rounded-full border border-border bg-card p-[3px]"
+          >
+            {OPCIONES_VISTA.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                aria-pressed={vistaActiva === o.id}
+                onClick={() =>
+                  set(
+                    o.id === "box"
+                      ? { vista: "dia", carril: "box" }
+                      : { vista: o.id, carril: undefined },
+                  )
+                }
+                className={cn(
+                  "h-[34px] shrink-0 rounded-full px-3.5 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring pointer-coarse:h-10",
+                  vistaActiva === o.id
+                    ? "bg-foreground text-background"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {o.etiqueta}
+              </button>
+            ))}
+          </div>
           {/* Solo demo y desarrollo: fuera de la barra principal (UX, Ola 0). */}
           {puedeSimular && <MasOpcionesAgenda enCola={enColaOffline.length} />}
           {clinicId && puedeAdministrarProfesionales && (
@@ -1989,6 +2129,21 @@ function AgendaPage() {
               puedeMover={puedeGestionarAgenda}
             />
           )}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setBandejaAbierta(true)}
+            className="h-10 rounded-full px-4 text-[14.5px] pointer-coarse:h-11"
+            aria-haspopup="dialog"
+          >
+            <Inbox aria-hidden /> Solicitudes y espera
+            {pendientesBandeja > 0 && (
+              <span className="rounded-full bg-brand px-1.5 text-[11px] font-semibold leading-[18px] text-brand-foreground">
+                {pendientesBandeja}
+                <span className="sr-only"> pendientes</span>
+              </span>
+            )}
+          </Button>
           {clinicId && hasPermission(access.role, "agenda:manage") && (
             <NuevaCitaDialog
               clinicId={clinicId}
@@ -2014,467 +2169,391 @@ function AgendaPage() {
             />
           )}
         </div>
+      </div>
 
-        {/* PAN-05: componente aparte, encima de la grilla. */}
-        {clinicId && hasPermission(access.role, "agenda:manage") && (
-          <AvisoCitasPasadas clinicId={clinicId} timezone={access.clinic?.timezone} />
-        )}
+      {/* PAN-05: componente aparte, encima de la grilla. */}
+      {clinicId && hasPermission(access.role, "agenda:manage") && (
+        <AvisoCitasPasadas clinicId={clinicId} timezone={access.clinic?.timezone} />
+      )}
 
-        {appointmentsRes?.truncated && (
-          <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
-            Mostrando las primeras {numero(citas.length)} citas. Si buscas una cita muy antigua o
-            muy futura, puede que no aparezca acá.
-          </p>
-        )}
+      {appointmentsRes?.truncated && (
+        <p className="rounded-lg border border-warning/30 bg-warning-soft px-4 py-2.5 text-xs text-warning">
+          Mostrando las primeras {numero(citas.length)} citas. Si buscas una cita muy antigua o muy
+          futura, puede que no aparezca acá.
+        </p>
+      )}
 
-        <FilterBar
-          activos={activos}
-          onReset={() =>
-            navigate({
-              search: (prev: AgendaSearch) => ({
-                ...prev,
-                q: "",
-                sucursal: "",
-                profesional: "",
-                estado: "",
-                page: 1,
-              }),
-            })
-          }
-        >
-          <SearchField
-            label="Buscar"
-            value={search.q}
-            onChange={(q) => set({ q })}
-            placeholder="Paciente, tratamiento…"
-          />
-          <SelectField
-            label="Sucursal"
-            value={search.sucursal}
-            onChange={(sucursal) => set({ sucursal, profesional: "" })}
-            allLabel="Todas las sucursales"
-            options={sucursales.map((s) => ({ value: s.id, label: s.nombre }))}
-          />
-          <SelectField
-            label="Profesional"
-            value={search.profesional}
-            onChange={(profesional) => set({ profesional })}
-            allLabel="Todos los profesionales"
-            options={profesionales
-              .filter((p) => !search.sucursal || p.sucursalId === search.sucursal)
-              .map((p) => {
-                const box = boxDe(p);
-                return { value: p.id, label: box ? `${p.nombre} · ${box}` : p.nombre };
-              })}
-          />
-          <SelectField
-            label="Estado"
-            value={search.estado}
-            onChange={(estado) => set({ estado })}
-            allLabel="Todos los estados"
-            options={estados}
-          />
-        </FilterBar>
-
-        {/* `grid-cols-1` y `min-w-0`: sin ellos la columna implícita crece al
-            ancho mínimo de la grilla de la agenda y, en celular, la página
-            queda más ancha que la pantalla. La grilla se desplaza adentro de
-            su propio contenedor. En la semana el panel lateral se pliega y la
-            grilla toma el ancho entero. */}
-        <div className="grid grid-cols-1 gap-8 xl:grid-cols-12">
-          <div
-            className={cn(
-              "min-w-0 space-y-4 max-md:space-y-3",
-              panelPlegado ? "xl:col-span-12" : "xl:col-span-9",
-            )}
-          >
-            {/* Barra de navegación: en el celular queda fija bajo el
-                encabezado y es compacta (UX-02). */}
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 max-md:sticky max-md:top-[calc(4rem+env(safe-area-inset-top))] max-md:z-20 max-md:-mx-5 max-md:border-b max-md:border-hairline max-md:bg-background/95 max-md:px-5 max-md:py-2 max-md:backdrop-blur-sm">
-              <div className="relative flex min-w-0 items-center gap-1.5 md:gap-2">
-                <button
-                  type="button"
-                  aria-label="Período anterior"
-                  onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, -1) })}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-control hover:bg-secondary/60 pointer-coarse:size-11"
-                >
-                  <ChevronLeft className="size-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set({ fecha: hoy })}
-                  className="shrink-0 rounded-lg border border-hairline px-3 py-1.5 text-xs font-medium hover:bg-secondary/60 pointer-coarse:min-h-11"
-                >
-                  Hoy
-                </button>
-                <button
-                  type="button"
-                  aria-label="Período siguiente"
-                  onClick={() => set({ fecha: desplazarPeriodo(vista, fecha, 1) })}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-control hover:bg-secondary/60 pointer-coarse:size-11"
-                >
-                  <ChevronRight className="size-4" />
-                </button>
-                {/* Ir a una fecha lejana: reemplaza el filtro "Fecha" que
-                    repetía la navegación. */}
-                <button
-                  type="button"
-                  aria-label="Ir a una fecha"
-                  title="Ir a una fecha"
-                  onClick={() => {
-                    const input = refFecha.current;
-                    if (!input) return;
-                    try {
-                      input.showPicker();
-                    } catch {
-                      input.focus();
-                    }
-                  }}
-                  className="grid size-8 shrink-0 place-items-center rounded-lg border border-hairline text-muted-foreground hover:bg-secondary/60 hover:text-foreground pointer-coarse:size-11"
-                >
-                  <CalendarDays className="size-4" aria-hidden />
-                </button>
-                <input
-                  ref={refFecha}
-                  type="date"
-                  tabIndex={-1}
-                  aria-hidden="true"
-                  value={fecha}
-                  onChange={(e) => e.target.value && set({ fecha: e.target.value })}
-                  className="pointer-events-none absolute size-px opacity-0"
-                />
-                <h2 className="ml-1 min-w-0 truncate font-display text-lg font-semibold first-letter:uppercase max-md:text-base">
-                  {vista === "dia" || vista === "lista" ? (
-                    <>
-                      <span className="md:hidden">{fechaCorta(fecha)}</span>
-                      <span className="max-md:hidden">{labelPeriodo(vista, fecha)}</span>
-                    </>
-                  ) : (
-                    labelPeriodo(vista, fecha)
-                  )}
-                </h2>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 md:gap-3">
-                <div
-                  role="group"
-                  aria-label="Vista"
-                  className="flex rounded-lg border border-hairline p-0.5 text-xs"
-                >
-                  {(["lista", "dia", "semana", "mes"] as const).map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      aria-pressed={vista === v}
-                      onClick={() => set({ vista: v })}
-                      className={cn(
-                        "rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11 pointer-coarse:px-3",
-                        vista === v
-                          ? "bg-secondary text-foreground"
-                          : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      {NOMBRE_VISTA[v]}
-                    </button>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {isLoading
-                    ? "Cargando…"
-                    : `${filtradas.length} cita${filtradas.length === 1 ? "" : "s"}`}
-                </p>
-                {vista === "semana" && (
-                  <Button
+      {/* Filtros: profesionales como chips con su color, búsqueda compacta
+          (o ⌘K), sucursal y estado; a la derecha la leyenda de estados. */}
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          {profesionalesDeChips.length > 1 && (
+            <div role="group" aria-label="Profesionales" className="flex flex-wrap gap-2">
+              {profesionalesDeChips.map((p) => {
+                const visible =
+                  profesionalesElegidos.length === 0 || profesionalesElegidos.includes(p.id);
+                return (
+                  <button
+                    key={p.id}
                     type="button"
-                    variant="outline"
-                    size="sm"
-                    className="hidden xl:inline-flex"
-                    aria-expanded={!panelPlegado}
-                    aria-controls="agenda-panel-lateral"
-                    onClick={() => setPanelEnSemana((v) => !v)}
-                  >
-                    {panelPlegado ? (
-                      <PanelRightOpen aria-hidden />
-                    ) : (
-                      <PanelRightClose aria-hidden />
+                    aria-pressed={visible}
+                    onClick={() => alternarProfesional(p.id)}
+                    className={cn(
+                      "inline-flex h-9 items-center gap-2 rounded-full border border-border bg-card py-0 pl-[5px] pr-3.5 text-[13px] font-semibold transition-[opacity,border-color] hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11",
+                      !visible && "border-dashed opacity-60",
                     )}
-                    {panelPlegado ? "Mostrar panel" : "Ocultar panel"}
-                    {panelPlegado && solicitudes.length > 0 && (
-                      <span className="rounded-full bg-brand-soft px-1.5 text-[11px] font-semibold text-brand-700">
-                        {solicitudes.length}
-                        <span className="sr-only"> solicitudes del portal</span>
-                      </span>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {(vista === "dia" || vista === "semana") && (
-              <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-                {vista === "dia" && (
-                  <div
-                    role="group"
-                    aria-label="Carriles de la agenda"
-                    className="flex rounded-lg border border-hairline p-0.5 text-xs"
                   >
-                    {(
-                      [
-                        [undefined, "Por profesional"],
-                        ["box", "Por box"],
-                      ] as const
-                    ).map(([valor, etiqueta]) => (
-                      <button
-                        key={etiqueta}
-                        type="button"
-                        aria-pressed={search.carril === valor}
-                        onClick={() => set({ carril: valor })}
-                        className={cn(
-                          "rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11 pointer-coarse:px-3",
-                          search.carril === valor
-                            ? "bg-secondary text-foreground"
-                            : "text-muted-foreground hover:text-foreground",
-                        )}
-                      >
-                        {etiqueta}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {(vista === "semana" || search.carril !== "box") && puedeGestionarAgenda ? (
-                  <p className="text-xs text-muted-foreground">
-                    <span className="pointer-coarse:hidden">
-                      Arrastra una cita para moverla. Con teclado:{" "}
-                      <kbd className="rounded border border-hairline px-1 font-mono text-[11px]">
-                        Alt
-                      </kbd>{" "}
-                      + flechas.
-                    </span>
-                    <span className="hidden pointer-coarse:inline">
-                      Mantén presionada una cita para moverla.
-                    </span>
-                  </p>
-                ) : (
-                  <span />
-                )}
-                <LeyendaAgenda
-                  vista={vista}
-                  profesionales={columnas}
-                  hayChoques={filtradas.some((c) => conflictos.has(c.id))}
-                />
-              </div>
-            )}
-            {vista === "dia" && search.carril === "box" && (
-              <AgendaPorBox
-                citas={filtradas}
-                boxes={boxes.filter((b) => !search.sucursal || b.sucursalId === search.sucursal)}
-                profesionales={profesionales}
-                conSucursal={!search.sucursal && sucursales.length > 1}
-                nombreSucursal={(id) => sucursales.find((s) => s.id === id)?.nombre ?? ""}
-                allergyAlerts={allergyAlerts}
-                renderAcciones={accionesDeCita}
-                conflictos={conflictos}
-                nombreProfesional={nombreProfesional}
-                esHoy={fecha === hoy}
-                zonaHoraria={access.clinic?.timezone}
-              />
-            )}
-            {vista === "dia" && search.carril !== "box" && (
-              <AgendaGrid
-                arrastre={
-                  {
-                    habilitado: puedeGestionarAgenda,
-                    validar: validarMovimiento,
-                    onMover: moverCita,
-                    onRechazo: rechazarMovimiento,
-                    enCola,
-                    horarios,
-                  } satisfies ArrastreGrilla
-                }
-                citas={filtradas}
-                profesionales={columnas}
-                allergyAlerts={allergyAlerts}
-                fecha={fecha}
-                esHoy={fecha === hoy}
-                zonaHoraria={access.clinic?.timezone}
-                onAgendarHueco={
-                  puedeGestionarAgenda
-                    ? (semilla, origen) => setSemillaHueco({ ...semilla, origen })
-                    : undefined
-                }
-                renderAcciones={accionesDeCita}
-                conflictos={conflictos}
-                nombreProfesional={nombreProfesional}
-                disponibilidad={disponibilidadDelDia}
-              />
-            )}
-            {vista === "semana" && (
-              <AgendaSemanaCarriles
-                citas={filtradas}
-                citasOcupacion={citasParaOcupacion}
-                fecha={fecha}
-                hoy={hoy}
-                profesionales={columnas}
-                horarios={horarios}
-                zonaHoraria={access.clinic?.timezone}
-                datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
-                allergyAlerts={allergyAlerts}
-                renderAcciones={accionesDeCita}
-                conflictos={conflictos}
-                nombreProfesional={nombreProfesional}
-                arrastre={{
-                  habilitado: puedeGestionarAgenda,
-                  validar: validarMovimiento,
-                  onMover: moverCita,
-                  onRechazo: rechazarMovimiento,
-                  enCola,
-                  horarios,
-                }}
-              />
-            )}
-            {vista === "mes" && (
-              <AgendaMonth
-                citas={filtradas}
-                fecha={fecha}
-                hoy={hoy}
-                onSelectDay={(dia) => set({ fecha: dia, vista: "dia" })}
-                profesionales={profesionales}
-              />
-            )}
-
-            <div className="card-clinical overflow-hidden">
-              <div className="border-b border-hairline bg-secondary/40 px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground max-md:px-4">
-                {vista === "lista" ? "Citas del día" : "Listado de citas filtradas"}
-              </div>
-              <div className="divide-y divide-hairline">
-                {pagina.items.map((c) => {
-                  const profesionalNombre =
-                    profesionales.find((p) => p.id === c.profesionalId)?.nombre ?? "—";
-                  const sucursalNombre =
-                    sucursales.find((s) => s.id === c.sucursalId)?.nombre ?? "—";
-                  const choque = resumenConflictos(conflictos.get(c.id));
-                  // La fila es un contenedor, no un link: antes era un <Link>
-                  // con botones, menú y WhatsApp adentro (interactivo dentro de
-                  // interactivo, HTML inválido). Ahora el bloque de la cita es
-                  // el link a la ficha y las acciones son sus hermanas.
-                  return (
-                    <div
-                      key={c.id}
-                      className="grid gap-2 px-5 py-3 transition-colors hover:bg-secondary/50 max-md:px-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
-                    >
-                      <Link
-                        to="/pacientes/$pacienteId"
-                        params={{ pacienteId: c.pacienteId }}
-                        className="grid gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:grid-cols-[auto_2fr_1.5fr_1fr] sm:items-center sm:gap-4"
-                      >
-                        <span className="cifra text-xs text-muted-foreground">
-                          {vista === "semana" || vista === "mes" ? `${fechaCorta(c.fecha)} · ` : ""}
-                          {horaDeCita(c.inicio)}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="flex items-center gap-1 truncate text-sm font-medium">
-                            <span className="truncate">{c.paciente}</span>
-                            <AllergyAlertIcon allergies={allergyAlerts[c.pacienteId]} />
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">{c.tratamiento}</p>
-                          {choque && (
-                            <p
-                              className="mt-0.5 inline-flex items-center gap-1 rounded bg-warning-soft px-1.5 py-px text-[11px] font-medium text-warning"
-                              title={conflictos
-                                .get(c.id)
-                                ?.map((x) => `${x.cita.paciente} · ${horaDeCita(x.cita.inicio)}`)
-                                .join("\n")}
-                            >
-                              <CalendarX2 className="size-3" aria-hidden />
-                              {choque}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
-                          {profesionalNombre} · {sucursalNombre}
-                        </span>
-                        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                          {c.duracion} min
-                          {puedeVerSaldos && (
-                            <SaldoBadge
-                              saldoCents={saldos[c.pacienteId]}
-                              currency={access.clinic?.currency ?? "CLP"}
-                            />
-                          )}
-                        </span>
-                      </Link>
-                      {clinicId && hasPermission(access.role, "agenda:manage") ? (
-                        <span className="flex items-center gap-1">
-                          <PatientConfirmedToggle
-                            clinicId={clinicId}
-                            appointmentId={c.id}
-                            confirmado={Boolean(c.pacienteConfirmo)}
-                          />
-                          <CambiarEstadoMenu
-                            clinicId={clinicId}
-                            userId={access.userId}
-                            appointmentId={c.id}
-                            estadoActual={c.estado}
-                            puedeConfirmar={puedeConfirmarCita(access, c.profesionalId)}
-                          />
-                          <EditarCitaDialog
-                            clinicId={clinicId}
-                            country={access.clinic?.country}
-                            cita={c}
-                            sucursales={sucursales}
-                            profesionales={profesionales}
-                            citas={citas}
-                            puedeAdministrarProfesionales={puedeAdministrarProfesionales}
-                          />
-                        </span>
-                      ) : (
-                        <EstadoCitaPastilla cita={{ estado: c.estado }} />
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "grid size-[26px] place-items-center rounded-full text-[11px] font-semibold",
+                        visible ? "text-background" : "text-muted-foreground ring-1 ring-border",
                       )}
-                      {clinicId && access.clinic?.name && (
-                        <WhatsAppButton
-                          clinicId={clinicId}
-                          patientId={c.pacienteId}
-                          appointmentId={c.id}
-                          templateKind="appointment_reminder"
-                          variables={{
-                            tratamiento: c.tratamiento,
-                            fecha_larga: formatoFechaLarga(c.fecha),
-                            hora: horaDeCita(c.inicio),
-                            profesional: profesionalNombre,
-                            clinica: access.clinic.name,
-                          }}
-                        />
+                      style={visible ? { backgroundColor: colorProfesional(p.color) } : undefined}
+                    >
+                      {iniciales(p.nombre)}
+                    </span>
+                    {p.nombre}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          <div className="ml-auto flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <label className="relative block w-full sm:w-52">
+              <span className="sr-only">Buscar en la agenda</span>
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={search.q}
+                onChange={(e) => set({ q: e.target.value })}
+                placeholder="Paciente o tratamiento"
+                className="h-9 w-full rounded-full border border-control bg-card pl-9 pr-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11 pointer-coarse:text-base"
+              />
+            </label>
+            {sucursales.length > 1 && (
+              <FiltroCompacto
+                etiqueta="Sucursal"
+                valor={search.sucursal}
+                onChange={(sucursal) => set({ sucursal, profesional: "" })}
+                todas="Sucursal"
+                opciones={sucursales.map((s) => ({ value: s.id, label: s.nombre }))}
+              />
+            )}
+            <FiltroCompacto
+              etiqueta="Estado"
+              valor={search.estado}
+              onChange={(estado) => set({ estado })}
+              todas="Estado"
+              opciones={estados}
+            />
+            {activos > 0 && (
+              <button
+                type="button"
+                onClick={() =>
+                  navigate({
+                    search: (prev: AgendaSearch) => ({
+                      ...prev,
+                      q: "",
+                      sucursal: "",
+                      profesional: "",
+                      estado: "",
+                      page: 1,
+                    }),
+                  })
+                }
+                className="inline-flex h-9 items-center gap-1 rounded-full px-3 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground pointer-coarse:h-11"
+              >
+                <X aria-hidden className="size-3.5" /> Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className="text-[13.5px] text-muted-foreground">
+            {(vista === "dia" || vista === "semana") &&
+              ((vista === "semana" || search.carril !== "box") && puedeGestionarAgenda ? (
+                <>
+                  <span className="pointer-coarse:hidden">
+                    Arrastra una cita para moverla. Con teclado:{" "}
+                    <kbd className="rounded border border-border px-1 font-mono text-[11px] text-foreground/80">
+                      Alt
+                    </kbd>{" "}
+                    + flechas.
+                  </span>
+                  <span className="hidden pointer-coarse:inline">
+                    Mantén presionada una cita para moverla.
+                  </span>{" "}
+                </>
+              ) : search.carril === "box" ? (
+                "Por box: para cambiar de box, abre la cita y usa Reagendar. "
+              ) : null)}
+            <span className="whitespace-nowrap">
+              {isLoading
+                ? "Cargando…"
+                : `${filtradas.length} cita${filtradas.length === 1 ? "" : "s"}`}
+            </span>
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {(vista === "dia" || vista === "semana") && <LeyendaEstados />}
+            {(vista === "dia" || vista === "semana") && (
+              <LeyendaAgenda
+                vista={vista}
+                profesionales={columnas}
+                hayChoques={filtradas.some((c) => conflictos.has(c.id))}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="min-w-0 space-y-5 max-md:space-y-4">
+        {vista === "dia" && search.carril === "box" && (
+          <AgendaPorBox
+            citas={filtradas}
+            boxes={boxesVisibles}
+            profesionales={profesionales}
+            conSucursal={!search.sucursal && sucursales.length > 1}
+            nombreSucursal={(id) => sucursales.find((s) => s.id === id)?.nombre ?? ""}
+            allergyAlerts={allergyAlerts}
+            renderAcciones={accionesDeCita}
+            conflictos={conflictos}
+            nombreProfesional={nombreProfesional}
+            esHoy={fecha === hoy}
+            zonaHoraria={access.clinic?.timezone}
+          />
+        )}
+        {vista === "dia" && search.carril !== "box" && (
+          <AgendaGrid
+            arrastre={
+              {
+                habilitado: puedeGestionarAgenda,
+                validar: validarMovimiento,
+                onMover: moverCita,
+                onRechazo: rechazarMovimiento,
+                enCola,
+                horarios,
+              } satisfies ArrastreGrilla
+            }
+            citas={filtradas}
+            profesionales={columnas}
+            allergyAlerts={allergyAlerts}
+            fecha={fecha}
+            esHoy={fecha === hoy}
+            esPasado={fecha < hoy}
+            zonaHoraria={access.clinic?.timezone}
+            onAgendarHueco={
+              puedeGestionarAgenda
+                ? (semilla, origen) => setSemillaHueco({ ...semilla, origen })
+                : undefined
+            }
+            renderAcciones={accionesDeCita}
+            conflictos={conflictos}
+            nombreProfesional={nombreProfesional}
+            disponibilidad={disponibilidadDelDia}
+          />
+        )}
+        {vista === "semana" && (
+          <AgendaSemanaCarriles
+            citas={filtradas}
+            citasOcupacion={citasParaOcupacion}
+            fecha={fecha}
+            hoy={hoy}
+            profesionales={columnas}
+            horarios={horarios}
+            zonaHoraria={access.clinic?.timezone}
+            datosDesde={appointmentsRes?.truncated ? fechaMasAntigua(citas) : null}
+            allergyAlerts={allergyAlerts}
+            renderAcciones={accionesDeCita}
+            conflictos={conflictos}
+            nombreProfesional={nombreProfesional}
+            arrastre={{
+              habilitado: puedeGestionarAgenda,
+              validar: validarMovimiento,
+              onMover: moverCita,
+              onRechazo: rechazarMovimiento,
+              enCola,
+              horarios,
+            }}
+            disponibilidad={disponibilidad}
+            onAgendarHueco={
+              puedeGestionarAgenda
+                ? (semilla, origen) => setSemillaHueco({ ...semilla, origen })
+                : undefined
+            }
+          />
+        )}
+        {vista === "mes" && (
+          <AgendaMonth
+            citas={filtradas}
+            fecha={fecha}
+            hoy={hoy}
+            onSelectDay={(dia) => set({ fecha: dia, vista: "dia" })}
+            profesionales={profesionales}
+          />
+        )}
+
+        <div className="card-clinical overflow-hidden bg-card">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-hairline px-5 py-3 max-md:px-4">
+            <h2 className="font-display text-xl font-medium">
+              {vista === "lista" ? "Citas del día" : "Listado de citas"}
+            </h2>
+            {/* Importar es trabajo de escritorio (un CSV): con el dedo no se ofrece. */}
+            {clinicId && hasPermission(access.role, "agenda:manage") && (
+              <div className="pointer-coarse:hidden">
+                <ImportarCitasDialog clinicId={clinicId} />
+              </div>
+            )}
+          </div>
+          <div className="divide-y divide-hairline">
+            {pagina.items.map((c) => {
+              const profesionalNombre =
+                profesionales.find((p) => p.id === c.profesionalId)?.nombre ?? "—";
+              const sucursalNombre = sucursales.find((s) => s.id === c.sucursalId)?.nombre ?? "—";
+              const choque = resumenConflictos(conflictos.get(c.id));
+              // La fila es un contenedor, no un link: antes era un <Link>
+              // con botones, menú y WhatsApp adentro (interactivo dentro de
+              // interactivo, HTML inválido). Ahora el bloque de la cita es
+              // el link a la ficha y las acciones son sus hermanas.
+              return (
+                <div
+                  key={c.id}
+                  className="grid gap-2 px-5 py-3.5 transition-colors hover:bg-secondary/50 max-md:px-4 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-center sm:gap-4"
+                >
+                  <Link
+                    to="/pacientes/$pacienteId"
+                    params={{ pacienteId: c.pacienteId }}
+                    className="grid gap-2 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:grid-cols-[auto_2fr_1.5fr_1fr] sm:items-center sm:gap-4"
+                  >
+                    <span className="cifra text-xs text-muted-foreground">
+                      {vista === "semana" || vista === "mes" ? `${fechaCorta(c.fecha)} · ` : ""}
+                      {horaDeCita(c.inicio)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1 truncate text-sm font-medium">
+                        <span className="truncate">{c.paciente}</span>
+                        <AllergyAlertIcon allergies={allergyAlerts[c.pacienteId]} />
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">{c.tratamiento}</p>
+                      {choque && (
+                        <p
+                          className="mt-0.5 inline-flex items-center gap-1 rounded bg-warning-soft px-1.5 py-px text-[11px] font-medium text-warning"
+                          title={conflictos
+                            .get(c.id)
+                            ?.map((x) => `${x.cita.paciente} · ${horaDeCita(x.cita.inicio)}`)
+                            .join("\n")}
+                        >
+                          <CalendarX2 className="size-3" aria-hidden />
+                          {choque}
+                        </p>
                       )}
                     </div>
-                  );
-                })}
-                {!isLoading && pagina.items.length === 0 && (
-                  <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                    {vista === "lista"
-                      ? "No hay citas este día con los filtros aplicados."
-                      : "No hay citas que coincidan con los filtros aplicados."}
-                  </p>
-                )}
-              </div>
-              <Paginacion
-                pagina={pagina}
-                etiqueta="citas"
-                onPage={(page) => navigate({ search: (p: AgendaSearch) => ({ ...p, page }) })}
-              />
-            </div>
+                    <span className="text-xs text-muted-foreground">
+                      {profesionalNombre} · {sucursalNombre}
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {c.duracion} min
+                      {puedeVerSaldos && (
+                        <SaldoBadge
+                          saldoCents={saldos[c.pacienteId]}
+                          currency={access.clinic?.currency ?? "CLP"}
+                        />
+                      )}
+                    </span>
+                  </Link>
+                  {clinicId && hasPermission(access.role, "agenda:manage") ? (
+                    <span className="flex items-center gap-1">
+                      <PatientConfirmedToggle
+                        clinicId={clinicId}
+                        appointmentId={c.id}
+                        confirmado={Boolean(c.pacienteConfirmo)}
+                      />
+                      <CambiarEstadoMenu
+                        clinicId={clinicId}
+                        userId={access.userId}
+                        appointmentId={c.id}
+                        estadoActual={c.estado}
+                        puedeConfirmar={puedeConfirmarCita(access, c.profesionalId)}
+                      />
+                      <EditarCitaDialog
+                        clinicId={clinicId}
+                        country={access.clinic?.country}
+                        cita={c}
+                        sucursales={sucursales}
+                        profesionales={profesionales}
+                        citas={citas}
+                        puedeAdministrarProfesionales={puedeAdministrarProfesionales}
+                      />
+                    </span>
+                  ) : (
+                    <EstadoCitaPastilla cita={{ estado: c.estado }} />
+                  )}
+                  {clinicId && access.clinic?.name && (
+                    <WhatsAppButton
+                      clinicId={clinicId}
+                      patientId={c.pacienteId}
+                      appointmentId={c.id}
+                      templateKind="appointment_reminder"
+                      variables={{
+                        tratamiento: c.tratamiento,
+                        fecha_larga: formatoFechaLarga(c.fecha),
+                        hora: horaDeCita(c.inicio),
+                        profesional: profesionalNombre,
+                        clinica: access.clinic.name,
+                      }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {!isLoading && pagina.items.length === 0 && (
+              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
+                {vista === "lista"
+                  ? "No hay citas este día con los filtros aplicados."
+                  : "No hay citas que coincidan con los filtros aplicados."}
+              </p>
+            )}
           </div>
+          <Paginacion
+            pagina={pagina}
+            etiqueta="citas"
+            onPage={(page) => navigate({ search: (p: AgendaSearch) => ({ ...p, page }) })}
+          />
+        </div>
+      </div>
 
-          <aside
-            id="agenda-panel-lateral"
-            className={cn("min-w-0 space-y-4 xl:col-span-3", panelPlegado && "xl:hidden")}
-          >
-            {solicitudes.length > 0 && (
-              <>
-                <h2 className="flex items-center gap-1.5 font-display text-xl font-semibold text-muted-foreground">
-                  <Inbox className="size-4" /> Solicitudes del portal
-                  <span className="ml-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand-700">
-                    {solicitudes.length}
-                  </span>
-                </h2>
+      {/* Solicitudes del portal, lista de espera y sin confirmar: antes una
+          columna fija que le quitaba un cuarto del ancho a la grilla. En A+
+          viven en un cajón que se abre a pedido, con el contador a la vista. */}
+      <Sheet open={bandejaAbierta} onOpenChange={setBandejaAbierta}>
+        <SheetContent
+          side="right"
+          className="w-full gap-0 overflow-y-auto bg-card p-0 text-base sm:max-w-[420px]"
+        >
+          <SheetHeader className="border-b border-border px-6 pb-4 pt-6">
+            <SheetTitle className="font-display text-[28px] font-medium leading-none">
+              Solicitudes y espera
+            </SheetTitle>
+            <SheetDescription>
+              Lo que pide el portal, quién espera un hueco y lo que falta confirmar.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="space-y-6 px-6 py-5">
+            <section className="space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
+                <Inbox className="size-4" aria-hidden /> Solicitudes del portal
+                <span className="ml-1 rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-semibold text-brand-700">
+                  {solicitudes.length}
+                </span>
+              </h3>
+              {solicitudes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Sin solicitudes nuevas del portal de pacientes.
+                </p>
+              ) : (
                 <div className="card-clinical divide-y divide-hairline">
                   {solicitudes.map((s) => (
                     <div key={s.id} className="space-y-2 p-4">
@@ -2505,7 +2584,10 @@ function AgendaPage() {
                             size="sm"
                             variant="outline"
                             className="pointer-coarse:h-11"
-                            onClick={() => setSolicitudEnAgenda(s)}
+                            onClick={() => {
+                              setBandejaAbierta(false);
+                              setSolicitudEnAgenda(s);
+                            }}
                           >
                             Agendar
                           </Button>
@@ -2523,70 +2605,70 @@ function AgendaPage() {
                     </div>
                   ))}
                 </div>
-              </>
-            )}
+              )}
+            </section>
 
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="font-display text-xl font-semibold text-muted-foreground">
-                Lista de espera
-              </h2>
-              {clinicId && hasPermission(access.role, "agenda:manage") && (
-                <AgregarListaEsperaDialog clinicId={clinicId} pacientes={pacientes} />
-              )}
-            </div>
-            <div className="card-clinical divide-y divide-hairline">
-              {listaEspera.length === 0 && (
-                <p className="p-4 text-xs text-muted-foreground">
-                  Sin pacientes en lista de espera por ahora.
-                </p>
-              )}
-              {listaEspera.map((e) => (
-                <div key={e.id} className="flex items-start justify-between gap-3 p-4">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="mt-1.5 size-2 shrink-0 rounded-full bg-warning" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">{e.nombre}</p>
-                      <p className="text-xs text-muted-foreground">{e.motivo}</p>
-                      {e.espera !== "—" && (
-                        <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
-                          <Clock className="size-3" /> {e.espera} de espera
-                        </p>
-                      )}
-                      {!e.patientPhone && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          Sin paciente vinculado — no se le puede avisar por WhatsApp.
-                        </p>
-                      )}
+            <section className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-muted-foreground">Lista de espera</h3>
+                {clinicId && hasPermission(access.role, "agenda:manage") && (
+                  <AgregarListaEsperaDialog clinicId={clinicId} pacientes={pacientes} />
+                )}
+              </div>
+              <div className="card-clinical divide-y divide-hairline">
+                {listaEspera.length === 0 && (
+                  <p className="p-4 text-xs text-muted-foreground">
+                    Sin pacientes en lista de espera por ahora.
+                  </p>
+                )}
+                {listaEspera.map((e) => (
+                  <div key={e.id} className="flex items-start justify-between gap-3 p-4">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="mt-1.5 size-2 shrink-0 rounded-full bg-warning" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">{e.nombre}</p>
+                        <p className="text-xs text-muted-foreground">{e.motivo}</p>
+                        {e.espera !== "—" && (
+                          <p className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Clock className="size-3" /> {e.espera} de espera
+                          </p>
+                        )}
+                        {!e.patientPhone && (
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            Sin paciente vinculado — no se le puede avisar por WhatsApp.
+                          </p>
+                        )}
+                      </div>
                     </div>
+                    {clinicId && hasPermission(access.role, "agenda:manage") && (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {e.patientId && access.clinic?.name && (
+                          <WhatsAppButton
+                            clinicId={clinicId}
+                            patientId={e.patientId}
+                            templateKind="waitlist_opening"
+                            label="Avisar"
+                            variables={{ motivo: e.motivo, clinica: access.clinic.name }}
+                          />
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => quitarDeEspera.mutate(e.id)}
+                          disabled={quitarDeEspera.isPending}
+                          title="Quitar de la lista"
+                          aria-label="Quitar de la lista"
+                          className="inline-flex size-7 pointer-coarse:size-11 items-center justify-center rounded-md border border-hairline text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {clinicId && hasPermission(access.role, "agenda:manage") && (
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {e.patientId && access.clinic?.name && (
-                        <WhatsAppButton
-                          clinicId={clinicId}
-                          patientId={e.patientId}
-                          templateKind="waitlist_opening"
-                          label="Avisar"
-                          variables={{ motivo: e.motivo, clinica: access.clinic.name }}
-                        />
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => quitarDeEspera.mutate(e.id)}
-                        disabled={quitarDeEspera.isPending}
-                        title="Quitar de la lista"
-                        aria-label="Quitar de la lista"
-                        className="inline-flex size-7 pointer-coarse:size-11 items-center justify-center rounded-md border border-hairline text-muted-foreground transition-colors hover:border-destructive/40 hover:text-destructive disabled:opacity-50"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </section>
 
-            <div className="rounded-2xl border border-warning/20 bg-warning-soft p-5">
+            <section className="rounded-2xl border border-warning/20 bg-warning-soft p-5">
               <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-warning">
                 <CircleAlert className="size-3" /> Sin confirmar (48h)
               </p>
@@ -2601,7 +2683,7 @@ function AgendaPage() {
                     confirmar todavía:
                   </p>
                   <ul className="space-y-1.5">
-                    {sinConfirmar48h.slice(0, 4).map((c) => (
+                    {sinConfirmar48h.slice(0, 6).map((c) => (
                       <li key={c.id} className="flex items-center justify-between gap-2">
                         <span className="truncate text-xs font-medium">
                           {c.paciente} · {formatoFechaLarga(c.fecha)} {horaDeCita(c.inicio)}
@@ -2621,10 +2703,20 @@ function AgendaPage() {
                   </ul>
                 </div>
               )}
-            </div>
-          </aside>
-        </div>
-      </div>
+            </section>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+
+  return (
+    <AppShell title="Agenda" access={access}>
+      {contextoCajon ? (
+        <ProveedorCajonCita valor={contextoCajon}>{contenido}</ProveedorCajonCita>
+      ) : (
+        contenido
+      )}
 
       {clinicId && solicitudEnAgenda && (
         <AgendarSolicitudDialog
@@ -2640,6 +2732,59 @@ function AgendaPage() {
         />
       )}
     </AppShell>
+  );
+}
+
+const claseBotonRedondo =
+  "grid size-10 shrink-0 place-items-center rounded-full border border-border bg-card text-foreground transition-colors hover:border-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:size-11";
+
+type OpcionVista = VistaAgenda | "box";
+
+const OPCIONES_VISTA: { id: OpcionVista; etiqueta: string }[] = [
+  { id: "dia", etiqueta: "Día" },
+  { id: "semana", etiqueta: "Semana" },
+  { id: "box", etiqueta: "Boxes" },
+  { id: "mes", etiqueta: "Mes" },
+  { id: "lista", etiqueta: "Lista" },
+];
+
+/** Select compacto en pastilla para los filtros de la barra (sucursal, estado). */
+function FiltroCompacto({
+  etiqueta,
+  valor,
+  onChange,
+  todas,
+  opciones,
+}: {
+  etiqueta: string;
+  valor: string;
+  onChange: (v: string) => void;
+  todas: string;
+  opciones: { value: string; label: string }[];
+}) {
+  return (
+    <label className="relative inline-flex">
+      <span className="sr-only">{etiqueta}</span>
+      <select
+        value={valor}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn(
+          "h-9 appearance-none rounded-full border border-control bg-card pl-3.5 pr-8 text-sm font-medium outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11 pointer-coarse:text-base",
+          valor && "border-brand-700 text-brand-700",
+        )}
+      >
+        <option value="">{todas}</option>
+        {opciones.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <ChevronDown
+        aria-hidden
+        className="pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+      />
+    </label>
   );
 }
 
@@ -2659,7 +2804,7 @@ function MasOpcionesAgenda({ enCola }: { enCola: number }) {
           variant="outline"
           size="sm"
           aria-label="Más opciones de la agenda"
-          className="pointer-coarse:size-11"
+          className="h-10 rounded-full px-3 pointer-coarse:h-11"
         >
           {simulado ? <CloudOff aria-hidden /> : <Ellipsis aria-hidden />}
           {simulado && <span className="tabular-nums">{enCola} en cola</span>}
