@@ -45,8 +45,8 @@ import {
   DialogoLecturaCiclo,
   DialogoRegistrarCiclo,
   DialogoUsarPaquete,
-  imprimirEtiquetas,
 } from "@/components/esterilizacion/dialogos";
+import { imprimirEtiquetas } from "@/lib/esterilizacion/etiquetas";
 import { requirePermission } from "@/lib/access/route-guards";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import type { TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";

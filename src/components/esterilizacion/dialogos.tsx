@@ -42,7 +42,6 @@ import {
   type Ciclo,
   type Paquete,
 } from "@/lib/esterilizacion/esterilizacion.functions";
-import { matrizQr, pathSvgQr } from "@/lib/reserva/qr";
 import { fecha, fechaCortaHora } from "@/lib/formato-fecha";
 import { listPatients } from "@/lib/patients/patients.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
@@ -54,7 +53,7 @@ import { cn } from "@/lib/utils";
  * paquete en un paciente y darlo de baja. La base repite cada regla.
  */
 
-export const INPUT =
+const INPUT =
   "w-full rounded-lg border border-hairline bg-transparent px-3 py-2 text-sm outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:text-base";
 
 function useInvalidar(clinicId: string) {
@@ -474,35 +473,6 @@ export function DialogoLecturaCiclo({
       </DialogContent>
     </Dialog>
   );
-}
-
-/** Etiquetas imprimibles con QR (el código del paquete, que se escanea al usarlo). */
-export function imprimirEtiquetas(
-  paquetes: readonly Paquete[],
-  ciclos: ReadonlyMap<string, Ciclo>,
-  clinica: string,
-  zona: string,
-) {
-  const esc = (t: string) =>
-    t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-  const etiquetas = paquetes
-    .map((p) => {
-      const { d, lado } = pathSvgQr(matrizQr(p.code), 2);
-      const c = ciclos.get(p.cycleId);
-      return `<div class="e"><svg viewBox="0 0 ${lado} ${lado}" width="88" height="88" shape-rendering="crispEdges"><path d="${d}" fill="#000"/></svg><div><b>${esc(p.code)}</b><br>${esc(p.contents)}<br>Ciclo ${c ? esc(numeroDeCiclo(c)) : ""} · ${c ? esc(fechaCortaHora(c.runAt, zona)) : ""}<br><b>Vence ${esc(fecha(p.expiresOn))}</b><br><small>${esc(clinica)}</small></div></div>`;
-    })
-    .join("");
-  const w = window.open("", "_blank", "width=720,height=900");
-  if (!w) {
-    toast.error(
-      "El navegador bloqueó la ventana de impresión: permite ventanas emergentes para este sitio.",
-    );
-    return;
-  }
-  w.document.write(
-    `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Etiquetas de esterilización</title><style>body{font:12px/1.35 system-ui,sans-serif;margin:8mm;color:#000}.g{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm}.e{display:flex;gap:3mm;align-items:center;border:1px dashed #999;padding:3mm;break-inside:avoid}</style></head><body><div class="g">${etiquetas}</div><script>window.onload=function(){window.print()}</script></body></html>`,
-  );
-  w.document.close();
 }
 
 export function DialogoEtiquetar({
