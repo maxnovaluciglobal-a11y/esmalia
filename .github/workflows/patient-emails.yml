@@ -1,0 +1,37 @@
+name: Correos automáticos a pacientes (disparo horario)
+
+# Disparo de respaldo, como lifecycle-emails.yml: el principal es Vercel Cron
+# (vercel.json, minuto 27). El endpoint corre cada hora, actúa solo en la
+# ventana local de 8:00 a 20:59 de cada clínica y es idempotente (tabla
+# patient_email_dispatches, UNIQUE por cita, tipo y franja), así que un
+# reintento o un disparo manual no duplica correos. Mientras
+# PATIENT_EMAILS_ENABLED no sea "true" en Vercel, responde {"habilitado":false}
+# sin tocar nada. Nunca manda WhatsApp. Ver docs/CORREOS.md.
+on:
+  schedule:
+    # Minuto 57: no coincide con el resumen diario (7) ni con los correos de
+    # ciclo de vida (17).
+    - cron: "57 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: patient-emails
+  cancel-in-progress: false
+
+jobs:
+  disparar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Llamar a /api/patient-emails
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://esmalia.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::error::Falta el secret CRON_SECRET"; exit 1; fi
+          status=$(curl -sS -o respuesta.txt -w "%{http_code}" --retry 3 --retry-delay 20 --max-time 240 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/patient-emails")
+          echo "HTTP $status"; head -c 500 respuesta.txt; echo
+          [ "$status" = "200" ] || { echo "::error::patient-emails respondió $status"; exit 1; }

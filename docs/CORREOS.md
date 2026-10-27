@@ -1,6 +1,6 @@
 # Correos de ciclo de vida a la clínica
 
-Esmalia le escribe a la **clínica** (propietarios y administradores) en siete momentos. **Ningún proceso automático le escribe a pacientes** (los correos a pacientes los envía una persona desde la app: presupuesto y copia de documentos, ver `docs/DOCUMENTOS.md`, con `email_sandbox_config` y la baja `patients.email_opt_out_at`): los destinatarios salen de `clinic_members`, nunca de `patients`. Spec aprobada: `07 - Clientes y Ventas/2026-10-09-correos-ciclo-de-vida.md` (fuera del repo).
+Esmalia le escribe a la **clínica** (propietarios y administradores) en siete momentos. Los correos de ciclo de vida nunca le escriben a pacientes: los destinatarios salen de `clinic_members`, nunca de `patients`. Los correos **automáticos al paciente** (Ola 7) son otro proceso, con sus propios frenos: ver [Correos automáticos al paciente](#correos-automáticos-al-paciente-ola-7) al final. Los que envía una persona desde la app (presupuesto y copia de documentos) están en `docs/DOCUMENTOS.md`. Spec aprobada: `07 - Clientes y Ventas/2026-10-09-correos-ciclo-de-vida.md` (fuera del repo).
 
 Están construidos y **encendidos en modo de prueba desde el 09-oct-2026** (`LIFECYCLE_EMAILS_ENABLED=true` + `LIFECYCLE_EMAIL_REDIRECT_TO`: todo llega a `maxnovaluciglobal@gmail.com` con el asunto `[PRUEBA → destinatario real]`). Activación y apagado paso a paso: `docs/DOMINIO_RUNBOOK.md`, paso 6b.
 
@@ -71,3 +71,50 @@ Escribe `.email-muestras/*.html` y `*.txt` (gitignored) llamando a **las mismas*
 | `public/brand/esmalia-wordmark-email.png`                                                 | Wordmark 300×84 (se muestra a 150×42) con el fondo de la tarjeta: Gmail no muestra SVG                                      |
 | `supabase/migrations/20261012000000_lifecycle_emails.sql`                                 | Tabla de registro e idempotencia (RLS sin políticas: solo service role)                                                     |
 | `tests/correos-ciclo-de-vida.test.ts`                                                     | Tests puros (no tocan Postgres ni Resend)                                                                                   |
+
+# Correos automáticos al paciente (Ola 7)
+
+Desde la Ola 7 (frente B) Esmalia **sí** le escribe sola al paciente, por correo y nunca por WhatsApp (WhatsApp sigue siendo a mano desde `/recordatorios`: nada de WhatsApp sale desde un cron). Decisión de la ola: sale automático, pero respeta el modo de prueba de la clínica, la baja, el tutor y la configuración de cada clínica.
+
+| Correo                      | ID     | `kind` / franja                                  | Cuándo                                                                                                                                                                                                                                                                                                                   |
+| --------------------------- | ------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Confirmación al agendar     | REC-03 | `confirmation` / `once`                          | Cita futura (`tentativa` o `confirmada`) creada después de encender la confirmación, hace menos de 72 h, que empieza en más de 1 h. Cubre agenda, reserva en línea e importación; las citas importadas con `reminders_muted` no la reciben.                                                                              |
+| Recordatorio                | REC-02 | `reminder` / `24h`, `2h`…                        | Hasta dos franjas por clínica (1 a 72 h). Ventanas sin solaparse: con [24, 2], el de 24 h sale cuando faltan entre 2 y 24 h y el de 2 h entre 30 min y 2 h. Si la cita se creó adentro de la ventana de una franja, esa franja no sale (ya la avisó la confirmación).                                                    |
+| Encuesta NPS                | MKT-08 | `nps` / `once`                                   | Cita `finalizada`, N horas (1 a 72) después de `ends_at`, hasta 72 h más; una por paciente cada 30 días. Página `/encuesta/:token` (0-10 + comentario, vale 14 días). A los promotores (9-10) se les muestra el link de reseña de Google de la clínica o, si no hay, el de la sucursal de la cita; sin link, no se pide. |
+| Formulario antes de la cita | MKT-07 | va adentro de la confirmación o del recordatorio | Página `/formulario/:token`: datos de contacto y el mismo cuestionario de anamnesis de la ficha. Lo enviado queda `respondido` y **no toca la ficha**: un rol clínico lo acepta (eligiendo contacto y/o anamnesis) o lo descarta desde la pestaña Anamnesis. Vale hasta la hora de la cita.                              |
+
+Cada correo de cita lleva los botones "Confirmar asistencia" / "Cancelar o reagendar" hacia `/mi-cita/:token` (REC-11, página del frente A: `enlaceGestionCita` de `src/lib/reserva/enlace-cita.server.ts`, que se inyecta en `src/routes/api.patient-emails.ts`). Sin ese enlace el correo sale sin botones y dice "avísale a la clínica por el canal de siempre". Ningún correo lleva datos clínicos (ni el tratamiento): cuándo, con quién y dónde.
+
+## Configuración (REC-07, REC-09)
+
+`/notificaciones-a-pacientes` (Ajustes → Mensajería), solo owner/admin (`settings:manage`, igual que la RLS: `can_manage_clinic`). Tabla `patient_notification_settings`, una fila por clínica: **sin fila, todo apagado**. Un trigger fija `confirmation_enabled_at` y `nps_enabled_at` al encender (no se escribe por citas anteriores). La pantalla muestra el modo del correo de la clínica, el resumen NPS de 90 días, los envíos de 30 días, los últimos comentarios y WhatsApp automático deshabilitado con su motivo (`AccionDeshabilitada`).
+
+## Frenos (`src/lib/notificaciones-pacientes/cron.server.ts`)
+
+1. `PATIENT_EMAILS_ENABLED=true` en Vercel o el endpoint responde `{"habilitado":false}` sin tocar la base. **Hoy apagado**: encenderlo es decisión de Walter.
+2. Configuración de la clínica (todo apagado por defecto) y ventana local 8:00-20:59 (`esVentanaDeCorreos`).
+3. Nunca la clínica demo. Sin `EMAIL_UNSUBSCRIBE_SECRET` (sin baja firmable) no sale nada.
+4. Baja del paciente (`email_opt_out_at`), ficha archivada o fusionada: no se le escribe. Sin correo, tampoco.
+5. Destinatario: el paciente o, si es menor con tutor vigente, el tutor (`resolverDestinatario`, CLI-11).
+6. Idempotencia: se reclama la fila en `patient_email_dispatches` (UNIQUE `appointment_id, kind, slot`) **antes** de crear links o enviar. Choca = no se envía. Un `error` se reintenta hasta 3 veces con un UPDATE condicional.
+7. Modo de prueba de la clínica (`email_sandbox_config`): si bloquea, la fila queda `skipped` con el motivo y no se envía; si desvía, llega a la casilla de pruebas con el asunto prefijado (`redirected_to`).
+8. Tope de 200 clínicas y 300 correos por corrida.
+
+Cada correo lleva el enlace de baja del paciente (`correos_paciente`, el mismo de la Ola 4). Lo enviado queda también en `messages` (sin el cuerpo, que lleva links personales): la cola de `/recordatorios` ve que el recordatorio por correo ya salió y lo cuenta "Resultados del piloto".
+
+## Programación
+
+Vercel Cron llama a `GET /api/patient-emails` en el minuto 27 (`vercel.json`) y `.github/workflows/patient-emails.yml` repite en el minuto 57, los dos con `CRON_SECRET`. Log: `[patient-emails] revisadas=… enviados=… omitidos=… duplicados=… errores=…`. Límite conocido: el disparo es horario, así que un recordatorio de 2 h para una cita de las 8:00-8:30 no llega a salir (cae fuera de la ventana de la mañana).
+
+## Archivos
+
+| Archivo                                                                 | Qué es                                                                  |
+| ----------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `src/lib/notificaciones-pacientes/reglas.ts`                            | Reglas puras: qué correo le toca a qué cita, configuración, resumen NPS |
+| `src/lib/notificaciones-pacientes/plantillas.ts`                        | Las tres plantillas (confirmación, recordatorio, encuesta)              |
+| `src/lib/notificaciones-pacientes/cron.server.ts`                       | La corrida y sus frenos                                                 |
+| `src/lib/notificaciones-pacientes/*.functions.ts`                       | Configuración, formulario y encuesta (staff y páginas públicas)         |
+| `src/routes/api.patient-emails.ts`                                      | Endpoint del cron                                                       |
+| `src/routes/formulario.$token.tsx`, `src/routes/encuesta.$token.tsx`    | Páginas públicas (`noindex`)                                            |
+| `supabase/migrations/20261028200000_*.sql`, `20261028200100_*.sql`      | Tablas, RLS y funciones de las páginas públicas (solo `service_role`)   |
+| `tests/correos-pacientes.test.ts`, `tests/correos-pacientes-db.test.ts` | Tests puros y contra la base                                            |

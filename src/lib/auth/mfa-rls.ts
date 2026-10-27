@@ -56,10 +56,13 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   ortho_controls: "controles de ortodoncia",
   patient_consents: "consentimientos informados",
   patient_documents: "documentos clínicos (radiografías, informes)",
+  patient_email_dispatches: "correos automáticos a cada paciente: a quién y por qué cita",
   patient_guardians: "tutor o representante legal del paciente menor",
   patient_guardians_audit: "cambios del tutor del paciente",
+  patient_intake_forms: "formulario antes de la cita: contacto y anamnesis que envió el paciente",
   patient_medical_history: "anamnesis",
   patient_medical_history_audit: "cambios de la anamnesis",
+  patient_nps_responses: "encuesta de satisfacción: nota y comentario de cada paciente",
   patient_signature_events: "bitácora de la firma a distancia: IP y dispositivo del paciente",
   patient_signature_requests:
     "firma a distancia: documento firmado por el paciente, su RUT enmascarado y la evidencia",
@@ -129,6 +132,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   operatories: "estructura de la clínica",
   patient_document_bidx:
     "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
+  patient_notification_settings: "configuración de los correos automáticos, sin datos de pacientes",
   payment_methods: "catálogo de medios de pago",
   procedure_package_items: "catálogo: prestaciones de cada paquete",
   procedure_packages: "catálogo de paquetes de prestaciones y su precio",

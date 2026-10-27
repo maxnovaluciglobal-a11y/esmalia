@@ -339,6 +339,23 @@ export const AJUSTES: readonly GrupoAjustes[] = [
     titulo: "Mensajería",
     items: [
       {
+        to: "/notificaciones-a-pacientes",
+        label: "Notificaciones a pacientes",
+        detalle: "Confirmación, recordatorio, formulario y encuesta por correo",
+        permisos: ["settings:manage"],
+        sinonimos: [
+          "recordatorio automático",
+          "confirmación",
+          "encuesta",
+          "nps",
+          "reseña",
+          "google",
+          "formulario",
+          "anamnesis",
+          "correo",
+        ],
+      },
+      {
         to: "/whatsapp",
         label: "WhatsApp",
         detalle: "Número, plantillas y modo de envío",

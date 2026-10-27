@@ -44,6 +44,7 @@ import { Route as ApiDemoResetRouteImport } from './routes/api.demo-reset'
 import { Route as ApiEvRouteImport } from './routes/api.ev'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLifecycleEmailsRouteImport } from './routes/api.lifecycle-emails'
+import { Route as ApiPatientEmailsRouteImport } from './routes/api.patient-emails'
 import { Route as ApiWhatsappWebhookRouteImport } from './routes/api.whatsapp-webhook'
 import { Route as AuthNuevaClaveRouteImport } from './routes/auth_.nueva-clave'
 import { Route as AuthVerificarRouteImport } from './routes/auth_.verificar'
@@ -58,7 +59,9 @@ import { Route as DocsPortalPacientesRouteImport } from './routes/docs.portal-pa
 import { Route as DocsPrimerosPasosRouteImport } from './routes/docs.primeros-pasos'
 import { Route as DocsSuscripcionYPruebaRouteImport } from './routes/docs.suscripcion-y-prueba'
 import { Route as DocsWhatsappRouteImport } from './routes/docs.whatsapp'
+import { Route as EncuestaTokenRouteImport } from './routes/encuesta.$token'
 import { Route as FirmarTokenRouteImport } from './routes/firmar.$token'
+import { Route as FormularioTokenRouteImport } from './routes/formulario.$token'
 import { Route as FuncionesIndexRouteImport } from './routes/funciones.index'
 import { Route as FuncionesSlugRouteImport } from './routes/funciones.$slug'
 import { Route as GuiasSlugRouteImport } from './routes/guias.$slug'
@@ -100,6 +103,7 @@ import { Route as AuthenticatedClinicMensajesRouteImport } from './routes/_authe
 import { Route as AuthenticatedClinicMiAgendaRouteImport } from './routes/_authenticated/_clinic/mi-agenda'
 import { Route as AuthenticatedClinicMigracionRouteImport } from './routes/_authenticated/_clinic/migracion'
 import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_authenticated/_clinic/morosidad'
+import { Route as AuthenticatedClinicNotificacionesAPacientesRouteImport } from './routes/_authenticated/_clinic/notificaciones-a-pacientes'
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
 import { Route as AuthenticatedClinicPlantillasDeDocumentosRouteImport } from './routes/_authenticated/_clinic/plantillas-de-documentos'
@@ -301,6 +305,11 @@ const ApiLifecycleEmailsRoute = ApiLifecycleEmailsRouteImport.update({
   path: '/api/lifecycle-emails',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPatientEmailsRoute = ApiPatientEmailsRouteImport.update({
+  id: '/api/patient-emails',
+  path: '/api/patient-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWhatsappWebhookRoute = ApiWhatsappWebhookRouteImport.update({
   id: '/api/whatsapp-webhook',
   path: '/api/whatsapp-webhook',
@@ -372,9 +381,19 @@ const DocsWhatsappRoute = DocsWhatsappRouteImport.update({
   path: '/whatsapp',
   getParentRoute: () => DocsRoute,
 } as any)
+const EncuestaTokenRoute = EncuestaTokenRouteImport.update({
+  id: '/encuesta/$token',
+  path: '/encuesta/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FirmarTokenRoute = FirmarTokenRouteImport.update({
   id: '/firmar/$token',
   path: '/firmar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FormularioTokenRoute = FormularioTokenRouteImport.update({
+  id: '/formulario/$token',
+  path: '/formulario/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FuncionesIndexRoute = FuncionesIndexRouteImport.update({
@@ -612,6 +631,12 @@ const AuthenticatedClinicMorosidadRoute =
     path: '/morosidad',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicNotificacionesAPacientesRoute =
+  AuthenticatedClinicNotificacionesAPacientesRouteImport.update({
+    id: '/notificaciones-a-pacientes',
+    path: '/notificaciones-a-pacientes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicOrtodonciaRoute =
   AuthenticatedClinicOrtodonciaRouteImport.update({
     id: '/ortodoncia',
@@ -793,6 +818,7 @@ export interface FileRoutesByFullPath {
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
+  '/api/patient-emails': typeof ApiPatientEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth/nueva-clave': typeof AuthNuevaClaveRoute
   '/auth/verificar': typeof AuthVerificarRoute
@@ -805,7 +831,9 @@ export interface FileRoutesByFullPath {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/encuesta/$token': typeof EncuestaTokenRoute
   '/firmar/$token': typeof FirmarTokenRoute
+  '/formulario/$token': typeof FormularioTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -849,6 +877,7 @@ export interface FileRoutesByFullPath {
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
@@ -907,6 +936,7 @@ export interface FileRoutesByTo {
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
+  '/api/patient-emails': typeof ApiPatientEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth/nueva-clave': typeof AuthNuevaClaveRoute
   '/auth/verificar': typeof AuthVerificarRoute
@@ -919,7 +949,9 @@ export interface FileRoutesByTo {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/encuesta/$token': typeof EncuestaTokenRoute
   '/firmar/$token': typeof FirmarTokenRoute
+  '/formulario/$token': typeof FormularioTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -963,6 +995,7 @@ export interface FileRoutesByTo {
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
@@ -1026,6 +1059,7 @@ export interface FileRoutesById {
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
+  '/api/patient-emails': typeof ApiPatientEmailsRoute
   '/api/whatsapp-webhook': typeof ApiWhatsappWebhookRoute
   '/auth_/nueva-clave': typeof AuthNuevaClaveRoute
   '/auth_/verificar': typeof AuthVerificarRoute
@@ -1038,7 +1072,9 @@ export interface FileRoutesById {
   '/docs/primeros-pasos': typeof DocsPrimerosPasosRoute
   '/docs/suscripcion-y-prueba': typeof DocsSuscripcionYPruebaRoute
   '/docs/whatsapp': typeof DocsWhatsappRoute
+  '/encuesta/$token': typeof EncuestaTokenRoute
   '/firmar/$token': typeof FirmarTokenRoute
+  '/formulario/$token': typeof FormularioTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
   '/para/$slug': typeof ParaSlugRoute
@@ -1082,6 +1118,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
   '/_authenticated/_clinic/migracion': typeof AuthenticatedClinicMigracionRoute
   '/_authenticated/_clinic/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/_authenticated/_clinic/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
   '/_authenticated/_clinic/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
@@ -1144,6 +1181,7 @@ export interface FileRouteTypes {
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
+    | '/api/patient-emails'
     | '/api/whatsapp-webhook'
     | '/auth/nueva-clave'
     | '/auth/verificar'
@@ -1156,7 +1194,9 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/encuesta/$token'
     | '/firmar/$token'
+    | '/formulario/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1200,6 +1240,7 @@ export interface FileRouteTypes {
     | '/mi-agenda'
     | '/migracion'
     | '/morosidad'
+    | '/notificaciones-a-pacientes'
     | '/ortodoncia'
     | '/permisos'
     | '/plantillas-de-documentos'
@@ -1258,6 +1299,7 @@ export interface FileRouteTypes {
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
+    | '/api/patient-emails'
     | '/api/whatsapp-webhook'
     | '/auth/nueva-clave'
     | '/auth/verificar'
@@ -1270,7 +1312,9 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/encuesta/$token'
     | '/firmar/$token'
+    | '/formulario/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1314,6 +1358,7 @@ export interface FileRouteTypes {
     | '/mi-agenda'
     | '/migracion'
     | '/morosidad'
+    | '/notificaciones-a-pacientes'
     | '/ortodoncia'
     | '/permisos'
     | '/plantillas-de-documentos'
@@ -1376,6 +1421,7 @@ export interface FileRouteTypes {
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
+    | '/api/patient-emails'
     | '/api/whatsapp-webhook'
     | '/auth_/nueva-clave'
     | '/auth_/verificar'
@@ -1388,7 +1434,9 @@ export interface FileRouteTypes {
     | '/docs/primeros-pasos'
     | '/docs/suscripcion-y-prueba'
     | '/docs/whatsapp'
+    | '/encuesta/$token'
     | '/firmar/$token'
+    | '/formulario/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
     | '/para/$slug'
@@ -1432,6 +1480,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/mi-agenda'
     | '/_authenticated/_clinic/migracion'
     | '/_authenticated/_clinic/morosidad'
+    | '/_authenticated/_clinic/notificaciones-a-pacientes'
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
     | '/_authenticated/_clinic/plantillas-de-documentos'
@@ -1492,12 +1541,15 @@ export interface RootRouteChildren {
   ApiEvRoute: typeof ApiEvRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLifecycleEmailsRoute: typeof ApiLifecycleEmailsRoute
+  ApiPatientEmailsRoute: typeof ApiPatientEmailsRoute
   ApiWhatsappWebhookRoute: typeof ApiWhatsappWebhookRoute
   AuthNuevaClaveRoute: typeof AuthNuevaClaveRoute
   AuthVerificarRoute: typeof AuthVerificarRoute
   CompararSlugRoute: typeof CompararSlugRoute
   CorreosBajaRoute: typeof CorreosBajaRoute
+  EncuestaTokenRoute: typeof EncuestaTokenRoute
   FirmarTokenRoute: typeof FirmarTokenRoute
+  FormularioTokenRoute: typeof FormularioTokenRoute
   FuncionesSlugRoute: typeof FuncionesSlugRoute
   GuiasSlugRoute: typeof GuiasSlugRoute
   ParaSlugRoute: typeof ParaSlugRoute
@@ -1758,6 +1810,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLifecycleEmailsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/patient-emails': {
+      id: '/api/patient-emails'
+      path: '/api/patient-emails'
+      fullPath: '/api/patient-emails'
+      preLoaderRoute: typeof ApiPatientEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/whatsapp-webhook': {
       id: '/api/whatsapp-webhook'
       path: '/api/whatsapp-webhook'
@@ -1856,11 +1915,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DocsWhatsappRouteImport
       parentRoute: typeof DocsRoute
     }
+    '/encuesta/$token': {
+      id: '/encuesta/$token'
+      path: '/encuesta/$token'
+      fullPath: '/encuesta/$token'
+      preLoaderRoute: typeof EncuestaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/firmar/$token': {
       id: '/firmar/$token'
       path: '/firmar/$token'
       fullPath: '/firmar/$token'
       preLoaderRoute: typeof FirmarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/formulario/$token': {
+      id: '/formulario/$token'
+      path: '/formulario/$token'
+      fullPath: '/formulario/$token'
+      preLoaderRoute: typeof FormularioTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/funciones/': {
@@ -2150,6 +2223,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicMorosidadRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/notificaciones-a-pacientes': {
+      id: '/_authenticated/_clinic/notificaciones-a-pacientes'
+      path: '/notificaciones-a-pacientes'
+      fullPath: '/notificaciones-a-pacientes'
+      preLoaderRoute: typeof AuthenticatedClinicNotificacionesAPacientesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/ortodoncia': {
       id: '/_authenticated/_clinic/ortodoncia'
       path: '/ortodoncia'
@@ -2358,6 +2438,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicMiAgendaRoute: typeof AuthenticatedClinicMiAgendaRoute
   AuthenticatedClinicMigracionRoute: typeof AuthenticatedClinicMigracionRoute
   AuthenticatedClinicMorosidadRoute: typeof AuthenticatedClinicMorosidadRoute
+  AuthenticatedClinicNotificacionesAPacientesRoute: typeof AuthenticatedClinicNotificacionesAPacientesRoute
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
   AuthenticatedClinicPlantillasDeDocumentosRoute: typeof AuthenticatedClinicPlantillasDeDocumentosRoute
@@ -2420,6 +2501,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicMiAgendaRoute: AuthenticatedClinicMiAgendaRoute,
     AuthenticatedClinicMigracionRoute: AuthenticatedClinicMigracionRoute,
     AuthenticatedClinicMorosidadRoute: AuthenticatedClinicMorosidadRoute,
+    AuthenticatedClinicNotificacionesAPacientesRoute:
+      AuthenticatedClinicNotificacionesAPacientesRoute,
     AuthenticatedClinicOrtodonciaRoute: AuthenticatedClinicOrtodonciaRoute,
     AuthenticatedClinicPermisosRoute: AuthenticatedClinicPermisosRoute,
     AuthenticatedClinicPlantillasDeDocumentosRoute:
@@ -2561,12 +2644,15 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEvRoute: ApiEvRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLifecycleEmailsRoute: ApiLifecycleEmailsRoute,
+  ApiPatientEmailsRoute: ApiPatientEmailsRoute,
   ApiWhatsappWebhookRoute: ApiWhatsappWebhookRoute,
   AuthNuevaClaveRoute: AuthNuevaClaveRoute,
   AuthVerificarRoute: AuthVerificarRoute,
   CompararSlugRoute: CompararSlugRoute,
   CorreosBajaRoute: CorreosBajaRoute,
+  EncuestaTokenRoute: EncuestaTokenRoute,
   FirmarTokenRoute: FirmarTokenRoute,
+  FormularioTokenRoute: FormularioTokenRoute,
   FuncionesSlugRoute: FuncionesSlugRoute,
   GuiasSlugRoute: GuiasSlugRoute,
   ParaSlugRoute: ParaSlugRoute,
