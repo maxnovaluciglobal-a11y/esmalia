@@ -106,7 +106,12 @@ export function FlujoReserva({
 }
 
 function Flujo({ r }: { r: Activa }) {
-  const fijo = r.profesionalFijo ? r.profesionales.find((p) => p.id === r.profesionalFijo) : null;
+  // Link de un profesional, o una clínica con un solo profesional: sin paso de elegir.
+  const fijo = r.profesionalFijo
+    ? r.profesionales.find((p) => p.id === r.profesionalFijo)
+    : r.profesionales.length === 1
+      ? r.profesionales[0]
+      : null;
   const pasos: Exclude<Paso, "listo">[] = fijo
     ? ["motivo", "hora", "datos", "codigo"]
     : ["motivo", "profesional", "hora", "datos", "codigo"];

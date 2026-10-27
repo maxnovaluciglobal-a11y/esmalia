@@ -92,7 +92,7 @@ function boxLibre(e: EntradaHoras, profId: string, fecha: string, ocupa: Tramo):
       (o) =>
         o.boxId === b.id &&
         o.fecha === fecha &&
-        o.citaId !== e.ignorarCitaId &&
+        (!e.ignorarCitaId || o.citaId !== e.ignorarCitaId) &&
         seCruzan({ inicio: o.inicio, fin: o.inicio + o.duracion }, ocupa),
     );
     if (ocupado) continue;

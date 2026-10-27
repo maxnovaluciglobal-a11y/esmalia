@@ -47,6 +47,8 @@ export const Route = createFileRoute("/_authenticated/_clinic/reserva-en-linea")
 });
 
 const ANTICIPACION = [0, 2, 12, 24, 48] as const;
+const CLASE_BOTON_TINTA =
+  "inline-flex h-8 items-center gap-1.5 rounded-full border border-night-line px-3 text-sm font-medium text-on-night transition-colors hover:bg-night-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-on-night";
 const HORIZONTE = [7, 14, 30, 60, 90] as const;
 
 function ReservaEnLineaPage() {
@@ -168,31 +170,26 @@ function Formulario({ clinicId, config }: { clinicId: string; config: Configurac
       >
         <p className="text-[13px] font-semibold text-on-night-2">Tu link de reserva</p>
         <p className="cifra break-all text-lg text-brand-on-night md:text-xl">{url}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            disabled={!config.existe}
-            onClick={() => copiar(url, "Link copiado.")}
-          >
-            <Copy className="size-4" aria-hidden /> Copiar
-          </Button>
-          <Button type="button" variant="secondary" size="sm" asChild disabled={!config.existe}>
-            <a href={url} target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="size-4" aria-hidden /> Abrir
-            </a>
-          </Button>
-          <BloqueoEscritura
-            otroMotivo={
-              !config.enabled && sinMotivos
-                ? "Elige al menos un procedimiento o tipo de cita para encender."
-                : null
-            }
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          {config.existe ? (
+            <>
+              <button
+                type="button"
+                onClick={() => copiar(url, "Link copiado.")}
+                className={CLASE_BOTON_TINTA}
+              >
+                <Copy className="size-4" aria-hidden /> Copiar
+              </button>
+              <a href={url} target="_blank" rel="noopener noreferrer" className={CLASE_BOTON_TINTA}>
+                <ExternalLink className="size-4" aria-hidden /> Abrir
+              </a>
+            </>
+          ) : null}
+          <BloqueoEscritura>
             <Button
               type="button"
               size="sm"
+              className="rounded-full"
               disabled={guardar.isPending || Boolean(problema) || (!config.enabled && sinMotivos)}
               onClick={() => {
                 setEnabled(!config.enabled);
@@ -203,6 +200,11 @@ function Formulario({ clinicId, config }: { clinicId: string; config: Configurac
             </Button>
           </BloqueoEscritura>
         </div>
+        {!config.enabled && sinMotivos ? (
+          <p className="text-sm text-brand-on-night">
+            Para encenderla, elige abajo al menos un tipo de cita o procedimiento y guarda.
+          </p>
+        ) : null}
         <p className="text-sm text-on-night-2">
           Las citas que lleguen por aquí entran <b className="text-on-night">por confirmar</b> y
           marcadas como reserva en línea: el profesional las acepta en la agenda.

@@ -115,18 +115,20 @@ function Detalle({ token, cita }: { token: string; cita: MiCita }) {
         ]}
       />
 
-      <div className="flex flex-wrap gap-2">
-        {cita.pacienteConfirmo && !cancelada ? (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-success-border bg-success-soft px-3 text-sm font-semibold text-success">
-            <CheckCircle2 className="size-4" aria-hidden /> Avisaste que vas
-          </span>
-        ) : null}
-        {cancelada ? (
-          <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive-soft px-3 text-sm font-semibold text-destructive">
-            <XCircle className="size-4" aria-hidden /> Cancelada
-          </span>
-        ) : null}
-      </div>
+      {(cita.pacienteConfirmo && !cancelada) || cancelada ? (
+        <div className="flex flex-wrap gap-2">
+          {cita.pacienteConfirmo && !cancelada ? (
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-success-border bg-success-soft px-3 text-sm font-semibold text-success">
+              <CheckCircle2 className="size-4" aria-hidden /> Avisaste que vas
+            </span>
+          ) : null}
+          {cancelada ? (
+            <span className="inline-flex h-7 items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive-soft px-3 text-sm font-semibold text-destructive">
+              <XCircle className="size-4" aria-hidden /> Cancelada
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       {cita.sucursal ? (
         <p className="flex items-start gap-2 text-base">
