@@ -157,6 +157,9 @@ function pintura(marcas: readonly OdontogramMark[]): { color: string; opacidad: 
   return { color: hexDeMarca(m), opacidad: m.status === "planificado" ? OPACIDAD_PLANIFICADO : 1 };
 }
 
+/** Teclas modificadoras del clic (lo que el odontograma necesita del evento). */
+export type ModificadoresDeClic = { ctrlKey: boolean; metaKey: boolean; shiftKey: boolean };
+
 /** Condiciones de pieza que cubren la corona entera en el dibujo. */
 const CUBREN_CORONA: readonly ToothCondition[] = ["corona", "puente", "protesis"];
 
@@ -173,7 +176,8 @@ export function DienteAnatomico({
   /** Arcada inferior: se espeja en vertical (raíz abajo, corona arriba). */
   inferior?: boolean;
   seleccionado?: boolean;
-  onClick: (surface: ToothSurface) => void;
+  /** El evento viaja para leer Ctrl/Cmd/Shift (marcar varias piezas, ODO-05). */
+  onClick: (surface: ToothSurface, e?: ModificadoresDeClic) => void;
 }) {
   const clipId = useId();
   const coronaGradId = useId();
@@ -247,7 +251,7 @@ export function DienteAnatomico({
         </defs>
 
         {/* Raíz: un clic en la raíz marca la pieza completa. */}
-        <g onClick={() => onClick("whole")}>
+        <g onClick={(e) => onClick("whole", e)}>
           {implante ? (
             <g opacity={implanteOpacidad}>
               <rect
@@ -320,7 +324,7 @@ export function DienteAnatomico({
                   fill={p?.color ?? "transparent"}
                   fillOpacity={p ? 0.88 * p.opacidad : 1}
                   className={cn(!p && "hover:fill-brand/15")}
-                  onClick={() => onClick(z.surface)}
+                  onClick={(e) => onClick(z.surface, e)}
                 />
               );
             })}
@@ -348,7 +352,7 @@ export function DienteAnatomico({
             stroke={ausente ? COLORES_SIMBOLOGIA.azul : COLORES_SIMBOLOGIA.rojo}
             strokeWidth={2.4}
             strokeLinecap="round"
-            onClick={() => onClick("whole")}
+            onClick={(e) => onClick("whole", e)}
           />
         )}
       </g>

@@ -7882,7 +7882,8 @@ export type Database = {
         | "fluorosis"
         | "hipoplasia"
         | "mancha_blanca"
-        | "fosas_fisuras_profundas";
+        | "fosas_fisuras_profundas"
+        | "observacion";
       tooth_surface: "mesial" | "distal" | "oclusal" | "vestibular" | "lingual" | "whole";
       treatment_item_status: "pending" | "in_progress" | "completed" | "skipped";
       treatment_plan_status: "active" | "on_hold" | "completed" | "cancelled";
@@ -8089,6 +8090,7 @@ export const Constants = {
         "hipoplasia",
         "mancha_blanca",
         "fosas_fisuras_profundas",
+        "observacion",
       ],
       tooth_surface: ["mesial", "distal", "oclusal", "vestibular", "lingual", "whole"],
       treatment_item_status: ["pending", "in_progress", "completed", "skipped"],
