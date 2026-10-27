@@ -7,6 +7,7 @@ import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.function
 import { ipYNavegador } from "@/lib/firma-distancia/firma.server";
 import { generarCodigo, normalizarCodigo, sha256Hex } from "@/lib/firma-distancia/token";
 import { sendEmail } from "@/lib/messaging/email.server";
+import { DEFAULT_EMAIL_SANDBOX } from "@/lib/messaging/email-sandbox";
 import { toE164 } from "@/lib/messaging/telefonos";
 import {
   horasDisponibles,
@@ -332,10 +333,13 @@ export const pedirCodigoDeReserva = createServerFn({ method: "POST" })
       nombre: data.nombre,
       codigo,
     });
-    const { loadEmailSandboxConfig } = await import("@/lib/messaging/messaging.functions");
+    // El código lo pide la misma persona para la dirección que acaba de
+    // escribir y no lleva datos clínicos: no es la clínica escribiéndole a sus
+    // pacientes (lo que el modo de prueba frena). Sale siempre; si respetara
+    // el modo de prueba, ninguna clínica nueva podría recibir reservas.
     const envio = await sendEmail(
       { to: v.email, subject: correo.subject, html: correo.html, text: correo.text },
-      await loadEmailSandboxConfig(db, v.contexto.clinicId),
+      { ...DEFAULT_EMAIL_SANDBOX, mode: "production" },
     );
     if (!envio.ok && process.env.NODE_ENV !== "production" && !process.env.RESEND_API_KEY) {
       // Solo en desarrollo local sin correo configurado: el código sale en la
