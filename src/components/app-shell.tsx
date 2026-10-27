@@ -132,7 +132,7 @@ function BarraInferior({
                           )}
                         >
                           <span className="text-base">{d.label}</span>
-                          {d.pestanas.length > 1 && (
+                          {(d.pestanas.length > 1 || d.pestanas[0].label !== d.label) && (
                             <span className="truncate text-xs text-muted-foreground">
                               {d.pestanas.map((p) => p.label).join(" · ")}
                             </span>

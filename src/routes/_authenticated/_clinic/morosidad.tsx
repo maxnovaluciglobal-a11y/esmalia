@@ -147,7 +147,7 @@ function MorosidadPage() {
         <div className="mx-auto max-w-[84rem] space-y-[18px]">
           <div className="pb-2">
             <EncabezadoEditorial
-              seccion="Reportes"
+              seccion="Finanzas"
               pagina="Morosidad"
               titulo={
                 <>

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertNotDemoClinic, requireClinicPermission } from "@/lib/access/clinic-guards.server";
 import { mensajeDb } from "@/lib/db-errors";
+import { requireEscritura } from "@/lib/solo-lectura.middleware";
 import type { DatosPuestaEnMarcha } from "@/lib/panel/puesta-en-marcha";
 
 /**
@@ -123,7 +124,7 @@ export const getPuestaEnMarcha = createServerFn({ method: "GET" })
 
 /** Descartar el indicador (o volver a mostrarlo desde Ajustes). */
 export const setPuestaEnMarchaDescartada = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireEscritura])
   .validator((input: unknown) =>
     z.object({ clinicId: z.string().uuid(), descartada: z.boolean() }).parse(input),
   )
