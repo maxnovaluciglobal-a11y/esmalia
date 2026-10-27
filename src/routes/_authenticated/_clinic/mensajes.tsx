@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { destinosVisibles } from "@/lib/access/navegacion";
+import { destinoDeHub } from "@/lib/access/navegacion";
 
 /**
  * Hub de "Mensajes" (rediseño, fase 3): no tiene pantalla propia, abre la primera
@@ -9,7 +9,6 @@ import { destinosVisibles } from "@/lib/access/navegacion";
  */
 export const Route = createFileRoute("/_authenticated/_clinic/mensajes")({
   beforeLoad: ({ context }) => {
-    const destino = destinosVisibles(context.access).find((d) => d.id === "mensajes");
-    throw redirect({ to: destino?.pestanas[0]?.to ?? "/sin-acceso" });
+    throw redirect({ to: destinoDeHub(context.access, "mensajes") });
   },
 });

@@ -1418,6 +1418,8 @@ export type Database = {
           onboarding_call_at: string | null;
           onboarding_completed: boolean;
           quote_validity_days: number;
+          setup_guide_dismissed_at: string | null;
+          setup_guide_dismissed_by: string | null;
           tax_address: string | null;
           tax_commune: string | null;
           tax_id: string | null;
@@ -1439,6 +1441,8 @@ export type Database = {
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
           quote_validity_days?: number;
+          setup_guide_dismissed_at?: string | null;
+          setup_guide_dismissed_by?: string | null;
           tax_address?: string | null;
           tax_commune?: string | null;
           tax_id?: string | null;
@@ -1460,6 +1464,8 @@ export type Database = {
           onboarding_call_at?: string | null;
           onboarding_completed?: boolean;
           quote_validity_days?: number;
+          setup_guide_dismissed_at?: string | null;
+          setup_guide_dismissed_by?: string | null;
           tax_address?: string | null;
           tax_commune?: string | null;
           tax_id?: string | null;

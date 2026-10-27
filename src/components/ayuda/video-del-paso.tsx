@@ -9,17 +9,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  AYUDA_PUESTA_EN_MARCHA,
-  type IdPasoPuestaEnMarcha,
-} from "@/content/ayuda/puesta-en-marcha";
+import { AYUDA_PUESTA_EN_MARCHA } from "@/content/ayuda/puesta-en-marcha";
+import type { IdPaso } from "@/lib/panel/puesta-en-marcha";
 
 /**
- * ONB-01: el espacio de video de un paso del checklist "Activa tu clínica".
+ * ONB-01: el espacio de video de un paso de la puesta en marcha (NAV-02).
  * Un botón chico al lado del paso abre el texto y el video (o "Video
  * pendiente" mientras Walter no lo grabe).
  */
-export function VideoDelPaso({ id }: { id: IdPasoPuestaEnMarcha }) {
+export function VideoDelPaso({ id }: { id: IdPaso }) {
   const ayuda = AYUDA_PUESTA_EN_MARCHA[id];
   return (
     <Dialog>

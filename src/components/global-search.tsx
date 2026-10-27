@@ -135,14 +135,16 @@ export function GlobalSearch({
       d.pestanas.map((p) => ({
         to: p.to,
         label: p.label === d.label ? d.label : `${d.label} · ${p.label}`,
-        sinonimos: [p.label, ...(p.sinonimos ?? [])],
+        // NAV-01: el ⌘K refleja el menú: se encuentra también por destino.
+        sinonimos: [p.label, d.label, ...(p.sinonimos ?? [])],
       })),
     );
     const desdeAjustes = ajustesVisibles(access).flatMap((g) =>
       g.items.map((i) => ({
         to: i.to,
         label: `Ajustes · ${i.label}`,
-        sinonimos: [i.label, ...(i.sinonimos ?? [])],
+        // …y por el tema de Ajustes ("agenda y reservas", "equipo y seguridad").
+        sinonimos: [i.label, g.titulo, ...(i.sinonimos ?? [])],
       })),
     );
     const vistas = new Set<string>();

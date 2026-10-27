@@ -121,7 +121,10 @@ describe("Ola 12 · ayuda (SQL)", () => {
 
       const borrarAjeno = await como(usuarios.owner, `DELETE FROM public.help_progress`);
       expect(borrarAjeno.cuenta).toBe(0);
-      const sigue = await servicio(`SELECT count(*)::int AS n FROM public.help_progress`);
+      const sigue = await servicio(
+        `SELECT count(*)::int AS n FROM public.help_progress WHERE user_id = $1`,
+        [usuarios.reception],
+      );
       expect(sigue[0].n).toBe(1);
     });
 

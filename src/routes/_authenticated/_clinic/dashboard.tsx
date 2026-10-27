@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CalendarPlus, Check, Lock, Sparkles, UserPlus } from "lucide-react";
+import { CalendarPlus, Lock, Sparkles, UserPlus } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { AvisoCitasPasadas } from "@/components/citas-pasadas";
@@ -22,12 +22,8 @@ import { PattyCara } from "@/components/patty-cara";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
-import { listClinicMembers } from "@/lib/access/access.functions";
 import { getMySubscription } from "@/lib/billing.functions";
-import { accesoPorSuscripcion, requiereLlamadaOSuscripcion } from "@/lib/billing";
-import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
-import { VideoDelPaso } from "@/components/ayuda/video-del-paso";
-import type { IdPasoPuestaEnMarcha } from "@/content/ayuda/puesta-en-marcha";
+import { accesoPorSuscripcion } from "@/lib/billing";
 import { formatoFecha, hoyISO, type Cita } from "@/lib/clinic-operations/clinic-data";
 import { listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
 import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
@@ -49,10 +45,10 @@ import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/fi
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
 import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupados";
-import { listPatients } from "@/lib/patients/patients.functions";
 import { cn } from "@/lib/utils";
 import { hora as horaActual } from "@/lib/formato-fecha";
 import { PacientesGes } from "@/components/pacientes-ges";
+import { AvancePuestaEnMarcha } from "@/components/puesta-en-marcha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
   beforeLoad: requirePermission("dashboard:view"),
@@ -102,76 +98,6 @@ function iniciales(nombre: string) {
     .slice(0, 2)
     .map((p) => p[0].toLocaleUpperCase("es"))
     .join("");
-}
-
-type PasoActivacion = {
-  /** ONB-01: id del paso para su video de ayuda. */
-  id: IdPasoPuestaEnMarcha;
-  hecho: boolean;
-  label: string;
-  to?: "/pacientes" | "/agenda" | "/equipo";
-  /** Enlace externo (la llamada de puesta en marcha): se abre en otra pestaña. */
-  href?: string;
-  cta?: string;
-};
-
-/**
- * Checklist "Activa tu clínica" (benchmark de onboarding, 25-sep-2026; forma
- * del rediseño, panel 1c). Se deriva de datos reales y desaparece sola cuando
- * todo está hecho: no hay botón de cerrar porque no hace falta.
- */
-function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
-  if (pasos.every((p) => p.hecho)) return null;
-  const hechos = pasos.filter((p) => p.hecho).length;
-
-  return (
-    <section aria-labelledby="activacion" className={cn(PANEL, "p-5")}>
-      <h2 id="activacion" className="font-display text-[22px] font-medium leading-tight">
-        Activa tu clínica{" "}
-        <em className="text-brand-600">
-          <span className="cifra not-italic text-[0.7em]">{hechos}</span> de{" "}
-          <span className="cifra not-italic text-[0.7em]">{pasos.length}</span>
-        </em>
-      </h2>
-      <ul className="mt-4 space-y-3">
-        {pasos.map((paso) => (
-          <li key={paso.label} className="flex items-center justify-between gap-3 text-sm">
-            <span className="flex items-center gap-2.5">
-              <span
-                aria-hidden
-                className={cn(
-                  "grid size-5 shrink-0 place-items-center rounded-full border",
-                  paso.hecho ? "border-success text-success" : "border-border",
-                )}
-              >
-                {paso.hecho && <Check className="size-3" />}
-              </span>
-              <span className={cn(paso.hecho && "text-muted-foreground line-through")}>
-                {paso.label}
-                <span className="sr-only">{paso.hecho ? " (hecho)" : " (pendiente)"}</span>
-              </span>
-              {!paso.hecho && <VideoDelPaso id={paso.id} />}
-            </span>
-            {!paso.hecho && paso.to && (
-              <Link to={paso.to} className="shrink-0 text-xs text-brand-700 hover:underline">
-                {paso.cta} →
-              </Link>
-            )}
-            {!paso.hecho && paso.href && (
-              <a
-                href={paso.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 text-xs text-brand-700 hover:underline"
-              >
-                {paso.cta} →
-              </a>
-            )}
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
 }
 
 /**
@@ -262,13 +188,11 @@ function Dashboard() {
   const veFinanzas = hasPermission(access, "finance:view");
   const gestionaAgenda = hasPermission(access, "agenda:manage");
 
-  const fetchPatients = useServerFn(listPatients);
   const fetchAppointments = useServerFn(listAppointments);
   const fetchProfessionals = useServerFn(listProfessionals);
   const fetchBalances = useServerFn(getAppointmentPatientBalances);
   const fetchFinance = useServerFn(getFinanceSummary);
   const fetchSubscription = useServerFn(getMySubscription);
-  const fetchMembers = useServerFn(listClinicMembers);
   const fetchReminders = useServerFn(listPendingReminders);
   const fetchOutreachCount = useServerFn(countPendingOutreach);
   const fetchSinResponder = useServerFn(countConversacionesSinResponder);
@@ -389,23 +313,6 @@ function Dashboard() {
     queryKey: ["estado-ia"],
     queryFn: () => fetchEstadoIa(),
     staleTime: 5 * 60_000,
-  });
-
-  // Checklist de activación: solo para el dueño, con datos reales. En la
-  // clínica demo no va: ya viene sembrada y es de solo lectura, así que
-  // "Activa tu clínica" invitaría a pasos que el visitante no puede hacer.
-  const esDueno = access.role === "owner";
-  const mostrarActivacion = esDueno && !access.clinic?.isDemo;
-  const { data: hayPacientes } = useQuery({
-    queryKey: ["patients", clinicId],
-    enabled: Boolean(clinicId) && mostrarActivacion,
-    queryFn: () => fetchPatients({ data: { clinicId: clinicId! } }),
-    select: (res) => res.items.length > 0,
-  });
-  const { data: miembros = [] } = useQuery({
-    queryKey: ["clinic-members", clinicId],
-    enabled: Boolean(clinicId) && mostrarActivacion,
-    queryFn: () => fetchMembers({ data: { clinicId: clinicId! } }),
   });
 
   // ── Derivados ────────────────────────────────────────────────────
@@ -568,48 +475,6 @@ function Dashboard() {
           horarios,
         })
       : null;
-
-  const pasosActivacion: PasoActivacion[] = [
-    { id: "crear-clinica", hecho: true, label: "Crear la clínica" },
-    {
-      id: "invitar-equipo",
-      hecho: miembros.length > 1,
-      label: "Invitar al equipo",
-      to: "/equipo",
-      cta: "Invitar",
-    },
-    {
-      id: "cargar-pacientes",
-      hecho: Boolean(hayPacientes),
-      label: "Importar o cargar pacientes",
-      to: "/pacientes",
-      cta: "Ir a pacientes",
-    },
-    {
-      // `citas` mira hoy..+2 días: heurística de checklist, no una métrica.
-      id: "primera-cita",
-      hecho: citas.length > 0,
-      label: "Agendar la primera cita",
-      to: "/agenda",
-      cta: "Ir a la agenda",
-    },
-    {
-      // CS-02: WhatsApp, portal y efectividad se activan con la llamada de
-      // puesta en marcha (o suscribiéndose). Estar en el checklist evita que
-      // la clínica lo descubra al chocar con el candado. Mientras carga la
-      // suscripción no se muestra, para que no parpadee.
-      id: "llamada-puesta-en-marcha",
-      hecho:
-        sub === undefined ||
-        !requiereLlamadaOSuscripcion(sub, access.clinic?.onboardingCallAt ?? null),
-      label: `Hacer la puesta en marcha (${MINUTOS_PUESTA_EN_MARCHA} min): activa WhatsApp y el portal`,
-      href: enlacePuestaEnMarcha({
-        clinicName: access.clinic?.name,
-        clinicEmail: access.email,
-      }).href,
-      cta: "Agendar",
-    },
-  ];
 
   // El nombre puede venir guardado en minúsculas ("walter la madriz").
   const nombre = (access.fullName ?? "").trim().split(/\s+/)[0] ?? "";
@@ -908,7 +773,8 @@ function Dashboard() {
             {clinicId && (access.clinic?.country ?? "").toUpperCase() === "CL" && (
               <PacientesGes clinicId={clinicId} />
             )}
-            {clinicId && mostrarActivacion && <ChecklistActivacion pasos={pasosActivacion} />}
+            {/* NAV-02: avance de la puesta en marcha (owner/admin, fuera de la demo). */}
+            <AvancePuestaEnMarcha access={access} />
           </div>
         </div>
 

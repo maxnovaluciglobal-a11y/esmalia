@@ -135,7 +135,7 @@ function GastosFijosPage() {
       ) : (
         <div className="mx-auto max-w-[84rem] space-y-[18px]">
           <EncabezadoEditorial
-            seccion="Caja"
+            seccion="Finanzas"
             pagina="Gastos fijos"
             titulo={
               <>
