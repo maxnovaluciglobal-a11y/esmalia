@@ -16,8 +16,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   alertasDeAnamnesis,
   conciliarAlergias,
+  conciliarCuestionario,
   leerCuestionario,
   leerDetallesDeAlergias,
+  riesgosDesdeAntecedentes,
 } from "@/lib/clinical/anamnesis";
 import {
   cambioDeEstadoSchema,
@@ -218,7 +220,7 @@ export const emitirDerivacion = createServerFn({ method: "POST" })
 
     const { data: historia } = await supabase
       .from("patient_medical_history")
-      .select("allergies, allergy_details, risk_questionnaire")
+      .select("allergies, allergy_details, risk_questionnaire, conditions, chronic_medications")
       .eq("clinic_id", data.clinicId)
       .eq("patient_id", fila.patient_id)
       .maybeSingle();
@@ -228,7 +230,15 @@ export const emitirDerivacion = createServerFn({ method: "POST" })
             historia.allergies ?? [],
             leerDetallesDeAlergias(historia.allergy_details),
           ),
-          cuestionario: leerCuestionario(historia.risk_questionnaire),
+          // Igual que la cabecera de la ficha (UX-14): lo que dicen los
+          // antecedentes y la medicación también cuenta.
+          cuestionario: conciliarCuestionario(
+            leerCuestionario(historia.risk_questionnaire),
+            riesgosDesdeAntecedentes({
+              antecedentes: historia.conditions ?? [],
+              medicacion: historia.chronic_medications ?? [],
+            }),
+          ).efectivo,
         }).map((a) => a.texto)
       : [];
 

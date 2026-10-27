@@ -662,7 +662,7 @@ export function NotasClinicas({
       )}
 
       <div className="grid gap-6 lg:grid-cols-5">
-        <div className="space-y-3 lg:col-span-3">
+        <div className="min-w-0 space-y-3 lg:col-span-3">
           {puedeEditar && !bloqueada && (
             <div className="rounded-lg border border-hairline p-3">
               <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -1176,7 +1176,7 @@ export function NotasClinicas({
           )}
         </div>
 
-        <aside className="lg:col-span-2">
+        <aside className="min-w-0 lg:col-span-2">
           <div className="mb-3 flex gap-1 rounded-lg bg-secondary/60 p-1 text-xs">
             <button
               onClick={() => setPanel("versiones")}

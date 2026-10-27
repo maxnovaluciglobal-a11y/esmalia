@@ -42,7 +42,7 @@ export function SelectorDeProtocolo({
             aria-label="Protocolo a aplicar"
             value={elegido}
             onChange={(e) => setElegido(e.target.value)}
-            className="h-9 min-w-0 max-w-full rounded-full border border-control bg-card px-3 text-sm pointer-coarse:h-11 pointer-coarse:text-base"
+            className="h-9 w-full min-w-0 rounded-full border border-control bg-card px-3 text-sm sm:w-auto sm:max-w-sm pointer-coarse:h-11 pointer-coarse:text-base"
           >
             <option value="">Elegir protocolo…</option>
             {protocolos.map((p) => (

@@ -6,6 +6,8 @@
  */
 import { z } from "zod";
 
+import { numero } from "@/lib/formato-fecha";
+
 export const ESTADOS_IMPLANTE = [
   "colocado",
   "oseointegrado",
@@ -132,7 +134,7 @@ export type Implante = {
 
 /** "4,1 × 10 mm", "Ø 4,1 mm", "10 mm de largo" o null. */
 export function formatearMedidas(diametro: number | null, largo: number | null): string | null {
-  const f = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+  const f = (n: number) => numero(n, { maximumFractionDigits: 2 });
   if (diametro != null && largo != null) return `${f(diametro)} × ${f(largo)} mm`;
   if (diametro != null) return `Ø ${f(diametro)} mm`;
   if (largo != null) return `${f(largo)} mm de largo`;
