@@ -163,7 +163,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
     tabla: "patients",
     archivo: "pacientes.csv",
     descripcion:
-      "Pacientes: datos de identificación y contacto, tipo de documento, previsión (health_plan, tramo e institución), contacto de emergencia, domicilio, origen del paciente, estado, convenio, consentimiento de WhatsApp, fusiones de fichas (merged_into) y fichas archivadas (archived_at).",
+      "Pacientes: datos de identificación y contacto, tipo de documento, previsión (health_plan, tramo e institución), contacto de emergencia, domicilio, origen del paciente, estado, convenio, consentimiento de WhatsApp, fusiones de fichas (merged_into) y fichas archivadas (archived_at, con su motivo en archive_reason).",
     columnas: [
       "id",
       "full_name",
@@ -198,6 +198,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
       "merged_at",
       "archived_at",
       "archived_by",
+      "archive_reason",
       "created_at",
       "updated_at",
       "avatar_url",
@@ -2214,6 +2215,43 @@ const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
+  },
+  {
+    clave: "etiquetas",
+    tabla: "patient_labels",
+    archivo: "etiquetas.csv",
+    descripcion:
+      "Catálogo de etiquetas de pacientes de la clínica: nombre y color (ocre, azul, verde, ambar, rojo, violeta o gris).",
+    columnas: ["id", "name", "color", "created_by", "created_at", "updated_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "pacientes_etiquetas",
+    tabla: "patient_label_assignments",
+    archivo: "pacientes-etiquetas.csv",
+    descripcion:
+      "Etiquetas de cada paciente: una fila por paciente y etiqueta. Se cruza con pacientes.csv por patient_id y con etiquetas.csv por label_id.",
+    columnas: ["patient_id", "label_id", "created_by", "created_at"],
+    orden: ["patient_id", "label_id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "segmentos",
+    tabla: "patient_segments",
+    archivo: "segmentos.csv",
+    descripcion:
+      "Segmentos de pacientes guardados: nombre, descripción y los filtros que lo definen (en JSON). No guardan la lista de pacientes: se calcula al usarlos.",
+    columnas: [
+      "id",
+      "name",
+      "description",
+      "filters",
+      "created_by",
+      "updated_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
   },
 ];
 

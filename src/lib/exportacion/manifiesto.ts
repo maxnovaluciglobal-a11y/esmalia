@@ -118,6 +118,7 @@ const REFERENCIAS: Record<string, string> = {
   request_id: "el archivo de solicitudes correspondiente (firmas a distancia o del titular)",
   replaces_request_id: "firmas-a-distancia.csv",
   incident_id: "incidentes-de-seguridad.csv",
+  label_id: "etiquetas.csv",
   user_id: "equipo.csv (user_id)",
 };
 
@@ -206,7 +207,9 @@ const DESCRIPCIONES: Record<string, string> = {
   document_type: "Tipo de documento de identidad.",
   birth_date: "Fecha de nacimiento.",
   timezone: "Zona horaria IANA (ej. America/Santiago).",
-  color: "Color en la app (hexadecimal).",
+  color: "Color en la app (hexadecimal, o el nombre del color en las etiquetas).",
+  filters: "Filtros que definen el segmento, en JSON (claves de la lista de pacientes).",
+  archive_reason: "Motivo por el que se archivó la ficha.",
   content: "Contenido completo en texto.",
   content_html: "Contenido tal como se mostró al firmar (HTML).",
   content_blocks: "Contenido estructurado por bloques (JSON).",
