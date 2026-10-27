@@ -4,13 +4,9 @@
 // OBJ quedan en un formato común que el visor carga en un BufferGeometry.
 // Así se prueban sin navegador y three entra solo en el chunk diferido.
 
-/** Error con un mensaje que se puede mostrar tal cual en la interfaz. */
-export class ErrorDeVisor extends Error {
-  constructor(mensaje: string) {
-    super(mensaje);
-    this.name = "ErrorDeVisor";
-  }
-}
+import { ErrorDeVisor, MAX_BYTES_MALLA, MAX_BYTES_MALLA_TEXTO, MAX_TRIANGULOS } from "./limites";
+
+export { ErrorDeVisor, MAX_BYTES_MALLA, MAX_BYTES_MALLA_TEXTO, MAX_TRIANGULOS };
 
 export type Malla = {
   /** x, y, z por vértice. */
@@ -26,15 +22,6 @@ export type Malla = {
 export type FormatoMalla = "stl" | "ply" | "obj";
 
 export type Caja = { min: [number, number, number]; max: [number, number, number] };
-
-// ─── Límites ─────────────────────────────────────────────────────────────
-
-/** Tamaño máximo de un archivo 3D. Un escaneo de arcada completa pesa 20-60 MB. */
-export const MAX_BYTES_MALLA = 200 * 1024 * 1024;
-/** Los formatos de texto ocupan ~5 veces más memoria al parsear. */
-export const MAX_BYTES_MALLA_TEXTO = 80 * 1024 * 1024;
-/** Sobre esto el navegador de un teléfono deja de girar fluido. */
-export const MAX_TRIANGULOS = 6_000_000;
 
 // ─── Utilidades ──────────────────────────────────────────────────────────
 

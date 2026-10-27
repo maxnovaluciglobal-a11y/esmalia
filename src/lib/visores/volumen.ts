@@ -4,19 +4,9 @@
 import { unzipSync } from "fflate";
 
 import { parsearDicom, pareceDicom, type CorteDicom, type Vec3 } from "./dicom";
-import { ErrorDeVisor } from "./malla";
+import { ErrorDeVisor, MAX_BYTES_DICOM, MAX_VOXELES, MAX_VOXELES_EQUIPO_CHICO } from "./limites";
 
-// ─── Límites ─────────────────────────────────────────────────────────────
-
-/** Lo máximo que se descarga para un estudio (uno o varios archivos, o el ZIP). */
-export const MAX_BYTES_DICOM = 400 * 1024 * 1024;
-/**
- * Vóxeles que se guardan en memoria (2 bytes cada uno). Un CBCT dental de
- * 536 × 536 × 440 son 126 M: se muestra a media resolución (31 M).
- */
-export const MAX_VOXELES = 64_000_000;
-/** En equipos con poca memoria (teléfonos), la mitad. */
-export const MAX_VOXELES_EQUIPO_CHICO = 24_000_000;
+export { MAX_BYTES_DICOM, MAX_VOXELES, MAX_VOXELES_EQUIPO_CHICO };
 
 export type Plano = "axial" | "coronal" | "sagital";
 
