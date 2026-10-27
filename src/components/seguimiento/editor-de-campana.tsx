@@ -456,7 +456,7 @@ export function EditorDeCampana({
                   </p>
                 )}
                 {vista.ejemplo && (
-                  <div className="rounded-lg border border-hairline bg-secondary/60 px-3 py-2.5">
+                  <div className="min-w-0 rounded-lg border border-hairline bg-secondary/60 px-3 py-2.5 [overflow-wrap:anywhere]">
                     <p className="mb-1 text-xs font-semibold text-muted-foreground">
                       Así le llega a {vista.muestra[0]?.nombre ?? "el primer destinatario"}
                     </p>

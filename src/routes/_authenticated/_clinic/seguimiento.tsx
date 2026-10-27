@@ -123,7 +123,10 @@ function SeguimientoPage() {
     () =>
       (miembrosQ.data ?? [])
         .filter((m) => hasPermission(m.role, "agenda:manage"))
-        .map((m) => ({ userId: m.userId, nombre: m.fullName || m.email || "Sin nombre" })),
+        .map((m) => ({
+          userId: m.userId,
+          nombre: m.fullName || m.email || "Integrante del equipo",
+        })),
     [miembrosQ.data],
   );
 

@@ -202,7 +202,7 @@ export function RiesgoDeAbandono({
   saldoConocido: boolean;
   onCambio: () => void;
 }) {
-  const [nivel, setNivel] = useState<NivelDeRiesgo | "todos">("alto");
+  const [nivel, setNivel] = useState<NivelDeRiesgo | "todos">("todos");
   const tarea = useCrearTareaDeSeguimiento(clinicId, userId, hoy, onCambio);
   const n = (x: NivelDeRiesgo) => pacientes.filter((p) => p.riesgo.nivel === x).length;
   const visibles = pacientes.filter((p) => nivel === "todos" || p.riesgo.nivel === nivel);

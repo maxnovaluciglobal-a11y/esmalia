@@ -195,7 +195,7 @@ export function DetalleDeCampana({
           ))}
         </dl>
 
-        <div className="rounded-lg border border-hairline bg-secondary/60 px-3 py-2.5">
+        <div className="min-w-0 rounded-lg border border-hairline bg-secondary/60 px-3 py-2.5 [overflow-wrap:anywhere]">
           {campana.subject && <p className="mb-1 text-sm font-semibold">{campana.subject}</p>}
           <p className="whitespace-pre-line text-sm">{campana.body}</p>
         </div>
