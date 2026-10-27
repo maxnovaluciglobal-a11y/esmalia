@@ -28,12 +28,14 @@ function Contenido({ a }: { a: AlertaVisible }) {
         {a.n > 99 ? "99+" : a.n}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span aria-hidden className={cn("size-2 shrink-0 rounded-full", marca.clase)} />
+        <span className="flex items-start gap-2">
+          <span aria-hidden className={cn("mt-[7px] size-2 shrink-0 rounded-full", marca.clase)} />
           <span className="sr-only">{marca.texto}: </span>
-          <span className="truncate text-[15px] font-medium">{a.titulo}</span>
+          <span className="line-clamp-2 text-[15px] font-medium leading-snug sm:truncate">
+            {a.titulo}
+          </span>
         </span>
-        <span className="block truncate text-[13px] text-muted-foreground">{a.detalle}</span>
+        <span className="block truncate pl-4 text-[13px] text-muted-foreground">{a.detalle}</span>
       </span>
       <span className="shrink-0 text-sm font-semibold text-brand-700">{a.cta} →</span>
     </>
@@ -81,7 +83,7 @@ export function AlertasDeHoy({
                   <Contenido a={a} />
                 </a>
               ) : (
-                <Link to={a.enlace} className={FILA}>
+                <Link to={a.enlace} search={a.busqueda} className={FILA}>
                   <Contenido a={a} />
                 </Link>
               )}

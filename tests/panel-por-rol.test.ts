@@ -44,6 +44,7 @@ describe("perfil y bloques por rol", () => {
       "caja",
       "ocupacion",
       "presupuestos",
+      "pendientes-clinicos",
       "laboratorio",
       "insumos",
     ]);
@@ -166,6 +167,16 @@ describe("alertas por rol (PAN-03)", () => {
       "stock_bajo",
     ]);
     expect(lista[0].titulo).toBe("2 reservas en línea por aceptar");
+  });
+
+  it("un bloque que el rol no tiene en pantalla lleva al respaldo (reservas → agenda)", () => {
+    const [dueno] = alertasVisibles(sujeto("owner"), { reservas_por_aceptar: 1 });
+    expect(dueno.enlace).toBe("/agenda");
+    expect(dueno.busqueda).toMatchObject({ estado: "tentativa" });
+    const [recepcion] = alertasVisibles(sujeto("reception"), { reservas_por_aceptar: 1 });
+    expect(recepcion.enlace).toBe("#reservas-en-linea");
+    // Notas sin firmar sin el bloque y sin respaldo: no se ofrece un enlace roto.
+    expect(alertasVisibles(sujeto("dentist"), { notas_sin_firmar: 2 }, [])).toEqual([]);
   });
 
   it("descarta lo que el rol no puede ver aunque venga en los conteos", () => {

@@ -510,7 +510,7 @@ function BloqueDelPanel({
         <Tarjeta id="llegadas" titulo="Llegadas" enfasis="de hoy">
           <div className="mb-3 grid grid-cols-2 gap-4">
             <Cifra valor={String(enSala.length)} label="En sala" />
-            <Cifra valor={String(porLlegar.length)} label="Por llegar ahora" />
+            <Cifra valor={String(porLlegar.length)} label="Por llegar" />
           </div>
           {enSala.length + porLlegar.length === 0 ? (
             <Vacio>{d.cargando ? "Cargando…" : "Nadie por llegar en este momento."}</Vacio>

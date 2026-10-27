@@ -80,14 +80,21 @@ export interface DefinicionAlerta {
   cta: string;
   /** Destino. `#…` = un bloque de la misma pantalla. */
   enlace: string;
-  /** Búsqueda del destino (rutas con search validado). */
-  busqueda?: Record<string, string | number>;
+  /** Si `enlace` es un bloque (`#…`) que este rol no tiene en su panel, a dónde ir. */
+  respaldo?: { enlace: string; busqueda?: Record<string, string | number> };
 }
 
 const plural = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
 
-/** Búsqueda base de la agenda (todas sus claves validadas). */
-const BUSQUEDA_AGENDA = { q: "", fecha: "", sucursal: "", profesional: "", estado: "", page: 1 };
+/** Agenda filtrada en "Sin respuesta" (todas sus claves validadas). */
+export const BUSQUEDA_RESERVAS = {
+  q: "",
+  fecha: "",
+  sucursal: "",
+  profesional: "",
+  estado: "tentativa",
+  page: 1,
+};
 
 const TODOS: readonly PerfilDePanel[] = [
   "direccion",
@@ -116,6 +123,7 @@ export const ALERTAS: Record<TipoAlerta, DefinicionAlerta> = {
     detalle: "El paciente eligió la hora; falta que la clínica la acepte",
     cta: "Aceptar",
     enlace: "#reservas-en-linea",
+    respaldo: { enlace: "/agenda", busqueda: BUSQUEDA_RESERVAS },
   },
   citas_por_confirmar: {
     permiso: "agenda:manage",
@@ -212,9 +220,6 @@ export const ALERTAS: Record<TipoAlerta, DefinicionAlerta> = {
   },
 };
 
-// Coherencia: la agenda con el filtro de estado sirve de destino alternativo.
-export const BUSQUEDA_RESERVAS = { ...BUSQUEDA_AGENDA, estado: "tentativa" };
-
 const ORDEN_GRAVEDAD: Record<Gravedad, number> = { urgente: 0, atencion: 1, aviso: 2 };
 
 /** ¿Este sujeto puede y le sirve ver esta alerta? */
@@ -238,6 +243,7 @@ export interface AlertaVisible {
   detalle: string;
   cta: string;
   enlace: string;
+  busqueda?: Record<string, string | number>;
 }
 
 /**
@@ -250,12 +256,18 @@ export interface AlertaVisible {
 export function alertasVisibles(
   sujeto: SujetoDePermisos,
   conteos: Partial<Record<TipoAlerta, number | null | undefined>>,
+  /** Bloques que hay en la pantalla: un `#bloque` ausente usa el respaldo. */
+  bloques: readonly Bloque[] = bloquesDelPanel(sujeto),
 ): AlertaVisible[] {
   return alertasDelSujeto(sujeto)
     .flatMap((tipo): AlertaVisible[] => {
       const n = conteos[tipo];
       if (typeof n !== "number" || !Number.isFinite(n) || n <= 0) return [];
       const def = ALERTAS[tipo];
+      const bloqueAusente =
+        def.enlace.startsWith("#") && !bloques.includes(def.enlace.slice(1) as Bloque);
+      if (bloqueAusente && !def.respaldo) return [];
+      const destino = bloqueAusente && def.respaldo ? def.respaldo : { enlace: def.enlace };
       return [
         {
           tipo,
@@ -264,7 +276,8 @@ export function alertasVisibles(
           titulo: def.titulo(n),
           detalle: def.detalle,
           cta: def.cta,
-          enlace: def.enlace,
+          enlace: destino.enlace,
+          ...("busqueda" in destino && destino.busqueda ? { busqueda: destino.busqueda } : {}),
         },
       ];
     })
@@ -306,7 +319,7 @@ export const BLOQUES = [
 export type Bloque = (typeof BLOQUES)[number];
 
 const BLOQUES_POR_PERFIL: Record<PerfilDePanel, readonly Bloque[]> = {
-  direccion: ["caja", "ocupacion", "presupuestos", "laboratorio", "insumos"],
+  direccion: ["caja", "ocupacion", "presupuestos", "pendientes-clinicos", "laboratorio", "insumos"],
   profesional: ["mi-dia", "pendientes-clinicos", "mi-desempeno", "laboratorio"],
   recepcion: ["reservas-en-linea", "llegadas", "cobros", "presupuestos"],
   laboratorio: ["laboratorio", "insumos"],
