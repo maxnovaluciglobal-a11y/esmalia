@@ -6,16 +6,24 @@
  */
 export const PESTANAS_FICHA = [
   "resumen",
-  "odontograma",
+  "periodontograma",
   "notas",
   "finanzas",
+  "anamnesis",
   "documentos",
   "mensajes",
 ] as const;
 export type PestanaFicha = (typeof PESTANAS_FICHA)[number];
 
+/**
+ * Pestañas anteriores al rediseño A+ (26-oct-2026) que siguen llegando por
+ * links guardados. El odontograma ahora vive en la pestaña de entrada
+ * ("resumen"), como en el prototipo: `?pestana=odontograma` abre ahí.
+ */
+const PESTANAS_ANTERIORES: Record<string, PestanaFicha> = { odontograma: "resumen" };
+
 /** Pestañas con datos clínicos: solo con `clinical:view`. */
-const PESTANAS_CLINICAS: readonly PestanaFicha[] = ["odontograma", "notas", "documentos"];
+const PESTANAS_CLINICAS: readonly PestanaFicha[] = ["periodontograma", "notas", "documentos"];
 
 export interface FichaSearch {
   /** Pestaña activa. Ausente = "resumen": así el default no ensucia la URL y
@@ -34,9 +42,9 @@ export function parseCobrar(v: unknown): boolean {
 
 /** Lo que no es una pestaña conocida cae a "resumen" (link viejo, typo). */
 export function parsePestana(v: unknown): PestanaFicha {
-  return typeof v === "string" && (PESTANAS_FICHA as readonly string[]).includes(v)
-    ? (v as PestanaFicha)
-    : "resumen";
+  if (typeof v !== "string") return "resumen";
+  if ((PESTANAS_FICHA as readonly string[]).includes(v)) return v as PestanaFicha;
+  return PESTANAS_ANTERIORES[v] ?? "resumen";
 }
 
 /**
