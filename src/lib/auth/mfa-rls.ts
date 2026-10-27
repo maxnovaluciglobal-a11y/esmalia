@@ -117,6 +117,11 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   marketing_events: "backend: solo service_role (sin políticas)",
   marketing_leads: "backend: solo service_role (sin políticas)",
   message_templates: "plantillas sin datos de pacientes",
+  mfa_email_codes: "backend: códigos del segundo paso por correo (solo el hash), sin políticas",
+  mfa_email_events: "backend: bitácora del segundo paso por correo, sin políticas",
+  mfa_email_settings: "backend: quién usa el correo como segundo paso, sin políticas",
+  mfa_email_verifications:
+    "backend: sesiones que pasaron el código por correo, sin políticas (las lee sesion_cumple_mfa)",
   notification_preferences: "preferencias propias del usuario",
   odontogram_condition_catalog: "catálogo de condiciones del odontograma",
   operatories: "estructura de la clínica",

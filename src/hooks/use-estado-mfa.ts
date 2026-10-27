@@ -16,23 +16,30 @@ type EstadoMfa = {
   esDemo: boolean;
   /** `amr` del JWT: cuándo inició sesión (para exigir sesión reciente). */
   amr: readonly unknown[];
+  /** Segundo paso por correo activo (lo dice la base; `false` si no se pudo
+   *  leer, por ejemplo sin conexión). */
+  correoActivo: boolean;
 };
 
 /** Lee el estado de la sesión local (sin red): si la cuenta tiene un factor
- *  verificado y cuál. `listFactors` también sale de la sesión guardada. */
+ *  verificado y cuál. `listFactors` también sale de la sesión guardada. El
+ *  segundo paso por correo sí pregunta a la base (`mi_estado_mfa`). */
 async function leerEstadoMfa(): Promise<EstadoMfa> {
   const supabase = await getSupabase();
-  const [{ data: sesion }, { data: niveles }, { data: factores }] = await Promise.all([
+  const [{ data: sesion }, { data: niveles }, { data: factores }, correo] = await Promise.all([
     supabase.auth.getSession(),
     supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
     supabase.auth.mfa.listFactors(),
+    Promise.resolve(supabase.rpc("mi_estado_mfa")).catch(() => ({ data: null })),
   ]);
+  const estadoCorreo = (correo.data ?? {}) as { correo_activo?: unknown };
   const verificado = factoresTotpVerificados(factores?.all ?? [])[0];
   return {
     tieneFactor: tieneFactorVerificado(niveles) || Boolean(verificado),
     factorId: verificado?.id ?? null,
     esDemo: esCuentaDemo(sesion.session?.user.email),
     amr: niveles?.currentAuthenticationMethods ?? [],
+    correoActivo: estadoCorreo.correo_activo === true,
   };
 }
 
