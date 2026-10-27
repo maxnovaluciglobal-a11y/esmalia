@@ -54,6 +54,7 @@ export const TIPOS_COLUMNAS: Readonly<Record<string, Readonly<Record<string, Tip
     email: "texto",
     address: "texto",
     commune: "texto",
+    sex: "texto",
     health_plan: "texto",
     health_plan_tier: "texto",
     health_plan_institution: "texto",
@@ -634,6 +635,8 @@ export const TIPOS_COLUMNAS: Readonly<Record<string, Readonly<Record<string, Tip
     withdrawn_at: "fecha_hora",
     withdrawn_by: "uuid",
     withdraw_reason: "texto",
+    patient_confirmed_at: "fecha_hora",
+    patient_confirmed_via: "texto",
     updated_at: "fecha_hora",
   },
   sterilization_cycles: {

@@ -27,7 +27,12 @@ import {
   type Rango,
 } from "@/lib/finance/periodos-reporte";
 import { fechaCorta, mesAnio, numero } from "@/lib/formato-fecha";
-import { ETIQUETA_PREVISION, esPrevision } from "@/lib/patients/datos-ficha";
+import {
+  ETIQUETA_PREVISION,
+  ETIQUETA_SEXO,
+  esPrevision,
+  esSexo,
+} from "@/lib/patients/datos-ficha";
 
 // ─── Catálogo de métricas ────────────────────────────────────────────────
 
@@ -67,14 +72,16 @@ export const DEF_METRICAS: Record<Metrica, DefMetrica> = {
   },
   atenciones: {
     label: "Atenciones",
-    descripcion: "Citas finalizadas: el paciente vino y se atendió.",
+    descripcion:
+      "Citas finalizadas: el paciente vino y se atendió. En una cita grupal cuenta cada paciente que asistió.",
     unidad: "conteo",
     permiso: "agenda:view",
     agenda: true,
   },
   ausencias: {
     label: "Ausencias",
-    descripcion: "Citas marcadas como ausente: el paciente no vino.",
+    descripcion:
+      "Citas marcadas como ausente: el paciente no vino. En una cita grupal cuenta cada paciente marcado ausente.",
     unidad: "conteo",
     permiso: "agenda:view",
     agenda: true,
@@ -164,6 +171,7 @@ export const CORTES = [
   "comuna",
   "prevision",
   "origen",
+  "sexo",
 ] as const;
 export type Corte = (typeof CORTES)[number];
 
@@ -185,6 +193,7 @@ export const ETIQUETA_CORTE: Record<Corte, string> = {
   comuna: "Comuna",
   prevision: "Previsión",
   origen: "Origen",
+  sexo: "Sexo",
 };
 
 /** Espejo de `informe_corte_admitido` (SQL). */
@@ -196,7 +205,7 @@ export function cortesDe(metrica: Metrica): Corte[] {
   return CORTES.filter((c) => corteAdmitido(metrica, c));
 }
 
-export const CORTES_DEMOGRAFICOS = ["edad", "comuna", "prevision", "origen"] as const;
+export const CORTES_DEMOGRAFICOS = ["edad", "comuna", "prevision", "origen", "sexo"] as const;
 export type CorteDemografico = (typeof CORTES_DEMOGRAFICOS)[number];
 
 // ─── Comparación entre períodos (INF-02) ─────────────────────────────────
@@ -360,6 +369,8 @@ export function etiquetaClave(corte: Corte, clave: string | null, nombres: Nombr
       return ETIQUETA_TRAMO[clave] ?? clave;
     case "prevision":
       return esPrevision(clave) ? ETIQUETA_PREVISION[clave] : clave;
+    case "sexo":
+      return esSexo(clave) ? ETIQUETA_SEXO[clave] : clave;
     case "comuna":
     case "origen":
       return clave;
@@ -488,8 +499,26 @@ export interface FilaOcupacion {
   hora: number;
   citas: number;
   minutosOcupados: number;
+  /** Horario declarado, ya sin bloqueos ni feriados (y con las aperturas). */
   minutosDisponibles: number;
   dias: number;
+  /** Minutos del horario que se descontaron por bloqueos. */
+  minutosBloqueados?: number;
+  /** Minutos del horario que se descontaron por caer en un feriado. */
+  minutosFeriado?: number;
+}
+
+/** Lo que devuelve el mapa de calor: la grilla y qué se pudo descontar. */
+export interface ResultadoCalor {
+  filas: FilaOcupacion[];
+  /**
+   * `true` si se pudieron leer los feriados públicos del país de la clínica
+   * (servicio externo). Si no, el mapa descuenta bloqueos pero no feriados, y
+   * la pantalla lo dice.
+   */
+  feriadosDescontados: boolean;
+  /** Feriados del período que se descontaron (YYYY-MM-DD). */
+  feriados: string[];
 }
 
 export interface CeldaCalor {
@@ -498,6 +527,8 @@ export interface CeldaCalor {
   citas: number;
   minutosOcupados: number;
   minutosDisponibles: number;
+  minutosBloqueados: number;
+  minutosFeriado: number;
   /** null = no hay horario declarado para esa franja. */
   pct: number | null;
   /** 0 (vacío) a 4 (lleno o sobre el horario). */
@@ -514,6 +545,10 @@ export interface MapaDeCalor {
   ocupacionTotal: number | null;
   franjaMasLlena: CeldaCalor | null;
   franjaMasLibre: CeldaCalor | null;
+  /** Minutos de horario que se descontaron por bloqueos en todo el período. */
+  minutosBloqueados: number;
+  /** Minutos de horario que se descontaron por feriados en todo el período. */
+  minutosFeriado: number;
 }
 
 export function nivelDeOcupacion(pct: number | null, citas: number): CeldaCalor["nivel"] {
@@ -526,8 +561,16 @@ export function nivelDeOcupacion(pct: number | null, citas: number): CeldaCalor[
 }
 
 export function armarMapaDeCalor(filas: readonly FilaOcupacion[]): MapaDeCalor {
-  const conHorario = filas.some((f) => f.minutosDisponibles > 0);
-  const activas = filas.filter((f) => f.minutosOcupados > 0 || f.minutosDisponibles > 0);
+  const conHorario = filas.some(
+    (f) => f.minutosDisponibles > 0 || (f.minutosBloqueados ?? 0) > 0 || (f.minutosFeriado ?? 0) > 0,
+  );
+  const activas = filas.filter(
+    (f) =>
+      f.minutosOcupados > 0 ||
+      f.minutosDisponibles > 0 ||
+      (f.minutosBloqueados ?? 0) > 0 ||
+      (f.minutosFeriado ?? 0) > 0,
+  );
   const horasUsadas = activas.map((f) => f.hora);
   const desde = horasUsadas.length ? Math.min(...horasUsadas) : 8;
   const hasta = horasUsadas.length ? Math.max(...horasUsadas) : 19;
@@ -542,20 +585,31 @@ export function armarMapaDeCalor(filas: readonly FilaOcupacion[]): MapaDeCalor {
       const citas = f?.citas ?? 0;
       const ocupados = f?.minutosOcupados ?? 0;
       const disponibles = f?.minutosDisponibles ?? 0;
+      const bloqueados = f?.minutosBloqueados ?? 0;
+      const feriado = f?.minutosFeriado ?? 0;
       const pct = disponibles > 0 ? Math.round((ocupados / disponibles) * 100) : null;
       const etiqueta = `${NOMBRE_DIA[diaSemana]} ${String(hora).padStart(2, "0")}:00`;
+      const descontado = [
+        bloqueados > 0 ? `${formatearMinutos(bloqueados)} bloqueados` : null,
+        feriado > 0 ? `${formatearMinutos(feriado)} en feriado` : null,
+      ].filter(Boolean);
+      const nota = descontado.length ? ` (se descontaron ${descontado.join(" y ")})` : "";
       const texto =
         pct !== null
-          ? `${etiqueta}: ${pct}% ocupado, ${formatearMinutos(ocupados)} de ${formatearMinutos(disponibles)}`
+          ? `${etiqueta}: ${pct}% ocupado, ${formatearMinutos(ocupados)} de ${formatearMinutos(disponibles)}${nota}`
           : ocupados > 0
-            ? `${etiqueta}: ${formatearMinutos(ocupados)} agendados, sin horario declarado`
-            : `${etiqueta}: sin horario ni citas`;
+            ? `${etiqueta}: ${formatearMinutos(ocupados)} agendados, ${descontado.length ? "sin horario disponible" : "sin horario declarado"}${nota}`
+            : descontado.length
+              ? `${etiqueta}: sin horario disponible${nota}`
+              : `${etiqueta}: sin horario ni citas`;
       const celda: CeldaCalor = {
         diaSemana,
         hora,
         citas,
         minutosOcupados: ocupados,
         minutosDisponibles: disponibles,
+        minutosBloqueados: bloqueados,
+        minutosFeriado: feriado,
         pct,
         nivel: nivelDeOcupacion(pct, citas),
         texto,
@@ -580,6 +634,8 @@ export function armarMapaDeCalor(filas: readonly FilaOcupacion[]): MapaDeCalor {
     ocupacionTotal: porcentaje(ocupados, disponibles),
     franjaMasLlena: masLlena,
     franjaMasLibre: masLibre,
+    minutosBloqueados: todas.reduce((s, c) => s + c.minutosBloqueados, 0),
+    minutosFeriado: todas.reduce((s, c) => s + c.minutosFeriado, 0),
   };
 }
 

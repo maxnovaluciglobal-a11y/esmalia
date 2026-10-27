@@ -36,6 +36,7 @@ import {
   editarGrupal,
   inscribirEnGrupal,
   listarParticipantes,
+  anotarAvisoDeInscrito,
   marcarAsistenciaGrupal,
   retirarDeGrupal,
 } from "@/lib/clinic-operations/citas-grupales.functions";
@@ -227,6 +228,7 @@ export function SeccionCitaGrupal({
   const inscribirFn = useServerFn(inscribirEnGrupal);
   const retirarFn = useServerFn(retirarDeGrupal);
   const asistenciaFn = useServerFn(marcarAsistenciaGrupal);
+  const avisoFn = useServerFn(anotarAvisoDeInscrito);
 
   const inscribir = useMutation({
     mutationFn: (patientId: string) =>
@@ -244,6 +246,12 @@ export function SeccionCitaGrupal({
       invalidar();
       toast.success("Paciente retirado de la cita");
     },
+    onError: (e: Error) => toast.error(mensajeDeError(e)),
+  });
+  const avisar = useMutation({
+    mutationFn: (v: { participanteId: string; avisado: boolean }) =>
+      avisoFn({ data: { clinicId, ...v } }),
+    onSuccess: () => invalidar(),
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
   const marcar = useMutation({
@@ -327,6 +335,11 @@ export function SeccionCitaGrupal({
                     {retirado
                       ? `Retirado${p.motivoRetiro ? ` · ${p.motivoRetiro}` : ""}`
                       : ETIQUETA_ASISTENCIA[p.asistencia]}
+                    {!retirado && p.avisoEl && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 font-medium text-success">
+                        · <Check aria-hidden className="size-3" /> Avisó que viene
+                      </span>
+                    )}
                   </span>
                 </div>
                 {puedeGestionar && !retirado && (
@@ -365,6 +378,31 @@ export function SeccionCitaGrupal({
                           </button>
                         );
                       })}
+                    {!listaPasable && (
+                      <button
+                        type="button"
+                        aria-pressed={Boolean(p.avisoEl)}
+                        disabled={avisar.isPending}
+                        onClick={() =>
+                          avisar.mutate({ participanteId: p.id, avisado: !p.avisoEl })
+                        }
+                        aria-label={
+                          p.avisoEl
+                            ? `Quitar el aviso de ${p.paciente}`
+                            : `Anotar que ${p.paciente} avisó que viene`
+                        }
+                        title={p.avisoEl ? "Quitar el aviso" : "Anotar que avisó que viene"}
+                        className={cn(
+                          CHIP_ASISTENCIA,
+                          p.avisoEl
+                            ? "border-success-border bg-success-soft text-success"
+                            : "border-control text-foreground/80 hover:border-foreground",
+                        )}
+                      >
+                        <Check aria-hidden className="size-3.5" />
+                        <span className="hidden sm:inline">Avisó</span>
+                      </button>
+                    )}
                     {resumen.vigentes > 1 && (
                       <button
                         type="button"

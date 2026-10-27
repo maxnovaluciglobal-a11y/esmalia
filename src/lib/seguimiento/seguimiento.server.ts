@@ -8,6 +8,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { appOrigin } from "@/lib/app-origin.server";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import {
+  citasPorIds,
+  inscripcionesVigentesDe,
+} from "@/lib/clinic-operations/inscripciones-grupales";
 import { mensajeDb } from "@/lib/db-errors";
 import { leerTodasLasPaginas } from "@/lib/paginacion";
 import { tokenRecallReserva } from "@/lib/reserva/enlace-cita.server";
@@ -162,6 +166,28 @@ export async function pacientesConCitaFutura(
       .in("status", ["tentativa", "confirmada", "en-sala"]);
     if (error) throw new Error(mensajeDb(error, "No pudimos revisar las citas agendadas."));
     for (const r of data ?? []) con.add(r.patient_id);
+  }
+  // Citas grupales (AGE-22): `appointments.patient_id` es solo el titular; cada
+  // inscrito vigente también tiene una próxima cita.
+  const inscripciones = await inscripcionesVigentesDe(supabase, clinicId, ids);
+  if (inscripciones.length > 0) {
+    const futuras = new Set(
+      (
+        await citasPorIds(
+          inscripciones.map((i) => i.appointment_id),
+          (tanda) =>
+            supabase
+              .from("appointments")
+              .select("id")
+              .eq("clinic_id", clinicId)
+              .in("id", tanda)
+              .gt("starts_at", ahora)
+              .in("status", ["tentativa", "confirmada", "en-sala"]),
+          "No pudimos revisar las citas agendadas.",
+        )
+      ).map((c) => c.id),
+    );
+    for (const i of inscripciones) if (futuras.has(i.appointment_id)) con.add(i.patient_id);
   }
   return con;
 }

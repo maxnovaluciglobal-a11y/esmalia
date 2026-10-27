@@ -32,6 +32,7 @@ import {
   type TreatmentPlanStatus,
 } from "@/lib/finance/finance";
 import { construirCsv } from "@/lib/csv-export";
+import { ETIQUETA_SEXO, esSexo } from "@/lib/patients/datos-ficha";
 import { fecha, fechaHora } from "@/lib/formato-fecha";
 import {
   ETIQUETA_ESTADO,
@@ -50,6 +51,8 @@ export interface FilaPaciente {
   phone: string | null;
   address: string | null;
   commune: string | null;
+  /** Opcional (femenino, masculino, otro, prefiere_no_decir); null = sin registrar. */
+  sex?: string | null;
   health_plan: string | null;
   health_plan_institution: string | null;
   emergency_contact_name: string | null;
@@ -148,6 +151,7 @@ export interface MisDatos {
     telefono: string | null;
     direccion: string | null;
     comuna: string | null;
+    sexo: string | null;
     prevision: string | null;
     contacto_emergencia: {
       nombre: string;
@@ -256,6 +260,7 @@ export function armarMisDatos(
       telefono: p.phone,
       direccion: p.address,
       comuna: p.commune,
+      sexo: esSexo(p.sex) ? ETIQUETA_SEXO[p.sex] : null,
       prevision,
       contacto_emergencia: p.emergency_contact_name
         ? {
@@ -391,6 +396,7 @@ function filasCsv(d: MisDatos): FilaCsv[] {
       descripcion: "Dirección",
       detalle: [p.direccion, p.comuna].filter(Boolean).join(", "),
     });
+  if (p.sexo) add("Datos personales", { descripcion: "Sexo", detalle: p.sexo });
   if (p.prevision) add("Datos personales", { descripcion: "Previsión", detalle: p.prevision });
   if (p.contacto_emergencia) {
     add("Datos personales", {
@@ -507,6 +513,7 @@ export function contenidoPdfMisDatos(d: MisDatos): ContenidoFicha {
       p.direccion
         ? { texto: `Dirección: ${[p.direccion, p.comuna].filter(Boolean).join(", ")}` }
         : null,
+      p.sexo ? { texto: `Sexo: ${p.sexo}` } : null,
       p.prevision ? { texto: `Previsión: ${p.prevision}` } : null,
       p.contacto_emergencia
         ? {

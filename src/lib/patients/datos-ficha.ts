@@ -10,6 +10,25 @@
 import { toE164 } from "@/lib/messaging/telefonos";
 import { errorDeDocumento, type TipoDocumento } from "@/lib/patients/rut";
 
+// ── Sexo (opcional) ────────────────────────────────────────────────────────
+// Dato opcional de la ficha, para el corte demográfico de Informes. Nunca se
+// pide como obligatorio ni cuenta para «ficha completa»; «prefiere no decir»
+// es una respuesta (distinta de «sin registrar», que es no haber preguntado).
+
+export const SEXOS = ["femenino", "masculino", "otro", "prefiere_no_decir"] as const;
+export type Sexo = (typeof SEXOS)[number];
+
+export const ETIQUETA_SEXO: Record<Sexo, string> = {
+  femenino: "Femenino",
+  masculino: "Masculino",
+  otro: "Otro",
+  prefiere_no_decir: "Prefiere no decir",
+};
+
+export function esSexo(valor: unknown): valor is Sexo {
+  return typeof valor === "string" && (SEXOS as readonly string[]).includes(valor);
+}
+
 // ── FIC-02 Previsión ───────────────────────────────────────────────────────
 
 export const PREVISIONES = [
@@ -310,6 +329,7 @@ export interface EstadoCamposFicha {
   origenDetalle: string;
   direccion: string;
   comuna: string;
+  sexo: Sexo | "";
 }
 
 export function estadoCamposVacio(documentoTipo: TipoDocumento): EstadoCamposFicha {
@@ -326,6 +346,7 @@ export function estadoCamposVacio(documentoTipo: TipoDocumento): EstadoCamposFic
     origenDetalle: "",
     direccion: "",
     comuna: "",
+    sexo: "",
   };
 }
 
@@ -342,6 +363,7 @@ export function estadoCamposDe(
     origenDetalle?: string | null;
     direccion?: string | null;
     comuna?: string | null;
+    sexo?: Sexo | null;
   },
   tipoPorDefecto: TipoDocumento,
 ): EstadoCamposFicha {
@@ -358,6 +380,7 @@ export function estadoCamposDe(
     origenDetalle: p.origenDetalle ?? "",
     direccion: p.direccion ?? "",
     comuna: p.comuna ?? "",
+    sexo: p.sexo ?? "",
   };
 }
 
@@ -407,6 +430,7 @@ export function cambiosDeFicha(
   }
   if (t(despues.direccion) !== t(antes.direccion)) c.direccion = despues.direccion;
   if (t(despues.comuna) !== t(antes.comuna)) c.comuna = despues.comuna;
+  if (despues.sexo !== antes.sexo) c.sexo = despues.sexo || null;
   return c;
 }
 
@@ -441,6 +465,8 @@ export interface EntradaFichaOla1 {
   origen?: { fuente: string; detalle: string };
   direccion?: string;
   comuna?: string;
+  /** `null` borra el dato (vuelve a «sin registrar»). */
+  sexo?: Sexo | null;
 }
 
 /** Columnas de `patients` que escribe la Ola 1 (todas nullable). */
@@ -456,6 +482,7 @@ export interface ParcheFichaOla1 {
   acquisition_source_detail?: string | null;
   address?: string | null;
   commune?: string | null;
+  sex?: Sexo | null;
 }
 
 /**
@@ -511,6 +538,10 @@ export function parcheDeFichaOla1(
 
   if (e.direccion !== undefined) parche.address = e.direccion.trim() || null;
   if (e.comuna !== undefined) parche.commune = e.comuna.trim() || null;
+  if (e.sexo !== undefined) {
+    if (e.sexo !== null && !esSexo(e.sexo)) return { parche, error: "Elige una opción de sexo válida." };
+    parche.sex = e.sexo;
+  }
 
   return { parche, error: null };
 }

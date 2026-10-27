@@ -43,24 +43,42 @@ const EJEMPLOS: { name: string; config: ConfigInforme }[] = [
 const COMUNAS = ["Providencia", "Las Condes", "Ñuñoa", "Santiago", "La Florida", "Maipú"];
 const PREVISIONES = ["fonasa", "isapre", "fonasa", "particular", "isapre", "fonasa"];
 const ORIGENES = ["Instagram", "Google", "Recomendación", "Recomendación", "Convenio", "Google"];
+// Sexo (opcional): el reparto incluye a quien prefiere no decirlo y deja algunas fichas sin registrar.
+const SEXOS_DEMO = [
+  "femenino",
+  "masculino",
+  "femenino",
+  "prefiere_no_decir",
+  "masculino",
+  "femenino",
+  "otro",
+  null,
+] as const;
 
 /**
  * La semilla SQL crea pacientes sin comuna, previsión ni origen, así que los
- * cortes demográficos (INF-08) salían 100% "Sin dato". Se completan solo los
+ * cortes demográficos (INF-08, con el sexo incluido) salían 100% "Sin dato". Se completan solo los
  * que siguen vacíos, con un reparto fijo (mismo resultado en cada reset).
  */
 async function completarDatosDemograficos(admin: Admin): Promise<void> {
   const { data: pacientes } = await admin
     .from("patients")
-    .select("id, commune, health_plan, acquisition_source")
+    .select("id, commune, health_plan, acquisition_source, sex")
     .eq("clinic_id", DEMO_CLINIC_ID)
     .order("created_at")
     .order("id");
   for (const [i, p] of (pacientes ?? []).entries()) {
-    const cambios: { commune?: string; health_plan?: string; acquisition_source?: string } = {};
+    const cambios: {
+      commune?: string;
+      health_plan?: string;
+      acquisition_source?: string;
+      sex?: string;
+    } = {};
     if (!p.commune) cambios.commune = COMUNAS[i % COMUNAS.length];
     if (!p.health_plan) cambios.health_plan = PREVISIONES[i % PREVISIONES.length];
     if (!p.acquisition_source) cambios.acquisition_source = ORIGENES[i % ORIGENES.length];
+    const sexo = SEXOS_DEMO[i % SEXOS_DEMO.length];
+    if (!p.sex && sexo) cambios.sex = sexo;
     if (Object.keys(cambios).length === 0) continue;
     const { error } = await admin
       .from("patients")

@@ -163,7 +163,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
     tabla: "patients",
     archivo: "pacientes.csv",
     descripcion:
-      "Pacientes: datos de identificación y contacto, tipo de documento, previsión (health_plan, tramo e institución), contacto de emergencia, domicilio, origen del paciente, estado, convenio, consentimiento de WhatsApp, fusiones de fichas (merged_into) y fichas archivadas (archived_at, con su motivo en archive_reason).",
+      "Pacientes: datos de identificación y contacto, tipo de documento, previsión (health_plan, tramo e institución), contacto de emergencia, domicilio, sexo (sex, opcional), origen del paciente, estado, convenio, consentimiento de WhatsApp, fusiones de fichas (merged_into) y fichas archivadas (archived_at, con su motivo en archive_reason).",
     columnas: [
       "id",
       "full_name",
@@ -175,6 +175,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
       "email",
       "address",
       "commune",
+      "sex",
       "health_plan",
       "health_plan_tier",
       "health_plan_institution",
@@ -980,7 +981,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
     tabla: "appointment_group_participants",
     archivo: "citas-grupales-participantes.csv",
     descripcion:
-      "Pacientes inscritos en cada cita grupal, con su asistencia individual (pendiente, asistio, ausente) y, si se retiraron, cuándo y por qué.",
+      "Pacientes inscritos en cada cita grupal, con su asistencia individual (pendiente, asistio, ausente), cuándo avisaron que venían (patient_confirmed_at) y, si se retiraron, cuándo y por qué.",
     columnas: [
       "id",
       "appointment_id",
@@ -993,6 +994,8 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
       "withdrawn_at",
       "withdrawn_by",
       "withdraw_reason",
+      "patient_confirmed_at",
+      "patient_confirmed_via",
       "updated_at",
     ],
     orden: ["id"],
@@ -1323,7 +1326,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
     clave: "convenios",
     tabla: "agreements",
     archivo: "convenios.csv",
-    descripcion: "Convenios (aseguradoras, empresas, previsiones) con su contacto.",
+    descripcion: "Seguros y coberturas (Fonasa, isapres, aseguradoras) con su contacto.",
     columnas: [
       "id",
       "name",

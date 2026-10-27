@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import type { Permission } from "@/lib/access/access";
 import { permisosEnClinica } from "@/lib/access/clinic-guards.server";
+import { fetchPublicHolidays } from "@/lib/clinic-operations/holidays";
 import { mensajeDb } from "@/lib/db-errors";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
 import {
@@ -19,9 +20,9 @@ import {
   type FilaEmbudo,
   type FilaEquipo,
   type FilaMetrica,
-  type FilaOcupacion,
   type Metrica,
   type Nombres,
+  type ResultadoCalor,
 } from "@/lib/reportes/informes";
 
 /**
@@ -319,26 +320,73 @@ export const getInformeDetalle = createServerFn({ method: "GET" })
 export const getMapaDeCalor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => Base.parse(input))
-  .handler(async ({ data, context }): Promise<FilaOcupacion[]> => {
+  .handler(async ({ data, context }): Promise<ResultadoCalor> => {
     const { supabase, userId } = context;
     await exigirAcceso(supabase, data.clinicId, userId, ["agenda:view"]);
-    const { data: filas, error } = await supabase.rpc("informe_ocupacion", {
+    const { feriados, leidos } = await feriadosDelPeriodo(
+      supabase,
+      data.clinicId,
+      data.desde,
+      data.hasta,
+    );
+    const { data: filas, error } = await supabase.rpc("informe_ocupacion_neta", {
       p_clinic_id: data.clinicId,
       p_desde: data.desde,
       p_hasta: data.hasta,
       p_branch_id: data.sucursal ?? null,
       p_professional_id: data.profesional ?? null,
+      p_feriados: feriados,
     });
     if (error) throw new Error(mensajeDb(error, "No pudimos calcular la ocupación."));
-    return (filas ?? []).map((f) => ({
-      diaSemana: f.dia_semana,
-      hora: f.hora,
-      citas: Number(f.citas),
-      minutosOcupados: Number(f.minutos_ocupados),
-      minutosDisponibles: Number(f.minutos_disponibles),
-      dias: Number(f.dias),
-    }));
+    return {
+      feriadosDescontados: leidos,
+      feriados,
+      filas: (filas ?? []).map((f) => ({
+        diaSemana: f.dia_semana,
+        hora: f.hora,
+        citas: Number(f.citas),
+        minutosOcupados: Number(f.minutos_ocupados),
+        minutosDisponibles: Number(f.minutos_disponibles),
+        dias: Number(f.dias),
+        minutosBloqueados: Number(f.minutos_bloqueados),
+        minutosFeriado: Number(f.minutos_feriado),
+      })),
+    };
   });
+
+/**
+ * Feriados públicos del país de la clínica dentro del período. Vienen de un
+ * servicio externo (Nager.Date, el mismo que marca el selector de fecha de la
+ * agenda): si no responde, el mapa descuenta bloqueos pero no feriados y lo
+ * dice (`leidos: false`), en vez de fallar o inventar.
+ */
+async function feriadosDelPeriodo(
+  supabase: Supabase,
+  clinicId: string,
+  desde: string,
+  hasta: string,
+): Promise<{ feriados: string[]; leidos: boolean }> {
+  const { data: clinica } = await supabase
+    .from("clinics")
+    .select("country")
+    .eq("id", clinicId)
+    .maybeSingle();
+  const pais = (clinica?.country ?? "").trim().toUpperCase();
+  if (pais.length !== 2) return { feriados: [], leidos: false };
+  const anios: number[] = [];
+  for (let a = Number(desde.slice(0, 4)); a <= Number(hasta.slice(0, 4)); a++) anios.push(a);
+  try {
+    const porAnio = await Promise.all(anios.map((a) => fetchPublicHolidays(pais, a)));
+    const fechas = porAnio
+      .flat()
+      .map((h) => h.date)
+      .filter((f) => f >= desde && f <= hasta);
+    return { feriados: [...new Set(fechas)].sort(), leidos: true };
+  } catch (e) {
+    console.error("[informes] no se pudieron leer los feriados", e);
+    return { feriados: [], leidos: false };
+  }
+}
 
 // ─── INF-06: uso por box ─────────────────────────────────────────────────
 

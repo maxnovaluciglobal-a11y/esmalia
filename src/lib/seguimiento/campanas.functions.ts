@@ -21,6 +21,11 @@ import type { Json } from "@/integrations/supabase/types";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { appOrigin } from "@/lib/app-origin.server";
+import { estadoParaInscrito } from "@/lib/clinic-operations/citas-grupales";
+import {
+  citasPorIds,
+  inscripcionesVigentesDe,
+} from "@/lib/clinic-operations/inscripciones-grupales";
 import { mensajeDb } from "@/lib/db-errors";
 import { bajaDisponible, firmarTokenDeBaja, urlPaginaDeBaja } from "@/lib/email/baja-token.server";
 import { motivoParaNoEnviarWhatsApp } from "@/lib/messaging/baja-whatsapp";
@@ -921,6 +926,34 @@ export const medirRetornoDeContactos = createServerFn({ method: "GET" })
             estado: c.status,
           });
         }
+      }
+      // Citas grupales (AGE-22): una cita agendada a un inscrito cuenta como
+      // retorno suyo; la cita cuelga del titular, así que se mira la inscripción
+      // (y su fecha de inscripción como «fecha de creación»).
+      const inscripciones = (await inscripcionesVigentesDe(supabase, data.clinicId, pacientes)).filter(
+        (i) => i.enrolled_at >= masAntiguo,
+      );
+      const delGrupo = await citasPorIds(
+        inscripciones.map((i) => i.appointment_id),
+        (tanda) =>
+          supabase
+            .from("appointments")
+            .select("id, starts_at, status")
+            .eq("clinic_id", data.clinicId)
+            .in("id", tanda),
+        "No pudimos leer las citas.",
+      );
+      const citaDeGrupo = new Map(delGrupo.map((c) => [c.id, c]));
+      const yaContadas = new Set(citas.map((c) => `${c.patientId}|${c.inicio}`));
+      for (const i of inscripciones) {
+        const c = citaDeGrupo.get(i.appointment_id);
+        if (!c || yaContadas.has(`${i.patient_id}|${c.starts_at}`)) continue;
+        citas.push({
+          patientId: i.patient_id,
+          creadaEl: i.enrolled_at,
+          inicio: c.starts_at,
+          estado: estadoParaInscrito(c.status, i.attendance),
+        });
       }
     }
 

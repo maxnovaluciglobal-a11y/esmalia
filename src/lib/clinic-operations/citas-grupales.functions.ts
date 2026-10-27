@@ -140,7 +140,9 @@ export const listarParticipantes = createServerFn({ method: "GET" })
           .maybeSingle(),
         supabase
           .from("appointment_group_participants")
-          .select("id, patient_id, attendance, enrolled_at, withdrawn_at, withdraw_reason")
+          .select(
+            "id, patient_id, attendance, enrolled_at, withdrawn_at, withdraw_reason, patient_confirmed_at",
+          )
           .eq("clinic_id", data.clinicId)
           .eq("appointment_id", data.appointmentId)
           .order("enrolled_at", { ascending: true }),
@@ -165,6 +167,7 @@ export const listarParticipantes = createServerFn({ method: "GET" })
           inscritoEn: f.enrolled_at,
           retiradoEn: f.withdrawn_at,
           motivoRetiro: f.withdraw_reason,
+          avisoEl: f.patient_confirmed_at,
         })),
       };
     },
@@ -187,7 +190,8 @@ export const inscribirEnGrupal = createServerFn({ method: "POST" })
     const { error } = previa
       ? await supabase
           .from("appointment_group_participants")
-          .update({ withdrawn_at: null })
+          // Reincorporado: el aviso anterior ya no vale.
+          .update({ withdrawn_at: null, patient_confirmed_at: null, patient_confirmed_via: null })
           .eq("id", previa.id)
           .eq("clinic_id", data.clinicId)
       : await supabase.from("appointment_group_participants").insert({
@@ -237,6 +241,40 @@ export const marcarAsistenciaGrupal = createServerFn({ method: "POST" })
     const { data: filas, error } = await context.supabase
       .from("appointment_group_participants")
       .update({ attendance: data.asistencia })
+      .eq("id", data.participanteId)
+      .eq("clinic_id", data.clinicId)
+      .select("id");
+    if (error) throw new Error(mensajeDb(error, SIN_PERMISO));
+    if (!filas?.length) throw new Error(SIN_PERMISO);
+    return { ok: true };
+  });
+
+/**
+ * Anota (o quita) a mano el aviso de UN inscrito: llamó por teléfono o lo dijo
+ * en el mostrador. Es el par por persona de `setPatientConfirmation` (que marca
+ * la cita individual); en una grupal el aviso es de cada inscrito. No cambia el
+ * estado de la cita ni la asistencia.
+ */
+export const anotarAvisoDeInscrito = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        participanteId: z.string().uuid(),
+        avisado: z.boolean(),
+        via: z.enum(["telefono", "presencial", "portal", "whatsapp"]).default("telefono"),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: filas, error } = await context.supabase
+      .from("appointment_group_participants")
+      .update(
+        data.avisado
+          ? { patient_confirmed_at: new Date().toISOString(), patient_confirmed_via: data.via }
+          : { patient_confirmed_at: null, patient_confirmed_via: null },
+      )
       .eq("id", data.participanteId)
       .eq("clinic_id", data.clinicId)
       .select("id");

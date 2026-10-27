@@ -1,7 +1,7 @@
 /**
  * INF-08 · Cortes demográficos: quiénes son tus pacientes (o quiénes se
- * atendieron, o dónde está la producción) por edad, comuna, previsión y
- * origen. Lo que la ficha no tiene sale como "Sin dato", no se reparte.
+ * atendieron, o dónde está la producción) por edad, comuna, previsión,
+ * origen y sexo. Lo que la ficha no tiene sale como "Sin dato", no se reparte.
  */
 import { useState } from "react";
 import { useQueries } from "@tanstack/react-query";
@@ -102,8 +102,8 @@ export function VistaPacientes({ ctx }: { ctx: ContextoInforme }) {
       </div>
       <p className="flex gap-2 rounded-[10px] bg-muted/60 p-3 text-xs leading-relaxed text-muted-foreground">
         <Info className="mt-0.5 size-3.5 flex-none" aria-hidden />
-        La edad se calcula a la fecha de cada registro. El corte por sexo queda para cuando la ficha
-        registre ese dato: hoy no se pide al crear un paciente.
+        La edad se calcula a la fecha de cada registro. El sexo es un dato opcional de la ficha:
+        «Prefiere no decir» cuenta como respuesta y «Sin dato» son las fichas donde no se registró.
       </p>
     </div>
   );

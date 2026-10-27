@@ -73,11 +73,12 @@ describe("catálogo de métricas y cortes", () => {
         "comuna",
         "prevision",
         "origen",
+        "sexo",
       ] as const) {
         expect(corteAdmitido(m, c)).toBe(true);
       }
     }
-    expect(CORTES).toHaveLength(15);
+    expect(CORTES).toHaveLength(16);
   });
 
   it("sin finanzas no hay métricas de dinero; recepción ve agenda y pacientes", () => {

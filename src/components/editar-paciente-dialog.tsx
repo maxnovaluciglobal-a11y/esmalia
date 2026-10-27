@@ -79,6 +79,7 @@ export function EditarPacienteDialog({
     | "origenDetalle"
     | "direccion"
     | "comuna"
+    | "sexo"
   >;
   /**
    * Modo controlado (menú "Más acciones" de la ficha): el padre abre y cierra
