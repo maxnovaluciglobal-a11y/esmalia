@@ -179,11 +179,22 @@ describe("pantalla del box (AUT-05)", () => {
     expect(r.siguiente?.id).toBe("c");
   });
 
+  it("quien ya fue llamado no vuelve a ser el siguiente", () => {
+    const citas = [
+      cita("a", 11, "en-sala", "2026-11-10T11:01:00Z"),
+      cita("b", 12, "en-sala", "2026-11-10T12:30:00Z"),
+      cita("c", 13, "en-sala"),
+    ];
+    const r = actualYSiguiente(citas, ahora);
+    expect(r.actual?.id).toBe("b");
+    expect(r.llamable?.id).toBe("c");
+  });
+
   it("un llamado a otro box no cuenta como actual", () => {
     const otra = { ...cita("b", 13, "en-sala", "2026-11-10T13:02:00Z"), llamadoAqui: false };
-    const r = actualYSiguiente([otra], ahora);
+    const r = actualYSiguiente([otra, cita("c", 14, "en-sala")], ahora);
     expect(r.actual).toBeNull();
-    expect(r.llamable?.id).toBe("b");
+    expect(r.llamable?.id).toBe("c");
   });
 });
 

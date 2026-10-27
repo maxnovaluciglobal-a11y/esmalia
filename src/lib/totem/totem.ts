@@ -103,8 +103,9 @@ const PENDIENTE: ReadonlySet<EstadoCitaBox> = new Set(["tentativa", "confirmada"
 
 /**
  * Cita actual del box (la última llamada a este box que sigue en sala), la
- * siguiente (primero quien ya llegó; si no, la próxima de la agenda) y a quién
- * se puede llamar (solo alguien que ya está en sala).
+ * siguiente (primero quien ya llegó; si no, la próxima de la agenda), sin
+ * contar a quien ya fue llamado, y a quién se puede llamar (solo alguien que
+ * ya está en sala).
  */
 export function actualYSiguiente<T extends CitaDeBox>(
   citas: readonly T[],
@@ -115,7 +116,11 @@ export function actualYSiguiente<T extends CitaDeBox>(
     porInicio
       .filter((c) => c.estado === "en-sala" && c.llamadoAqui && c.llamadoEn)
       .sort((a, b) => (b.llamadoEn ?? "").localeCompare(a.llamadoEn ?? ""))[0] ?? null;
-  const pendientes = porInicio.filter((c) => c.id !== actual?.id && PENDIENTE.has(c.estado));
+  // Quien ya fue llamado (y sigue en sala: se está atendiendo o espera
+  // terminar) no vuelve a ser "el siguiente"; se llama otra vez desde la agenda.
+  const pendientes = porInicio.filter(
+    (c) => c.id !== actual?.id && PENDIENTE.has(c.estado) && !c.llamadoEn,
+  );
   const llamable = pendientes.find((c) => c.estado === "en-sala") ?? null;
   const siguiente =
     llamable ?? pendientes.find((c) => new Date(c.fin).getTime() > ahora.getTime()) ?? null;

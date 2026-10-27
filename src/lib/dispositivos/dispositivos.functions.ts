@@ -64,7 +64,8 @@ export const listarDispositivos = createServerFn({ method: "GET" })
           "id, kind, name, branch_id, operatory_id, privacy_mode, token_hash, pairing_expires_at, paired_at, last_used_at, revoked_at, created_at",
         )
         .eq("clinic_id", data.clinicId)
-        .order("created_at", { ascending: true }),
+        .order("created_at", { ascending: true })
+        .order("name", { ascending: true }),
       supabase
         .from("branches")
         .select("id, name")

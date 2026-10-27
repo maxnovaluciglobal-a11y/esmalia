@@ -370,9 +370,11 @@ function FilaDispositivo({ clinicId, d }: { clinicId: string; d: DispositivoList
           <p className="text-sm text-on-night-2">
             Abre <span className="cifra">{ruta}</span> en el dispositivo y escribe este código.
             Vence a las{" "}
-            {new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit" }).format(
-              new Date(codigo.venceEn),
-            )}{" "}
+            {new Intl.DateTimeFormat("es-CL", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }).format(new Date(codigo.venceEn))}{" "}
             y sirve una sola vez. No se vuelve a mostrar.
           </p>
           <p className="cifra mt-3 text-4xl tracking-[0.15em] sm:text-5xl">{codigo.codigo}</p>

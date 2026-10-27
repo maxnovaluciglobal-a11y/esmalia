@@ -186,7 +186,7 @@ export function Totem({ token, dispositivo, alInvalidar }: ContextoDispositivo) 
         {paso.p === "agendada" && (
           <Final onListo={volverAlInicio}>
             <Titular antes="Pedimos tu hora," enfasis={paso.nombre} despues="." />
-            <p className="cifra mt-8 text-4xl capitalize sm:text-5xl">
+            <p className="cifra mt-8 text-4xl sm:text-5xl">
               {fechaLarga(paso.inicio, paso.zona)} · {horaDe(paso.inicio, paso.zona)}
             </p>
             <p className="mt-6 max-w-xl text-2xl leading-snug">
@@ -625,13 +625,17 @@ function horaDe(iso: string, zona: string): string {
   }).format(new Date(iso));
 }
 
+const conMayuscula = (t: string) => t.charAt(0).toLocaleUpperCase("es") + t.slice(1);
+
 function fechaLarga(iso: string, zona: string): string {
-  return new Intl.DateTimeFormat("es-CL", {
-    timeZone: zona,
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(new Date(iso));
+  return conMayuscula(
+    new Intl.DateTimeFormat("es-CL", {
+      timeZone: zona,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(new Date(iso)),
+  );
 }
 
 const ESTADO_CITA: Record<string, string> = {
@@ -815,12 +819,14 @@ function Chip({
 
 function diaCorto(fecha: string): string {
   const d = new Date(`${fecha}T12:00:00Z`);
-  return new Intl.DateTimeFormat("es-CL", {
-    timeZone: "UTC",
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  }).format(d);
+  return conMayuscula(
+    new Intl.DateTimeFormat("es-CL", {
+      timeZone: "UTC",
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+    }).format(d),
+  );
 }
 
 function Agendar({
@@ -997,7 +1003,7 @@ function Agendar({
                       setHora(null);
                     }}
                   >
-                    <span className="capitalize">{diaCorto(d.fecha)}</span>
+                    <span>{diaCorto(d.fecha)}</span>
                   </Chip>
                 ))}
               </div>
@@ -1023,7 +1029,7 @@ function Agendar({
           {hora && dia && motivo && (
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-3xl bg-night p-6 text-on-night">
               <p className="text-xl">
-                <span className="capitalize">{diaCorto(dia)}</span> ·{" "}
+                <span>{diaCorto(dia)}</span> ·{" "}
                 <span className="cifra">{horaCorta(hora.inicio)}</span> · {motivo.nombre} ·{" "}
                 {nombreProf(hora.profesionalId)}
               </p>
