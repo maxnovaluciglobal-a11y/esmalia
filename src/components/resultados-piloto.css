@@ -39,6 +39,18 @@
     display: block;
   }
 
+  /* La tarjeta en tinta (A+) sale en papel: un bloque negro gasta tinta y
+     no aporta en una hoja. Se redefinen sus tokens solo al imprimir. */
+  .informe-piloto .tarjeta-tinta {
+    --night: var(--card);
+    --night-3: var(--muted);
+    --night-line: var(--border);
+    --on-night: var(--foreground);
+    --on-night-2: var(--muted-foreground);
+    --brand-on-night: var(--brand-600);
+    border-color: var(--border) !important;
+  }
+
   .informe-piloto section {
     break-inside: avoid;
   }
