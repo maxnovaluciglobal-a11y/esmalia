@@ -4,9 +4,10 @@ import { ChevronRight } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ExportarDatosClinica } from "@/components/exportar-datos-clinica";
+import { MostrarPuestaEnMarchaDeNuevo } from "@/components/puesta-en-marcha";
 import { SearchField } from "@/components/filters";
 import { RoleSimulationBar } from "@/components/role-simulation-bar";
-import { ajustesVisibles, filtrarAjustes } from "@/lib/access/navegacion";
+import { ajustesVisibles, filtrarAjustes, idDeGrupoAjustes } from "@/lib/access/navegacion";
 import { puedeSimular } from "@/lib/access/role-simulation";
 import { puedeExportarClinica } from "@/lib/exportacion/exportacion-clinica";
 
@@ -22,10 +23,9 @@ export const Route = createFileRoute("/_authenticated/_clinic/ajustes")({
   component: AjustesPage,
 });
 
-/** `aria-labelledby` es una lista separada por espacios: el id no puede tenerlos. */
-function idDeGrupo(titulo: string) {
-  return `ajustes-${titulo.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-}
+/** `aria-labelledby` es una lista separada por espacios: el id no puede tenerlos.
+ *  Es también el ancla de las migas de cada sub-página (NAV-01). */
+const idDeGrupo = idDeGrupoAjustes;
 
 function AjustesPage() {
   const { access } = Route.useRouteContext();
@@ -44,6 +44,8 @@ function AjustesPage() {
             <RoleSimulationBar access={access} />
           </div>
         )}
+        {/* NAV-02: si se ocultó la guía de puesta en marcha, se recupera acá. */}
+        {!filtrando && <MostrarPuestaEnMarchaDeNuevo access={access} />}
         <SearchField
           label="Buscar en ajustes"
           placeholder="Por ejemplo: sucursal, WhatsApp, precios"
@@ -59,7 +61,7 @@ function AjustesPage() {
         <div className="grid gap-x-10 gap-y-10 lg:grid-cols-2">
           {grupos.map((g) => (
             <section key={g.titulo} aria-labelledby={idDeGrupo(g.titulo)}>
-              <h2 id={idDeGrupo(g.titulo)} className="kicker">
+              <h2 id={idDeGrupo(g.titulo)} className="kicker scroll-mt-24">
                 {g.titulo}
               </h2>
               <ul className="mt-3 divide-y divide-hairline border-y border-border">

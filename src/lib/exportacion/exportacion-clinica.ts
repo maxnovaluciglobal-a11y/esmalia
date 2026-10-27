@@ -1439,6 +1439,9 @@ const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
       is_demo: "Marca interna de la clínica de demostración de Esmalia.",
       onboarding_completed: "Estado de la puesta en marcha dentro de Esmalia.",
       onboarding_call_at: "Llamada de puesta en marcha con Esmalia, no es un dato de la clínica.",
+      setup_guide_dismissed_at:
+        "Si se ocultó el avance de la puesta en marcha dentro de Esmalia, no es un dato de la clínica.",
+      setup_guide_dismissed_by: "Quién ocultó el avance de la puesta en marcha dentro de Esmalia.",
     },
   },
   {
