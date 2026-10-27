@@ -7,6 +7,7 @@
  * avisar y resumir, probado en `tests/esterilizacion.test.ts`.
  */
 import type { ClinicRole } from "@/lib/access/access";
+import { numero } from "@/lib/formato-fecha";
 
 export const TIPOS_CICLO = [
   "envuelto",
@@ -168,7 +169,7 @@ export function parametrosDeCiclo(c: {
   pressureBar: number | null;
   exposureMinutes: number | null;
 }): string {
-  const n = (v: number) => v.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+  const n = (v: number) => numero(v, { maximumFractionDigits: 2 });
   return [
     c.temperatureC !== null ? `${n(c.temperatureC)} °C` : null,
     c.pressureBar !== null ? `${n(c.pressureBar)} bar` : null,
