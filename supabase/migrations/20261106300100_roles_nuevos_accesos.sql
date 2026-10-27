@@ -11,9 +11,9 @@
 --    Las funciones que miran el rol directo (`clinic_role_of(...) in (...)`,
 --    p. ej. `enforce_clinical_note_update`) no la conocen y la dejan afuera.
 --
--- 2. Técnico/a dental: políticas PERMISIVAS nuevas (se suman a las que hay,
---    no se tocan las existentes) para leer y actualizar órdenes de laboratorio
---    y leer el inventario. Nada clínico, nada de pagos. Lo demás que ve (agenda,
+-- 2. Técnico/a dental: se agrega el rol a las políticas existentes de lectura
+--    y actualización de órdenes de laboratorio y de lectura del inventario
+--    (ALTER POLICY, solo se suma el rol nuevo). Nada clínico, nada de pagos. Lo demás que ve (agenda,
 --    pacientes, tratamientos, catálogo de laboratorio) ya es `is_clinic_member`.
 --
 -- No escribe datos. Reversa al pie.
@@ -47,53 +47,45 @@ revoke all on function public.has_clinic_role(uuid, public.app_role[]) from publ
 grant execute on function public.has_clinic_role(uuid, public.app_role[]) to authenticated, service_role;
 
 -- ─── 2. Técnico/a dental ───────────────────────────────────────────────────
+-- Se suma 'lab_technician' a la lista de roles de 7 políticas existentes
+-- (ALTER POLICY, mismo nombre y mismo comando). Las listas parten de
+-- pg_policies de prod del 27-oct-2026 y solo se les AGREGA el rol nuevo:
+-- ningún rol existente gana ni pierde nada. No se crean políticas
+-- permisivas paralelas para no tener dos por (rol, comando)
+-- (tests/rls-politicas-por-comando.test.ts). Ninguna es clínica ni de pagos.
 
-drop policy if exists lab_orders_select_laboratorio on public.lab_orders;
-create policy lab_orders_select_laboratorio on public.lab_orders
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy lab_orders_select_operativo on public.lab_orders
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting','lab_technician']::public.app_role[]));
 
-drop policy if exists lab_orders_update_laboratorio on public.lab_orders;
-create policy lab_orders_update_laboratorio on public.lab_orders
-  for update to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]))
-  with check (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy lab_orders_update_operativo on public.lab_orders
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting','lab_technician']::public.app_role[]))
+  with check (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting','lab_technician']::public.app_role[]));
 
-drop policy if exists inventory_items_select_laboratorio on public.inventory_items;
-create policy inventory_items_select_laboratorio on public.inventory_items
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy inventory_items_select_clinical on public.inventory_items
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','lab_technician']::public.app_role[]));
 
-drop policy if exists inventory_stock_select_laboratorio on public.inventory_stock;
-create policy inventory_stock_select_laboratorio on public.inventory_stock
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy inventory_stock_select_clinical on public.inventory_stock
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','lab_technician']::public.app_role[]));
 
-drop policy if exists inventory_movements_select_laboratorio on public.inventory_movements;
-create policy inventory_movements_select_laboratorio on public.inventory_movements
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy inventory_movements_select_clinical on public.inventory_movements
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','lab_technician']::public.app_role[]));
 
-drop policy if exists inventory_counts_select_laboratorio on public.inventory_counts;
-create policy inventory_counts_select_laboratorio on public.inventory_counts
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy inventory_counts_select_clinical on public.inventory_counts
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','lab_technician']::public.app_role[]));
 
-drop policy if exists warehouses_select_laboratorio on public.warehouses;
-create policy warehouses_select_laboratorio on public.warehouses
-  for select to authenticated
-  using (public.has_clinic_role(clinic_id, array['lab_technician']::public.app_role[]));
+alter policy warehouses_select_clinical on public.warehouses
+  using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','lab_technician']::public.app_role[]));
 
 -- ═══ Reversa (no se ejecuta) ════════════════════════════════════════════════
 -- Antes de revertir, ningún integrante debe tener rol coordinator ni
 -- lab_technician (cambiarlos en Equipo), o quedarían sin acceso.
--- drop policy if exists warehouses_select_laboratorio on public.warehouses;
--- drop policy if exists inventory_counts_select_laboratorio on public.inventory_counts;
--- drop policy if exists inventory_movements_select_laboratorio on public.inventory_movements;
--- drop policy if exists inventory_stock_select_laboratorio on public.inventory_stock;
--- drop policy if exists inventory_items_select_laboratorio on public.inventory_items;
--- drop policy if exists lab_orders_update_laboratorio on public.lab_orders;
--- drop policy if exists lab_orders_select_laboratorio on public.lab_orders;
+-- alter policy lab_orders_select_operativo on public.lab_orders using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting']::public.app_role[]));
+-- alter policy lab_orders_update_operativo on public.lab_orders using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting']::public.app_role[])) with check (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception','accounting']::public.app_role[]));
+-- alter policy inventory_items_select_clinical on public.inventory_items using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception']::public.app_role[]));
+-- alter policy inventory_stock_select_clinical on public.inventory_stock using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception']::public.app_role[]));
+-- alter policy inventory_movements_select_clinical on public.inventory_movements using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception']::public.app_role[]));
+-- alter policy inventory_counts_select_clinical on public.inventory_counts using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception']::public.app_role[]));
+-- alter policy warehouses_select_clinical on public.warehouses using (public.has_clinic_role(clinic_id, ARRAY['owner','admin','dentist','assistant','reception']::public.app_role[]));
 -- create or replace function public.has_clinic_role(_clinic_id uuid, _roles public.app_role[])
 --  returns boolean language sql stable security definer set search_path to 'public'
 -- as $f$

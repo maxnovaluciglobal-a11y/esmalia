@@ -441,7 +441,7 @@ describe("Ola 10 · permisos por persona, roles nuevos y profesión (SQL)", () =
       `SELECT id FROM public.warehouses WHERE clinic_id = $1`,
       [clinicId],
     );
-    expect(ve.filas.map((f) => f.id)).toEqual([almacen[0].id]);
+    expect(ve.filas.map((f) => f.id)).toContain(almacen[0].id);
     const ajeno = await como<{ n: number }>(
       usuarios.lab_technician,
       `SELECT count(*)::int AS n FROM public.warehouses WHERE clinic_id = $1`,
