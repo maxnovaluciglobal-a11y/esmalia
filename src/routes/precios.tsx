@@ -30,9 +30,9 @@ import { PRECIO_FUNDADOR_EXPLICACION } from "@/lib/marketing/precio-fundador";
 import { canonicalHead, faqJsonLdScript } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
-const TITULO = "Precios · Esmalia — software dental desde US$29";
+const TITULO = "Precios · Esmalia — software dental desde US$19,99";
 const DESCRIPCION =
-  "Planes de Esmalia para clínicas dentales: Solo US$29/mes (1 profesional), Clínica US$69/mes (hasta 3) y Red a medida. 14 días gratis, sin tarjeta. Cobro en USD.";
+  "Planes de Esmalia para clínicas dentales: Solo US$19,99/mes (1 profesional), Clínica US$49,99/mes (hasta 3) y Red a medida. 14 días gratis, sin tarjeta. Cobro en USD.";
 
 const preguntas: { q: string; a: string }[] = [
   {
@@ -41,7 +41,11 @@ const preguntas: { q: string; a: string }[] = [
   },
   {
     q: "¿Qué incluye cada plan?",
-    a: "Solo (US$29/mes, 1 profesional): agenda, ficha clínica, recordatorios por WhatsApp, caja, presupuestos e importación de pacientes por planilla. Clínica (US$69/mes, hasta 3 profesionales): todo lo de Solo, más comisiones, roles y portal de pacientes. Red (varias sedes): a medida, con multisede, inventario, reportes por sede y migración acompañada.",
+    a: "Solo (US$19,99/mes, 1 profesional): agenda, ficha clínica, recordatorios por WhatsApp, caja, presupuestos e importación de pacientes por planilla. Clínica (US$49,99/mes, hasta 3 profesionales): todo lo de Solo, más comisiones, roles y portal de pacientes. Red (varias sedes): a medida, con multisede, inventario, reportes por sede y migración acompañada.",
+  },
+  {
+    q: "¿Cuánto espacio tengo para radiografías y fotos?",
+    a: "Plan Solo: 25 GB. Plan Clínica: 75 GB. Alcanza para años de radiografías, fotos y escaneos de una clínica normal. Te avisamos al llegar al 80 % y, si se llena, puedes pedir ampliarlo. Cada archivo puede pesar hasta 200 MB.",
   },
   {
     q: "¿Puedo probar Esmalia sin dejar mi sistema actual?",
@@ -92,7 +96,7 @@ function PaginaPrecios() {
         <section className="mx-auto max-w-6xl px-6 pt-14 pb-16 sm:pt-20">
           {/* El H1 nombra el producto y el precio; el precio fundador
               queda como H2 dentro de PreciosPlanes. */}
-          <h1 className="kicker mb-4">Precios de Esmalia, software dental desde US$29/mes</h1>
+          <h1 className="kicker mb-4">Precios de Esmalia, software dental desde US$19,99/mes</h1>
           <PreciosPlanes encabezado="h2" lugar="pagina-precios" />
         </section>
 

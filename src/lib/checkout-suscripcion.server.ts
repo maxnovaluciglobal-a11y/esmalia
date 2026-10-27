@@ -171,7 +171,7 @@ export async function crearCheckoutOPortal(
       // Con trial el total del checkout es 0 y Stripe no pide tarjeta; sin
       // trial (prueba ya usada o vencida) el cobro es inmediato y la pide.
       payment_method_collection: "if_required",
-      metadata: { clinic_id: p.clinicId, clinic_name: p.clinicName },
+      metadata: { clinic_id: p.clinicId, clinic_name: p.clinicName, plan: p.plan },
       subscription_data: {
         ...(trial ?? {}),
         // BIL-04: si la prueba termina sin tarjeta, Stripe cancela en vez de
@@ -181,7 +181,7 @@ export async function crearCheckoutOPortal(
         ...(trial
           ? { trial_settings: { end_behavior: { missing_payment_method: "cancel" } } }
           : {}),
-        metadata: { clinic_id: p.clinicId },
+        metadata: { clinic_id: p.clinicId, plan: p.plan },
       },
       success_url: p.successUrl,
       cancel_url: p.cancelUrl,

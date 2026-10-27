@@ -13,7 +13,7 @@ Estas cosas requieren decisión y firma de Walter antes de tocar código product
 - [ ] **Confirmar el nombre "Esmalia"** o retomar la búsqueda. Ver `~/.claude/projects/-Users-walterlamadriz-Documents/memory/oralia_audit_fase6.md` para la investigación. Recomendación: seguir con Esmalia si el trademark check da libre.
 - [ ] **Trademark check formal** en INAPI (CL) + IMPI (MX) + INPI (AR) + USPTO clase 9 y 42. ~US$150 con abogado, 2-3 días. Sin este OK, no comprar dominio ni imprimir marketing.
 - [x] **Dominio** (actualizado oct-2026): se compró `esmalia.com` el 09-oct-2026.
-- [x] **Modelo de precios** (actualizado oct-2026: publicado en `/precios`, Solo US$29 / Clínica US$69 / Red a medida, trial 14 días) definido: ¿por seat/profesional/mes? ¿flat por clínica? ¿free trial 14 días? Requerido antes de configurar Stripe.
+- [x] **Modelo de precios** (actualizado oct-2026: publicado en `/precios`, Solo US$19,99 / Clínica US$49,99 / Red a medida, trial 14 días) definido: ¿por seat/profesional/mes? ¿flat por clínica? ¿free trial 14 días? Requerido antes de configurar Stripe.
 - [ ] **Piloto**: identificar 3-5 clínicas amigas dispuestas a usar la beta. Sin piloto no vale la pena ir a producción.
 
 ---

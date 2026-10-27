@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/para/clinica-dental",
   titulo: "Software para clínica dental con equipo | Esmalia",
   descripcion:
-    "Software para clínicas dentales de hasta 3 profesionales: roles por persona, comisiones, portal de pacientes y una agenda por profesional. US$69/mes.",
+    "Software para clínicas dentales de hasta 3 profesionales: roles por persona, comisiones, portal de pacientes y una agenda por profesional. US$49,99/mes.",
   kicker: "Para clínicas",
   h1: "Software para clínicas dentales con equipo",
   resumen:
-    "Una clínica con varios profesionales necesita que cada persona vea solo lo suyo, que las comisiones se calculen sin planilla y que la agenda muestre a cada profesional por separado. El plan Clínica de Esmalia cubre eso para hasta 3 profesionales por US$69 al mes, con 14 días gratis y sin tarjeta.",
+    "Una clínica con varios profesionales necesita que cada persona vea solo lo suyo, que las comisiones se calculen sin planilla y que la agenda muestre a cada profesional por separado. El plan Clínica de Esmalia cubre eso para hasta 3 profesionales por US$49,99 al mes, con 14 días gratis y sin tarjeta.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -133,13 +133,13 @@ export const pagina: PaginaContenido = {
             [
               "Solo",
               "1",
-              "US$29 al mes",
+              "US$19,99 al mes",
               "Agenda, ficha, WhatsApp, caja, presupuestos e importación CSV",
             ],
             [
               "Clínica",
               "Hasta 3",
-              "US$69 al mes",
+              "US$49,99 al mes",
               "Todo lo de Solo, más roles, comisiones y portal de pacientes",
             ],
             [
@@ -162,7 +162,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software dental sirve para una clínica con 2 o 3 dentistas?",
-      a: "Uno con roles por persona, comisiones por profesional y una agenda por profesional. Esmalia lo cubre con el plan Clínica: hasta 3 profesionales por US$69 al mes, con 14 días gratis y sin tarjeta.",
+      a: "Uno con roles por persona, comisiones por profesional y una agenda por profesional. Esmalia lo cubre con el plan Clínica: hasta 3 profesionales por US$49,99 al mes, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿La recepcionista puede ver la historia clínica de los pacientes?",
@@ -191,5 +191,5 @@ export const pagina: PaginaContenido = {
     "/precios",
   ],
   enUnaLinea:
-    "Plan Clínica de Esmalia para hasta 3 profesionales: roles por persona, comisiones, portal de pacientes y agenda por profesional, a US$69 al mes.",
+    "Plan Clínica de Esmalia para hasta 3 profesionales: roles por persona, comisiones, portal de pacientes y agenda por profesional, a US$49,99 al mes.",
 };

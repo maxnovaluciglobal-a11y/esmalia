@@ -32,6 +32,8 @@ export interface Subscription {
   stripeCustomerId: string | null;
   stripeSubscriptionId: string | null;
   stripePriceId: string | null;
+  /** Plan guardado por el webhook; null en suscripciones anteriores. */
+  plan?: "solo" | "clinica" | null;
   trialEnd: string | null;
   currentPeriodEnd: string | null;
   cancelAtPeriodEnd: boolean;

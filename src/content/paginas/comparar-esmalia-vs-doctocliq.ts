@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/comparar/esmalia-vs-doctocliq",
   titulo: "Esmalia vs Doctocliq: comparativa 2026 | Esmalia",
   descripcion:
-    "Doctocliq cuesta desde US$19 y tiene plan gratis; Esmalia, US$29. Comparamos qué incluye cada uno: WhatsApp, IA, factura, sedes y uso sin internet.",
+    "Doctocliq tiene plan gratis y su primer plan pago cuesta US$19; Esmalia, US$19,99. Comparamos qué incluye cada uno: WhatsApp, IA, factura, sedes y uso sin internet.",
   kicker: "Comparativa",
   h1: "Esmalia vs Doctocliq: ¿qué te llevas por lo que pagas?",
   resumen:
-    "Doctocliq parte más barato y tiene plan gratis: US$19, US$29 o US$49 al mes, con recordatorios automáticos y, según su web, factura electrónica como complemento en Perú, México, Ecuador y Colombia. Esmalia cuesta US$29 para un profesional y US$69 para hasta tres, funciona sin internet y deja que tu equipo revise cada WhatsApp. No factura.",
+    "Doctocliq parte más barato y tiene plan gratis: US$19, US$29 o US$49 al mes, con recordatorios automáticos y, según su web, factura electrónica como complemento en Perú, México, Ecuador y Colombia. Esmalia cuesta US$19,99 para un profesional y US$49,99 para hasta tres, funciona sin internet y deja que tu equipo revise cada WhatsApp. No factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -25,7 +25,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Si solo miras el precio de entrada, Doctocliq cuesta menos: tiene un plan gratis y su primer plan pago cuesta US$19. No vamos a competir en eso. Lo útil es mirar qué trae cada plan y qué se cobra aparte.",
+            "Si solo miras el precio de entrada, Doctocliq tiene un plan gratis y su primer plan pago cuesta US$19, casi lo mismo que Esmalia Solo (US$19,99). Con el plan gratis no vamos a competir. Lo útil es mirar qué trae cada plan y qué se cobra aparte.",
         },
         {
           tipo: "tabla",
@@ -57,13 +57,13 @@ export const pagina: PaginaContenido = {
             ],
             [
               "Esmalia Solo",
-              "US$29",
+              "US$19,99",
               "1 profesional",
               "Agenda, ficha clínica, odontograma, recordatorios por WhatsApp, caja, presupuestos, importación por CSV",
             ],
             [
               "Esmalia Clínica",
-              "US$69",
+              "US$49,99",
               "Hasta 3",
               "Todo lo de Solo, más comisiones, roles y portal de pacientes",
             ],
@@ -147,7 +147,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "**Son 2 o 3 profesionales.** El plan Clínica cubre hasta tres por US$69 al mes, con comisiones por profesional, roles y portal de pacientes. Ver [comisiones](/funciones/comisiones).",
+            "**Son 2 o 3 profesionales.** El plan Clínica cubre hasta tres por US$49,99 al mes, con comisiones por profesional, roles y portal de pacientes. Ver [comisiones](/funciones/comisiones).",
             "**Se te corta internet.** Esmalia sigue funcionando: agenda, fichas, cobros y odontograma se guardan en el equipo y se sincronizan solos. Doctocliq dice en su FAQ que requiere conexión a internet. Ver [sin internet](/funciones/sin-internet).",
             "**Prefieres revisar antes de que un mensaje salga.** En Esmalia ningún WhatsApp a pacientes sale solo, y no hay cupo de recordatorios por plan. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Quieres IA para la parte clínica.** Patty, hoy en habilitación, pasará tus apuntes a una nota SOAP y resumirá la nota anterior para la próxima consulta. No firma notas ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
@@ -171,7 +171,7 @@ export const pagina: PaginaContenido = {
           items: [
             "Si eres un solo dentista y el presupuesto manda, empieza por el plan gratis o el de US$19 de Doctocliq.",
             "Si necesitas factura electrónica en Perú, México, Ecuador o Colombia, Doctocliq.",
-            "Si son 2 o 3 profesionales, compara el costo total en Doctocliq con el plan Clínica de Esmalia a US$69.",
+            "Si son 2 o 3 profesionales, compara el costo total en Doctocliq con el plan Clínica de Esmalia a US$49,99.",
             "Si tu internet es inestable o quieres revisar cada WhatsApp antes de que salga, prueba Esmalia o entra a la [demo](/demo).",
           ],
         },

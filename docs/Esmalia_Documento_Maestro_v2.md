@@ -75,7 +75,7 @@ Pasa los apuntes del profesional a una nota SOAP, pule la redacción, resume la 
 | Archivar pacientes en vez de borrarlos                                                     | Hoy un owner o admin puede borrar un paciente y la cascada se lleva su historia (CLI-05). En curso (tanda 2)                 |
 | Registro de quién abrió qué ficha                                                          | No existe (SEG-02). En curso (tanda 2)                                                                                       |
 | Cifrado del documento de identidad                                                         | Construido, pero 0 de 11 pacientes cifrados. Plazo legal: 1-dic-2026 (Ley 21.719)                                            |
-| Límites por plan                                                                           | Solo (US$29) y Clínica (US$69) habilitan lo mismo (MER-01)                                                                   |
+| Límites por plan                                                                           | Solo (US$19,99) y Clínica (US$49,99) habilitan lo mismo (MER-01)                                                             |
 | Precio en moneda local, plan anual, profesional adicional                                  | Solo cobro mensual en USD. Propuesta en CLP pendiente (D7)                                                                   |
 | Cobro online a pacientes, links de pago, integración con aseguradoras                      | No existen                                                                                                                   |
 | Multisede avanzada, API pública, app móvil nativa, predicción de ausencias, IA de imágenes | No existen y no están en los próximos 90 días                                                                                |
@@ -85,11 +85,11 @@ Pasa los apuntes del profesional a una nota SOAP, pule la redacción, resume la 
 
 ## 5. Precios publicados
 
-| Plan    | Precio    | Qué dice la web                                                               |
-| ------- | --------- | ----------------------------------------------------------------------------- |
-| Solo    | US$29/mes | 1 profesional: agenda, ficha, recordatorios, caja, presupuestos e importación |
-| Clínica | US$69/mes | Hasta 3 profesionales; suma comisiones, roles y portal de pacientes           |
-| Red     | A medida  | Varias sedes, por WhatsApp                                                    |
+| Plan    | Precio       | Qué dice la web                                                               |
+| ------- | ------------ | ----------------------------------------------------------------------------- |
+| Solo    | US$19,99/mes | 1 profesional: agenda, ficha, recordatorios, caja, presupuestos e importación |
+| Clínica | US$49,99/mes | Hasta 3 profesionales; suma comisiones, roles y portal de pacientes           |
+| Red     | A medida     | Varias sedes, por WhatsApp                                                    |
 
 14 días gratis sin tarjeta y cobro en USD vía Stripe. El "precio fundador" (desde el 20-oct-2026) es 50 % de descuento durante 12 meses y después el precio de lista, avisado con 30 días (antes se prometía "de por vida"; MER-06). La propuesta para Chile (CLP, anual con 2 meses gratis, puesta en marcha pagada) está en la auditoría, `hallazgos/08`, y espera validación con 10 entrevistas.
 

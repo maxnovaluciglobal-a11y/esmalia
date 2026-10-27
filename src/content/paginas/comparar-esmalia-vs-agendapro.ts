@@ -9,7 +9,7 @@ export const pagina: PaginaContenido = {
   kicker: "Comparativa",
   h1: "Esmalia vs AgendaPro: agenda multi-rubro o software dental",
   resumen:
-    "AgendaPro es un sistema de agenda y gestión que se ofrece para varios rubros, con pagos y facturación; en Chile la ficha clínica viene desde el plan Premium ($54.900 + IVA) y la factura electrónica en Pro o como complemento. Esmalia es solo dental: ficha, odontograma FDI y WhatsApp desde US$29 al mes, funciona sin internet, pero no emite factura.",
+    "AgendaPro es un sistema de agenda y gestión que se ofrece para varios rubros, con pagos y facturación; en Chile la ficha clínica viene desde el plan Premium ($54.900 + IVA) y la factura electrónica en Pro o como complemento. Esmalia es solo dental: ficha, odontograma FDI y WhatsApp desde US$19,99 al mes, funciona sin internet, pero no emite factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -82,7 +82,7 @@ export const pagina: PaginaContenido = {
             [
               "Precio con ficha clínica",
               "Desde $54.900 + IVA al mes (Premium)",
-              "US$29/mes (1 profesional) o US$69/mes (hasta 3), con ficha desde el plan Solo",
+              "US$19,99/mes (1 profesional) o US$49,99/mes (hasta 3), con ficha desde el plan Solo",
             ],
             [
               "Odontograma",
@@ -131,7 +131,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "lista",
           items: [
-            "**Eres una clínica solo dental de 1 a 3 profesionales.** La ficha clínica, el odontograma y los presupuestos vienen desde el plan de US$29, sin subir de plan. Ver [ficha clínica](/funciones/ficha-clinica) y [odontograma](/funciones/odontograma).",
+            "**Eres una clínica solo dental de 1 a 3 profesionales.** La ficha clínica, el odontograma y los presupuestos vienen desde el plan de US$19,99, sin subir de plan. Ver [ficha clínica](/funciones/ficha-clinica) y [odontograma](/funciones/odontograma).",
             "**Quieres que los recordatorios no dependan de un cupo.** Los planes de Esmalia no fijan un cupo de recordatorios. En modo manual, cada mensaje se abre en tu propio WhatsApp con el texto listo y tu equipo lo envía. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Necesitas atender aunque se corte internet.** Agenda, fichas, cobros y odontograma siguen funcionando y se sincronizan solos. Ver [sin internet](/funciones/sin-internet).",
             "**Quieres IA clínica, no de marketing.** Patty, hoy en habilitación, te ayudará con la nota SOAP y el resumen de la consulta anterior. No firma ni le escribe a pacientes. Ver [Patty IA](/funciones/patty-ia).",
@@ -141,7 +141,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "aviso",
           texto:
-            "Esmalia cobra en dólares (US$29 o US$69 al mes) por Stripe; el monto en pesos depende del tipo de cambio de tu banco. Y no emite boleta ni factura electrónica: si la necesitas dentro del sistema, AgendaPro Pro te la resuelve.",
+            "Esmalia cobra en dólares (US$19,99 o US$49,99 al mes) por Stripe; el monto en pesos depende del tipo de cambio de tu banco. Y no emite boleta ni factura electrónica: si la necesitas dentro del sistema, AgendaPro Pro te la resuelve.",
         },
       ],
     },
@@ -168,7 +168,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Qué es mejor para un dentista, AgendaPro o Esmalia?",
-      a: "Si atiendes solo odontología con 1 a 3 profesionales, Esmalia trae ficha, odontograma y WhatsApp desde US$29 al mes y funciona sin internet. Si necesitas factura electrónica, varios rubros o más de 3 profesionales con precio publicado, AgendaPro puede encajar mejor.",
+      a: "Si atiendes solo odontología con 1 a 3 profesionales, Esmalia trae ficha, odontograma y WhatsApp desde US$19,99 al mes y funciona sin internet. Si necesitas factura electrónica, varios rubros o más de 3 profesionales con precio publicado, AgendaPro puede encajar mejor.",
     },
     {
       q: "¿AgendaPro tiene odontograma?",

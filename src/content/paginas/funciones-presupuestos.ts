@@ -101,7 +101,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Presupuestos y caja vienen desde el plan Solo (US$29 al mes) y están en todos los planes. Crear un presupuesto necesita internet; los cobros sí se pueden registrar sin conexión. Revisa los [precios](/precios) o mira un plan de tratamiento en la [demo](/demo). Si todavía presupuestas en papel, usa nuestra [plantilla de presupuesto dental](/plantillas/presupuesto-dental).",
+            "Presupuestos y caja vienen desde el plan Solo (US$19,99 al mes) y están en todos los planes. Crear un presupuesto necesita internet; los cobros sí se pueden registrar sin conexión. Revisa los [precios](/precios) o mira un plan de tratamiento en la [demo](/demo). Si todavía presupuestas en papel, usa nuestra [plantilla de presupuesto dental](/plantillas/presupuesto-dental).",
         },
       ],
     },

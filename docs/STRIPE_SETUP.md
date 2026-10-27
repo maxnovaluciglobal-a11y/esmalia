@@ -21,7 +21,7 @@ Hasta oct-2026 Esmalia cobraba desde la cuenta de Stripe que comparte con DypOS 
    ```bash
    read -s STRIPE_SECRET_KEY && export STRIPE_SECRET_KEY && node scripts/stripe-setup-esmalia.mjs --vercel
    ```
-   Crea los productos (Solo US$29, Clínica US$69, mensuales), el portal de facturación y el webhook `https://esmalia.com/api/stripe/webhook`, y carga en Vercel los 4 IDs de precio y el signing secret (sin mostrarlo). Es idempotente.
+   Crea los productos (Solo US$19,99, Clínica US$49,99, mensuales), el portal de facturación y el webhook `https://esmalia.com/api/stripe/webhook`, y carga en Vercel los 4 IDs de precio y el signing secret (sin mostrarlo). Es idempotente.
 4. En Vercel (production) reemplazar a mano `STRIPE_SECRET_KEY` (la misma secret key) y `VITE_STRIPE_PUBLISHABLE_KEY` (pk_live de la cuenta nueva). Redeploy.
 5. Verificar: entrar a `/suscripcion` con una cuenta de prueba, abrir el Checkout (tiene que decir **Esmalia**), y en el dashboard → Webhooks ver el evento entregado. No completar un pago real si no hace falta: el trial de 14 días deja el checkout en $0.
 6. En la cuenta vieja (DypOS): archivar los productos viejos de Esmalia y **deshabilitar** (no borrar) el webhook el dominio `.vercel.app` original, después de confirmar que no hay suscripciones activas de Esmalia ahí. Si las hay, se dejan hasta que venzan o se migran con el soporte de Stripe.
@@ -57,7 +57,18 @@ capacidad de cobro real todavía.
 
 Test configurado y verificado en vivo (01-sep-2026, ver corrección arriba). Live NO está configurado todavía. Este doc queda como referencia de cómo se hizo y para cuando se quiera pasar a Live.
 
-## Pricing decidido (actualizado 2026-08-22)
+## Pricing decidido (actualizado 27-oct-2026)
+
+**Vigente (decisión de Walter, 27-oct-2026):** Solo **US$19,99/mes** y Clínica **US$49,99/mes** (hasta 3 profesionales), en USD para todos los países. Precio fundador: 50 % durante 12 meses = US$9,99 y US$24,99 (cupón `FUNDADOR50`, 50 % por 12 meses). Los precios de abajo (US$29/US$69) quedan como historia.
+
+**Cómo pasar a los precios nuevos sin romper nada** (no hay suscripciones pagando hoy):
+
+1. En la cuenta Esmalia (`acct_1UOxuTRqTMSzyMrr`), en los productos existentes, crear un precio mensual recurrente en USD de **19,99** (Solo) y otro de **49,99** (Clínica), con la clave de búsqueda (`lookup_key`) `esmalia_solo_monthly_1999` / `esmalia_clinic_monthly_4999` y el metadata `plan=solo` / `plan=clinica`. Los precios viejos NO se borran: se archivan cuando no haya suscripciones en ellos.
+2. Cargar los IDs en Vercel (Production): `STRIPE_PRICE_ID_SOLO_MONTHLY` y `STRIPE_PRICE_ID_CLINIC_MONTHLY` (y las `VITE_…` equivalentes que usa la pantalla Suscripción) y redeployar.
+3. Crear el cupón `FUNDADOR50`: 50 % de descuento, duración 12 meses (`duration=repeating`, `duration_in_months=12`).
+   El plan de cada suscripción se guarda en `subscriptions.plan` (lo escribe el webhook desde el metadata del checkout), así que el cupo de almacenamiento y la pantalla Suscripción no dependen del ID del precio.
+
+## Pricing anterior (2026-08-22)
 
 - **Modelo**: dos tiers de fundador, no un flat único (reemplaza el US$49 flat original).
   - **Solo** — US$29/mes (regular US$49, tachado en la UI como promocional) — 1 profesional/sillón.
@@ -138,7 +149,7 @@ Permisos de la clave restringida (`rk_live_...`): además de los de arriba, este
 
 ## 5. Verificar
 
-- En `/suscripcion` (ya existe): elegí un plan (Solo/Clínica) y el botón "Activar suscripción · US$29/mes" (o el que corresponda) llama `createCheckoutSession` con ese `plan` → redirige a Stripe.
+- En `/suscripcion` (ya existe): elige un plan (Solo/Clínica) y el botón "Activar suscripción · US$19,99/mes" (o el que corresponda) llama `createCheckoutSession` con ese `plan` → redirige a Stripe.
 - Completar el checkout con tarjeta de test `4242 4242 4242 4242`.
 - Verificar en la DB: `SELECT * FROM subscriptions WHERE clinic_id = ...` — debe aparecer con `status = trialing` y `trial_end` a 14 días.
 - Verificar en la DB: `SELECT * FROM stripe_events ORDER BY received_at DESC` — el evento debe estar registrado.

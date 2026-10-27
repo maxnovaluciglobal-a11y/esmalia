@@ -5,11 +5,11 @@ export const pagina: PaginaContenido = {
   path: "/software-dental-colombia",
   titulo: "Software dental en Colombia: precio y alcance | Esmalia",
   descripcion:
-    "Software para consultorio odontológico en Colombia: agenda en hora de Bogotá, pesos COP sin decimales y WhatsApp. Desde US$29/mes (aprox. $89.300).",
+    "Software para consultorio odontológico en Colombia: agenda en hora de Bogotá, pesos COP sin decimales y WhatsApp. Desde US$19,99/mes (aprox. $61.600).",
   kicker: "Colombia",
   h1: "Software odontológico para consultorios y clínicas de Colombia",
   resumen:
-    "Esmalia es un software odontológico que un consultorio colombiano configura al darse de alta: queda en pesos colombianos sin decimales y en hora de Bogotá. Cuesta US$29 al mes para un profesional o US$69 hasta tres, unos $89.300 y $213.000 de referencia, cobrados en dólares. No emite factura electrónica de la DIAN.",
+    "Esmalia es un software odontológico que un consultorio colombiano configura al darse de alta: queda en pesos colombianos sin decimales y en hora de Bogotá. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $61.600 y $154.000 de referencia, cobrados en dólares. No emite factura electrónica de la DIAN.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -68,8 +68,8 @@ export const pagina: PaginaContenido = {
           tipo: "tabla",
           columnas: ["Plan", "Para quién", "Precio en USD", "Referencia en COP"],
           filas: [
-            ["Solo", "1 profesional", "US$29 al mes", "aprox. $89.300"],
-            ["Clínica", "Hasta 3 profesionales", "US$69 al mes", "aprox. $213.000"],
+            ["Solo", "1 profesional", "US$19,99 al mes", "aprox. $61.600"],
+            ["Clínica", "Hasta 3 profesionales", "US$49,99 al mes", "aprox. $154.000"],
             ["Red", "Varias sedes, desde 4 profesionales", "A medida", "Se cotiza"],
           ],
           nota: "14 días gratis, sin tarjeta. Las clínicas fundadoras pagan la mitad de su plan durante 12 meses; después, el precio de lista, avisado con 30 días de anticipación.",
@@ -150,7 +150,7 @@ export const pagina: PaginaContenido = {
   faq: [
     {
       q: "¿Qué software odontológico sirve para un consultorio en Colombia?",
-      a: "Uno que trabaje en pesos sin decimales, en hora de Bogotá y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$29 al mes (aprox. $89.300) para un profesional, con 14 días gratis y sin tarjeta.",
+      a: "Uno que trabaje en pesos sin decimales, en hora de Bogotá y que recuerde las citas por WhatsApp. Esmalia hace eso desde US$19,99 al mes (aprox. $61.600) para un profesional, con 14 días gratis y sin tarjeta.",
     },
     {
       q: "¿Esmalia emite factura electrónica de la DIAN?",
@@ -158,7 +158,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Me cobran en pesos colombianos?",
-      a: "No, el cobro es en dólares vía Stripe: US$29 o US$69 al mes. Los montos en pesos son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
+      a: "No, el cobro es en dólares vía Stripe: US$19,99 o US$49,99 al mes. Los montos en pesos son una referencia aproximada; el valor final depende del tipo de cambio de tu banco o tarjeta.",
     },
     {
       q: "¿Se conecta a la historia clínica electrónica interoperable?",

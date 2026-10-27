@@ -1,3 +1,5 @@
+import { etiquetaUsd } from "@/lib/marketing/precio-lista";
+
 /**
  * Conversión de USD a monedas locales LATAM para mostrar como referencia
  * junto al precio en dólares. PURAMENTE DECORATIVO / INFORMATIVO.
@@ -5,7 +7,7 @@
  * Esto NO es dinero real de la app (no tiene nada que ver con `finance.ts`,
  * `formatMoney`, ni con montos cobrados por Stripe). El cobro real es por
  * uno de los dos precios de lista definidos en `src/lib/stripe.server.ts`
- * ("solo" US$29/mes, "clínica" US$69/mes, ambos con trial de 14 días) —
+ * ("solo" US$19,99/mes, "clínica" US$49,99/mes, ambos con trial de 14 días) —
  * este archivo no debe tocarse ni usarse para calcular nada que afecte un cobro.
  *
  * Tipos de cambio APROXIMADOS, cargados a mano el 2026-08-22 (cotización
@@ -58,7 +60,7 @@ const USD_TO_PEN_APPROX = 3.7;
  * que `approxLocalPricesLabel`: el cobro real sigue siendo en USD.
  */
 export function precioEnMoneda(usd: number, moneda: MonedaPrecio): string {
-  if (moneda === "USD") return `US$${usd}`;
+  if (moneda === "USD") return etiquetaUsd(Math.round(usd * 100));
   const tasa =
     moneda === "PEN"
       ? USD_TO_PEN_APPROX

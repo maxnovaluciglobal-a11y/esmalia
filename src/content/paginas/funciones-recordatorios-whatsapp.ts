@@ -147,7 +147,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Sirve igual para un consultorio de un profesional que para una clínica con recepción. La pantalla la usan quienes gestionan la agenda: propietario, administración, doctores y recepción. Los recordatorios por WhatsApp vienen desde el plan Solo (US$29 al mes) y están en todos los planes. Revisa el detalle en [precios](/precios) o entra a la [demo](/demo).",
+            "Sirve igual para un consultorio de un profesional que para una clínica con recepción. La pantalla la usan quienes gestionan la agenda: propietario, administración, doctores y recepción. Los recordatorios por WhatsApp vienen desde el plan Solo (US$19,99 al mes) y están en todos los planes. Revisa el detalle en [precios](/precios) o entra a la [demo](/demo).",
         },
       ],
     },
@@ -186,7 +186,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Cuánto cuesta tener recordatorios por WhatsApp en Esmalia?",
-      a: "Vienen incluidos desde el plan Solo, US$29 al mes, con 14 días gratis sin tarjeta. El modo manual no suma costos de mensajería: envías desde tu propio WhatsApp.",
+      a: "Vienen incluidos desde el plan Solo, US$19,99 al mes, con 14 días gratis sin tarjeta. El modo manual no suma costos de mensajería: envías desde tu propio WhatsApp.",
     },
   ],
   relacionados: [

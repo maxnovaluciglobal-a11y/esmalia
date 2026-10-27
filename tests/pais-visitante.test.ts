@@ -43,6 +43,6 @@ describe("monedaPorPais", () => {
   });
 
   it("COP se muestra como referencia redondeada", () => {
-    expect(precioEnMoneda(29, "COP")).toBe("$89.300");
+    expect(precioEnMoneda(19.99, "COP")).toBe("$61.600");
   });
 });

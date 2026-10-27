@@ -131,7 +131,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "En todos, desde Solo (US$29 al mes), sin configurar nada. Si quieres, instalas Esmalia desde el navegador y queda como una aplicación más, sin pasar por ninguna tienda. Revisa los [precios](/precios) o mira la app por dentro en la [demo](/demo).",
+            "En todos, desde Solo (US$19,99 al mes), sin configurar nada. Si quieres, instalas Esmalia desde el navegador y queda como una aplicación más, sin pasar por ninguna tienda. Revisa los [precios](/precios) o mira la app por dentro en la [demo](/demo).",
         },
       ],
     },

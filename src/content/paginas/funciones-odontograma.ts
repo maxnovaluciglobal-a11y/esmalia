@@ -104,7 +104,7 @@ export const pagina: PaginaContenido = {
         {
           tipo: "p",
           texto:
-            "Las pestañas clínicas de la ficha, incluido el odontograma, las ven propietario, administración y doctores. Recepción y contabilidad no las ven. El odontograma es parte de la [ficha clínica](/funciones/ficha-clinica), así que viene en todos los planes desde Solo (US$29 al mes) y sigue abierto aunque la prueba termine sin suscripción. Revisa los [precios](/precios) o míralo en la [demo](/demo).",
+            "Las pestañas clínicas de la ficha, incluido el odontograma, las ven propietario, administración y doctores. Recepción y contabilidad no las ven. El odontograma es parte de la [ficha clínica](/funciones/ficha-clinica), así que viene en todos los planes desde Solo (US$19,99 al mes) y sigue abierto aunque la prueba termine sin suscripción. Revisa los [precios](/precios) o míralo en la [demo](/demo).",
         },
         {
           tipo: "p",

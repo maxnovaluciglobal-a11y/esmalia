@@ -93,11 +93,45 @@ export function extractCurrentPeriodEndIso(sub: Stripe.Subscription): string | n
   return ts ? new Date(ts * 1000).toISOString() : null;
 }
 
+/**
+ * Plan de Esmalia ("solo" | "clinica") de una suscripción de Stripe, o null si
+ * no se puede deducir. Se guarda en `subscriptions.plan` para que el cupo de
+ * almacenamiento no dependa del ID de un precio concreto: al cambiar el monto
+ * (precios nuevos en Stripe) las suscripciones siguen con su plan. Orden: el
+ * metadata `plan` que pone el checkout, el ID del precio contra las variables
+ * de Vercel, y el metadata o la `lookup_key` del propio precio.
+ */
+export function planDeLaSuscripcion(sub: Stripe.Subscription): "solo" | "clinica" | null {
+  const normalizar = (v: string | null | undefined) => {
+    const t = v?.trim().toLowerCase();
+    if (t === "solo" || t === "esmalia_solo_monthly") return "solo" as const;
+    if (t === "clinica" || t === "clinic" || t === "esmalia_clinic_monthly")
+      return "clinica" as const;
+    return null;
+  };
+  const price = sub.items.data[0]?.price;
+  const porId =
+    price?.id && price.id === process.env.STRIPE_PRICE_ID_SOLO_MONTHLY
+      ? ("solo" as const)
+      : price?.id && price.id === process.env.STRIPE_PRICE_ID_CLINIC_MONTHLY
+        ? ("clinica" as const)
+        : null;
+  return (
+    normalizar(sub.metadata?.plan) ??
+    porId ??
+    normalizar(price?.metadata?.plan) ??
+    normalizar(price?.lookup_key)
+  );
+}
+
 async function upsertSubscription(admin: AdminClient, clinicId: string, sub: Stripe.Subscription) {
   const priceId = sub.items.data[0]?.price?.id ?? null;
+  const plan = planDeLaSuscripcion(sub);
   const { error } = await admin.from("subscriptions").upsert(
     {
       clinic_id: clinicId,
+      // Solo si se pudo deducir: un evento sin metadata no borra el plan ya guardado.
+      ...(plan ? { plan } : {}),
       stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer.id,
       stripe_subscription_id: sub.id,
       stripe_price_id: priceId,

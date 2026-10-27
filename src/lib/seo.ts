@@ -60,8 +60,8 @@ function ofertaMensual(name: string, price: string, description: string) {
 }
 
 export const PLAN_OFFERS = [
-  ofertaMensual("Solo", "29", "1 profesional, pago mensual. 14 días gratis."),
-  ofertaMensual("Clínica", "69", "Hasta 3 profesionales, pago mensual. 14 días gratis."),
+  ofertaMensual("Solo", "19.99", "1 profesional, pago mensual. 14 días gratis."),
+  ofertaMensual("Clínica", "49.99", "Hasta 3 profesionales, pago mensual. 14 días gratis."),
 ];
 
 /** Organization + WebSite + SoftwareApplication — sitewide, va en __root.tsx. */
@@ -122,15 +122,15 @@ export function siteJsonLdScripts() {
         ["CO", "Colombia"],
         ["AR", "Argentina"],
       ].map(([identifier, name]) => ({ "@type": "Country", identifier, name })),
-      // Solo (US$29) y Clínica (US$69), ver src/lib/stripe.server.ts. Sin
+      // Solo (US$19,99) y Clínica (US$49,99), ver src/lib/stripe.server.ts. Sin
       // aggregateRating hasta tener reseñas reales.
       offers: {
         "@type": "AggregateOffer",
         priceCurrency: "USD",
-        lowPrice: "29",
-        highPrice: "69",
+        lowPrice: "19.99",
+        highPrice: "49.99",
         offerCount: 2,
-        description: "Plan Solo desde US$29/mes y plan Clínica US$69/mes, 14 días gratis.",
+        description: "Plan Solo desde US$19,99/mes y plan Clínica US$49,99/mes, 14 días gratis.",
         offers: PLAN_OFFERS,
       },
     }),

@@ -98,7 +98,7 @@ const grupos: { t: string; items: { q: string; a: string }[] }[] = [
     items: [
       {
         q: "¿Cuánto cuesta Esmalia?",
-        a: "Desde US$29/mes (Solo, 1 profesional) o US$69/mes (Clínica, hasta 3) — sin cobro por sucursal. Las clínicas fundadoras pagan la mitad del precio de su plan durante 12 meses; después, el precio de lista. Prueba gratis de 14 días sin tarjeta.",
+        a: "Desde US$19,99/mes (Solo, 1 profesional) o US$49,99/mes (Clínica, hasta 3) — sin cobro por sucursal. Las clínicas fundadoras pagan la mitad del precio de su plan durante 12 meses; después, el precio de lista. Prueba gratis de 14 días sin tarjeta.",
       },
     ],
   },

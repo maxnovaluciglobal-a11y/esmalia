@@ -3,9 +3,9 @@
  *
  * El valor que manda está en la base (`storage_quota_plans`, migración
  * 20261109100000) y lo devuelve `uso_de_almacenamiento()`. Estos valores son
- * la PROPUESTA del plan maestro (5 GB Solo, 20 GB Clínica) y solo se usan
- * como respaldo de la pantalla; la decisión final es de Walter.
- * `tests/examenes-cupo.test.ts` vigila que coincidan con la migración.
+ * los cupos decididos por Walter (27-oct-2026: 25 GB Solo, 75 GB Clínica) y solo
+ * se usan como respaldo de la pantalla. `tests/examenes-cupo.test.ts` vigila
+ * que coincidan con la migración 20261111100000.
  */
 import { MB } from "@/lib/examenes/tipos";
 
@@ -14,8 +14,8 @@ export const GB = 1024 * MB;
 export type PlanAlmacenamiento = "solo" | "clinica";
 
 export const CUPO_POR_PLAN: Record<PlanAlmacenamiento, number> = {
-  solo: 5 * GB,
-  clinica: 20 * GB,
+  solo: 25 * GB,
+  clinica: 75 * GB,
 };
 
 export const ETIQUETA_PLAN: Record<PlanAlmacenamiento, string> = {

@@ -40,7 +40,10 @@ import {
  */
 
 const MIG_CUPO = readFileSync(
-  new URL("../supabase/migrations/20261109100000_cupo_de_almacenamiento.sql", import.meta.url),
+  new URL(
+    "../supabase/migrations/20261111100000_plan_de_la_suscripcion_y_cupo.sql",
+    import.meta.url,
+  ),
   "utf8",
 );
 const MIG_EXAMENES = readFileSync(
@@ -48,12 +51,12 @@ const MIG_EXAMENES = readFileSync(
   "utf8",
 );
 
-describe("cupo por plan (propuesta 5 GB Solo / 20 GB Clínica, decisión de Walter)", () => {
+describe("cupo por plan (25 GB Solo / 75 GB Clínica, decisión de Walter del 27-oct-2026)", () => {
   it("la app y la migración tienen los mismos valores", () => {
-    expect(CUPO_POR_PLAN.solo).toBe(5 * GB);
-    expect(CUPO_POR_PLAN.clinica).toBe(20 * GB);
-    expect(MIG_CUPO).toContain(`('solo', ${CUPO_POR_PLAN.solo})`);
-    expect(MIG_CUPO).toContain(`('clinica', ${CUPO_POR_PLAN.clinica})`);
+    expect(CUPO_POR_PLAN.solo).toBe(25 * GB);
+    expect(CUPO_POR_PLAN.clinica).toBe(75 * GB);
+    expect(MIG_CUPO).toContain(`quota_bytes = ${CUPO_POR_PLAN.solo}`);
+    expect(MIG_CUPO).toContain(`quota_bytes = ${CUPO_POR_PLAN.clinica}`);
   });
 
   it("estado normal, aviso desde el 80 % y lleno al 100 %", () => {

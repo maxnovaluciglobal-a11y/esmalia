@@ -9,7 +9,7 @@ export const pagina: PaginaContenido = {
   kicker: "Comparativa",
   h1: "Esmalia vs Medilink: ¿cuál conviene a una clínica dental?",
   resumen:
-    "Medilink se presenta como software para todas las especialidades médicas, con más de 15.000 clientes según su web; emite boletas desde el plan Pro y no publica precios. Su web no menciona odontograma. Esmalia es solo dental: odontograma FDI con periodontograma, precio publicado (US$29 o US$69 al mes) y uso sin internet. No emite boleta ni factura.",
+    "Medilink se presenta como software para todas las especialidades médicas, con más de 15.000 clientes según su web; emite boletas desde el plan Pro y no publica precios. Su web no menciona odontograma. Esmalia es solo dental: odontograma FDI con periodontograma, precio publicado (US$19,99 o US$49,99 al mes) y uso sin internet. No emite boleta ni factura.",
   publicado: "2026-10-19",
   actualizado: "2026-10-19",
   autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
@@ -34,7 +34,7 @@ export const pagina: PaginaContenido = {
             [
               "Precio",
               "No publica; según su FAQ depende del plan (Esencial, Pro o Titanium) y de la cantidad de profesionales o sillones",
-              "US$29/mes (1 profesional), US$69/mes (hasta 3), Red a medida",
+              "US$19,99/mes (1 profesional), US$49,99/mes (hasta 3), Red a medida",
             ],
             [
               "Prueba gratis",
@@ -114,7 +114,7 @@ export const pagina: PaginaContenido = {
           tipo: "lista",
           items: [
             "**Tu clínica es solo dental.** El odontograma FDI registra varias condiciones por pieza, con su estado (existente o por realizar), y en la misma pestaña está el periodontograma. Ver [odontograma](/funciones/odontograma).",
-            "**Quieres saber cuánto pagas antes de hablar con nadie.** US$29 al mes para un profesional y US$69 para hasta tres, en [precios](/precios). El cobro es en dólares por Stripe.",
+            "**Quieres saber cuánto pagas antes de hablar con nadie.** US$19,99 al mes para un profesional y US$49,99 para hasta tres, en [precios](/precios). El cobro es en dólares por Stripe.",
             "**Se te corta internet.** Agenda, fichas, cobros y odontograma siguen funcionando y se sincronizan al volver la conexión. Ver [sin internet](/funciones/sin-internet).",
             "**Quieres que tu equipo revise cada WhatsApp.** Esmalia arma los recordatorios y alguien de tu clínica los envía. Ver [recordatorios por WhatsApp](/funciones/recordatorios-whatsapp).",
             "**Quieres poder irte cuando quieras.** Desde Ajustes descargas un ZIP con pacientes, citas, notas clínicas con todas sus versiones, odontograma con historial, presupuestos, pagos y consentimientos, más los archivos del paciente.",
@@ -166,7 +166,7 @@ export const pagina: PaginaContenido = {
     },
     {
       q: "¿Cuánto cuesta Medilink?",
-      a: "Medilink no publica precios en su web al 19-oct-2026. Según su FAQ, la tarifa depende del plan (Esencial, Pro o Titanium) y de la cantidad de profesionales o sillones. Esmalia cuesta US$29 al mes para un profesional y US$69 para hasta tres.",
+      a: "Medilink no publica precios en su web al 19-oct-2026. Según su FAQ, la tarifa depende del plan (Esencial, Pro o Titanium) y de la cantidad de profesionales o sillones. Esmalia cuesta US$19,99 al mes para un profesional y US$49,99 para hasta tres.",
     },
     {
       q: "¿Medilink funciona sin internet?",

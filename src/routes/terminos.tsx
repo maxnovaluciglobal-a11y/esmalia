@@ -32,9 +32,9 @@ function Terminos() {
       updated="Versión 4 · 20 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
     >
       <LegalNotice>
-        Esmalia está en etapa de piloto: plan Solo a US$29/mes (1 profesional), plan Clínica a
-        US$69/mes (hasta 3 profesionales) y plan Red a medida. Prueba gratis de 14 días sin tarjeta.
-        Los detalles de cobro están en la sección 6 y los precios vigentes en{" "}
+        Esmalia está en etapa de piloto: plan Solo a US$19,99/mes (1 profesional), plan Clínica a
+        US$49,99/mes (hasta 3 profesionales) y plan Red a medida. Prueba gratis de 14 días sin
+        tarjeta. Los detalles de cobro están en la sección 6 y los precios vigentes en{" "}
         <a href="/precios" className={enlace}>
           Precios
         </a>
@@ -156,9 +156,10 @@ function Terminos() {
           <strong>Cambios de precio.</strong> Si cambiamos el precio de un plan, te avisamos por
           email con al menos 30 días de anticipación, y el nuevo precio rige desde el primer cobro
           posterior a ese plazo. Si no estás de acuerdo, puedes cancelar antes de que rija. El
-          precio fundador es un descuento del 50 % sobre el precio del plan durante 12 meses;
-          después rige el precio de lista vigente, y te avisamos con 30 días de anticipación antes
-          del primer cobro a ese precio.
+          precio fundador es un descuento del 50 % sobre el precio del plan durante 12 meses
+          (US$9,99 al mes en Solo y US$24,99 en Clínica, sobre los precios de lista de US$19,99 y
+          US$49,99); después rige el precio de lista vigente, y te avisamos con 30 días de
+          anticipación antes del primer cobro a ese precio.
         </LegalLi>
         <LegalLi>
           <strong>Si un pago falla.</strong> Stripe reintenta el cobro de forma automática durante

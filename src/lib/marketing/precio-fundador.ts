@@ -8,4 +8,4 @@
 export const PRECIO_FUNDADOR_TITULO = "Precio fundador: la mitad durante 12 meses.";
 
 export const PRECIO_FUNDADOR_EXPLICACION =
-  "Las clínicas fundadoras pagan la mitad del precio de su plan durante 12 meses. Después pasa al precio de lista vigente, y te avisamos por correo con 30 días de anticipación.";
+  "Las clínicas fundadoras pagan la mitad del precio de su plan durante 12 meses (US$9,99 al mes en Solo y US$24,99 en Clínica). Después pasa al precio de lista vigente, y te avisamos por correo con 30 días de anticipación.";
