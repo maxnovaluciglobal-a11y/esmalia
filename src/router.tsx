@@ -42,7 +42,20 @@ function leerSupabaseUrl(): string | undefined {
   );
 }
 
-function buildCsp(nonce: string): string {
+/**
+ * RES-07: la reserva en línea se puede embeber en el sitio de la clínica
+ * (widget con iframe). Solo esas páginas aceptan cualquier sitio https como
+ * marco; el resto de la app sigue con `frame-ancestors 'self'`. Con
+ * frame-ancestors presente, los navegadores ignoran el X-Frame-Options
+ * SAMEORIGIN estático de vercel.json.
+ */
+export function frameAncestorsPara(pathname: string): string {
+  return /^\/reservar\/[^/]+(?:\/[^/]+)?\/?$/.test(pathname)
+    ? "frame-ancestors 'self' https:"
+    : "frame-ancestors 'self'";
+}
+
+function buildCsp(nonce: string, pathname = "/"): string {
   const supabase = fuentesSupabaseParaCsp(leerSupabaseUrl());
   return [
     "default-src 'self'",
@@ -61,7 +74,7 @@ function buildCsp(nonce: string): string {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    "frame-ancestors 'self'",
+    frameAncestorsPara(pathname),
   ].join("; ");
 }
 
@@ -85,9 +98,15 @@ function generateNonce(): string {
 // el atributo `nonce` post-parseo).
 const nonceForRequest = createIsomorphicFn()
   .server(async () => {
-    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    const { getRequest, setResponseHeader } = await import("@tanstack/react-start/server");
     const nonce = generateNonce();
-    setResponseHeader("Content-Security-Policy", buildCsp(nonce));
+    let pathname = "/";
+    try {
+      pathname = new URL(getRequest().url).pathname;
+    } catch {
+      // sin request: política por defecto
+    }
+    setResponseHeader("Content-Security-Policy", buildCsp(nonce, pathname));
     return nonce;
   })
   .client(() => undefined);

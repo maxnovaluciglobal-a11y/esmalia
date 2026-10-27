@@ -6,6 +6,7 @@ import { Clock, Loader2, Percent, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { AtiendePacientes } from "@/components/atiende-pacientes";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -799,6 +800,7 @@ function ProfesionalesPage() {
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">
+                <AtiendePacientes clinicId={clinicId} professional={professional} />
                 <HorarioDialog
                   clinicId={clinicId}
                   professional={professional}

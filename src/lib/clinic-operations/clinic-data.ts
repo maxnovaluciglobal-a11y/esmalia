@@ -30,6 +30,8 @@ export interface Cita {
    * respuesta del paciente, o al revés.
    */
   pacienteConfirmo?: boolean;
+  /** RES-01: la pidió el paciente desde el link público de reserva. */
+  reservaEnLinea?: boolean;
   /**
    * Box elegido para la cita (`operatory_id`, AGE-04). Ausente o null = la
    * cita no tiene box propio y, para los choques y la vista por box, vale el
