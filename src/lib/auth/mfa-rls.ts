@@ -47,6 +47,8 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   data_subject_request_events: "bitácora de las solicitudes de derechos de cada paciente",
   data_subject_requests: "solicitudes de derechos del paciente (Ley 21.719): quién pidió qué",
   expenses: "gastos de la clínica",
+  feedback_reports:
+    "reportes al equipo de Esmalia: el texto y la captura pueden mostrar datos de un paciente",
   followup_tasks: "tareas de seguimiento: a qué paciente llamar y por qué",
   import_batch_changes: "migración: datos de pacientes que completó un lote importado",
   import_batches: "migración: lotes importados desde otro sistema (archivo y conteos)",
@@ -139,6 +141,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
     "versiones del texto de las plantillas de documentos, sin datos de pacientes",
   document_templates: "plantillas de documentos sin datos de pacientes",
   email_sandbox_config: "configuración de envío",
+  help_progress:
+    "recorridos, lecciones y novedades vistas por cada persona, sin datos de pacientes",
   inventory_counts: "inventario",
   inventory_items: "catálogo de inventario",
   inventory_movements: "inventario",

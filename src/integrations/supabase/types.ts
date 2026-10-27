@@ -2098,6 +2098,59 @@ export type Database = {
           },
         ];
       };
+      feedback_reports: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          id: string;
+          kind: string;
+          message: string;
+          screen_label: string | null;
+          screen_path: string | null;
+          screenshot_path: string | null;
+          status: string;
+          user_agent: string | null;
+          viewport: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          kind: string;
+          message: string;
+          screen_label?: string | null;
+          screen_path?: string | null;
+          screenshot_path?: string | null;
+          status?: string;
+          user_agent?: string | null;
+          viewport?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          kind?: string;
+          message?: string;
+          screen_label?: string | null;
+          screen_path?: string | null;
+          screenshot_path?: string | null;
+          status?: string;
+          user_agent?: string | null;
+          viewport?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "feedback_reports_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       followup_tasks: {
         Row: {
           assigned_to: string | null;
@@ -2186,6 +2239,27 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      help_progress: {
+        Row: {
+          done_at: string;
+          item_key: string;
+          kind: string;
+          user_id: string;
+        };
+        Insert: {
+          done_at?: string;
+          item_key: string;
+          kind: string;
+          user_id?: string;
+        };
+        Update: {
+          done_at?: string;
+          item_key?: string;
+          kind?: string;
+          user_id?: string;
+        };
+        Relationships: [];
       };
       import_batch_changes: {
         Row: {
