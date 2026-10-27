@@ -134,13 +134,19 @@ export function elegirProcedimientosFrecuentes({
 const ROLES_QUE_ATIENDEN = new Set(["owner", "admin", "dentist"]);
 
 /**
- * ¿Este profesional atiende pacientes? (AGE-17). Hasta que exista la marca
- * explícita "Atiende pacientes" (Ola 7), se deduce del rol de la persona en
- * el equipo: un profesional sin usuario vinculado es alguien que la clínica
- * cargó para agendarle (atiende); uno vinculado a una cuenta de recepción,
- * contabilidad o asistente no aparece en el selector de la cita.
+ * ¿Este profesional atiende pacientes? (AGE-17 + EQU-04). La marca explícita
+ * "Atiende pacientes" de la ficha del profesional (`attends_patients`)
+ * manda. Sin marca (null), se deduce del rol de la persona en el equipo: un
+ * profesional sin usuario vinculado es alguien que la clínica cargó para
+ * agendarle (atiende); uno vinculado a una cuenta de recepción, contabilidad
+ * o asistente no aparece en el selector de la cita ni en la reserva en
+ * línea. Par en la base: `reserva_en_linea_atiende`.
  */
-export function atiendePacientes(rolDelUsuario: string | null | undefined): boolean {
+export function atiendePacientes(
+  rolDelUsuario: string | null | undefined,
+  marca?: boolean | null,
+): boolean {
+  if (marca === true || marca === false) return marca;
   if (!rolDelUsuario) return true;
   return ROLES_QUE_ATIENDEN.has(rolDelUsuario);
 }

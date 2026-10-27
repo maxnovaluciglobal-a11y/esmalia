@@ -1,10 +1,11 @@
 import { useEffect, useId, useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertTriangle,
   Cake,
+  CalendarCheck,
   ChevronDown,
   Clock,
   MessageCircleMore,
@@ -23,7 +24,9 @@ import { ErrorDeCarga } from "@/components/estado-error";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { EmailButton } from "@/components/email-button";
 import { EnviarTodos, type PasoDeEnvio } from "@/components/recordatorios/enviar-todos";
+import { hasPermission } from "@/lib/access/access";
 import { requirePermission } from "@/lib/access/route-guards";
+import { getReservaEncendida } from "@/lib/reserva/estado-reserva.functions";
 import {
   listPendingOutreach,
   listPendingReminders,
@@ -166,6 +169,16 @@ function RecordatoriosPage() {
     queryKey: ["pending-outreach", clinicId],
     enabled: Boolean(clinicId),
     queryFn: () => fetchOutreach({ data: { clinicId: clinicId! } }),
+  });
+
+  // MKT-06 (Ola 7): con la reserva en línea encendida, el recall sale con el
+  // link de reserva. Se dice en la lista para que recepción sepa qué manda.
+  const fetchReserva = useServerFn(getReservaEncendida);
+  const { data: reserva } = useQuery({
+    queryKey: ["reserva-encendida", clinicId],
+    enabled: Boolean(clinicId),
+    queryFn: () => fetchReserva({ data: { clinicId: clinicId! } }),
+    staleTime: 5 * 60_000,
   });
 
   // Se lee después de montar: en SSR no hay localStorage y el primer render
@@ -534,6 +547,12 @@ function RecordatoriosPage() {
                   />
                 }
               >
+                {kind === "hygiene_recall" && reserva !== undefined && (
+                  <NotaReservaEnRecall
+                    encendida={reserva.encendida}
+                    puedeConfigurar={hasPermission(access.role, "settings:manage")}
+                  />
+                )}
                 <OutreachList
                   grupos={grupos}
                   clinicId={clinicId}
@@ -642,6 +661,44 @@ function SelectorDeDias({ dias, onCambiar }: { dias: number; onCambiar: (d: numb
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Control periódico + reserva en línea (MKT-06): el mensaje lleva el link de
+ * reserva con el nombre del paciente ya puesto. Apagada, se ofrece encenderla
+ * a quien puede (owner/admin).
+ */
+function NotaReservaEnRecall({
+  encendida,
+  puedeConfigurar,
+}: {
+  encendida: boolean;
+  puedeConfigurar: boolean;
+}) {
+  if (!encendida && !puedeConfigurar) return null;
+  return (
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-hairline bg-muted/40 px-5 py-3 text-sm text-muted-foreground">
+      <CalendarCheck aria-hidden className="size-4 shrink-0 text-foreground/70" />
+      {encendida ? (
+        <span>
+          <b className="font-semibold text-foreground">Va con link de reserva:</b> cada mensaje
+          lleva tu reserva en línea con el nombre del paciente ya puesto, para que elija su hora.
+        </span>
+      ) : (
+        <>
+          <span>
+            Con la reserva en línea encendida, este mensaje lleva un link para elegir hora.
+          </span>
+          <Link
+            to="/reserva-en-linea"
+            className="rounded-sm font-semibold text-brand-700 underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+          >
+            Configurarla →
+          </Link>
+        </>
+      )}
+    </p>
   );
 }
 
