@@ -1,0 +1,217 @@
+name: Simulacro de restauración
+
+# SEG-05: una vez por mes restaura el último backup de B2 en un Supabase
+# EFÍMERO dentro del runner (Docker), lo verifica contra el propio backup
+# (conteos por tabla, FKs, usuarios de auth y archivos de Storage) y mide el
+# RTO. Nunca toca producción. Procedimiento y requisitos: docs/BACKUPS.md →
+# "Simulacro automático" y docs/DISASTER_RECOVERY.md.
+#
+# Modos:
+# - real:    baja el último backup cifrado de B2 y lo descifra con el secret
+#            BACKUP_AGE_KEY. Si ese secret no está cargado, el simulacro queda
+#            OMITIDO con el motivo en el resumen (ni verde falso ni rojo).
+# - juguete: arma un backup de prueba en el runner (Supabase efímero + los
+#            scripts de backup de verdad + una clave age descartable) y lo
+#            restaura igual que el real. No usa ningún secret. Corre en los PRs
+#            que tocan el simulacro o los scripts de backup.
+
+on:
+  schedule:
+    # Día 3 de cada mes a las 10:00 UTC, después del backup diario de las 07:15.
+    - cron: "0 10 3 * *"
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "real = último backup de B2 (necesita BACKUP_AGE_KEY) · juguete = backup de prueba, sin secretos"
+        type: choice
+        options: [real, juguete]
+        default: real
+  pull_request:
+    paths:
+      - "scripts/simulacro/**"
+      - "scripts/backup-data.mjs"
+      - "scripts/backup-storage.mjs"
+      - "scripts/backup-lib.mjs"
+      - "scripts/test-db/preseed.sql"
+      - ".github/workflows/simulacro-restauracion.yml"
+
+concurrency:
+  group: simulacro-restauracion-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  preparar:
+    runs-on: ubuntu-latest
+    outputs:
+      modo: ${{ steps.decidir.outputs.modo }}
+    steps:
+      - name: Decidir el modo
+        id: decidir
+        env:
+          EVENTO: ${{ github.event_name }}
+          MODO_PEDIDO: ${{ inputs.modo }}
+          # Solo se pregunta SI está cargado; el valor no pasa por este job.
+          TIENE_CLAVE: ${{ secrets.BACKUP_AGE_KEY != '' }}
+        run: |
+          if [ "$EVENTO" = "pull_request" ] || [ "$MODO_PEDIDO" = "juguete" ]; then
+            modo=juguete
+          elif [ "$TIENE_CLAVE" = "true" ]; then
+            modo=real
+          else
+            modo=omitido
+          fi
+          echo "modo=$modo" >> "$GITHUB_OUTPUT"
+          if [ "$modo" = "omitido" ]; then
+            echo "::notice title=Simulacro omitido::Falta el secret BACKUP_AGE_KEY (clave privada de age). Ver docs/BACKUPS.md → Simulacro automático."
+            {
+              echo "## ➖ Simulacro de restauración omitido"
+              echo
+              echo "**Motivo:** falta el secret \`BACKUP_AGE_KEY\` (la clave privada de \`age\` que descifra los backups)."
+              echo "No es una falla del backup: sin esa clave no hay forma de leerlo."
+              echo
+              echo "Solo Walter puede cargarla (vive fuera del repo). Pasos en \`docs/BACKUPS.md\` → *Simulacro automático*."
+              echo "Mientras tanto se puede correr el modo **juguete** (Run workflow → modo: juguete), que prueba todo el circuito sin datos reales."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Modo: $modo"
+          fi
+
+  simulacro:
+    needs: preparar
+    if: needs.preparar.outputs.modo == 'real' || needs.preparar.outputs.modo == 'juguete'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # issues: write solo para el aviso de falla de abajo (mismo canal que el backup diario).
+    permissions:
+      contents: read
+      issues: write
+    env:
+      MODO: ${{ needs.preparar.outputs.modo }}
+      SIMULACRO_SALIDA: ${{ github.workspace }}/simulacro-reporte
+    # Credenciales por paso, nunca a nivel de job: la clave de B2 solo la ve el
+    # paso que baja y la de age solo el que descifra. `npm ci` no ve ninguna.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - name: Instalar age y rclone
+        run: sudo apt-get update && sudo apt-get install -y age rclone
+
+      - name: Bajar el último backup de B2
+        id: bajar
+        if: env.MODO == 'real'
+        env:
+          RCLONE_CONFIG_B2_TYPE: b2
+          RCLONE_CONFIG_B2_ACCOUNT: ${{ secrets.B2_ACCOUNT_ID }}
+          RCLONE_CONFIG_B2_KEY: ${{ secrets.B2_APPLICATION_KEY }}
+          B2_BUCKET: ${{ vars.B2_BUCKET }}
+        run: |
+          test -n "$B2_BUCKET" || { echo "::error::Falta la variable B2_BUCKET"; exit 1; }
+          t0=$(date +%s.%N)
+          mkdir -p "$RUNNER_TEMP/backup" && chmod 700 "$RUNNER_TEMP/backup"
+          # Listar y leer necesita una Application Key con listFiles + readFiles
+          # (ver docs/BACKUPS.md). Si la key es solo de escritura, falla acá.
+          rclone lsf "b2:${B2_BUCKET}/db/" > "$RUNNER_TEMP/lista-db.txt"
+          rclone lsf "b2:${B2_BUCKET}/storage/" > "$RUNNER_TEMP/lista-storage.txt" || : > "$RUNNER_TEMP/lista-storage.txt"
+          eleccion=$(node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            import { elegirUltimoBackup } from "./scripts/simulacro/lib.mjs";
+            const leer = (f) => readFileSync(f, "utf8").split("\n").filter(Boolean);
+            const r = elegirUltimoBackup(leer(process.argv[1]), leer(process.argv[2]));
+            if (!r) { console.error("No hay backups en db/"); process.exit(1); }
+            console.log(`${r.db} ${r.storage ?? "-"}`);
+          ' "$RUNNER_TEMP/lista-db.txt" "$RUNNER_TEMP/lista-storage.txt")
+          read -r db storage <<< "$eleccion"
+          rclone copyto "b2:${B2_BUCKET}/db/${db}" "$RUNNER_TEMP/backup/db.json.gz.age"
+          if [ "$storage" != "-" ]; then
+            rclone copyto "b2:${B2_BUCKET}/storage/${storage}" "$RUNNER_TEMP/backup/storage.tar.gz.age"
+          else
+            echo "::warning::El backup ${db} no tiene su gemelo de Storage: se restaura sin archivos."
+          fi
+          echo "origen=${db}" >> "$GITHUB_OUTPUT"
+          echo "segundos=$(awk -v a="$t0" -v b="$(date +%s.%N)" 'BEGIN { printf "%.1f", b - a }')" >> "$GITHUB_OUTPUT"
+
+      - name: Restaurar y verificar (backup real)
+        if: env.MODO == 'real'
+        env:
+          BACKUP_AGE_KEY: ${{ secrets.BACKUP_AGE_KEY }}
+          SIMULACRO_ORIGEN: ${{ steps.bajar.outputs.origen }}
+          SIMULACRO_T_BAJADA: ${{ steps.bajar.outputs.segundos }}
+        run: |
+          umask 077
+          clave="$RUNNER_TEMP/age.key"
+          trap 'rm -f "$clave"' EXIT
+          printf '%s\n' "$BACKUP_AGE_KEY" > "$clave"
+          grep -q '^AGE-SECRET-KEY-1' "$clave" || { echo "::error::BACKUP_AGE_KEY no parece una clave privada de age (tiene que empezar con AGE-SECRET-KEY-1)."; exit 1; }
+          storage="$RUNNER_TEMP/backup/storage.tar.gz.age"
+          [ -f "$storage" ] || storage=""
+          bash scripts/simulacro/simulacro.sh "$RUNNER_TEMP/backup/db.json.gz.age" "$clave" $storage
+
+      - name: Restaurar y verificar (backup de juguete)
+        if: env.MODO == 'juguete'
+        run: bash scripts/simulacro/juguete.sh
+
+      - name: Borrar los backups bajados
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/backup" "$RUNNER_TEMP/age.key"
+
+      - name: Resumen
+        if: always()
+        run: |
+          if [ -f "$SIMULACRO_SALIDA/reporte.md" ]; then
+            cat "$SIMULACRO_SALIDA/reporte.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 🔴 Simulacro de restauración: no llegó a verificar" >> "$GITHUB_STEP_SUMMARY"
+            echo "Revisar el log del job (bajada de B2, descifrado o arranque del Supabase efímero)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Solo nombres de tabla, conteos y tiempos: sin datos de pacientes.
+      - name: Guardar el reporte
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulacro-restauracion-${{ env.MODO }}-${{ github.run_id }}
+          path: simulacro-reporte/
+          if-no-files-found: ignore
+          retention-days: 90
+
+      # Mismo canal que el backup diario (ops-5): un Issue visible en el repo.
+      - name: Avisar si el simulacro falló
+        if: failure() && env.MODO == 'real'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "🔴 Simulacro de restauración de Esmalia falló";
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `El simulacro mensual de restauración falló el ${new Date().toISOString()}.\n\nVer el run (resumen y artefacto con el reporte): ${runUrl}\n\nRevisar \`docs/BACKUPS.md\` → "Simulacro automático". Causas probables: la Application Key de B2 no puede listar/leer, \`BACKUP_AGE_KEY\` no corresponde a la clave pública del backup, una migración nueva no levanta en una base vacía, o el backup no coincide con lo restaurado (el reporte dice qué tabla).`;
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "simulacro-fallido",
+            });
+            if (existing.data.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.data[0].number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["simulacro-fallido"],
+              });
+            }
