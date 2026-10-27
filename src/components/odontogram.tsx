@@ -1,19 +1,10 @@
 import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  ArrowRight,
-  History,
-  Info,
-  List,
-  LayoutGrid,
-  Loader2,
-  Receipt,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { History, Info, List, LayoutGrid, Loader2, Receipt, RotateCcw, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMovimiento } from "@/hooks/use-movimiento";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
@@ -75,7 +66,6 @@ import { DienteAnatomico } from "@/components/diente-anatomico";
 import { cn } from "@/lib/utils";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
-import { TituloSeccion } from "@/components/titulo-seccion";
 
 /** Colores del esquema de superficies (tokens con modo oscuro, ver styles.css). */
 const ESQUEMA: Record<ReturnType<typeof colorDeMarca>, string> = {
@@ -645,6 +635,10 @@ export function Odontogram({
   });
 
   const byTooth = useMemo(() => marksByTooth(marks), [marks]);
+  const piezas = useMemo(() => piezasConHallazgos(marks), [marks]);
+  // A+: con espacio, la pieza elegida se trabaja en un panel al costado (como
+  // en el prototipo) en vez de un popover. Con menos ancho, el popover de siempre.
+  const panelLateral = useMediaQuery("(min-width: 1400px)");
 
   // Mismas claves que la pestaña de Finanzas: comparten la caché.
   const conSugerencia = Boolean(sugerenciaPresupuesto);
@@ -767,16 +761,216 @@ export function Odontogram({
       )
     : [];
 
+  const cuerpoSeleccion = selection ? (
+    <>
+      {sugerencia && sugerenciaPresupuesto ? (
+        <SugerenciaPresupuesto
+          clinicId={clinicId}
+          patientId={patientId}
+          currency={sugerenciaPresupuesto.currency}
+          marca={sugerencia}
+          quotes={quotes}
+          procedures={procedures}
+          animar={animar}
+          onCerrar={cerrarPopover}
+          onVerPresupuesto={
+            sugerenciaPresupuesto.onVerPresupuesto
+              ? () => {
+                  cerrarPopover();
+                  sugerenciaPresupuesto.onVerPresupuesto?.();
+                }
+              : undefined
+          }
+        />
+      ) : (
+        <>
+          {onPresupuestarPieza && (
+            <button
+              onClick={() => {
+                onPresupuestarPieza({ tooth: selection.tooth, surface: selection.surface });
+                setSelection(null);
+              }}
+              className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-brand bg-transparent px-2 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand/12"
+            >
+              <Receipt className="size-3.5" /> Presupuestar esta pieza
+            </button>
+          )}
+          {marcasDeLaZona.length > 0 && (
+            <ul className="mb-2 space-y-1 border-b border-hairline pb-2" aria-label="Vigente">
+              {marcasDeLaZona.map((m) => (
+                <li key={m.id} className="flex items-center gap-1.5 text-xs">
+                  <Muestra marca={m} className="size-2.5" />
+                  {m.surface !== selection.surface && (
+                    <span className="text-muted-foreground">{SURFACE_LABELS[m.surface]}:</span>
+                  )}
+                  <span className="font-medium">{describirMarca(m)}</span>
+                  {conSugerencia && yaPresupuestadas.has(m.id) && (
+                    <span className="text-[11px] text-muted-foreground">· en presupuesto</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {!puedeEditar ? (
+            <p className="text-xs text-muted-foreground">
+              Tu rol no puede modificar el odontograma.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <div
+                className="flex rounded-lg border border-hairline p-0.5 text-xs"
+                role="group"
+                aria-label="Estado de la marca"
+              >
+                {(["existente", "planificado"] as const).map((e) => (
+                  <button
+                    key={e}
+                    onClick={() => setEstado(e)}
+                    aria-pressed={estado === e}
+                    className={cn(
+                      "flex-1 rounded-md px-2 py-1 font-medium",
+                      estado === e
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {MARK_STATUS_LABELS[e]}
+                  </button>
+                ))}
+              </div>
+              {estado === "existente" && (
+                <div
+                  className="flex items-center gap-1 text-[11px] text-muted-foreground"
+                  role="group"
+                  aria-label="Estado de conservación del tratamiento"
+                >
+                  <span>Tratamiento en</span>
+                  {(["bueno", "malo"] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setConservacion(c)}
+                      aria-pressed={conservacion === c}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium",
+                        conservacion === c
+                          ? "border-foreground/30 bg-secondary text-foreground"
+                          : "border-hairline hover:text-foreground",
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className="size-2 rounded-full"
+                        style={{
+                          backgroundColor:
+                            c === "bueno" ? COLORES_SIMBOLOGIA.azul : COLORES_SIMBOLOGIA.rojo,
+                        }}
+                      />
+                      {c === "bueno" ? "buen estado" : "mal estado"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input
+                type="text"
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                maxLength={500}
+                placeholder="Especificación (opcional): material, detalle…"
+                aria-label="Especificación de la marca"
+                className="w-full rounded-md border border-hairline bg-transparent px-2 py-1 text-xs placeholder:text-muted-foreground"
+              />
+              <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto">
+                {availableConditions.map((cond) => {
+                  const muestra = {
+                    condition: cond,
+                    status: estado,
+                    conservation: aplicaConservacion(cond, estado) ? conservacion : null,
+                  };
+                  return (
+                    <button
+                      key={cond}
+                      onClick={() => marcar(cond)}
+                      disabled={save.enCurso}
+                      className="flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1.5 text-left text-xs font-medium transition-colors hover:bg-secondary/60 disabled:opacity-50"
+                    >
+                      {cond === "sano" ? (
+                        <span
+                          aria-hidden
+                          className="size-3 shrink-0 rounded-sm border border-hairline"
+                          style={{ backgroundColor: COLORES_SIMBOLOGIA.neutro }}
+                        />
+                      ) : (
+                        <Muestra marca={muestra} />
+                      )}
+                      {CONDITION_LABELS[cond]}
+                    </button>
+                  );
+                })}
+              </div>
+              {estado === "planificado" && (
+                <p className="text-[11px] text-muted-foreground">
+                  Solo los tratamientos se pueden dejar por realizar. Cuando se hagan, márcalos como
+                  existentes y lo planificado se cierra solo.
+                </p>
+              )}
+              {save.enCurso && (
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" /> Guardando…
+                </span>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </>
+  ) : null;
+
   return (
-    <div className="card-clinical p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <TituloSeccion>Odontograma</TituloSeccion>
-          <p className="text-xs text-muted-foreground">
-            Numeración FDI · toca una zona del diente o del esquema para marcar esa superficie; la
-            raíz o el borde superior del esquema marcan la pieza entera.
-          </p>
-        </div>
+    <section
+      aria-labelledby="odontograma-titulo"
+      className="rounded-panel border border-border bg-card px-5 pt-5 pb-4"
+    >
+      {/* Encabezado A+: título en Cormorant con la numeración en mono, la
+          leyenda azul/rojo arriba y el porqué de la convención. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <h3
+          id="odontograma-titulo"
+          className="font-display text-[30px] leading-none font-medium tracking-[-0.01em]"
+        >
+          Odontograma
+          <span className="cifra ml-2 align-middle text-[12.5px] font-normal tracking-normal text-muted-foreground">
+            FDI · {denticion}
+          </span>
+        </h3>
+        <ul
+          className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs font-medium text-muted-foreground"
+          aria-label="Leyenda del odontograma"
+        >
+          {LEYENDA_SIMBOLOGIA.map((l) => (
+            <li key={l.clave} className="inline-flex items-center gap-1.5">
+              <span
+                aria-hidden
+                className="size-3 rounded-[3px] border border-hairline"
+                style={{
+                  backgroundColor: COLORES_SIMBOLOGIA[l.color],
+                  opacity: l.planificado ? OPACIDAD_PLANIFICADO : 1,
+                }}
+              />
+              {l.texto}
+            </li>
+          ))}
+        </ul>
+      </div>
+      <p className="mt-2.5 max-w-[80ch] text-[15px] leading-relaxed text-muted-foreground">
+        <b className="font-semibold text-foreground">Por qué azul y rojo:</b> es la convención con
+        la que se llena la ficha en papel. Esmalia la respeta para que nadie tenga que reaprender a
+        leer una boca.
+      </p>
+      <p className="mt-1 text-xs text-muted-foreground">
+        Toca una zona del diente o del esquema para marcar esa superficie; la raíz o el borde
+        superior del esquema marcan la pieza entera.
+      </p>
+      <div className="mt-3 mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border border-hairline p-0.5 text-xs">
             {(["permanente", "mixta", "temporal"] as const).map((d) => (
@@ -835,369 +1029,197 @@ export function Odontogram({
         </div>
       </div>
 
-      {isLoading && <p className="text-xs text-muted-foreground">Cargando odontograma…</p>}
+      <div
+        className={cn(
+          panelLateral && "grid grid-cols-[minmax(0,1fr)_320px] items-start gap-[18px]",
+        )}
+      >
+        <div className="min-w-0">
+          {isLoading && <p className="text-xs text-muted-foreground">Cargando odontograma…</p>}
 
-      {!isLoading && vista === "tabla" && (
-        <TablaOdontograma
-          teeth={FILAS_POR_DENTICION[denticion].flatMap((f) => f.teeth)}
-          byTooth={byTooth}
-        />
-      )}
+          {!isLoading && vista === "tabla" && (
+            <TablaOdontograma
+              teeth={FILAS_POR_DENTICION[denticion].flatMap((f) => f.teeth)}
+              byTooth={byTooth}
+            />
+          )}
 
-      {!isLoading && vista === "grafico" && (
-        <div className="space-y-4 overflow-x-auto">
-          {/* `w-max mx-auto` y no `items-center` en el contenedor con scroll:
+          {!isLoading && vista === "grafico" && (
+            <div className="space-y-4 overflow-x-auto">
+              {/* `w-max mx-auto` y no `items-center` en el contenedor con scroll:
               centrar con flex deja lo que desborda por la izquierda fuera de
               alcance (en el celular no se podía llegar a las piezas 18 o 55). */}
-          <div className="mx-auto flex w-max flex-col items-center gap-3">
-            {FILAS_POR_DENTICION[denticion].map((fila) => (
-              <ToothRow
-                // Con la dentición en la clave, cambiarla vuelve a entrar las arcadas.
-                key={`${denticion}-${fila.teeth[0]}`}
-                teeth={fila.teeth}
-                byTooth={byTooth}
-                inferior={fila.inferior}
-                seleccionada={selection?.tooth ?? null}
-                onClick={elegirPieza}
-                animar={animar}
-                entrada={entrada}
-                recienMarcada={recienMarcada}
-              />
-            ))}
-          </div>
-
-          <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
-            <Info className="size-3" />
-            {AYUDA_POR_DENTICION[denticion]} Pasa el mouse sobre el número, o abre una pieza, para
-            ver su nombre común.
-          </p>
-
-          {/* Leyenda de la simbología (CLI-02): azul / rojo / rojo claro, más
-              las siglas de la pieza completa. */}
-          <div
-            className="flex flex-wrap items-center gap-x-4 gap-y-1.5 pt-1 text-[11px] text-muted-foreground"
-            aria-label="Leyenda del odontograma"
-          >
-            {LEYENDA_SIMBOLOGIA.map((l) => (
-              <span key={l.clave} className="inline-flex items-center gap-1">
-                <span
-                  aria-hidden
-                  className="size-3 rounded-sm border border-hairline"
-                  style={{
-                    backgroundColor: COLORES_SIMBOLOGIA[l.color],
-                    opacity: l.planificado ? OPACIDAD_PLANIFICADO : 1,
-                  }}
-                />
-                {l.texto}
-              </span>
-            ))}
-            <span>Siglas bajo el número: lo registrado en la pieza completa (TC, CO, IMP…).</span>
-          </div>
-        </div>
-      )}
-
-      {selection && (
-        <Popover open onOpenChange={(o) => !o && cerrarPopover()}>
-          <PopoverTrigger asChild>
-            <span className="sr-only">Selección abierta</span>
-          </PopoverTrigger>
-          <PopoverContent className={cn(sugerencia ? "w-80" : "w-72")} side="top">
-            <div className="mb-2 flex items-start justify-between gap-2">
-              <div>
-                <p className="text-sm font-medium">Pieza {selection.tooth}</p>
-                <p className="text-xs text-muted-foreground">
-                  {toothCommonName(selection.tooth) ? `${toothCommonName(selection.tooth)} · ` : ""}
-                  {SURFACE_LABELS[selection.surface]}
-                </p>
+              <div className="mx-auto flex w-max flex-col items-center gap-3">
+                {FILAS_POR_DENTICION[denticion].map((fila) => (
+                  <ToothRow
+                    // Con la dentición en la clave, cambiarla vuelve a entrar las arcadas.
+                    key={`${denticion}-${fila.teeth[0]}`}
+                    teeth={fila.teeth}
+                    byTooth={byTooth}
+                    inferior={fila.inferior}
+                    seleccionada={selection?.tooth ?? null}
+                    onClick={elegirPieza}
+                    animar={animar}
+                    entrada={entrada}
+                    recienMarcada={recienMarcada}
+                  />
+                ))}
               </div>
-              <button
-                onClick={cerrarPopover}
-                aria-label="Cerrar"
-                className="rounded p-1 text-muted-foreground hover:bg-secondary"
-              >
-                <X className="size-3.5" />
-              </button>
+
+              <p className="flex items-center gap-1.5 pt-2 text-xs text-muted-foreground">
+                <Info className="size-3" />
+                {AYUDA_POR_DENTICION[denticion]} Pasa el mouse sobre el número, o abre una pieza,
+                para ver su nombre común.
+              </p>
+
+              {/* La leyenda de colores (CLI-02) va arriba, junto al título. */}
+              <p className="text-xs text-muted-foreground">
+                Siglas bajo el número: lo registrado en la pieza completa (TC, CO, IMP…).
+              </p>
             </div>
-            {sugerencia && sugerenciaPresupuesto ? (
-              <SugerenciaPresupuesto
-                clinicId={clinicId}
-                patientId={patientId}
-                currency={sugerenciaPresupuesto.currency}
-                marca={sugerencia}
-                quotes={quotes}
-                procedures={procedures}
-                animar={animar}
-                onCerrar={cerrarPopover}
-                onVerPresupuesto={
-                  sugerenciaPresupuesto.onVerPresupuesto
-                    ? () => {
-                        cerrarPopover();
-                        sugerenciaPresupuesto.onVerPresupuesto?.();
-                      }
-                    : undefined
-                }
-              />
+          )}
+
+          {selection && !panelLateral && (
+            <Popover open onOpenChange={(o) => !o && cerrarPopover()}>
+              <PopoverTrigger asChild>
+                <span className="sr-only">Selección abierta</span>
+              </PopoverTrigger>
+              <PopoverContent className={cn(sugerencia ? "w-80" : "w-72")} side="top">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">Pieza {selection.tooth}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {toothCommonName(selection.tooth)
+                        ? `${toothCommonName(selection.tooth)} · `
+                        : ""}
+                      {SURFACE_LABELS[selection.surface]}
+                    </p>
+                  </div>
+                  <button
+                    onClick={cerrarPopover}
+                    aria-label="Cerrar"
+                    className="rounded p-1 text-muted-foreground hover:bg-secondary"
+                  >
+                    <X className="size-3.5" />
+                  </button>
+                </div>
+                {cuerpoSeleccion}
+              </PopoverContent>
+            </Popover>
+          )}
+
+          {showHistory && (
+            <div className="mt-6 space-y-1.5 border-t border-hairline pt-4">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <RotateCcw className="size-3" /> Historia de marcas
+              </p>
+              {history.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Sin cambios registrados aún. Cuando una marca reemplaza a otra, la anterior queda
+                  archivada acá.
+                </p>
+              )}
+              {history.map((h) => (
+                <div
+                  key={h.id}
+                  className={cn(
+                    "flex items-center justify-between gap-3 rounded-md border border-hairline px-3 py-2 text-xs",
+                    h.supersededAt && "opacity-60",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <Muestra marca={h} />
+                    <span className="cifra">{h.toothNumber}</span>
+                    {toothCommonName(h.toothNumber) && (
+                      <span className="text-muted-foreground">
+                        {toothCommonName(h.toothNumber)}
+                      </span>
+                    )}
+                    <span className="text-muted-foreground">{SURFACE_LABELS[h.surface]}</span>
+                    <span className="font-medium">{describirMarca(h)}</span>
+                    {h.supersededAt && (
+                      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                        · archivada
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-muted-foreground">
+                    {h.recordedByName ?? "—"} · {fechaHora(h.recordedAt, zona)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {panelLateral && (
+          <aside
+            aria-label="Pieza seleccionada"
+            className="sticky top-32 rounded-xl border border-border bg-background p-4"
+          >
+            {selection ? (
+              <>
+                <div className="flex items-start justify-between gap-2" aria-live="polite">
+                  <div className="min-w-0">
+                    <p className="font-display text-[56px] leading-[0.9] font-medium text-brand-600">
+                      {selection.tooth}
+                    </p>
+                    <p className="mt-1.5 text-[15px] font-semibold">
+                      {toothCommonName(selection.tooth) ?? `Pieza ${selection.tooth}`}
+                    </p>
+                    <p className="cifra mt-1 text-xs text-muted-foreground">
+                      {SURFACE_LABELS[selection.surface]}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={cerrarPopover}
+                    aria-label="Cerrar la pieza"
+                    className={cn(
+                      "grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary",
+                      FOCUS_RING_CLASS,
+                    )}
+                  >
+                    <X className="size-4" />
+                  </button>
+                </div>
+                <div className="mt-3 border-t border-border pt-3">{cuerpoSeleccion}</div>
+              </>
             ) : (
               <>
-                {onPresupuestarPieza && (
-                  <button
-                    onClick={() => {
-                      onPresupuestarPieza({ tooth: selection.tooth, surface: selection.surface });
-                      setSelection(null);
-                    }}
-                    className="mb-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-brand bg-transparent px-2 py-1.5 text-xs font-medium text-brand-700 transition-colors hover:bg-brand/12"
+                <p className="font-display text-2xl leading-tight font-medium">Elige una pieza</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Toca un diente o una zona del esquema para ver sus condiciones y agregar otra.
+                </p>
+                {piezas.length > 0 && (
+                  <ul
+                    className="mt-3 grid gap-1.5 border-t border-border pt-3"
+                    aria-label="Piezas con hallazgos"
                   >
-                    <Receipt className="size-3.5" /> Presupuestar esta pieza
-                  </button>
-                )}
-                {marcasDeLaZona.length > 0 && (
-                  <ul className="mb-2 space-y-1 border-b border-hairline pb-2" aria-label="Vigente">
-                    {marcasDeLaZona.map((m) => (
-                      <li key={m.id} className="flex items-center gap-1.5 text-xs">
-                        <Muestra marca={m} className="size-2.5" />
-                        {m.surface !== selection.surface && (
-                          <span className="text-muted-foreground">
-                            {SURFACE_LABELS[m.surface]}:
+                    {piezas.map((p) => (
+                      <li
+                        key={p.tooth}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
+                      >
+                        <span className="cifra w-7 font-semibold text-brand-700">{p.tooth}</span>
+                        {p.condiciones.map((c) => (
+                          <span
+                            key={`${c.condition}-${c.status}`}
+                            className="inline-flex items-center gap-1 text-muted-foreground"
+                          >
+                            <Muestra marca={c} className="size-2 rounded-full border-0" />
+                            {describirMarca(c)}
                           </span>
-                        )}
-                        <span className="font-medium">{describirMarca(m)}</span>
-                        {conSugerencia && yaPresupuestadas.has(m.id) && (
-                          <span className="text-[11px] text-muted-foreground">
-                            · en presupuesto
-                          </span>
-                        )}
+                        ))}
                       </li>
                     ))}
                   </ul>
                 )}
-                {!puedeEditar ? (
-                  <p className="text-xs text-muted-foreground">
-                    Tu rol no puede modificar el odontograma.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <div
-                      className="flex rounded-lg border border-hairline p-0.5 text-xs"
-                      role="group"
-                      aria-label="Estado de la marca"
-                    >
-                      {(["existente", "planificado"] as const).map((e) => (
-                        <button
-                          key={e}
-                          onClick={() => setEstado(e)}
-                          aria-pressed={estado === e}
-                          className={cn(
-                            "flex-1 rounded-md px-2 py-1 font-medium",
-                            estado === e
-                              ? "bg-secondary text-foreground"
-                              : "text-muted-foreground hover:text-foreground",
-                          )}
-                        >
-                          {MARK_STATUS_LABELS[e]}
-                        </button>
-                      ))}
-                    </div>
-                    {estado === "existente" && (
-                      <div
-                        className="flex items-center gap-1 text-[11px] text-muted-foreground"
-                        role="group"
-                        aria-label="Estado de conservación del tratamiento"
-                      >
-                        <span>Tratamiento en</span>
-                        {(["bueno", "malo"] as const).map((c) => (
-                          <button
-                            key={c}
-                            onClick={() => setConservacion(c)}
-                            aria-pressed={conservacion === c}
-                            className={cn(
-                              "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 font-medium",
-                              conservacion === c
-                                ? "border-foreground/30 bg-secondary text-foreground"
-                                : "border-hairline hover:text-foreground",
-                            )}
-                          >
-                            <span
-                              aria-hidden
-                              className="size-2 rounded-full"
-                              style={{
-                                backgroundColor:
-                                  c === "bueno" ? COLORES_SIMBOLOGIA.azul : COLORES_SIMBOLOGIA.rojo,
-                              }}
-                            />
-                            {c === "bueno" ? "buen estado" : "mal estado"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <input
-                      type="text"
-                      value={nota}
-                      onChange={(e) => setNota(e.target.value)}
-                      maxLength={500}
-                      placeholder="Especificación (opcional): material, detalle…"
-                      aria-label="Especificación de la marca"
-                      className="w-full rounded-md border border-hairline bg-transparent px-2 py-1 text-xs placeholder:text-muted-foreground"
-                    />
-                    <div className="grid max-h-56 grid-cols-2 gap-1.5 overflow-y-auto">
-                      {availableConditions.map((cond) => {
-                        const muestra = {
-                          condition: cond,
-                          status: estado,
-                          conservation: aplicaConservacion(cond, estado) ? conservacion : null,
-                        };
-                        return (
-                          <button
-                            key={cond}
-                            onClick={() => marcar(cond)}
-                            disabled={save.enCurso}
-                            className="flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1.5 text-left text-xs font-medium transition-colors hover:bg-secondary/60 disabled:opacity-50"
-                          >
-                            {cond === "sano" ? (
-                              <span
-                                aria-hidden
-                                className="size-3 shrink-0 rounded-sm border border-hairline"
-                                style={{ backgroundColor: COLORES_SIMBOLOGIA.neutro }}
-                              />
-                            ) : (
-                              <Muestra marca={muestra} />
-                            )}
-                            {CONDITION_LABELS[cond]}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {estado === "planificado" && (
-                      <p className="text-[11px] text-muted-foreground">
-                        Solo los tratamientos se pueden dejar por realizar. Cuando se hagan,
-                        márcalos como existentes y lo planificado se cierra solo.
-                      </p>
-                    )}
-                    {save.enCurso && (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Loader2 className="size-3 animate-spin" /> Guardando…
-                      </span>
-                    )}
-                  </div>
-                )}
               </>
             )}
-          </PopoverContent>
-        </Popover>
-      )}
-
-      {showHistory && (
-        <div className="mt-6 space-y-1.5 border-t border-hairline pt-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <RotateCcw className="size-3" /> Historia de marcas
-          </p>
-          {history.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              Sin cambios registrados aún. Cuando una marca reemplaza a otra, la anterior queda
-              archivada acá.
-            </p>
-          )}
-          {history.map((h) => (
-            <div
-              key={h.id}
-              className={cn(
-                "flex items-center justify-between gap-3 rounded-md border border-hairline px-3 py-2 text-xs",
-                h.supersededAt && "opacity-60",
-              )}
-            >
-              <div className="flex items-center gap-2">
-                <Muestra marca={h} />
-                <span className="cifra">{h.toothNumber}</span>
-                {toothCommonName(h.toothNumber) && (
-                  <span className="text-muted-foreground">{toothCommonName(h.toothNumber)}</span>
-                )}
-                <span className="text-muted-foreground">{SURFACE_LABELS[h.surface]}</span>
-                <span className="font-medium">{describirMarca(h)}</span>
-                {h.supersededAt && (
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                    · archivada
-                  </span>
-                )}
-              </div>
-              <span className="text-muted-foreground">
-                {h.recordedByName ?? "—"} · {fechaHora(h.recordedAt, zona)}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Resumen del odontograma para la pestaña "Resumen" de la ficha: qué piezas
- * tienen hallazgos y un acceso a la pestaña completa. Antes la ficha montaba
- * el `<Odontogram>` entero dos veces (Resumen y Odontograma, auditoría 360 del
- * 07-oct-2026); ahora el editor vive solo en su pestaña y acá queda una vista
- * de lectura. Comparte la query (`odontogram-marks`) con el editor, así que
- * pasar de una pestaña a la otra no vuelve a pedir las marcas.
- */
-export function OdontogramResumen({
-  clinicId,
-  patientId,
-  onVerOdontograma,
-}: {
-  clinicId: string;
-  patientId: string;
-  onVerOdontograma: () => void;
-}) {
-  const fetchMarks = useServerFn(listOdontogramMarks);
-  const { data: marks = [], isLoading } = useQuery({
-    queryKey: ["odontogram-marks", clinicId, patientId],
-    queryFn: () => fetchMarks({ data: { clinicId, patientId } }),
-  });
-  const piezas = useMemo(() => piezasConHallazgos(marks), [marks]);
-
-  return (
-    <section aria-labelledby="odontograma-resumen" className="card-clinical p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <TituloSeccion id="odontograma-resumen">Odontograma</TituloSeccion>
-          <p className="text-xs text-muted-foreground">
-            {isLoading
-              ? "Cargando…"
-              : piezas.length === 0
-                ? "Sin hallazgos registrados."
-                : `${piezas.length} ${piezas.length === 1 ? "pieza" : "piezas"} con hallazgos`}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={onVerOdontograma}
-          className={cn(
-            "inline-flex min-h-11 items-center gap-1 rounded-md text-sm font-medium text-brand-700 hover:underline sm:min-h-9",
-            FOCUS_RING_CLASS,
-          )}
-        >
-          Ver odontograma <ArrowRight className="size-3.5" aria-hidden />
-        </button>
+          </aside>
+        )}
       </div>
-      {piezas.length > 0 && (
-        <ul className="mt-4 flex flex-wrap gap-1.5">
-          {piezas.map((p) => (
-            <li
-              key={p.tooth}
-              className="inline-flex items-center gap-1.5 rounded-md border border-hairline px-2 py-1 text-xs"
-            >
-              <span className="font-semibold cifra">{p.tooth}</span>
-              {p.condiciones.map((c) => (
-                <span
-                  key={`${c.condition}-${c.status}`}
-                  className="inline-flex items-center gap-1 text-muted-foreground"
-                >
-                  <Muestra marca={c} className="size-2 rounded-full border-0" />
-                  {describirMarca(c)}
-                </span>
-              ))}
-            </li>
-          ))}
-        </ul>
-      )}
     </section>
   );
 }
