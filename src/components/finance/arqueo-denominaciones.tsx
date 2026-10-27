@@ -70,6 +70,7 @@ export function ArqueoDenominaciones({
   currency,
   expectedCents,
   expectedNota,
+  notaApertura,
   etiquetaSello,
   enviando,
   onCerrar,
@@ -78,6 +79,8 @@ export function ArqueoDenominaciones({
   /** Apertura + cobros del turno, o `null` mientras carga o si falló. */
   expectedCents: number | null;
   expectedNota: string;
+  /** Nota que se dejó al abrir el turno, si hay. */
+  notaApertura?: string | null;
   /** Texto del anillo del sello, p. ej. "LUNES 19". */
   etiquetaSello: string;
   enviando: boolean;
@@ -122,20 +125,23 @@ export function ArqueoDenominaciones({
     <section
       id="arqueo"
       aria-labelledby={`${uid}-titulo`}
-      className="rounded-md border border-border bg-card p-5 sm:p-6"
+      className="scroll-mt-20 rounded-[14px] border border-hairline bg-card p-[22px]"
     >
       <h2
         id={`${uid}-titulo`}
         tabIndex={-1}
-        className="font-display text-3xl font-normal leading-none outline-none"
+        className="font-display text-[34px] font-medium leading-none outline-none"
       >
         Arqueo de <em className="text-brand-600 dark:text-brand">efectivo</em>
       </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
+      <p className="mt-1.5 text-[12.5px] font-medium text-muted-foreground">
         {modo === "billetes"
-          ? "Cuenta el cajón por billete y moneda. Esmalia suma."
+          ? "Cuenta el cajón por denominación. Esmalia suma."
           : "Cuenta el cajón y anota el total."}
       </p>
+      {notaApertura && (
+        <p className="mt-1 text-[12.5px] text-muted-foreground">Nota de apertura: {notaApertura}</p>
+      )}
 
       {tabla && (
         <div
@@ -178,9 +184,13 @@ export function ArqueoDenominaciones({
                 key={clave}
                 className="grid grid-cols-[minmax(0,1fr)_auto_5.5rem] items-center gap-3 py-1.5"
               >
-                <span className="min-w-0 tabular-nums leading-tight">
-                  <span className="font-medium">{formatMoney(d.valorCents, currency)}</span>{" "}
-                  <span className="block text-xs text-muted-foreground sm:inline">{d.tipo}</span>
+                <span className="min-w-0 leading-tight">
+                  <span className="cifra text-sm font-medium">
+                    {formatMoney(d.valorCents, currency)}
+                  </span>{" "}
+                  <span className="block text-[11.5px] font-medium text-muted-foreground sm:ml-1 sm:inline">
+                    {d.tipo}
+                  </span>
                 </span>
                 <span className="inline-flex h-9 items-center rounded-full border border-input pointer-coarse:h-11">
                   <button
@@ -236,19 +246,19 @@ export function ArqueoDenominaciones({
       )}
 
       <dl className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-md border border-hairline px-3.5 py-3">
-          <dt className="text-xs text-muted-foreground">Esperado</dt>
-          <dd className="mt-1 whitespace-nowrap font-display text-[clamp(1.5rem,5.5vw,2rem)] leading-none tabular-nums">
+        <div className="rounded-xl border border-hairline px-3.5 py-3">
+          <dt className="text-xs font-medium text-muted-foreground">Esperado</dt>
+          <dd className="mt-1 whitespace-nowrap font-display text-[clamp(1.5rem,5.5vw,2.125rem)] font-medium leading-[1.1] [font-variant-numeric:lining-nums]">
             {expectedCents === null ? "—" : formatMoney(expectedCents, currency)}
           </dd>
-          <dd className="mt-1 text-xs text-muted-foreground">{expectedNota}</dd>
+          <dd className="text-[11.5px] font-medium text-muted-foreground">{expectedNota}</dd>
         </div>
-        <div className="rounded-md border border-hairline px-3.5 py-3">
-          <dt className="text-xs text-muted-foreground">Contado</dt>
-          <dd className="mt-1 whitespace-nowrap font-display text-[clamp(1.5rem,5.5vw,2rem)] leading-none tabular-nums">
+        <div className="rounded-xl border border-hairline px-3.5 py-3">
+          <dt className="text-xs font-medium text-muted-foreground">Contado</dt>
+          <dd className="mt-1 whitespace-nowrap font-display text-[clamp(1.5rem,5.5vw,2.125rem)] font-medium leading-[1.1] [font-variant-numeric:lining-nums]">
             {contado === null ? "—" : formatMoney(contado, currency)}
           </dd>
-          <dd className="mt-1 text-xs text-muted-foreground">en el cajón</dd>
+          <dd className="text-[11.5px] font-medium text-muted-foreground">en el cajón</dd>
         </div>
       </dl>
 
@@ -257,7 +267,7 @@ export function ArqueoDenominaciones({
         className="mt-4 grid min-h-24 grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
       >
         {lectura ? (
-          <p className={cn("text-base font-semibold", claseTexto[lectura.tono])}>
+          <p className={cn("text-[17px] leading-snug font-semibold", claseTexto[lectura.tono])}>
             {lectura.titulo}
             <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
               {lectura.detalle}
@@ -310,7 +320,9 @@ export function ArqueoDenominaciones({
         <Button
           type="button"
           size="lg"
-          className="mt-4 w-full"
+          // Botón en tinta, como el prototipo: es el cierre del día, no una
+          // acción más de la marca.
+          className="mt-3 h-12 w-full rounded-full border-foreground bg-foreground text-background hover:bg-foreground/88 active:bg-foreground/80"
           onClick={cerrar}
           disabled={!puedeCerrar}
         >

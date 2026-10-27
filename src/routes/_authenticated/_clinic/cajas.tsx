@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock, LockOpen } from "lucide-react";
+import { Clock, Download, Loader2, Lock, LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -12,8 +12,14 @@ import {
   ArqueoDenominaciones,
   type CierreArqueo,
 } from "@/components/finance/arqueo-denominaciones";
+import {
+  AtendidasSinCobroPanel,
+  ComisionesDelDiaPanel,
+  MovimientosDelDia,
+  PANEL,
+  ResumenEnTinta,
+} from "@/components/finance/caja-del-dia";
 import { ErrorDeCarga } from "@/components/estado-error";
-import { KpisEnFilete, type KpiFilete } from "@/components/kpis-en-filete";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,14 +32,22 @@ import {
 import { Label } from "@/components/ui/label";
 import { MoneyInput } from "@/components/money-input";
 import { BloqueoEscritura } from "@/components/solo-lectura";
+import { hasPermission } from "@/lib/access/access";
 import { requirePermission } from "@/lib/access/route-guards";
-import { formatoFechaLarga, hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import {
   clasePastilla,
   claseTexto,
   type TonoEstado,
 } from "@/lib/clinic-operations/estado-cita-tono";
-import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
+import {
+  formatMoney,
+  fromCents,
+  PAYMENT_METHOD_LABELS,
+  type PaymentMethod,
+} from "@/lib/finance/finance";
+import { getCajaDelDia } from "@/lib/finance/caja-del-dia.functions";
+import { exportarCsv } from "@/lib/csv-export";
 import {
   CASH_REGISTER_STATUS_LABELS,
   esperadoEnCaja,
@@ -52,7 +66,7 @@ import {
 import { decidirAbrirCaja, leerPedidoAbrirCaja, PEDIDO_ABRIR } from "@/lib/shell";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
-import { fechaCortaHora, fechaLarga } from "@/lib/formato-fecha";
+import { fechaCortaHora, fechaLarga, hora } from "@/lib/formato-fecha";
 
 export const Route = createFileRoute("/_authenticated/_clinic/cajas")({
   // `?abrir=1` abre "Abrir caja" al entrar (acción del ⌘K) y se borra.
@@ -96,8 +110,8 @@ function etiquetaDelDia(hoy: string): string {
   return fechaLarga(hoy).split(" de ")[0].toUpperCase();
 }
 
-function notaEsperado(aperturaCents: number, cobrosEnEfectivo: number, currency: string) {
-  return `Apertura ${formatMoney(aperturaCents, currency)} + ${cobrosEnEfectivo} ${cobrosEnEfectivo === 1 ? "cobro" : "cobros"} en efectivo`;
+function notaEsperado(aperturaCents: number, efectivoCents: number, currency: string) {
+  return `Apertura ${formatMoney(aperturaCents, currency)} + efectivo ${formatMoney(efectivoCents, currency)}`;
 }
 
 function CajasPage() {
@@ -155,6 +169,22 @@ function CajasPage() {
     enabled: !!openRegister?.id,
   });
 
+  // Resumen del día (tarjeta en tinta, movimientos, atendidas sin cobro y
+  // comisiones). Se pide con la caja abierta para saber quién la abrió.
+  const fetchResumen = useServerFn(getCajaDelDia);
+  const resumenQueryKey = ["caja-del-dia", clinicId, openRegister?.id ?? null] as const;
+  const {
+    data: resumen,
+    isError: resumenConError,
+    isFetching: recargandoResumen,
+    refetch: reintentarResumen,
+  } = useQuery({
+    queryKey: resumenQueryKey,
+    queryFn: () =>
+      fetchResumen({ data: { clinicId: clinicId!, cashRegisterId: openRegister?.id ?? null } }),
+    enabled: !!clinicId && !loadingOpen,
+  });
+
   const [selectedForBreakdown, setSelectedForBreakdown] = useState<CashRegister | null>(null);
   const { data: breakdown, isLoading: loadingBreakdown } = useQuery({
     queryKey: ["cash-register-breakdown", selectedForBreakdown?.id],
@@ -183,6 +213,7 @@ function CajasPage() {
       setOpeningNotes("");
       queryClient.invalidateQueries({ queryKey: openQueryKey });
       queryClient.invalidateQueries({ queryKey: historyQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
     },
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
@@ -223,6 +254,7 @@ function CajasPage() {
       }
       queryClient.invalidateQueries({ queryKey: openQueryKey });
       queryClient.invalidateQueries({ queryKey: historyQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
     },
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
@@ -235,189 +267,198 @@ function CajasPage() {
   // servidor al cerrar).
   const turno = separarCobrosDelTurno(cobrosTurno ?? []);
   const cobradoTurno = turno.efectivoCents;
-  const cantidadCobros = turno.efectivoCantidad;
   const ultimaCerrada = (history ?? []).find((r) => r.status === "closed");
-
-  // ── KPIs: con caja abierta, el turno en curso; cerrada, el último arqueo.
-  let kpis: KpiFilete[];
-  if (openRegister) {
-    const esperadoListo = !loadingCobros && !cobrosConError;
-    kpis = [
-      {
-        label: "Estado",
-        valor: "Abierta",
-        nota: `Desde ${fechaHora(openRegister.openedAt, clinicTz)}`,
-        tono: "info",
-      },
-      {
-        label: "Esperado",
-        valor: esperadoListo
-          ? formatMoney(esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno), currency)
-          : "—",
-        nota: esperadoListo
-          ? notaEsperado(openRegister.openingAmountCents, cantidadCobros, currency)
-          : cobrosConError
-            ? "Sin datos"
-            : "Cargando…",
-      },
-      { label: "Contado", valor: "—", nota: "Se anota al cerrar" },
-      { label: "Diferencia", valor: "—", nota: "Se calcula al cerrar" },
-    ];
-  } else if (ultimaCerrada) {
-    const diff = ultimaCerrada.differenceCents;
-    const lectura = diff === null ? null : lecturaDiferencia(diff, ultimaCerrada.currency);
-    kpis = [
-      {
-        label: "Estado",
-        valor: "Cerrada",
-        nota: `Último cierre ${fechaHora(ultimaCerrada.closedAt, clinicTz)}`,
-      },
-      {
-        label: "Esperado",
-        valor:
-          ultimaCerrada.expectedClosingCents === null
-            ? "—"
-            : formatMoney(ultimaCerrada.expectedClosingCents, ultimaCerrada.currency),
-        nota: "Apertura + efectivo del turno",
-      },
-      {
-        label: "Contado",
-        valor:
-          ultimaCerrada.declaredClosingCents === null
-            ? "—"
-            : formatMoney(ultimaCerrada.declaredClosingCents, ultimaCerrada.currency),
-        nota: "Lo que se contó al cerrar",
-      },
-      {
-        label: "Diferencia",
-        valor: diff === null ? "—" : formatMoney(diff, ultimaCerrada.currency),
-        nota: lectura?.texto ?? "Sin datos",
-        tono: lectura?.tono,
-        tonoNota: lectura?.tono,
-      },
-    ];
-  } else {
-    kpis = [
-      { label: "Estado", valor: "Cerrada", nota: "Todavía no hay turnos" },
-      { label: "Esperado", valor: "—", nota: "Apertura + efectivo" },
-      { label: "Contado", valor: "—", nota: "Se anota al cerrar" },
-      { label: "Diferencia", valor: "—", nota: "Se calcula al cerrar" },
-    ];
-  }
-
   const filas = history ?? [];
+
+  // "lunes 26": el día de la clínica, no el del navegador.
+  const diaTitulo = fechaLarga(hoy).split(" de ")[0];
+  const sucursal = resumen?.sucursal ?? access.clinic?.name ?? null;
+  const estadoTexto = openRegister
+    ? `abierta ${hora(openRegister.openedAt, clinicTz)}${resumen?.abiertaPor ? ` por ${resumen.abiertaPor}` : ""}`
+    : ultimaCerrada
+      ? `último cierre ${fechaHora(ultimaCerrada.closedAt, clinicTz)}`
+      : "sin turnos todavía";
+
+  function exportarMovimientos() {
+    if (!resumen) return;
+    const filas = resumen.movimientos.flatMap((m) => m.partes.map((p) => ({ m, p })));
+    exportarCsv(
+      filas,
+      [
+        { header: "Fecha", value: () => resumen.fecha },
+        { header: "Hora", value: ({ m }) => m.hora },
+        { header: "Paciente", value: ({ m }) => m.paciente },
+        { header: "Concepto", value: ({ m }) => m.concepto },
+        { header: "Profesional", value: ({ m }) => m.profesional },
+        { header: "Medio de pago", value: ({ p }) => p.medio },
+        { header: "En el cajón", value: ({ p }) => (p.enEfectivo ? "Sí" : "No") },
+        { header: "Monto", value: ({ p }) => fromCents(p.cents, currency) },
+        { header: "Moneda", value: () => currency },
+      ],
+      "caja-del-dia",
+      resumen.fecha,
+    );
+  }
 
   return (
     <AppShell title="Caja del día" access={access}>
-      <div className="mx-auto max-w-6xl space-y-10">
-        <header className="flex flex-wrap items-end justify-between gap-4">
-          <div className="min-w-0">
-            <p className="kicker">Caja · {formatoFechaLarga(hoy)}</p>
-            <h2 className="mt-2 font-display text-4xl font-normal leading-tight text-balance sm:text-[44px] sm:leading-none">
-              {loadingOpen
-                ? "Caja del día"
-                : openRegister
-                  ? "La caja está abierta."
-                  : "La caja está cerrada."}
-            </h2>
-            <p className="mt-3 max-w-prose text-sm text-muted-foreground">
-              Los cobros en efectivo que registres mientras la caja está abierta se suman solos al
-              esperado del cierre. Tarjetas y transferencias quedan aparte, para conciliar con el
-              banco.
-            </p>
-          </div>
-          {!loadingOpen && !openConError && (
-            <div className="flex flex-wrap gap-2">
-              {openRegister ? (
-                <BloqueoEscritura>
+      <div className="mx-auto max-w-[84rem] space-y-10">
+        <div className="space-y-[18px]">
+          <header className="flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pb-2">
+            <div className="min-w-0">
+              <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
+                <b className="font-semibold text-foreground/85">Caja</b>
+                {sucursal && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{sucursal}</span>
+                  </>
+                )}
+                {!loadingOpen && !openConError && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <span>{estadoTexto}</span>
+                  </>
+                )}
+              </p>
+              <h2 className="mt-2 font-display text-[clamp(2.25rem,3.6vw,3.5rem)] font-medium leading-none tracking-[-0.02em] text-balance [font-variant-numeric:lining-nums]">
+                {openRegister ? "Cierre del " : "Caja del "}
+                <em className="text-brand-600">{diaTitulo}</em>
+              </h2>
+            </div>
+            {!loadingOpen && !openConError && (
+              <div className="flex flex-wrap items-center gap-2">
+                <span
+                  className={cn(
+                    "inline-flex h-[30px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold whitespace-nowrap",
+                    clasePastilla[openRegister ? "warning" : "neutral"],
+                  )}
+                >
+                  <Clock className="size-3.5" aria-hidden />
+                  {openRegister ? "Caja abierta" : "Caja cerrada"}
+                </span>
+                <Button
+                  variant="outline"
+                  className="h-10 rounded-full px-4"
+                  onClick={exportarMovimientos}
+                  disabled={!resumen || resumen.movimientos.length === 0}
+                >
+                  <Download aria-hidden /> Exportar CSV
+                </Button>
+                {openRegister ? (
+                  // En celular el arqueo queda debajo de los movimientos: el
+                  // botón lleva hasta él. En escritorio está a la vista.
                   <Button
+                    className="h-10 rounded-full px-4 lg:hidden"
                     onClick={() => {
                       const arqueo = document.getElementById("arqueo");
                       arqueo?.scrollIntoView({ block: "start" });
                       arqueo?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
                     }}
                   >
-                    <Lock aria-hidden /> Cerrar caja (arqueo)
+                    <Lock aria-hidden /> Ir al arqueo
                   </Button>
-                </BloqueoEscritura>
-              ) : (
-                <Button onClick={() => setOpenDialogOpen(true)}>
-                  <LockOpen aria-hidden /> Abrir caja
-                </Button>
-              )}
-            </div>
-          )}
-        </header>
-
-        {openConError ? (
-          <ErrorDeCarga
-            mensaje="No pudimos revisar el estado de la caja. Revisa la conexión antes de abrir o cerrar."
-            onReintentar={() => void reintentarOpen()}
-            reintentando={recargandoOpen}
-          />
-        ) : (
-          <KpisEnFilete kpis={kpis} cargando={loadingOpen || (!openRegister && loadingHistory)} />
-        )}
-
-        {openRegister && (
-          <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
-            <section aria-labelledby="caja-turno" className="space-y-3">
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <h2 id="caja-turno" className="font-display text-2xl font-semibold">
-                  Cobros del turno
-                </h2>
-                {openRegister.openingNotes && (
-                  <p className="text-sm text-muted-foreground">
-                    Nota de apertura: {openRegister.openingNotes}
-                  </p>
+                ) : (
+                  <Button
+                    className="h-10 rounded-full px-4"
+                    onClick={() => setOpenDialogOpen(true)}
+                  >
+                    <LockOpen aria-hidden /> Abrir caja
+                  </Button>
                 )}
               </div>
-              {cobrosConError ? (
-                <ErrorDeCarga
-                  mensaje="No pudimos cargar los cobros de este turno."
-                  onReintentar={() => void reintentarCobros()}
-                  reintentando={recargandoCobros}
-                />
-              ) : loadingCobros ? (
-                <p className="border-y border-border py-8 text-sm text-muted-foreground">
-                  Cargando cobros…
-                </p>
-              ) : (cobrosTurno ?? []).length === 0 ? (
-                <div className="border-y border-border py-6">
-                  <p className="text-sm font-medium">Todavía no hay cobros en este turno.</p>
-                  <p className="mt-1 max-w-prose text-sm text-muted-foreground">
-                    Los pagos que registres desde la ficha del paciente, en Presupuestos y pagos, se
-                    suman acá mientras la caja esté abierta.
-                  </p>
-                </div>
-              ) : (
-                <TablaDesglose filas={cobrosTurno ?? []} currency={currency} />
-              )}
-            </section>
-            <ArqueoDenominaciones
-              // Cambiar de caja (otro turno) arranca el conteo de cero.
-              key={openRegister.id}
-              currency={openRegister.currency}
-              expectedCents={
-                loadingCobros || cobrosConError
-                  ? null
-                  : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
-              }
-              expectedNota={
-                cobrosConError
-                  ? "Sin datos"
-                  : notaEsperado(
-                      openRegister.openingAmountCents,
-                      cantidadCobros,
-                      openRegister.currency,
-                    )
-              }
-              etiquetaSello={etiquetaDelDia(hoy)}
-              enviando={closeMutation.isPending}
-              onCerrar={(cierre) => closeMutation.mutate(cierre)}
+            )}
+          </header>
+
+          {openConError ? (
+            <ErrorDeCarga
+              mensaje="No pudimos revisar el estado de la caja. Revisa la conexión antes de abrir o cerrar."
+              onReintentar={() => void reintentarOpen()}
+              reintentando={recargandoOpen}
             />
-          </div>
-        )}
+          ) : (
+            <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+              <div className="min-w-0 space-y-[18px]">
+                {resumenConError ? (
+                  <ErrorDeCarga
+                    mensaje="No pudimos cargar los cobros de hoy."
+                    onReintentar={() => void reintentarResumen()}
+                    reintentando={recargandoResumen}
+                  />
+                ) : !resumen ? (
+                  <div
+                    aria-busy
+                    className="grid h-[22rem] place-items-center rounded-[14px] bg-night text-sm text-on-night-2"
+                  >
+                    Cargando los cobros de hoy…
+                  </div>
+                ) : (
+                  <>
+                    <ResumenEnTinta
+                      resumen={resumen}
+                      currency={currency}
+                      onVerDesglose={
+                        openRegister ? () => setSelectedForBreakdown(openRegister) : undefined
+                      }
+                    />
+                    <MovimientosDelDia
+                      movimientos={resumen.movimientos}
+                      porMedio={resumen.porMedio}
+                      currency={currency}
+                    />
+                  </>
+                )}
+              </div>
+
+              <div className="min-w-0 space-y-[18px]">
+                {openRegister ? (
+                  <ArqueoDenominaciones
+                    // Cambiar de caja (otro turno) arranca el conteo de cero.
+                    key={openRegister.id}
+                    currency={openRegister.currency}
+                    expectedCents={
+                      loadingCobros || cobrosConError
+                        ? null
+                        : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
+                    }
+                    expectedNota={
+                      cobrosConError
+                        ? "Sin datos"
+                        : notaEsperado(
+                            openRegister.openingAmountCents,
+                            cobradoTurno,
+                            openRegister.currency,
+                          )
+                    }
+                    notaApertura={openRegister.openingNotes}
+                    etiquetaSello={etiquetaDelDia(hoy)}
+                    enviando={closeMutation.isPending}
+                    onCerrar={(cierre) => closeMutation.mutate(cierre)}
+                  />
+                ) : (
+                  !loadingOpen && (
+                    <UltimoCierre
+                      registro={ultimaCerrada ?? null}
+                      cargando={loadingHistory}
+                      clinicTz={clinicTz}
+                      onAbrir={() => setOpenDialogOpen(true)}
+                    />
+                  )
+                )}
+                {resumen && (
+                  <AtendidasSinCobroPanel
+                    atendidas={resumen.atendidasSinCobro}
+                    currency={currency}
+                    puedeCobrar={hasPermission(access.role, "patients:manage")}
+                  />
+                )}
+                {resumen?.comisiones && (
+                  <ComisionesDelDiaPanel comisiones={resumen.comisiones} currency={currency} />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <section aria-labelledby="caja-historial" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -722,6 +763,80 @@ function DetalleArqueo({ detalle }: { detalle: DetalleDenominaciones }) {
         </ul>
       )}
     </div>
+  );
+}
+
+/**
+ * Columna derecha con la caja cerrada: el último arqueo (esperado, contado y
+ * diferencia, con el motivo si no cuadró) y el botón para abrir el turno.
+ */
+function UltimoCierre({
+  registro,
+  cargando,
+  clinicTz,
+  onAbrir,
+}: {
+  registro: CashRegister | null;
+  cargando: boolean;
+  clinicTz: string | undefined;
+  onAbrir: () => void;
+}) {
+  const uid = useId();
+  const lectura =
+    registro?.differenceCents == null
+      ? null
+      : lecturaDiferencia(registro.differenceCents, registro.currency);
+  return (
+    <section aria-labelledby={`${uid}-titulo`} className={cn(PANEL, "p-[22px]")}>
+      <h2 id={`${uid}-titulo`} className="font-display text-[34px] font-medium leading-none">
+        Último <em className="text-brand-600">cierre</em>
+      </h2>
+      {cargando ? (
+        <p className="mt-3 text-sm text-muted-foreground">Cargando el último cierre…</p>
+      ) : !registro ? (
+        <p className="mt-3 text-sm text-muted-foreground">
+          Todavía no hay turnos. Abre la caja al empezar el día con el efectivo que hay; al cerrar,
+          cuenta lo que quedó y Esmalia te dice si cuadra.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1.5 text-[12.5px] font-medium text-muted-foreground">
+            Cerrada el {fechaHora(registro.closedAt, clinicTz)}
+          </p>
+          <dl className="mt-[18px] grid grid-cols-2 gap-2.5">
+            {(
+              [
+                ["Esperado", registro.expectedClosingCents, "apertura + efectivo"],
+                ["Contado", registro.declaredClosingCents, "en el cajón"],
+              ] as const
+            ).map(([titulo, cents, nota]) => (
+              <div key={titulo} className="rounded-xl border border-hairline px-3.5 py-3">
+                <dt className="text-xs font-medium text-muted-foreground">{titulo}</dt>
+                <dd className="mt-1 whitespace-nowrap font-display text-[clamp(1.5rem,5.5vw,2.125rem)] font-medium leading-[1.1] [font-variant-numeric:lining-nums]">
+                  {cents === null ? "—" : formatMoney(cents, registro.currency)}
+                </dd>
+                <dd className="text-[11.5px] font-medium text-muted-foreground">{nota}</dd>
+              </div>
+            ))}
+          </dl>
+          {lectura && (
+            <p className={cn("mt-4 text-[17px] font-semibold", claseTexto[lectura.tono])}>
+              {lectura.texto}.
+              {registro.closingNotes && (
+                <span className="mt-0.5 block text-sm font-normal text-muted-foreground">
+                  Motivo: {registro.closingNotes}
+                </span>
+              )}
+            </p>
+          )}
+        </>
+      )}
+      {!cargando && (
+        <Button size="lg" className="mt-5 h-12 w-full rounded-full" onClick={onAbrir}>
+          <LockOpen aria-hidden /> Abrir caja
+        </Button>
+      )}
+    </section>
   );
 }
 
