@@ -28,6 +28,7 @@ const POR_SEGMENTO: Readonly<Record<string, PantallaId>> = {
   "reserva-en-linea": "reserva-en-linea",
   laboratorios: "laboratorios",
   inventario: "inventario",
+  esterilizacion: "inventario",
   comisiones: "comisiones",
   "mi-desempeno": "comisiones",
   equipo: "equipo",

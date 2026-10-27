@@ -230,6 +230,18 @@ export const DESTINOS: readonly Destino[] = [
         permisos: ["treatments:view"],
         sinonimos: ["laboratorio", "prótesis", "órdenes de laboratorio"],
       },
+      {
+        to: "/esterilizacion",
+        label: "Esterilización",
+        permisos: ["inventory:view"],
+        sinonimos: [
+          "autoclave",
+          "ciclos",
+          "trazabilidad",
+          "instrumental",
+          "autorización sanitaria",
+        ],
+      },
     ],
   },
   // ─── Gestión ───────────────────────────────────────────────────────────

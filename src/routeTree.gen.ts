@@ -96,6 +96,7 @@ import { Route as AuthenticatedClinicEfectividadRouteImport } from './routes/_au
 import { Route as AuthenticatedClinicEmpresasConConvenioRouteImport } from './routes/_authenticated/_clinic/empresas-con-convenio'
 import { Route as AuthenticatedClinicEquipoRouteImport } from './routes/_authenticated/_clinic/equipo'
 import { Route as AuthenticatedClinicEstadosDeCitaRouteImport } from './routes/_authenticated/_clinic/estados-de-cita'
+import { Route as AuthenticatedClinicEsterilizacionRouteImport } from './routes/_authenticated/_clinic/esterilizacion'
 import { Route as AuthenticatedClinicFinanzasRouteImport } from './routes/_authenticated/_clinic/finanzas'
 import { Route as AuthenticatedClinicFusionarFichasRouteImport } from './routes/_authenticated/_clinic/fusionar-fichas'
 import { Route as AuthenticatedClinicGastosRouteImport } from './routes/_authenticated/_clinic/gastos'
@@ -607,6 +608,12 @@ const AuthenticatedClinicEstadosDeCitaRoute =
     path: '/estados-de-cita',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicEsterilizacionRoute =
+  AuthenticatedClinicEsterilizacionRouteImport.update({
+    id: '/esterilizacion',
+    path: '/esterilizacion',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicFinanzasRoute =
   AuthenticatedClinicFinanzasRouteImport.update({
     id: '/finanzas',
@@ -1007,6 +1014,7 @@ export interface FileRoutesByFullPath {
   '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
   '/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
+  '/esterilizacion': typeof AuthenticatedClinicEsterilizacionRoute
   '/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/gastos': typeof AuthenticatedClinicGastosRoute
@@ -1145,6 +1153,7 @@ export interface FileRoutesByTo {
   '/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/equipo': typeof AuthenticatedClinicEquipoRoute
   '/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
+  '/esterilizacion': typeof AuthenticatedClinicEsterilizacionRoute
   '/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/gastos': typeof AuthenticatedClinicGastosRoute
@@ -1288,6 +1297,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/empresas-con-convenio': typeof AuthenticatedClinicEmpresasConConvenioRoute
   '/_authenticated/_clinic/equipo': typeof AuthenticatedClinicEquipoRoute
   '/_authenticated/_clinic/estados-de-cita': typeof AuthenticatedClinicEstadosDeCitaRoute
+  '/_authenticated/_clinic/esterilizacion': typeof AuthenticatedClinicEsterilizacionRoute
   '/_authenticated/_clinic/finanzas': typeof AuthenticatedClinicFinanzasRoute
   '/_authenticated/_clinic/fusionar-fichas': typeof AuthenticatedClinicFusionarFichasRoute
   '/_authenticated/_clinic/gastos': typeof AuthenticatedClinicGastosRoute
@@ -1430,6 +1440,7 @@ export interface FileRouteTypes {
     | '/empresas-con-convenio'
     | '/equipo'
     | '/estados-de-cita'
+    | '/esterilizacion'
     | '/finanzas'
     | '/fusionar-fichas'
     | '/gastos'
@@ -1568,6 +1579,7 @@ export interface FileRouteTypes {
     | '/empresas-con-convenio'
     | '/equipo'
     | '/estados-de-cita'
+    | '/esterilizacion'
     | '/finanzas'
     | '/fusionar-fichas'
     | '/gastos'
@@ -1710,6 +1722,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/empresas-con-convenio'
     | '/_authenticated/_clinic/equipo'
     | '/_authenticated/_clinic/estados-de-cita'
+    | '/_authenticated/_clinic/esterilizacion'
     | '/_authenticated/_clinic/finanzas'
     | '/_authenticated/_clinic/fusionar-fichas'
     | '/_authenticated/_clinic/gastos'
@@ -2434,6 +2447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicEstadosDeCitaRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/esterilizacion': {
+      id: '/_authenticated/_clinic/esterilizacion'
+      path: '/esterilizacion'
+      fullPath: '/esterilizacion'
+      preLoaderRoute: typeof AuthenticatedClinicEsterilizacionRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/finanzas': {
       id: '/_authenticated/_clinic/finanzas'
       path: '/finanzas'
@@ -2829,6 +2849,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicEmpresasConConvenioRoute: typeof AuthenticatedClinicEmpresasConConvenioRoute
   AuthenticatedClinicEquipoRoute: typeof AuthenticatedClinicEquipoRoute
   AuthenticatedClinicEstadosDeCitaRoute: typeof AuthenticatedClinicEstadosDeCitaRoute
+  AuthenticatedClinicEsterilizacionRoute: typeof AuthenticatedClinicEsterilizacionRoute
   AuthenticatedClinicFinanzasRoute: typeof AuthenticatedClinicFinanzasRoute
   AuthenticatedClinicFusionarFichasRoute: typeof AuthenticatedClinicFusionarFichasRoute
   AuthenticatedClinicGastosRoute: typeof AuthenticatedClinicGastosRoute
@@ -2907,6 +2928,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicEquipoRoute: AuthenticatedClinicEquipoRoute,
     AuthenticatedClinicEstadosDeCitaRoute:
       AuthenticatedClinicEstadosDeCitaRoute,
+    AuthenticatedClinicEsterilizacionRoute:
+      AuthenticatedClinicEsterilizacionRoute,
     AuthenticatedClinicFinanzasRoute: AuthenticatedClinicFinanzasRoute,
     AuthenticatedClinicFusionarFichasRoute:
       AuthenticatedClinicFusionarFichasRoute,
