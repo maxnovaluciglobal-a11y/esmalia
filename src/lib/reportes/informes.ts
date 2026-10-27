@@ -27,12 +27,7 @@ import {
   type Rango,
 } from "@/lib/finance/periodos-reporte";
 import { fechaCorta, mesAnio, numero } from "@/lib/formato-fecha";
-import {
-  ETIQUETA_PREVISION,
-  ETIQUETA_SEXO,
-  esPrevision,
-  esSexo,
-} from "@/lib/patients/datos-ficha";
+import { ETIQUETA_PREVISION, ETIQUETA_SEXO, esPrevision, esSexo } from "@/lib/patients/datos-ficha";
 
 // ─── Catálogo de métricas ────────────────────────────────────────────────
 
@@ -562,7 +557,8 @@ export function nivelDeOcupacion(pct: number | null, citas: number): CeldaCalor[
 
 export function armarMapaDeCalor(filas: readonly FilaOcupacion[]): MapaDeCalor {
   const conHorario = filas.some(
-    (f) => f.minutosDisponibles > 0 || (f.minutosBloqueados ?? 0) > 0 || (f.minutosFeriado ?? 0) > 0,
+    (f) =>
+      f.minutosDisponibles > 0 || (f.minutosBloqueados ?? 0) > 0 || (f.minutosFeriado ?? 0) > 0,
   );
   const activas = filas.filter(
     (f) =>

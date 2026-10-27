@@ -64,18 +64,25 @@ describe("ocupación neta de la agenda en la base", () => {
     );
   }
 
-  async function neta(feriados: string[] = [], profesional: string | null = null, clinica = clinicId) {
+  async function neta(
+    feriados: string[] = [],
+    profesional: string | null = null,
+    clinica = clinicId,
+  ) {
     const filas = await sql<Fila>(
       `SELECT * FROM public.informe_ocupacion_neta($1, '2026-10-05', '2026-10-25', NULL, $2, $3::date[])`,
       [clinica, profesional, feriados],
     );
     const porHora = new Map(
-      filas.map((f) => [`${f.dia_semana}-${f.hora}`, {
-        ocupados: Number(f.minutos_ocupados),
-        disponibles: Number(f.minutos_disponibles),
-        bloqueados: Number(f.minutos_bloqueados),
-        feriado: Number(f.minutos_feriado),
-      }]),
+      filas.map((f) => [
+        `${f.dia_semana}-${f.hora}`,
+        {
+          ocupados: Number(f.minutos_ocupados),
+          disponibles: Number(f.minutos_disponibles),
+          bloqueados: Number(f.minutos_bloqueados),
+          feriado: Number(f.minutos_feriado),
+        },
+      ]),
     );
     return (dow: number, hr: number) =>
       porHora.get(`${dow}-${hr}`) ?? { ocupados: 0, disponibles: 0, bloqueados: 0, feriado: 0 };
@@ -150,7 +157,10 @@ describe("ocupación neta de la agenda en la base", () => {
     expect(n(1, 12)).toMatchObject({ disponibles: 0, bloqueados: 180 });
     // Un bloqueo semanal con fin: solo hasta esa fecha.
     await client.query(`DELETE FROM public.agenda_exceptions WHERE clinic_id = $1`, [clinicId]);
-    await bloqueo("2026-10-05 12:00", "2026-10-05 13:00", { semanal: true, hastaFecha: "2026-10-12" });
+    await bloqueo("2026-10-05 12:00", "2026-10-05 13:00", {
+      semanal: true,
+      hastaFecha: "2026-10-12",
+    });
     expect((await neta())(1, 12)).toMatchObject({ disponibles: 60, bloqueados: 120 });
   });
 
@@ -164,7 +174,10 @@ describe("ocupación neta de la agenda en la base", () => {
 
   it("el bloqueo de toda la clínica y el de una sucursal le tocan al profesional; el de un box, no", async () => {
     await bloqueo("2026-10-05 11:00", "2026-10-05 12:00", { profesional: null });
-    await bloqueo("2026-10-12 09:00", "2026-10-12 10:00", { profesional: null, sucursal: branchId });
+    await bloqueo("2026-10-12 09:00", "2026-10-12 10:00", {
+      profesional: null,
+      sucursal: branchId,
+    });
     await bloqueo("2026-10-19 09:00", "2026-10-19 10:00", { profesional: null, box: boxId });
     const n = await neta();
     expect(n(1, 11)).toMatchObject({ disponibles: 120, bloqueados: 60 });
@@ -258,7 +271,10 @@ describe("ocupación neta de la agenda en la base", () => {
       [otraClinica, proAjeno],
     );
     // Un bloqueo de la otra clínica no toca a esta.
-    await bloqueo("2026-10-05 09:00", "2026-10-26 00:00", { profesional: null, clinica: otraClinica });
+    await bloqueo("2026-10-05 09:00", "2026-10-26 00:00", {
+      profesional: null,
+      clinica: otraClinica,
+    });
     expect((await neta())(1, 9).disponibles).toBe(180);
     // Con la identidad de la dueña de la otra clínica, esta clínica no devuelve filas.
     await client.query(`SELECT set_config('request.jwt.claims', $1, true)`, [
@@ -277,7 +293,9 @@ describe("ocupación neta de la agenda en la base", () => {
 
   it("rechaza un período inválido", async () => {
     await expect(
-      client.query(`SELECT * FROM public.informe_ocupacion_neta($1, '2026-10-25', '2026-10-05')`, [clinicId]),
+      client.query(`SELECT * FROM public.informe_ocupacion_neta($1, '2026-10-25', '2026-10-05')`, [
+        clinicId,
+      ]),
     ).rejects.toThrow(/período no es válido/);
   });
 });

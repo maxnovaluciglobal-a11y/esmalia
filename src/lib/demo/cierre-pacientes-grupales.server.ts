@@ -47,10 +47,7 @@ export async function sembrarCierrePacientesGrupalesDeLaDemo(admin: Admin): Prom
     await sembrarAlmuerzo(admin, clinica.id, zona);
     await sembrarAvisosDeInscritos(admin, clinica.id, zona);
   } catch (e) {
-    console.error(
-      "[demo-reset] cierre pacientes y grupales:",
-      e instanceof Error ? e.message : e,
-    );
+    console.error("[demo-reset] cierre pacientes y grupales:", e instanceof Error ? e.message : e);
   }
 }
 

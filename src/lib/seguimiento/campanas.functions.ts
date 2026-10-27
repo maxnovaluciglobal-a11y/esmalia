@@ -930,9 +930,9 @@ export const medirRetornoDeContactos = createServerFn({ method: "GET" })
       // Citas grupales (AGE-22): una cita agendada a un inscrito cuenta como
       // retorno suyo; la cita cuelga del titular, así que se mira la inscripción
       // (y su fecha de inscripción como «fecha de creación»).
-      const inscripciones = (await inscripcionesVigentesDe(supabase, data.clinicId, pacientes)).filter(
-        (i) => i.enrolled_at >= masAntiguo,
-      );
+      const inscripciones = (
+        await inscripcionesVigentesDe(supabase, data.clinicId, pacientes)
+      ).filter((i) => i.enrolled_at >= masAntiguo);
       const delGrupo = await citasPorIds(
         inscripciones.map((i) => i.appointment_id),
         (tanda) =>

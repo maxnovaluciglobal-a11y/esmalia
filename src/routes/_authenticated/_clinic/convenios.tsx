@@ -129,7 +129,9 @@ function ConvenioDialog({ clinicId, convenio }: { clinicId: string; convenio?: A
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{convenio ? "Editar seguro o cobertura" : "Nuevo seguro o cobertura"}</DialogTitle>
+          <DialogTitle>
+            {convenio ? "Editar seguro o cobertura" : "Nuevo seguro o cobertura"}
+          </DialogTitle>
           <DialogDescription>
             Después de crearlo, define qué cubre de cada prestación. Los pacientes que tengan este
             seguro verán el presupuesto ya repartido. Los descuentos de una empresa a sus
@@ -460,8 +462,8 @@ function ConveniosPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="max-w-xl text-sm text-muted-foreground">
               Cuando un paciente tiene un seguro (Fonasa, isapre, seguro complementario…), el
-              presupuesto se parte solo entre lo que cubre el seguro y lo que paga él — y el saldo que ves en la ficha y en la agenda pasa a ser
-              solo su parte.
+              presupuesto se parte solo entre lo que cubre el seguro y lo que paga él — y el saldo
+              que ves en la ficha y en la agenda pasa a ser solo su parte.
             </p>
             <ConvenioDialog clinicId={clinicId!} />
           </div>
@@ -469,16 +471,21 @@ function ConveniosPage() {
           {isLoading && <p className="text-sm text-muted-foreground">Cargando seguros…</p>}
 
           {isError && (
-            <ErrorDeCarga onReintentar={refetch} mensaje="No pudimos cargar los seguros y coberturas." />
+            <ErrorDeCarga
+              onReintentar={refetch}
+              mensaje="No pudimos cargar los seguros y coberturas."
+            />
           )}
 
           {!isLoading && !isError && convenios.length === 0 && (
             <div className="card-clinical p-8 text-center">
-              <p className="mb-1 font-display text-lg font-semibold">Todavía no hay seguros ni coberturas</p>
+              <p className="mb-1 font-display text-lg font-semibold">
+                Todavía no hay seguros ni coberturas
+              </p>
               <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
-                Si atiendes Fonasa, isapres o seguros complementarios, cárgalos aquí una vez y define
-                qué cubre cada uno. Sin esto, cada presupuesto con seguro se calcula a mano. Los
-                descuentos de una empresa a sus trabajadores van en «Empresas con convenio».
+                Si atiendes Fonasa, isapres o seguros complementarios, cárgalos aquí una vez y
+                define qué cubre cada uno. Sin esto, cada presupuesto con seguro se calcula a mano.
+                Los descuentos de una empresa a sus trabajadores van en «Empresas con convenio».
               </p>
               <div className="flex justify-center">
                 <ConvenioDialog clinicId={clinicId!} />
@@ -549,9 +556,8 @@ function ConveniosPage() {
           })}
 
           <p className="text-xs text-muted-foreground">
-            Dejar la cobertura vacía significa que el seguro no cubre esa prestación. Un seguro
-            dado de baja no reparte presupuestos nuevos, pero los ya emitidos conservan lo que
-            decían.
+            Dejar la cobertura vacía significa que el seguro no cubre esa prestación. Un seguro dado
+            de baja no reparte presupuestos nuevos, pero los ya emitidos conservan lo que decían.
           </p>
         </div>
       )}

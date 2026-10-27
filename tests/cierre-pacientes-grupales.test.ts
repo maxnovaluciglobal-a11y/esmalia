@@ -53,7 +53,10 @@ describe("ítem 7 · sexo de la ficha (opcional)", () => {
   it("el servidor escribe la columna `sex`, la limpia con null y no la exige nunca", () => {
     const ctx = { pais: "CL", esAlta: true, documentoFinal: null, tipoFinal: null };
     const con = parcheDeFichaOla1(
-      { sexo: "prefiere_no_decir", prevision: { plan: "particular", tramo: null, institucion: null } },
+      {
+        sexo: "prefiere_no_decir",
+        prevision: { plan: "particular", tramo: null, institucion: null },
+      },
       ctx,
     );
     expect(con.error).toBeNull();
@@ -127,7 +130,10 @@ describe("ítem 4 · cita grupal para todos los inscritos", () => {
   it("las citas del paciente suman las suyas y las grupales sin repetir al titular", () => {
     const propia = { id: "a", starts_at: "2026-11-10T10:00:00Z" };
     const delTitular = { id: "g", starts_at: "2026-11-05T10:00:00Z" };
-    const lista = unirCitasDelPaciente([propia, delTitular], [delTitular, { id: "h", starts_at: "2026-11-07T10:00:00Z" }]);
+    const lista = unirCitasDelPaciente(
+      [propia, delTitular],
+      [delTitular, { id: "h", starts_at: "2026-11-07T10:00:00Z" }],
+    );
     expect(lista.map((c) => c.id)).toEqual(["g", "h", "a"]);
     expect(unirCitasDelPaciente([propia], [delTitular], true).map((c) => c.id)).toEqual(["a", "g"]);
   });

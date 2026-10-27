@@ -539,7 +539,8 @@ export function parcheDeFichaOla1(
   if (e.direccion !== undefined) parche.address = e.direccion.trim() || null;
   if (e.comuna !== undefined) parche.commune = e.comuna.trim() || null;
   if (e.sexo !== undefined) {
-    if (e.sexo !== null && !esSexo(e.sexo)) return { parche, error: "Elige una opción de sexo válida." };
+    if (e.sexo !== null && !esSexo(e.sexo))
+      return { parche, error: "Elige una opción de sexo válida." };
     parche.sex = e.sexo;
   }
 

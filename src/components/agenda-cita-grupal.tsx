@@ -383,9 +383,7 @@ export function SeccionCitaGrupal({
                         type="button"
                         aria-pressed={Boolean(p.avisoEl)}
                         disabled={avisar.isPending}
-                        onClick={() =>
-                          avisar.mutate({ participanteId: p.id, avisado: !p.avisoEl })
-                        }
+                        onClick={() => avisar.mutate({ participanteId: p.id, avisado: !p.avisoEl })}
                         aria-label={
                           p.avisoEl
                             ? `Quitar el aviso de ${p.paciente}`

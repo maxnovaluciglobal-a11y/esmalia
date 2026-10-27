@@ -477,10 +477,7 @@ export async function inscritosDeCitasGrupales(
     }
   >
 > {
-  const salida = new Map<
-    string,
-    { titulo: string; inscritos: string[]; queVinieron: string[] }
-  >();
+  const salida = new Map<string, { titulo: string; inscritos: string[]; queVinieron: string[] }>();
   const ids = [...new Set(appointmentIds)];
   if (ids.length === 0) return salida;
   const grupos = await citasPorIds(

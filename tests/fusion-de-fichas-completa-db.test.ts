@@ -252,7 +252,11 @@ describe("fusión de fichas completa en la base", () => {
     await inscrito(cita, pacA);
     await inscrito(cita, pacB);
     await fusionar(pacA, pacB);
-    const r = await filas<{ patient_id: string; withdrawn_at: string | null; reason: string | null }>(
+    const r = await filas<{
+      patient_id: string;
+      withdrawn_at: string | null;
+      reason: string | null;
+    }>(
       `SELECT patient_id, withdrawn_at, withdraw_reason AS reason FROM public.appointment_group_participants WHERE appointment_id = $1`,
       [cita],
     );

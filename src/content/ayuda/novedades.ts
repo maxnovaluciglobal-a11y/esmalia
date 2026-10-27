@@ -13,7 +13,7 @@ export const NOVEDADES: readonly Novedad[] = [
     fecha: "2026-10-27",
     titulo: "Citas grupales para todos los inscritos, sexo en la ficha y mapa de calor más justo",
     texto:
-      "En una cita grupal, cada paciente inscrito ve su cita en el portal, entra al recall y a las campañas, y tiene su propio aviso de que viene. La fusión de fichas ahora mueve también la empresa con convenio, la membresía con sus cuotas y las inscripciones. La ficha tiene un campo opcional de sexo (con «Prefiere no decir») y Informes lo corta. El mapa de calor de la agenda descuenta los bloqueos y los feriados. «Convenios» pasó a llamarse «Seguros y coberturas» para no confundirse con «Empresas con convenio».",
+      "En una cita grupal, cada paciente inscrito ve su cita en el portal, entra a los controles periódicos y a las campañas, y tiene su propio aviso de que viene. La fusión de fichas ahora mueve también la empresa con convenio, la membresía con sus cuotas y las inscripciones. La ficha tiene un campo opcional de sexo (con «Prefiere no decir») y Informes lo corta. El mapa de calor de la agenda descuenta los bloqueos y los feriados. «Convenios» pasó a llamarse «Seguros y coberturas» para no confundirse con «Empresas con convenio».",
     enlace: { href: "/informes", texto: "Ver Informes", permiso: "agenda:view" },
   },
   // ── Ola 12 ──────────────────────────────────────────────────────────────

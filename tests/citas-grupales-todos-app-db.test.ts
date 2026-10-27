@@ -133,10 +133,14 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
 
   afterAll(async () => {
     try {
-      await sql(`DELETE FROM public.appointment_group_participants WHERE clinic_id = $1`, [clinicId]);
+      await sql(`DELETE FROM public.appointment_group_participants WHERE clinic_id = $1`, [
+        clinicId,
+      ]);
       await sql(`DELETE FROM public.appointment_groups WHERE clinic_id = $1`, [clinicId]);
       await sql(`DELETE FROM public.appointments WHERE clinic_id = $1`, [clinicId]);
-      await sql(`DELETE FROM public.patients WHERE clinic_id = ANY($1)`, [[clinicId, otraClinicId]]);
+      await sql(`DELETE FROM public.patients WHERE clinic_id = ANY($1)`, [
+        [clinicId, otraClinicId],
+      ]);
       await sql(`DELETE FROM public.clinics WHERE id = ANY($1)`, [[clinicId, otraClinicId]]);
     } finally {
       await client.end();
@@ -162,9 +166,17 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
     expect(ids).toContain(grupalFutura);
     expect(ids).toContain(individualLejana);
     expect(ids).not.toContain(grupalCancelada);
-    expect(inscritaVe.find((c) => c.id === grupalFutura)?.treatment_label).toBe("Charla de higiene");
+    expect(inscritaVe.find((c) => c.id === grupalFutura)?.treatment_label).toBe(
+      "Charla de higiene",
+    );
 
-    const retiradaVe = await proximasCitasConGrupales(admin, clinicId, retirada, [], new Date().toISOString());
+    const retiradaVe = await proximasCitasConGrupales(
+      admin,
+      clinicId,
+      retirada,
+      [],
+      new Date().toISOString(),
+    );
     expect(retiradaVe).toEqual([]);
 
     // El titular la ve una sola vez aunque aparezca por las dos vías.
@@ -188,9 +200,21 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
   });
 
   it("portal: otra clínica no ve las citas de esta", async () => {
-    const ajenoVe = await proximasCitasConGrupales(admin, otraClinicId, inscrita, [], new Date().toISOString());
+    const ajenoVe = await proximasCitasConGrupales(
+      admin,
+      otraClinicId,
+      inscrita,
+      [],
+      new Date().toISOString(),
+    );
     expect(ajenoVe).toEqual([]);
-    const ajenoPropio = await proximasCitasConGrupales(admin, otraClinicId, ajeno, [], new Date().toISOString());
+    const ajenoPropio = await proximasCitasConGrupales(
+      admin,
+      otraClinicId,
+      ajeno,
+      [],
+      new Date().toISOString(),
+    );
     expect(ajenoPropio).toEqual([]);
   });
 
@@ -207,7 +231,9 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
     expect(filas.citas.every((c) => c.patient_id === inscrita)).toBe(true);
 
     const delTitular = await leerFilasDelTitular(admin, clinicId, titular);
-    expect(delTitular.filas.citas.filter((c) => c.treatment_label === "Charla de higiene")).toHaveLength(1);
+    expect(
+      delTitular.filas.citas.filter((c) => c.treatment_label === "Charla de higiene"),
+    ).toHaveLength(1);
   });
 
   it("recall: quien está inscrito tiene próxima cita; el retirado no", async () => {
@@ -231,7 +257,11 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
   it("WhatsApp: el «sí» de la inscrita marca SU inscripción, no la cita ni la del titular", async () => {
     const fecha = await anotarConfirmacionDelPaciente(admin, clinicId, inscrita, "sí, voy");
     expect(fecha).not.toBeNull();
-    const filas = await sql<{ patient_id: string; patient_confirmed_at: string | null; via: string | null }>(
+    const filas = await sql<{
+      patient_id: string;
+      patient_confirmed_at: string | null;
+      via: string | null;
+    }>(
       `SELECT patient_id, patient_confirmed_at, patient_confirmed_via AS via
          FROM public.appointment_group_participants WHERE appointment_id = $1`,
       [grupalFutura],
@@ -249,7 +279,9 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
   });
 
   it("WhatsApp: el titular de la grupal también marca su inscripción, no la cita entera", async () => {
-    expect(await anotarConfirmacionDelPaciente(admin, clinicId, titular, "confirmo")).not.toBeNull();
+    expect(
+      await anotarConfirmacionDelPaciente(admin, clinicId, titular, "confirmo"),
+    ).not.toBeNull();
     const cabecera = await sql<{ patient_confirmed_at: string | null }>(
       `SELECT patient_confirmed_at FROM public.appointments WHERE id = $1`,
       [grupalFutura],
@@ -276,7 +308,9 @@ describe("citas grupales para todos los inscritos, en el código de la aplicaci�
     const nueva = await paciente("Sin Confirmar");
     const grupalNueva = await cita(nueva, 10);
     await grupal(grupalNueva, "Control escolar", [nueva]);
-    expect(await anotarConfirmacionDelPaciente(admin, clinicId, nueva, "hola, una consulta")).toBeNull();
+    expect(
+      await anotarConfirmacionDelPaciente(admin, clinicId, nueva, "hola, una consulta"),
+    ).toBeNull();
     const r = await sql<{ n: string }>(
       `SELECT count(*) AS n FROM public.appointment_group_participants WHERE appointment_id = $1 AND patient_confirmed_at IS NOT NULL`,
       [grupalNueva],

@@ -181,10 +181,11 @@ describe("citas grupales para todos los inscritos y sexo, en la base", () => {
   });
 
   it("recall de higiene: la última visita y «ya viene de vuelta» son por inscrito", async () => {
-    const r = await servicio<{ patient_id: string; last_visit_at: string | null; has_future: boolean }>(
-      `SELECT * FROM public.outreach_patient_visits($1)`,
-      [clinicId],
-    );
+    const r = await servicio<{
+      patient_id: string;
+      last_visit_at: string | null;
+      has_future: boolean;
+    }>(`SELECT * FROM public.outreach_patient_visits($1)`, [clinicId]);
     const de = (id: string) => r.find((f) => f.patient_id === id);
     expect(de(p1)?.last_visit_at).not.toBeNull();
     expect(de(p3)?.last_visit_at).not.toBeNull();
