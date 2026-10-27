@@ -265,6 +265,26 @@ export interface Quote {
   rejectionReason: string | null;
   createdAt: string;
   items: QuoteItem[];
+  /**
+   * De dónde salió el descuento comercial cuando el paciente es afiliado
+   * (empresa con convenio o membresía). `null` = sin descuento de afiliación.
+   */
+  affiliationDiscount: AffiliationDiscountTrace | null;
+}
+
+/** Rastro del descuento de afiliación guardado en el presupuesto (snapshots). */
+export interface AffiliationDiscountTrace {
+  source: "empresa" | "membresia";
+  /** Id vivo de la empresa o del plan; `null` si ya se borró (queda el snapshot). */
+  sourceId: string | null;
+  /** "Constructora Andes", "Plan Sonrisa" (snapshot). */
+  name: string;
+  /** "15 % de descuento" (snapshot). */
+  rule: string | null;
+  /** Regla propuesta en %, o `null` si fue un monto fijo. */
+  percent: number | null;
+  /** Regla propuesta en monto fijo (cents), o `null` si fue un porcentaje. */
+  amountCents: number | null;
 }
 
 export interface TreatmentItem {
@@ -379,6 +399,11 @@ export interface Payment {
   coverageRole: "bono" | "copago" | null;
   /** Número del bono (solo en la fila del bono). */
   voucherNumber: string | null;
+  /**
+   * Cuota de membresía que cobra este pago. `null` = pago de tratamientos.
+   * Un pago de cuota no resta del saldo de tratamientos del paciente.
+   */
+  membershipChargeId: string | null;
 }
 
 export const LAB_ORDER_STATUSES = [

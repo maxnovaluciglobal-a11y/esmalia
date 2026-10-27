@@ -41,8 +41,12 @@ export function DialogoCobrar({
     queryKey: ["payment-methods", clinicId],
     queryFn: () => fetchMedios({ data: { clinicId } }),
   });
-  const [medio, setMedio] = useState("");
+  const [elegido, setElegido] = useState("");
   const [referencia, setReferencia] = useState("");
+  // El medio por defecto es el efectivo (si la clínica lo tiene): es lo que
+  // entra al cajón y se cuenta en el arqueo.
+  const medio =
+    elegido || (medios.find((m) => m.kind === "cash" || m.legacyKey === "cash")?.id ?? "");
   const fn = useServerFn(cobrarCuotaMembresia);
   const cobrar = useMutation({
     mutationFn: () =>
@@ -50,14 +54,22 @@ export function DialogoCobrar({
         data: {
           clinicId,
           id: cuota.id,
-          paymentMethodId: medio || null,
+          paymentMethodId: medio,
           reference: referencia.trim() || null,
         },
       }),
-    onSuccess: () => {
+    onSuccess: (res) => {
       void qc.invalidateQueries({ queryKey: ["membresias-cuotas", clinicId] });
       void qc.invalidateQueries({ queryKey: ["membresia-paciente", clinicId] });
-      toast.success("Cuota cobrada");
+      void qc.invalidateQueries({ queryKey: ["payments", clinicId] });
+      void qc.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
+      void qc.invalidateQueries({ queryKey: ["cash-register-breakdown"] });
+      void qc.invalidateQueries({ queryKey: ["cajas-del-dia", clinicId] });
+      if (res.yaCobrada) {
+        toast.info("Esa cuota ya estaba cobrada: no se registró otro cobro.");
+      } else {
+        toast.success("Cuota cobrada y registrada en la caja");
+      }
       onCerrar();
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -70,7 +82,8 @@ export function DialogoCobrar({
           <DialogDescription>
             Cuota de {cuota.planName}, {etiquetaPeriodoCuota(cuota.periodStart, cuota.periodEnd)}
             {cuota.patientName ? `, de ${cuota.patientName}` : ""}. Registra el cobro que ya
-            recibiste; no se carga ninguna tarjeta.
+            recibiste; no se carga ninguna tarjeta. Queda como un pago en tu caja, con el medio que
+            elijas.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -79,10 +92,12 @@ export function DialogoCobrar({
             <select
               id="cc-medio"
               value={medio}
-              onChange={(e) => setMedio(e.target.value)}
+              onChange={(e) => setElegido(e.target.value)}
               className={INPUT}
             >
-              <option value="">Sin especificar</option>
+              <option value="" disabled>
+                Elige un medio
+              </option>
               {medios.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
@@ -102,7 +117,7 @@ export function DialogoCobrar({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={() => cobrar.mutate()} disabled={cobrar.isPending}>
+          <Button onClick={() => cobrar.mutate()} disabled={cobrar.isPending || !medio}>
             {cobrar.isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (

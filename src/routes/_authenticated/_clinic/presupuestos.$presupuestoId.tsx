@@ -16,6 +16,7 @@ import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
+import { OrigenDelDescuento } from "@/components/finance/descuento-afiliacion-ui";
 import { AceptarPresupuestoDialog } from "@/components/finance/dialogos-presupuesto";
 import {
   AceptarParcialDialog,
@@ -557,6 +558,14 @@ function Prestaciones({ d }: { d: DetallePresupuesto }) {
             etiqueta={`Descuento comercial${q.commercialDiscountPct !== null ? ` (${q.commercialDiscountPct}%)` : ""}`}
             valor={`− ${formatMoney(q.discountCents, q.currency)}`}
             tenue
+          />
+        )}
+        {q.affiliationDiscount && (
+          <OrigenDelDescuento
+            rastro={q.affiliationDiscount}
+            subtotalCents={q.subtotalCents}
+            discountCents={q.discountCents}
+            className="text-right"
           />
         )}
         {q.coverageTotalCents !== null && (

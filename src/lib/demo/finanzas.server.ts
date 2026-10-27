@@ -179,22 +179,61 @@ export async function sembrarFinanzasDeLaDemo(admin: Admin): Promise<void> {
       p_periodo: mes,
       p_confirmar: true,
     });
+    // La cuota cobrada pasa por `payments` y por la caja (cierre, ítem 1): en
+    // efectivo, así se ve en el arqueo de la caja abierta de la demo.
     const { data: cuotas } = await admin
       .from("membership_charges")
-      .select("id")
+      .select("id, patient_id, amount_cents")
       .eq("clinic_id", clinicId)
       .eq("period_start", mes)
       .order("id")
       .limit(1);
-    if (cuotas?.[0]) {
-      await admin
-        .from("membership_charges")
-        .update({
-          status: "paid",
-          paid_at: new Date().toISOString(),
-          method_name_snapshot: "Transferencia",
+    const cuota = cuotas?.[0];
+    if (cuota) {
+      const [{ data: efectivo }, { data: caja }] = await Promise.all([
+        admin
+          .from("payment_methods")
+          .select("id, name")
+          .eq("clinic_id", clinicId)
+          .eq("legacy_key", "cash")
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("cash_registers")
+          .select("id")
+          .eq("clinic_id", clinicId)
+          .eq("status", "open")
+          .order("opened_at")
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const { data: pago } = await admin
+        .from("payments")
+        .insert({
+          clinic_id: clinicId,
+          patient_id: cuota.patient_id,
+          amount_cents: cuota.amount_cents,
+          method: "cash",
+          payment_method_id: efectivo?.id ?? null,
+          method_name_snapshot: efectivo?.name ?? "Efectivo",
+          membership_charge_id: cuota.id,
+          cash_register_id: caja?.id ?? null,
+          notes: "Cuota de membresía · Plan Sonrisa",
+          created_by: DEMO_USER_ID,
         })
-        .eq("id", cuotas[0].id);
+        .select("id")
+        .single();
+      if (pago) {
+        await admin
+          .from("membership_charges")
+          .update({
+            status: "paid",
+            paid_at: new Date().toISOString(),
+            payment_method_id: efectivo?.id ?? null,
+            method_name_snapshot: efectivo?.name ?? "Efectivo",
+          })
+          .eq("id", cuota.id);
+      }
     }
 
     // Folio de la boleta de los dos últimos pagos (emitida en el SII).
@@ -203,6 +242,7 @@ export async function sembrarFinanzasDeLaDemo(admin: Admin): Promise<void> {
       .select("id, paid_at")
       .eq("clinic_id", clinicId)
       .is("reversed_at", null)
+      .is("membership_charge_id", null)
       .order("paid_at", { ascending: false })
       .limit(2);
     let folio = 4120;

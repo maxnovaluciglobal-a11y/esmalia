@@ -60,7 +60,9 @@ export const getPresupuestoDeLaFicha = createServerFn({ method: "GET" })
           .from("payments")
           .select("amount_cents, treatment_item_id, treatment_plan_id, reversed_at")
           .eq("clinic_id", data.clinicId)
-          .eq("patient_id", data.patientId),
+          .eq("patient_id", data.patientId)
+          // La cuota de una membresía no es un abono a cuenta del plan.
+          .is("membership_charge_id", null),
         plan.quote_id
           ? supabase
               .from("quotes")

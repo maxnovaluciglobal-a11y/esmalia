@@ -18,6 +18,7 @@ import {
 import { requireFinanceViewRole } from "@/lib/finance/finance-reports.functions";
 import {
   QUOTE_COLUMNS,
+  QUOTE_COLUMNS_AFILIACION,
   QUOTE_COLUMNS_LEGACY,
   QUOTE_ITEM_COLUMNS,
   QUOTE_ITEM_COLUMNS_SIN_PAQUETES,
@@ -295,7 +296,11 @@ export const getDetallePresupuesto = createServerFn({ method: "GET" })
         .eq("id", data.quoteId)
         .eq("clinic_id", data.clinicId)
         .maybeSingle();
-    let { data: fila, error } = await leer(QUOTE_COLUMNS + extra);
+    let { data: fila, error } = await leer(QUOTE_COLUMNS + QUOTE_COLUMNS_AFILIACION + extra);
+    // Base sin la migración 20261112100100: se lee sin el rastro del descuento.
+    if (error && isUndefinedColumnError(error)) {
+      ({ data: fila, error } = await leer(QUOTE_COLUMNS + extra));
+    }
     if (error && isUndefinedColumnError(error)) {
       ({ data: fila, error } = await leer(
         QUOTE_COLUMNS_LEGACY + ", patient_id, accepted_signature_path",
