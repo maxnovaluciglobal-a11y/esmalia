@@ -16,10 +16,12 @@ export function ContadoresDeCitasFicha({
   clinicId,
   patientId,
   timezone,
+  className,
 }: {
   clinicId: string;
   patientId: string;
   timezone: string | undefined;
+  className?: string;
 }) {
   const fetchContadores = useServerFn(getContadoresDeCitas);
   const { data, isLoading, isError } = useQuery({
@@ -31,7 +33,7 @@ export function ContadoresDeCitasFicha({
 
   if (isError) {
     return (
-      <p className="mt-4 text-xs text-muted-foreground">
+      <p className={cn("text-sm text-muted-foreground", className)}>
         No pudimos contar las citas de este paciente.
       </p>
     );
@@ -60,8 +62,11 @@ export function ContadoresDeCitasFicha({
     : [];
 
   return (
-    <section aria-labelledby={`citas-${patientId}`} className="mt-5 border-t border-hairline pt-4">
-      <h3 id={`citas-${patientId}`} className="kicker">
+    <section aria-labelledby={`citas-${patientId}`} className={className}>
+      <h3
+        id={`citas-${patientId}`}
+        className="font-sans text-[13px] font-semibold tracking-normal text-muted-foreground"
+      >
         Citas
       </h3>
       <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -74,10 +79,10 @@ export function ContadoresDeCitasFicha({
             ))
           : items.map((k) => (
               <div key={k.label} className="min-w-0">
-                <dt className="text-xs text-muted-foreground">{k.label}</dt>
+                <dt className="text-[13px] text-muted-foreground">{k.label}</dt>
                 <dd
                   className={cn(
-                    "mt-0.5 truncate font-display text-lg font-semibold leading-tight tabular-nums",
+                    "mt-0.5 truncate font-display text-2xl leading-tight font-medium tabular-nums",
                     k.alerta && "text-destructive",
                   )}
                 >
@@ -86,7 +91,7 @@ export function ContadoresDeCitasFicha({
                 {k.nota && (
                   <dd
                     className={cn(
-                      "text-xs",
+                      "text-[13px]",
                       k.alerta ? "text-destructive" : "text-muted-foreground",
                     )}
                   >

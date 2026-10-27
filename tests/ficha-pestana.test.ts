@@ -12,8 +12,13 @@ import { piezasConHallazgos } from "@/components/odontograma-hallazgos";
 import type { OdontogramMark } from "@/lib/clinical/odontogram";
 
 describe("parsePestana", () => {
-  it("acepta las seis pestañas", () => {
+  it("acepta las siete pestañas", () => {
     for (const p of PESTANAS_FICHA) expect(parsePestana(p)).toBe(p);
+  });
+
+  it("el link viejo a odontograma abre la pestaña de entrada, donde vive ahora", () => {
+    expect(parsePestana("odontograma")).toBe("resumen");
+    expect(validarBusquedaFicha({ pestana: "odontograma" })).toEqual({});
   });
 
   it("cae a resumen con lo desconocido", () => {
@@ -39,7 +44,7 @@ describe("validarBusquedaFicha", () => {
 
 describe("pestanaVisible", () => {
   it("sin clinical:view las pestañas clínicas caen a resumen", () => {
-    expect(pestanaVisible("odontograma", false)).toBe("resumen");
+    expect(pestanaVisible("periodontograma", false)).toBe("resumen");
     expect(pestanaVisible("notas", false)).toBe("resumen");
     expect(pestanaVisible("documentos", false)).toBe("resumen");
   });
@@ -47,6 +52,7 @@ describe("pestanaVisible", () => {
   it("las no clínicas se respetan para cualquier rol", () => {
     expect(pestanaVisible("finanzas", false)).toBe("finanzas");
     expect(pestanaVisible("mensajes", false)).toBe("mensajes");
+    expect(pestanaVisible("anamnesis", false)).toBe("anamnesis");
     expect(pestanaVisible("notas", true)).toBe("notas");
   });
 });

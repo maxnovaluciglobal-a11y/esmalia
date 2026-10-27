@@ -2,15 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  AlertTriangle,
-  ArrowLeft,
-  CalendarClock,
-  Gift,
-  Pencil,
-  ShieldAlert,
-  Tag,
-} from "lucide-react";
+import { AlertTriangle, CalendarClock, Gift, Pencil, ShieldAlert, Tag } from "lucide-react";
 
 import { toast } from "sonner";
 
@@ -46,16 +38,18 @@ import { PatientConsentsCard } from "@/components/patient-consents-card";
 import { PatientPrescriptionsCard } from "@/components/patient-prescriptions-card";
 import { DocumentosEmitidosCard } from "@/components/documentos/documentos-emitidos-card";
 import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-distancia";
-import { Odontogram, OdontogramResumen } from "@/components/odontogram";
+import { Odontogram } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
 import { FinanceSection, type PiezaSeed } from "@/components/finance-section";
 import { MessagesHistory } from "@/components/messages-history";
 import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
 import { ReferralCodeCard } from "@/components/referral-code-card";
-import { AccionesDeLaFicha } from "@/components/ficha-acciones";
+import { EncabezadoPaciente } from "@/components/ficha/encabezado-paciente";
+import { NotaSoapReciente } from "@/components/ficha/nota-soap-reciente";
+import { PresupuestoPorFases } from "@/components/ficha/presupuesto-por-fases";
 import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
-import { AvisoGes, CompletitudDeLaFicha, ContactoDeEmergencia } from "@/components/ficha-ola1";
+import { CompletitudDeLaFicha, ContactoDeEmergencia } from "@/components/ficha-ola1";
 import { ContadoresDeCitasFicha } from "@/components/ficha-contadores-citas";
 import { faltantesDeLaFicha, textoPrevision } from "@/lib/patients/datos-ficha";
 import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
@@ -79,6 +73,13 @@ import {
   validarBusquedaFicha,
   type PestanaFicha,
 } from "@/components/ficha-busqueda";
+
+/**
+ * Pestañas de la ficha con el subrayado ocre del prototipo A+: 15 px
+ * semibold, el filete de 2 px solo en la activa.
+ */
+const CLASE_PESTANA =
+  "px-3.5 text-[15px] font-semibold text-muted-foreground data-[state=active]:text-foreground";
 
 /** Bloque gris mientras carga: evita mostrar un valor por defecto que después cambia. */
 function Esqueleto({ className }: { className?: string }) {
@@ -287,10 +288,10 @@ function ConvenioDelPaciente({
 
   return (
     <div>
-      <p className="kicker" aria-hidden="true">
+      <p className="text-[13px] font-semibold text-muted-foreground" aria-hidden="true">
         Convenio
       </p>
-      <p className="mt-1 truncate font-display text-xl font-semibold leading-tight">
+      <p className="mt-1 truncate font-display text-2xl leading-tight font-medium">
         {nombre ?? (cargandoConvenios ? <Esqueleto className="mt-1 h-5 w-32" /> : "Convenio")}
       </p>
       {afiliado && <p className="text-xs text-muted-foreground">Afiliado {afiliado}</p>}
@@ -313,20 +314,10 @@ function ConvenioDelPaciente({
 function Dato({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="kicker">{label}</dt>
-      <dd className="mt-1 truncate font-display text-xl font-semibold leading-tight">{children}</dd>
+      <dt className="text-[13px] font-semibold text-muted-foreground">{label}</dt>
+      <dd className="mt-1 truncate font-display text-2xl leading-tight font-medium">{children}</dd>
     </div>
   );
-}
-
-function iniciales(nombre: string) {
-  return nombre
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
 }
 
 function PacienteDetalle() {
@@ -498,137 +489,92 @@ function PacienteDetalle() {
     );
   };
 
-  const lineaDatos = [
-    paciente.edad ? `${paciente.edad} años` : null,
-    paciente.telefono || "Sin teléfono",
-    esChile
-      ? `Previsión: ${textoPrevision({
-          plan: paciente.prevision ?? null,
-          tramo: paciente.previsionTramo ?? null,
-          institucion: paciente.previsionInstitucion ?? null,
-        })}`
-      : null,
-    paciente.convenioNombre ?? null,
-    paciente.documento ? `Doc. ${paciente.documento}` : null,
-  ].filter(Boolean);
+  const lineaPrevision = esChile
+    ? textoPrevision({
+        plan: paciente.prevision ?? null,
+        tramo: paciente.previsionTramo ?? null,
+        institucion: paciente.previsionInstitucion ?? null,
+      })
+    : null;
 
-  const alertaMedica = !puedeVerClinico
-    ? "Sin acceso"
-    : alertasCriticas.length > 0
-      ? alertasCriticas.map((a) => a.texto).join(" · ")
-      : "Sin alertas críticas registradas";
+  // "Agregar adenda" y "Ver en notas" de la nota SOAP de la pestaña de
+  // entrada abren la pestaña Notas con esa nota (y la adenda lista). El
+  // `nonce` hace que pedir dos veces la misma nota vuelva a abrirla.
+  const [notaPedida, setNotaPedida] = useState<{
+    noteId: string;
+    adenda: boolean;
+    nonce: number;
+  } | null>(null);
+  const abrirNotas = (destino?: { noteId: string; adenda: boolean }) => {
+    setNotaPedida(destino ? { ...destino, nonce: Date.now() } : null);
+    setPestana("notas");
+  };
+  const puedeVerFinanzas = hasPermission(access.role, "finance:view");
+
+  // Alerta crítica en la barra de pestañas fija: se sigue viendo al bajar.
+  const alertaFija = puedeVerClinico ? alertasCriticas : [];
 
   return (
     <AppShell title="Ficha del paciente" access={access}>
-      <div className="mx-auto max-w-6xl">
-        {/* Cabecera fija: identidad, acciones y los 4 datos que se consultan
-            en cada atención. Se queda visible al bajar por cualquier pestaña (desde lg: en el
-            celular ocuparía media pantalla). */}
-        <header className="-mx-5 lg:sticky lg:top-16 lg:z-[5] border-b border-border bg-background/95 px-5 pt-2 pb-5 backdrop-blur-sm sm:-mx-8 sm:px-8">
-          <Link
-            to="/pacientes"
-            search={{
-              q: "",
-              sucursal: "",
-              profesional: "",
-              estado: "",
-              desde: "",
-              hasta: "",
-              page: 1,
-            }}
-            className="inline-flex min-h-11 items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground sm:min-h-9"
-          >
-            <ArrowLeft className="size-3.5" aria-hidden /> Pacientes
-          </Link>
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex min-w-0 items-center gap-4">
-              {paciente.foto ? (
-                <img
-                  src={paciente.foto}
-                  alt=""
-                  width={512}
-                  height={512}
-                  className="size-14 shrink-0 rounded-full object-cover outline outline-1 outline-border"
-                />
-              ) : (
-                <span
-                  aria-hidden
-                  className="grid size-14 shrink-0 place-items-center rounded-full border border-brand/50 font-display text-xl font-semibold text-brand-700"
-                >
-                  {iniciales(paciente.nombre)}
-                </span>
-              )}
-              <div className="min-w-0">
-                <h2 className="truncate font-display text-3xl font-semibold leading-tight sm:text-[40px]">
-                  {paciente.nombre}
-                </h2>
-                <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-                  {lineaDatos.join(" · ")}
-                  {paciente.telefono && paciente.telefonoValido === false && (
-                    <span className="inline-flex items-center gap-1 text-warning">
-                      <AlertTriangle className="size-3.5 shrink-0" aria-hidden /> formato dudoso
-                    </span>
-                  )}
-                </p>
-                {esMenor === true && guardiansQuery.data?.disponible && (
-                  <p
-                    className={cn(
-                      "mt-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
-                      tutor ? "bg-secondary text-foreground" : "bg-destructive/10 text-destructive",
-                    )}
-                  >
-                    {!tutor && <AlertTriangle className="size-3.5 shrink-0" aria-hidden />}
-                    Menor de edad ·{" "}
-                    {tutor
-                      ? `Tutor: ${tutor.fullName} (${parentescoLegible(tutor)})`
-                      : "sin tutor registrado"}
-                  </p>
-                )}
-                <AvisoGes motivos={motivosDeGes} />
-              </div>
-            </div>
-            <AccionesDeLaFicha
-              access={access}
-              paciente={paciente}
-              onCobrar={() => {
-                setPestana("finanzas");
-                setAbrirPago(true);
-              }}
-            />
-          </div>
+      {/* Calma de recepción (A+): texto base de 16 px en toda la ficha. */}
+      <div className="mx-auto max-w-[1180px] text-base">
+        <EncabezadoPaciente
+          access={access}
+          paciente={paciente}
+          lineaPrevision={lineaPrevision}
+          puedeVerClinico={puedeVerClinico}
+          cargandoAlertas={puedeVerClinico && medicalHistoryQuery.isLoading}
+          alertasCriticas={alertasCriticas}
+          precauciones={precauciones}
+          motivosGes={motivosDeGes}
+          menor={
+            esMenor === true && guardiansQuery.data?.disponible
+              ? { tutor: tutor ? `${tutor.fullName} (${parentescoLegible(tutor)})` : null }
+              : null
+          }
+          onCobrar={() => {
+            setPestana("finanzas");
+            setAbrirPago(true);
+          }}
+        />
 
-          {paciente.archivadaEl && (
-            <p className="mt-4 rounded-lg border border-hairline bg-secondary/60 px-4 py-2.5 text-sm text-muted-foreground">
-              Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en
-              los listados ni en la búsqueda; su historia clínica se conserva completa.
-            </p>
-          )}
+        {paciente.archivadaEl && (
+          <p className="mt-4 rounded-lg border border-hairline bg-secondary/60 px-4 py-2.5 text-sm text-muted-foreground">
+            Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en los
+            listados ni en la búsqueda; su historia clínica se conserva completa.
+          </p>
+        )}
 
-          {clinicId && (
-            <SelloImportado
-              clinicId={clinicId}
-              patientId={paciente.id}
-              zona={access.clinic?.timezone}
-            />
-          )}
-
-          <CompletitudDeLaFicha
-            faltantes={faltantes}
-            onCompletarDatos={() => setCompletando(true)}
-            onCompletarAnamnesis={irALaAnamnesis}
-            motivoSinPermiso={motivoSinPermiso}
+        {clinicId && (
+          <SelloImportado
+            clinicId={clinicId}
+            patientId={paciente.id}
+            zona={access.clinic?.timezone}
           />
-          {clinicId && puedeCompletar && (
-            <EditarPacienteDialog
-              clinicId={clinicId}
-              country={access.clinic?.country ?? null}
-              paciente={paciente}
-              abierto={completando}
-              onAbiertoChange={setCompletando}
-            />
-          )}
+        )}
 
-          <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4">
+        <CompletitudDeLaFicha
+          faltantes={faltantes}
+          onCompletarDatos={() => setCompletando(true)}
+          onCompletarAnamnesis={irALaAnamnesis}
+          motivoSinPermiso={motivoSinPermiso}
+        />
+        {clinicId && puedeCompletar && (
+          <EditarPacienteDialog
+            clinicId={clinicId}
+            country={access.clinic?.country ?? null}
+            paciente={paciente}
+            abierto={completando}
+            onAbiertoChange={setCompletando}
+          />
+        )}
+
+        {/* Datos clave y contadores de citas (Ola 2), en una franja con filetes. */}
+        <section
+          aria-label="Datos clave del paciente"
+          className="mt-4 rounded-panel border border-border bg-card px-5 py-4"
+        >
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-4 lg:divide-x lg:divide-border lg:[&>*]:pl-6 lg:[&>*:first-child]:pl-0">
             <Dato label="Próxima cita">{paciente.proximoControl ?? "Sin agendar"}</Dato>
             <Dato label="Saldo">
               {paciente.saldo == null
@@ -655,30 +601,10 @@ function PacienteDetalle() {
               </dd>
             </div>
             <div className="min-w-0">
-              <dt className="kicker">Alerta médica</dt>
-              <dd
-                className={cn(
-                  "mt-1 flex items-start gap-1.5 font-display text-xl font-semibold leading-tight",
-                  alertasCriticas.length > 0 && "text-destructive",
-                )}
-              >
-                {alertasCriticas.length > 0 && (
-                  <AlertTriangle className="mt-1 size-4 shrink-0" aria-hidden />
-                )}
-                {puedeVerClinico && medicalHistoryQuery.isLoading ? (
-                  <Esqueleto className="mt-1 h-5 w-40" />
-                ) : (
-                  <span className="line-clamp-2" title={alertaMedica}>
-                    {alertaMedica}
-                  </span>
-                )}
-              </dd>
-              {precauciones.length > 0 && (
-                <dd className="mt-1 line-clamp-1 text-xs text-muted-foreground">
-                  También: {precauciones.map((a) => a.texto).join(" · ")}
-                </dd>
-              )}
-              <dd className="mt-1 text-xs">
+              <dt className="text-[13px] font-semibold text-muted-foreground">
+                Contacto de emergencia
+              </dt>
+              <dd className="mt-1 text-sm">
                 <ContactoDeEmergencia contacto={paciente.contactoEmergencia} />
               </dd>
             </div>
@@ -688,30 +614,153 @@ function PacienteDetalle() {
               clinicId={clinicId}
               patientId={paciente.id}
               timezone={timezone}
+              className="mt-4 border-t border-border pt-4"
             />
           )}
-        </header>
+        </section>
 
-        <Tabs value={pestana} onValueChange={(v) => setPestana(v as PestanaFicha)} className="mt-4">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="resumen">Resumen</TabsTrigger>
-            {puedeVerClinico && <TabsTrigger value="odontograma">Odontograma</TabsTrigger>}
-            {puedeVerClinico && <TabsTrigger value="notas">Notas clínicas</TabsTrigger>}
-            <TabsTrigger value="finanzas">Presupuestos y pagos</TabsTrigger>
-            {puedeVerClinico && <TabsTrigger value="documentos">Documentos</TabsTrigger>}
-            <TabsTrigger value="mensajes">Mensajes</TabsTrigger>
-          </TabsList>
+        <Tabs value={pestana} onValueChange={(v) => setPestana(v as PestanaFicha)} className="mt-5">
+          {/* Barra de pestañas fija (desde lg), con la alerta crítica a la vista
+              al bajar por cualquier pestaña, como antes hacía la cabecera. */}
+          <div className="z-[5] flex items-end justify-between gap-4 border-b border-border bg-background/95 backdrop-blur-sm lg:sticky lg:top-16">
+            <TabsList className="w-full justify-start gap-1 border-b-0">
+              <TabsTrigger value="resumen" className={CLASE_PESTANA}>
+                {puedeVerClinico ? "Odontograma" : "Resumen"}
+              </TabsTrigger>
+              {puedeVerClinico && (
+                <TabsTrigger value="periodontograma" className={CLASE_PESTANA}>
+                  Periodontograma
+                </TabsTrigger>
+              )}
+              {puedeVerClinico && (
+                <TabsTrigger value="notas" className={CLASE_PESTANA}>
+                  Notas
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="finanzas" className={CLASE_PESTANA}>
+                Presupuesto y pagos
+              </TabsTrigger>
+              <TabsTrigger value="anamnesis" className={CLASE_PESTANA}>
+                {puedeVerClinico ? "Anamnesis y datos" : "Datos"}
+              </TabsTrigger>
+              {puedeVerClinico && (
+                <TabsTrigger value="documentos" className={CLASE_PESTANA}>
+                  Documentos
+                </TabsTrigger>
+              )}
+              <TabsTrigger value="mensajes" className={CLASE_PESTANA}>
+                Mensajes
+              </TabsTrigger>
+            </TabsList>
+            {alertaFija.length > 0 && (
+              <p
+                className="mb-2 hidden max-w-xs shrink-0 items-center gap-1.5 rounded-full border border-destructive-border bg-destructive-soft px-3 py-1 text-xs font-semibold text-destructive xl:inline-flex"
+                title={alertaFija.map((a) => a.texto).join(" · ")}
+              >
+                <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate">{alertaFija.map((a) => a.texto).join(" · ")}</span>
+              </p>
+            )}
+          </div>
 
-          <TabsContent value="resumen">
-            <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-              <div className="min-w-0 space-y-6">
+          <TabsContent value="resumen" className="mt-5 space-y-[18px]">
+            {puedeVerClinico && clinicId && (
+              <Odontogram
+                clinicId={clinicId}
+                patientId={paciente.id}
+                puedeEditar={puedeEscribirClinico}
+                userId={access.userId}
+                onPresupuestarPieza={presupuestarPieza}
+                sugerenciaPresupuesto={sugerenciaPresupuesto}
+                // `edad` es 0 cuando no hay fecha de nacimiento: se trata como desconocida.
+                edad={paciente.edad > 0 ? paciente.edad : null}
+              />
+            )}
+            {clinicId && (puedeVerClinico || puedeVerFinanzas) && (
+              <div
+                className={cn(
+                  "grid items-start gap-[18px]",
+                  puedeVerClinico && puedeVerFinanzas && "xl:grid-cols-[1.1fr_1fr]",
+                )}
+              >
+                {puedeVerClinico && (
+                  <NotaSoapReciente
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    puedeEditar={puedeEscribirClinico}
+                    onAbrirNotas={abrirNotas}
+                  />
+                )}
+                {puedeVerFinanzas && (
+                  <PresupuestoPorFases
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    onVerFinanzas={() => setPestana("finanzas")}
+                  />
+                )}
+              </div>
+            )}
+            {!puedeVerClinico && (
+              <section
+                aria-labelledby="timeline-resumen"
+                className="rounded-panel border border-border bg-card p-5"
+              >
+                <h3 id="timeline-resumen" className="mb-4 font-display text-2xl font-medium">
+                  Línea de tiempo
+                </h3>
+                <PacienteTimeline paciente={paciente} conEncabezado={false} />
+              </section>
+            )}
+          </TabsContent>
+
+          {puedeVerClinico && clinicId && (
+            <TabsContent value="periodontograma">
+              <PeriodontalChart
+                clinicId={clinicId}
+                patientId={paciente.id}
+                puedeEditar={puedeEscribirClinico}
+                userId={access.userId}
+              />
+            </TabsContent>
+          )}
+
+          {puedeVerClinico && (
+            <TabsContent value="notas">
+              <NotasClinicas
+                paciente={paciente}
+                clinicId={clinicId ?? null}
+                clinicaNombre={access.clinic?.name ?? "Esmalia"}
+                puedeEditar={puedeEscribirClinico}
+                userId={access.userId}
+                rol={access.role}
+                abrir={notaPedida}
+              />
+            </TabsContent>
+          )}
+
+          <TabsContent value="finanzas">
+            {clinicId && access.clinic && (
+              <FinanceSection
+                clinicId={clinicId}
+                clinicaNombre={access.clinic.name}
+                currency={currency}
+                patientId={paciente.id}
+                puedeEditar={puedeFacturar}
+                puedeReversarPagos={hasPermission(access.role, "payments:reverse")}
+                userId={access.userId}
+                piezaSeed={piezaSeed}
+                onPiezaSeedConsumido={() => setPiezaSeed(null)}
+                abrirPago={abrirPago}
+                onPagoAbierto={() => setAbrirPago(false)}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="anamnesis">
+            <div className="grid gap-[18px] lg:grid-cols-[1.4fr_1fr]">
+              <div className="min-w-0 space-y-[18px]">
                 {puedeVerClinico && clinicId ? (
                   <>
-                    <OdontogramResumen
-                      clinicId={clinicId}
-                      patientId={paciente.id}
-                      onVerOdontograma={() => setPestana("odontograma")}
-                    />
                     <div id="anamnesis" className="scroll-mt-48">
                       <MedicalHistoryCard
                         clinicId={clinicId}
@@ -728,13 +777,13 @@ function PacienteDetalle() {
                     />
                   </>
                 ) : (
-                  <p className="flex items-center gap-3 rounded-lg border border-border p-6 text-sm text-muted-foreground">
+                  <p className="flex items-center gap-3 rounded-panel border border-border p-6 text-sm text-muted-foreground">
                     <ShieldAlert className="size-4 shrink-0" aria-hidden />
                     Tu rol no tiene acceso a la historia clínica de este paciente.
                   </p>
                 )}
               </div>
-              <aside className="min-w-0 space-y-6">
+              <aside className="min-w-0 space-y-[18px]">
                 {clinicId && (
                   <PatientGuardiansCard
                     clinicId={clinicId}
@@ -743,13 +792,16 @@ function PacienteDetalle() {
                     puedeEditar={hasPermission(access.role, "patients:manage")}
                   />
                 )}
-                <section aria-labelledby="timeline" className="rounded-lg border border-border p-5">
-                  <h3 id="timeline" className="mb-4 font-display text-xl font-semibold">
+                <section
+                  aria-labelledby="timeline"
+                  className="rounded-panel border border-border bg-card p-5"
+                >
+                  <h3 id="timeline" className="mb-4 font-display text-2xl font-medium">
                     Línea de tiempo
                   </h3>
                   <PacienteTimeline paciente={paciente} conEncabezado={false} />
                 </section>
-                <section className="space-y-3 rounded-lg border border-border p-5 text-sm">
+                <section className="space-y-3 rounded-panel border border-border bg-card p-5 text-sm">
                   <p className="flex items-start gap-2">
                     <CalendarClock
                       className="mt-0.5 size-4 shrink-0 text-muted-foreground"
@@ -773,7 +825,7 @@ function PacienteDetalle() {
                     </div>
                   )}
                   {paciente.origen && (
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                       Llegó por: {paciente.origen}
                       {paciente.origenDetalle ? ` · ${paciente.origenDetalle}` : ""}
                     </p>
@@ -790,7 +842,7 @@ function PacienteDetalle() {
                       </span>
                     </p>
                   )}
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     Riesgo de ausencia:{" "}
                     {paciente.riesgoAusencia == null
                       ? "sin calcular"
@@ -803,58 +855,6 @@ function PacienteDetalle() {
                 </section>
               </aside>
             </div>
-          </TabsContent>
-
-          {puedeVerClinico && clinicId && (
-            <TabsContent value="odontograma" className="space-y-6">
-              <Odontogram
-                clinicId={clinicId}
-                patientId={paciente.id}
-                puedeEditar={puedeEscribirClinico}
-                userId={access.userId}
-                onPresupuestarPieza={presupuestarPieza}
-                sugerenciaPresupuesto={sugerenciaPresupuesto}
-                // `edad` es 0 cuando no hay fecha de nacimiento: se trata como desconocida.
-                edad={paciente.edad > 0 ? paciente.edad : null}
-              />
-              <PeriodontalChart
-                clinicId={clinicId}
-                patientId={paciente.id}
-                puedeEditar={puedeEscribirClinico}
-                userId={access.userId}
-              />
-            </TabsContent>
-          )}
-
-          {puedeVerClinico && (
-            <TabsContent value="notas">
-              <NotasClinicas
-                paciente={paciente}
-                clinicId={clinicId ?? null}
-                clinicaNombre={access.clinic?.name ?? "Esmalia"}
-                puedeEditar={puedeEscribirClinico}
-                userId={access.userId}
-                rol={access.role}
-              />
-            </TabsContent>
-          )}
-
-          <TabsContent value="finanzas">
-            {clinicId && access.clinic && (
-              <FinanceSection
-                clinicId={clinicId}
-                clinicaNombre={access.clinic.name}
-                currency={currency}
-                patientId={paciente.id}
-                puedeEditar={puedeFacturar}
-                puedeReversarPagos={hasPermission(access.role, "payments:reverse")}
-                userId={access.userId}
-                piezaSeed={piezaSeed}
-                onPiezaSeedConsumido={() => setPiezaSeed(null)}
-                abrirPago={abrirPago}
-                onPagoAbierto={() => setAbrirPago(false)}
-              />
-            )}
           </TabsContent>
 
           {puedeVerClinico && clinicId && (

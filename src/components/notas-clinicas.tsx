@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -59,6 +59,8 @@ import {
   getNoteTemplate,
 } from "@/lib/clinical/note-templates";
 import { PattyCara } from "@/components/patty-cara";
+import { PattyChecklist } from "@/components/ficha/patty-checklist";
+import { SoapLectura } from "@/components/ficha/soap-lectura";
 import { VersionDiffDialog } from "@/components/version-diff-dialog";
 import { DevDiagnosticsPanel } from "@/components/dev-diagnostics-panel";
 import { estadoNota, reportarBloqueo } from "@/lib/block-diagnostics";
@@ -95,6 +97,12 @@ type Props = {
   puedeEditar: boolean;
   userId?: string | null;
   rol?: ClinicRole | null;
+  /**
+   * Nota a abrir al montar o al cambiar el `nonce` (A+): "Ver en notas" y
+   * "Agregar adenda" de la nota SOAP de la pestaña de entrada. Con
+   * `adenda`, deja lista una adenda a esa nota firmada.
+   */
+  abrir?: { noteId: string; adenda: boolean; nonce: number } | null;
 };
 
 export function NotasClinicas({
@@ -104,6 +112,7 @@ export function NotasClinicas({
   puedeEditar,
   userId = null,
   rol = null,
+  abrir = null,
 }: Props) {
   const soloLectura = useSoloLectura();
   const queryClient = useQueryClient();
@@ -323,6 +332,31 @@ export function NotasClinicas({
     setResumen(nota.summary);
     setAiUsada(false);
   }
+
+  // A+: abre la nota pedida desde la pestaña de entrada, una vez por pedido.
+  const pedidoAtendido = useRef<number | null>(null);
+  useEffect(() => {
+    if (!abrir || pedidoAtendido.current === abrir.nonce) return;
+    const nota = notas.find((n) => n.id === abrir.noteId);
+    if (!nota) return;
+    pedidoAtendido.current = abrir.nonce;
+    if (abrir.adenda && nota.status === "signed") {
+      setAdendaDe(nota.id);
+      setNoteId(null);
+      setBaseVersion(null);
+      setTitulo(tituloDeAdenda(nota.title));
+      setContenido("");
+    } else {
+      setNoteId(nota.id);
+      setAdendaDe(null);
+      setBaseVersion(nota.version);
+      setTitulo(nota.title);
+      setContenido(nota.content);
+    }
+    setResumen(abrir.adenda ? null : nota.summary);
+    setAiUsada(false);
+    setTemplateId(null);
+  }, [abrir, notas]);
 
   const guardarOffline = useOfflineMutation<Record<string, unknown>>({
     kind: "guardar-nota",
@@ -691,37 +725,43 @@ export function NotasClinicas({
             </p>
           )}
 
-          <input
-            aria-label="Título de la nota"
-            value={titulo}
-            onChange={(e) => setTitulo(e.target.value)}
-            disabled={!puedeEditar || bloqueada}
-            placeholder="Título de la nota"
-            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base disabled:opacity-60"
-          />
-          <textarea
-            aria-label="Contenido de la nota"
-            value={contenido}
-            onChange={(e) => setContenido(e.target.value)}
-            disabled={!puedeEditar || bloqueada}
-            rows={12}
-            placeholder={
-              pattyActiva
-                ? "Escribe apuntes rápidos (ej: molestia molar 36, sensibilidad al frío, se realiza obturación) y deja que Patty los convierta en una nota SOAP."
-                : "Escribe la nota clínica (ej: molestia molar 36, sensibilidad al frío, se realiza obturación)."
-            }
-            className="w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-sm leading-relaxed focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base disabled:opacity-60"
-          />
-
-          {puedeEditar && !pattyActiva && (
-            <p
-              role="status"
-              className="flex items-center gap-2.5 rounded-xl border border-hairline p-3 text-xs text-muted-foreground"
+          {firmada && notaActual ? (
+            <article
+              aria-label={`Nota firmada: ${notaActual.title}`}
+              className="rounded-xl border border-hairline bg-background px-4 py-4"
             >
-              <PattyCara px={28} decorativa />
-              <span>{MENSAJE_IA_PAUSADA}</span>
-            </p>
+              <h4 className="mb-3 font-display text-2xl leading-tight font-medium">
+                {notaActual.title}
+              </h4>
+              <SoapLectura contenido={notaActual.content} />
+            </article>
+          ) : (
+            <>
+              <input
+                aria-label="Título de la nota"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                disabled={!puedeEditar || bloqueada}
+                placeholder="Título de la nota"
+                className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base disabled:opacity-60"
+              />
+              <textarea
+                aria-label="Contenido de la nota"
+                value={contenido}
+                onChange={(e) => setContenido(e.target.value)}
+                disabled={!puedeEditar || bloqueada}
+                rows={12}
+                placeholder={
+                  pattyActiva
+                    ? "Escribe apuntes rápidos (ej: molestia molar 36, sensibilidad al frío, se realiza obturación) y deja que Patty los convierta en una nota SOAP."
+                    : "Escribe la nota clínica (ej: molestia molar 36, sensibilidad al frío, se realiza obturación)."
+                }
+                className="w-full resize-y rounded-lg border border-input bg-transparent px-3 py-2 text-base leading-relaxed focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 disabled:opacity-60"
+              />
+            </>
           )}
+
+          {puedeEditar && !pattyActiva && !firmada && <PattyChecklist />}
 
           {puedeEditar && pattyActiva && (
             <section
