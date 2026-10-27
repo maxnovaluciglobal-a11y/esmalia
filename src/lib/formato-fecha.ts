@@ -17,6 +17,8 @@
  * | `fechaDocumento` | 22 de octubre de 2026   |
  * | `mesAnio`     | octubre 2026               |
  * | `relativa`    | hoy · ayer · mañana · hace 3 días |
+ * | `fechaPlanilla` | 21-10-2026 (CSV para Excel) |
+ * | `fechaHoraPlanilla` | 21-10-2026 09:30 (CSV para Excel) |
  *
  * Reglas:
  * - Siempre en el huso de la clínica (`access.clinic?.timezone`). Sin huso,
@@ -148,6 +150,30 @@ export function fechaDocumento(valor: EntradaFecha, zona?: Zona): string {
 export function mesAnio(valor: EntradaFecha, zona?: Zona): string {
   const p = piezas(valor, zona, { month: "long", year: "numeric" });
   return p ? `${p.month} ${p.year}` : SIN_FECHA;
+}
+
+/**
+ * "21-10-2026": fecha para una planilla (CSV de las listas, EXP-04). Es el
+ * formato que Excel en español reconoce como fecha al abrir el archivo, así
+ * que se puede ordenar y filtrar. Sin dato devuelve "" (celda vacía), no "—".
+ */
+export function fechaPlanilla(valor: EntradaFecha, zona?: Zona): string {
+  const p = piezas(valor, zona, { year: "numeric", month: "2-digit", day: "2-digit" });
+  return p ? `${p.day}-${p.month}-${p.year}` : "";
+}
+
+/** "21-10-2026 09:30": fecha y hora para una planilla, en la hora de la clínica. */
+export function fechaHoraPlanilla(valor: EntradaFecha, zona?: Zona): string {
+  const i = aInstante(valor);
+  if (!i) return "";
+  if (i.civil) return fechaPlanilla(valor, zona);
+  const p = piezas(valor, zona, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    ...OPC_HORA,
+  });
+  return p ? `${p.day}-${p.month}-${p.year} ${p.hour}:${p.minute}` : "";
 }
 
 /** "YYYY-MM-DD" del instante en el huso de la clínica (para comparar días). */

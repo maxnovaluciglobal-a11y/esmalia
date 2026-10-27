@@ -18,6 +18,12 @@ import { strToU8, zipSync, type Zippable } from "fflate";
 
 import type { ClinicRole } from "@/lib/access/access";
 import { construirCsv, type ColumnaCsv } from "@/lib/csv-export";
+import {
+  leemeDeColumnas,
+  leemeDeHuellas,
+  VERSION_FORMATO_EXPORTACION,
+  type Manifiesto,
+} from "@/lib/exportacion/manifiesto";
 
 /** Solo quien administra la clínica puede sacar todos sus datos. */
 export const ROLES_EXPORTACION = ["owner", "admin"] as const satisfies readonly ClinicRole[];
@@ -66,6 +72,18 @@ export interface TablaExportacion {
   /** Orden estable para paginar sin saltar ni repetir filas. */
   orden: readonly string[];
   /**
+   * Columna que filtra por clínica. Casi siempre `clinic_id`; la propia
+   * tabla `clinics` se filtra por `id`.
+   */
+  columnaClinica?: "clinic_id" | "id";
+  /**
+   * Columnas de la tabla que NO salen, con el motivo (va al manifiesto y al
+   * LEEME). `clinic_id` no se lista: se omite en todas porque tiene un solo
+   * valor, el de la clínica que exporta. `tests/exportacion-cobertura.test.ts`
+   * falla si la base tiene una columna que no está ni en `columnas` ni acá.
+   */
+  omitidas?: Readonly<Record<string, string>>;
+  /**
    * Cómo se filtra por paciente en la exportación de una ficha. Sin este
    * campo la tabla es de la clínica (sucursales, gastos, inventario…) y no
    * sale en la exportación de un paciente.
@@ -89,7 +107,7 @@ export interface TablaExportacion {
 export type FiltroPaciente =
   { por: "patient_id" | "patient_ref" | "id" } | { por: "padre"; padre: string; columna: string };
 
-export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
+const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
   {
     clave: "sucursales",
     tabla: "branches",
@@ -108,6 +126,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "is_active",
       "created_at",
       "updated_at",
+      "google_review_url",
     ],
     orden: ["id"],
   },
@@ -129,6 +148,12 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "is_active",
       "created_at",
       "updated_at",
+      "color",
+      "default_operatory_id",
+      "sis_registry_number",
+      "signature_storage_path",
+      "signature_sha256",
+      "signature_updated_at",
     ],
     orden: ["id"],
   },
@@ -174,9 +199,29 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "archived_by",
       "created_at",
       "updated_at",
+      "avatar_url",
+      "portal_revoked_at",
+      "email_opt_out_at",
+      "created_by",
+      "updated_by",
+      "import_batch_id",
+      "imported_at",
+      "import_source",
+      "import_external_id",
+      "import_original",
     ],
     orden: ["id"],
     paciente: { por: "id" },
+    omitidas: {
+      document_id_enc: "Copia cifrada del documento: el documento ya sale en claro en document_id.",
+      document_id_hash:
+        "Huella para buscar por documento sin descifrarlo: no sirve fuera de Esmalia.",
+      balance_cents:
+        "Campo antiguo que ya no se mantiene: el saldo real se calcula con presupuestos, planes y pagos.",
+      no_show_risk: "Estimación calculada por Esmalia, no un dato registrado por la clínica.",
+      ai_summary: "Resumen generado por IA a partir de las notas: las notas salen completas.",
+      ai_summary_updated_at: "Fecha del resumen generado por IA (omitido).",
+    },
   },
   {
     clave: "anamnesis",
@@ -241,6 +286,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "archived_by",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -273,6 +319,17 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "started_at",
       "created_at",
       "updated_at",
+      "appointment_type_id",
+      "appointment_type_name",
+      "operatory_name",
+      "created_by",
+      "updated_by",
+      "import_batch_id",
+      "imported_at",
+      "import_source",
+      "import_external_id",
+      "import_original",
+      "reminders_muted",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -303,6 +360,9 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "updated_by",
+      "review_requested_by",
+      "signed_content_hash",
     ],
     orden: ["id"],
     paciente: { por: "patient_ref" },
@@ -413,6 +473,16 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "professional_id",
+      "accepted_total_cents",
+      "accepted_ip",
+      "accepted_user_agent",
+      "rejection_reason",
+      "expired_at",
+      "last_contact_at",
+      "last_contact_note",
+      "next_action",
+      "next_action_on",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -443,6 +513,10 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "total_cents",
       "notes",
       "created_at",
+      "odontogram_mark_id",
+      "accepted",
+      "package_id",
+      "package_name_snapshot",
     ],
     orden: ["id"],
     paciente: { por: "padre", padre: "presupuestos", columna: "quote_id" },
@@ -665,6 +739,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "seed_key",
     ],
     orden: ["id"],
   },
@@ -700,6 +775,11 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "voided_at",
       "voided_by",
       "void_reason",
+      "issued_document_id",
+      "patient_document_type_snapshot",
+      "patient_document_id_snapshot",
+      "professional_sis_snapshot",
+      "allergy_alerts",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -739,6 +819,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "voided_at",
       "voided_by",
       "void_reason",
+      "content_blocks",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -759,6 +840,8 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "seed_key",
+      "requires_patient_signature",
     ],
     orden: ["id"],
   },
@@ -809,6 +892,8 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "is_active",
       "created_at",
       "updated_at",
+      "created_by",
+      "portal_revoked_at",
     ],
     orden: ["id"],
   },
@@ -970,6 +1055,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "delivered_at",
       "read_at",
       "created_at",
+      "issued_document_id",
     ],
     orden: ["id"],
     paciente: { por: "patient_id" },
@@ -1002,6 +1088,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "created_by",
       "created_at",
       "updated_at",
+      "is_favorite",
     ],
     orden: ["id"],
   },
@@ -1117,6 +1204,7 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
       "paid_at",
       "paid_by",
       "email_notified_at",
+      "email_error",
     ],
     orden: ["id"],
   },
@@ -1199,6 +1287,690 @@ export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
     columnas: ["id", "patient_id", "actor_id", "section", "accessed_at"],
     orden: ["id"],
   },
+];
+
+/**
+ * Tablas de datos de la clínica que salen en la exportación completa, pero
+ * que no estaban en la primera versión (formato 1, oct-2026): las olas 1 a 5
+ * del plan de producto (agenda, arancel, planes, documentos, firma a
+ * distancia, derechos de los titulares y brechas). Van aparte solo para que
+ * el diff se lea; el ZIP las trata igual que al resto.
+ */
+const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
+  {
+    clave: "clinica",
+    tabla: "clinics",
+    archivo: "clinica.csv",
+    descripcion:
+      "Datos de la clínica: nombre, razón social, RUT o identificador tributario, país, moneda, zona horaria, giro y domicilio tributario.",
+    columnas: [
+      "id",
+      "name",
+      "legal_name",
+      "tax_id",
+      "country",
+      "currency",
+      "timezone",
+      "business_activity",
+      "tax_address",
+      "tax_commune",
+      "tax_receipt_kind",
+      "quote_validity_days",
+      "logo_url",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    columnaClinica: "id",
+    omitidas: {
+      is_demo: "Marca interna de la clínica de demostración de Esmalia.",
+      onboarding_completed: "Estado de la puesta en marcha dentro de Esmalia.",
+      onboarding_call_at: "Llamada de puesta en marcha con Esmalia, no es un dato de la clínica.",
+    },
+  },
+  {
+    clave: "equipo",
+    tabla: "clinic_members",
+    archivo: "equipo.csv",
+    descripcion:
+      "Personas con acceso a la clínica: usuario, rol, y nombre y registro con que firman documentos.",
+    columnas: ["id", "user_id", "role", "signature_name", "license_number", "created_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "especialidades",
+    tabla: "specialties",
+    archivo: "especialidades.csv",
+    descripcion:
+      "Especialidades del arancel y de los profesionales, con su color y duración por defecto (minutos).",
+    columnas: [
+      "id",
+      "name",
+      "slug",
+      "color",
+      "default_duration_min",
+      "position",
+      "is_active",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "boxes",
+    tabla: "operatories",
+    archivo: "boxes.csv",
+    descripcion: "Boxes o sillones de atención de cada sucursal.",
+    columnas: ["id", "branch_id", "name", "position", "is_active", "created_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "horarios_sucursal",
+    tabla: "branch_hours",
+    archivo: "horarios-sucursales.csv",
+    descripcion:
+      "Horario de atención de cada sucursal por día de la semana (0 = domingo … 6 = sábado), en hora local de la clínica.",
+    columnas: ["id", "branch_id", "day_of_week", "opens_at", "closes_at", "created_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "horarios_profesional",
+    tabla: "professional_schedules",
+    archivo: "horarios-profesionales.csv",
+    descripcion:
+      "Horario de cada profesional por día de la semana (0 = domingo … 6 = sábado) y sucursal, en hora local de la clínica.",
+    columnas: [
+      "id",
+      "professional_id",
+      "branch_id",
+      "day_of_week",
+      "start_time",
+      "end_time",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "agenda_configuracion",
+    tabla: "clinic_agenda_settings",
+    archivo: "agenda-configuracion.csv",
+    descripcion:
+      "Configuración de la agenda: tamaño del bloque y duración por defecto (minutos) y si se permiten sobrecupos.",
+    columnas: [
+      "slot_minutes",
+      "default_duration_min",
+      "allow_overbooking",
+      "updated_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["clinic_id"],
+  },
+  {
+    clave: "agenda_bloqueos",
+    tabla: "agenda_exceptions",
+    archivo: "agenda-bloqueos.csv",
+    descripcion:
+      "Bloqueos y excepciones de la agenda (vacaciones, feriados, reuniones) por profesional, sucursal o box. starts_local y ends_local van en hora local de la clínica, sin zona.",
+    columnas: [
+      "id",
+      "kind",
+      "professional_id",
+      "branch_id",
+      "operatory_id",
+      "reason",
+      "note",
+      "starts_local",
+      "ends_local",
+      "repeat_weekly",
+      "repeat_until",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "tipos_de_cita",
+    tabla: "appointment_types",
+    archivo: "tipos-de-cita.csv",
+    descripcion: "Tipos de cita que usa la agenda (control, urgencia, primera consulta…).",
+    columnas: ["id", "name", "position", "is_active", "created_at", "updated_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "estados_de_cita",
+    tabla: "appointment_statuses",
+    archivo: "estados-de-cita.csv",
+    descripcion:
+      "Estados de cita propios de la clínica y a qué estado base corresponde cada uno (canonical).",
+    columnas: [
+      "id",
+      "label",
+      "canonical",
+      "color",
+      "position",
+      "is_active",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "solicitudes_de_hora",
+    tabla: "appointment_requests",
+    archivo: "solicitudes-de-hora.csv",
+    descripcion:
+      "Solicitudes de hora de los pacientes (portal u otro canal): fecha preferida, motivo, prioridad, estado y la cita que se agendó.",
+    columnas: [
+      "id",
+      "patient_id",
+      "preferred_date",
+      "reason",
+      "priority",
+      "source",
+      "status",
+      "scheduled_appointment_id",
+      "handled_by",
+      "handled_at",
+      "clinic_notes",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "lista_de_espera",
+    tabla: "waitlist_entries",
+    archivo: "lista-de-espera.csv",
+    descripcion: "Pacientes en lista de espera, con el motivo, desde cuándo esperan y su estado.",
+    columnas: [
+      "id",
+      "branch_id",
+      "patient_id",
+      "full_name",
+      "reason",
+      "wait_since",
+      "status",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "opciones_de_paciente",
+    tabla: "clinic_patient_options",
+    archivo: "opciones-de-paciente.csv",
+    descripcion:
+      "Listas propias de la clínica para la ficha del paciente (origen, etiquetas y similares).",
+    columnas: ["id", "kind", "label", "position", "active", "created_by", "created_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "paquetes",
+    tabla: "procedure_packages",
+    archivo: "arancel-paquetes.csv",
+    descripcion: "Paquetes de prestaciones del arancel con su precio y moneda.",
+    columnas: [
+      "id",
+      "name",
+      "description",
+      "price_cents",
+      "currency",
+      "position",
+      "is_active",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "paquetes_items",
+    tabla: "procedure_package_items",
+    archivo: "arancel-paquetes-items.csv",
+    descripcion: "Prestaciones de cada paquete y su cantidad. Se cruza por package_id.",
+    columnas: [
+      "id",
+      "package_id",
+      "procedure_id",
+      "name_snapshot",
+      "quantity",
+      "position",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "realineaciones",
+    tabla: "procedure_price_realignments",
+    archivo: "arancel-realineaciones.csv",
+    descripcion:
+      "Ajustes masivos de precios del arancel: modo (porcentaje o monto), redondeo, alcance, cuántas prestaciones cambiaron y el detalle de cada una (items, en JSON).",
+    columnas: [
+      "id",
+      "currency",
+      "mode",
+      "percent",
+      "amount_cents",
+      "rounding_cents",
+      "scope_label",
+      "affected_count",
+      "items",
+      "created_by",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "insumos_por_prestacion",
+    tabla: "procedure_supplies",
+    archivo: "arancel-insumos.csv",
+    descripcion:
+      "Insumos de inventario que consume cada prestación y en qué cantidad. Se cruza con aranceles.csv e inventario.csv.",
+    columnas: ["id", "procedure_id", "item_id", "quantity", "created_by", "created_at"],
+    orden: ["id"],
+  },
+  {
+    clave: "presupuestos_eventos",
+    tabla: "quote_events",
+    archivo: "presupuestos-eventos.csv",
+    descripcion:
+      "Historial de cada presupuesto: envío, cambios de estado, prórrogas de vigencia y seguimientos, con quién y cuándo.",
+    columnas: [
+      "id",
+      "quote_id",
+      "kind",
+      "from_status",
+      "to_status",
+      "valid_until",
+      "note",
+      "message_id",
+      "actor_id",
+      "created_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "padre", padre: "presupuestos", columna: "quote_id" },
+    finanzas: true,
+  },
+  {
+    clave: "medicamentos",
+    tabla: "clinic_medications",
+    archivo: "medicamentos.csv",
+    descripcion:
+      "Vademécum propio de la clínica para las recetas: principio activo, concentración, forma, vía, código ATC y posología habitual.",
+    columnas: [
+      "id",
+      "active_ingredient",
+      "concentration",
+      "form",
+      "pharmacological_group",
+      "route",
+      "atc_code",
+      "dose",
+      "frequency",
+      "duration",
+      "instructions",
+      "active",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "notas_entidades",
+    tabla: "clinical_note_entities",
+    archivo: "notas-clinicas-entidades.csv",
+    descripcion:
+      "Datos estructurados extraídos de las notas clínicas (diagnósticos, procedimientos, medicamentos, alergias), con su código, diente y si el profesional los confirmó. ai_generated = sugerido por IA.",
+    columnas: [
+      "id",
+      "note_id",
+      "patient_ref",
+      "kind",
+      "term",
+      "code",
+      "tooth",
+      "quantity",
+      "dosage",
+      "severity",
+      "status",
+      "notes",
+      "confidence",
+      "ai_generated",
+      "confirmed",
+      "confirmed_by",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_ref" },
+  },
+  {
+    clave: "plantillas_de_mensaje",
+    tabla: "message_templates",
+    archivo: "plantillas-de-mensaje.csv",
+    descripcion:
+      "Plantillas de mensajes (WhatsApp, correo) con su texto y, si se aprobaron en Meta, su nombre y estado allí.",
+    columnas: [
+      "id",
+      "kind",
+      "name",
+      "channel",
+      "subject",
+      "body",
+      "is_active",
+      "meta_template_name",
+      "meta_language",
+      "meta_status",
+      "meta_category",
+      "created_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "contactos_whatsapp",
+    tabla: "whatsapp_leads",
+    archivo: "contactos-whatsapp.csv",
+    descripcion:
+      "Personas que escribieron por WhatsApp sin ser pacientes todavía: teléfono, nombre, primer mensaje y estado.",
+    columnas: [
+      "id",
+      "phone",
+      "name",
+      "first_message",
+      "status",
+      "referred_by_patient_id",
+      "auto_replied_at",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "inventario_conteos",
+    tabla: "inventory_counts",
+    archivo: "inventario-conteos.csv",
+    descripcion:
+      "Conteos físicos de inventario: cantidad teórica, contada y diferencia por insumo y bodega.",
+    columnas: [
+      "id",
+      "item_id",
+      "warehouse_id",
+      "theoretical_quantity",
+      "counted_quantity",
+      "difference",
+      "notes",
+      "movement_id",
+      "counted_by",
+      "counted_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "firmas_a_distancia",
+    tabla: "patient_signature_requests",
+    archivo: "firmas-a-distancia.csv",
+    descripcion:
+      "Solicitudes de firma a distancia (consentimientos, documentos y presupuestos): qué se firmó (content_html), quién, cuándo, con qué verificación y las huellas SHA-256 del documento, la firma y la evidencia.",
+    columnas: [
+      "id",
+      "patient_id",
+      "kind",
+      "issued_document_id",
+      "quote_id",
+      "replaces_request_id",
+      "title",
+      "sheet",
+      "content_blocks",
+      "content_html",
+      "professional_signature_path",
+      "professional_signature_sha256",
+      "document_sha256",
+      "quote_fingerprint",
+      "signer_role",
+      "guardian_id",
+      "signer_expected_name",
+      "link_channel",
+      "code_channel",
+      "code_recipient_masked",
+      "status",
+      "expires_at",
+      "created_by",
+      "created_at",
+      "opened_at",
+      "cancelled_at",
+      "cancelled_by",
+      "cancel_reason",
+      "rut_attempts",
+      "rut_verified_at",
+      "code_sent_at",
+      "codes_sent",
+      "code_attempts",
+      "locked_until",
+      "signer_rut_masked",
+      "signed_at",
+      "signer_name",
+      "accepted_text",
+      "signed_ip",
+      "signed_user_agent",
+      "signature_storage_path",
+      "signature_sha256",
+      "clinic_timezone",
+      "signed_at_local",
+      "evidence_sha256",
+      "signed_copy_path",
+      "signed_copy_sha256",
+      "signed_copy_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+    omitidas: {
+      token_hash: "Huella del enlace de firma: es una credencial, no un dato.",
+      session_hash: "Huella de la sesión de firma: es una credencial, no un dato.",
+      session_expires_at: "Vencimiento de la sesión de firma: dato técnico de la credencial.",
+      code_hash: "Huella del código de un solo uso: es una credencial, no un dato.",
+      code_expires_at: "Vencimiento del código de un solo uso: dato técnico de la credencial.",
+      signer_rut_sha256:
+        "Huella del RUT de quien firmó: con pocos dígitos se puede revertir; el RUT enmascarado sale en signer_rut_masked.",
+    },
+  },
+  {
+    clave: "firmas_a_distancia_eventos",
+    tabla: "patient_signature_events",
+    archivo: "firmas-a-distancia-eventos.csv",
+    descripcion:
+      "Bitácora de cada firma a distancia: envío, apertura, verificación, firma o cancelación, con el origen aproximado y el navegador.",
+    columnas: ["id", "request_id", "kind", "actor_id", "ip_hint", "user_agent", "created_at"],
+    orden: ["id"],
+    paciente: { por: "padre", padre: "firmas_a_distancia", columna: "request_id" },
+  },
+  {
+    clave: "portal_accesos",
+    tabla: "portal_access_log",
+    archivo: "portal-accesos.csv",
+    descripcion:
+      "Accesos de los pacientes al portal: qué hicieron, cuándo, y el origen aproximado y el navegador.",
+    columnas: ["id", "patient_id", "event", "ip_hint", "user_agent", "created_at"],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "solicitudes_titular",
+    tabla: "data_subject_requests",
+    archivo: "solicitudes-del-titular.csv",
+    descripcion:
+      "Solicitudes de los pacientes sobre sus datos personales (acceso, rectificación, supresión, oposición, portabilidad, bloqueo): canal, plazo legal, prórroga y respuesta.",
+    columnas: [
+      "id",
+      "patient_id",
+      "kind",
+      "channel",
+      "detail",
+      "status",
+      "received_at",
+      "due_date",
+      "extended_due_date",
+      "extension_reason",
+      "extended_at",
+      "extended_by",
+      "response",
+      "responded_at",
+      "responded_by",
+      "response_message_id",
+      "registered_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "solicitudes_titular_eventos",
+    tabla: "data_subject_request_events",
+    archivo: "solicitudes-del-titular-eventos.csv",
+    descripcion: "Historial de cada solicitud del titular: quién hizo qué y cuándo.",
+    columnas: ["id", "request_id", "event", "actor_id", "note", "created_at"],
+    orden: ["id"],
+    paciente: { por: "padre", padre: "solicitudes_titular", columna: "request_id" },
+  },
+  {
+    clave: "incidentes",
+    tabla: "security_incidents",
+    archivo: "incidentes-de-seguridad.csv",
+    descripcion:
+      "Registro de incidentes de seguridad (brechas de datos): detección, categorías de datos afectadas, titulares estimados, evaluación del riesgo, medidas y decisión de notificar.",
+    columnas: [
+      "id",
+      "detected_at",
+      "occurred_at",
+      "title",
+      "description",
+      "data_categories",
+      "affected_subjects_estimate",
+      "risk_level",
+      "risk_assessment",
+      "measures",
+      "notify_agency",
+      "notify_subjects",
+      "notification_reason",
+      "responsible_name",
+      "status",
+      "created_by",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "incidentes_seguimientos",
+    tabla: "security_incident_updates",
+    archivo: "incidentes-de-seguridad-seguimientos.csv",
+    descripcion:
+      "Seguimientos de cada incidente: cambios de estado o de riesgo, medidas nuevas y notificaciones hechas. Se cruza por incident_id.",
+    columnas: [
+      "id",
+      "incident_id",
+      "note",
+      "status",
+      "risk_level",
+      "risk_assessment",
+      "measures",
+      "affected_subjects_estimate",
+      "data_categories",
+      "notify_agency",
+      "notify_subjects",
+      "notification_reason",
+      "agency_notified_at",
+      "subjects_notified_at",
+      "created_by",
+      "created_at",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "lotes_importados",
+    tabla: "import_batches",
+    archivo: "lotes-importados.csv",
+    descripcion:
+      "Lotes de la migración desde otro sistema: tipo (pacientes o citas), perfil de columnas, archivo, estado (importado o deshecho), quién y cuándo, y conteos. Las fichas y citas importadas lo referencian en import_batch_id.",
+    columnas: [
+      "id",
+      "kind",
+      "source",
+      "file_name",
+      "status",
+      "rows_total",
+      "rows_created",
+      "rows_updated",
+      "rows_skipped",
+      "rows_failed",
+      "duplicate_policy",
+      "include_in_reminders",
+      "reminders_enabled_at",
+      "created_by",
+      "created_at",
+      "completed_at",
+      "reverted_at",
+      "reverted_by",
+    ],
+    orden: ["id"],
+  },
+  {
+    clave: "lotes_importados_cambios",
+    tabla: "import_batch_changes",
+    archivo: "lotes-importados-campos-completados.csv",
+    descripcion:
+      "Campos vacíos de fichas que ya existían y que completó un lote de pacientes (campos = valores escritos). Se cruza por batch_id y patient_id.",
+    columnas: ["id", "batch_id", "patient_id", "campos", "created_at"],
+    orden: ["id"],
+    paciente: { por: "patient_id" },
+  },
+  {
+    clave: "exportaciones",
+    tabla: "clinic_data_exports",
+    archivo: "registro-de-exportaciones.csv",
+    descripcion:
+      "Registro de exportaciones de datos de la clínica (completa, por ficha y de listas en CSV): quién, cuándo y qué. Incluye la exportación de este ZIP.",
+    columnas: ["id", "actor_id", "formato", "patient_id", "detalle", "created_at"],
+    orden: ["id"],
+  },
+];
+
+/**
+ * Tablas con `clinic_id` que NO salen en la exportación, y por qué. Nada de
+ * esto es un dato que la clínica haya registrado sobre sus pacientes o su
+ * operación: son credenciales, huellas, contadores internos o la relación
+ * comercial con Esmalia. `tests/exportacion-cobertura.test.ts` falla si se
+ * crea una tabla con `clinic_id` que no esté ni en `TABLAS_EXPORTACION` ni
+ * acá: así, una tabla nueva obliga a decidir.
+ */
+export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
+  clinic_counters:
+    "Contadores internos de los correlativos; los números ya salen en cada presupuesto, receta o documento.",
+  email_sandbox_config: "Configuración técnica del envío de correos de prueba de Esmalia.",
+  lifecycle_emails: "Correos que Esmalia le manda al equipo de la clínica (bienvenida, avisos).",
+  notifications:
+    "Avisos internos de la app para cada usuario; cada persona ve solo los suyos y no son datos de la clínica.",
+  patient_document_bidx:
+    "Huella del documento de cada paciente para buscar sin descifrar; el documento sale en pacientes.csv.",
+  stripe_events: "Eventos del cobro de la suscripción a Esmalia (Stripe).",
+  subscriptions: "Suscripción de la clínica a Esmalia; se consulta en el portal de facturación.",
+  trial_extensions: "Extensiones del período de prueba que otorga el equipo de Esmalia.",
+  whatsapp_accounts:
+    "Conexión técnica con la API de WhatsApp de Meta; se rehace al conectar otro sistema.",
+  whatsapp_credentials: "Credenciales cifradas de WhatsApp: nunca salen de Esmalia.",
+};
+
+export const TABLAS_EXPORTACION: readonly TablaExportacion[] = [
+  ...TABLAS_EXPORTACION_BASE,
+  ...TABLAS_OLAS_1_A_5,
 ];
 
 export const CLAVES_EXPORTACION = TABLAS_EXPORTACION.map((t) => t.clave) as [string, ...string[]];
@@ -1355,6 +2127,8 @@ export interface ResumenExportacion {
   paciente?: string;
   /** Exportación de una ficha sin presupuestos ni pagos (quien exportó no ve finanzas). */
   sinFinanzas?: boolean;
+  /** Manifiesto con las huellas (EXP-02): agrega la sección de verificación. */
+  manifiesto?: Manifiesto;
 }
 
 /** Texto del LEEME.txt que acompaña al ZIP. */
@@ -1381,6 +2155,7 @@ export function construirLeeme(r: ResumenExportacion): string {
         `Generada: ${r.generadoEn}`,
         `Por: ${r.generadoPor}`,
         "Origen: Esmalia (https://esmalia.com)",
+        `Formato de exportación: versión ${VERSION_FORMATO_EXPORTACION}`,
         "",
         "Este archivo contiene todos los datos de tu clínica guardados en Esmalia,",
         "en planillas CSV que se abren con Excel, Google Sheets o LibreOffice,",
@@ -1432,6 +2207,18 @@ export function construirLeeme(r: ResumenExportacion): string {
     const n = r.conteos[t.clave] ?? 0;
     lineas.push(`- ${t.archivo} (${n} ${n === 1 ? "fila" : "filas"})`);
     lineas.push(`  ${t.descripcion}`);
+    if (r.manifiesto) {
+      lineas.push("  Columnas:", ...leemeDeColumnas(t));
+    }
+  }
+
+  if (r.manifiesto && r.manifiesto.tablas_excluidas.length) {
+    lineas.push(
+      "",
+      "LO QUE NO SALE EN ESTA EXPORTACIÓN, Y POR QUÉ",
+      "- La columna clinic_id: tiene un solo valor, el id de tu clínica (está en clinica.csv).",
+      ...r.manifiesto.tablas_excluidas.map((e) => `- ${e.tabla}: ${e.motivo}`),
+    );
   }
 
   lineas.push("");
@@ -1450,6 +2237,8 @@ export function construirLeeme(r: ResumenExportacion): string {
       "escribe a soporte@esmalia.com desde el correo del dueño de la clínica.",
     );
   }
+
+  if (r.manifiesto) lineas.push("", ...leemeDeHuellas(r.manifiesto));
 
   lineas.push(
     "",

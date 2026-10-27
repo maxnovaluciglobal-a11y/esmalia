@@ -102,11 +102,20 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   iniciarExportacionPaciente: "Exportar la ficha de un paciente siempre está permitido.",
   firmarArchivosExportacionPaciente: "Descarga de la exportación de la ficha de un paciente.",
   leerTablaExportacionPaciente: "Lectura de la exportación de la ficha de un paciente.",
+  registrarExportacionDeLista:
+    "Exportar una lista en CSV (EXP-04) siempre está permitido; solo anota la exportación.",
   setActiveClinic: "Cambia la clínica que se está viendo; no toca datos.",
 
   // Estado personal del usuario, no datos de la clínica.
   markNotificationsRead: "Marca avisos como leídos: estado personal del usuario.",
   updateMyNotificationPreferences: "Preferencias personales de avisos.",
+  enviarCodigoPorCorreo:
+    "Seguridad de la cuenta (SEG-01): el código del segundo paso; sin él no se entra ni a ver.",
+  verificarCodigoPorCorreo:
+    "Seguridad de la cuenta (SEG-01): verificar el segundo paso; sin él no se entra ni a ver.",
+  configurarSegundoPaso: "Seguridad de la cuenta (SEG-01): método del segundo paso, personal.",
+  autorizarInscripcionApp:
+    "Seguridad de la cuenta (SEG-01): permite sumar la app autenticadora, personal.",
   registrarEventoDeCuenta: "Telemetría de producto, no datos de la clínica.",
   saveMySignatureData:
     "Nombre y registro del propio profesional: hacen falta para firmar la nota de una urgencia.",
