@@ -12,6 +12,8 @@
 // datos de la institución o del médico ni siquiera se leen: se saltan por
 // su largo, igual que cualquier tag que no está en la lista.
 
+import { fecha } from "@/lib/formato-fecha";
+
 import { ErrorDeVisor, formatoPropietario } from "./malla";
 
 export type Vec3 = [number, number, number];
@@ -416,14 +418,10 @@ function errorComprimido(sintaxis: string): ErrorDeVisor {
 export function formatoFechaDicom(da: string | null): string | null {
   const m = da?.match(/^(\d{4})(\d{2})(\d{2})$/);
   if (!m) return null;
-  const fecha = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  if (Number.isNaN(fecha.getTime())) return null;
-  return new Intl.DateTimeFormat("es-CL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(fecha);
+  const iso = `${m[1]}-${m[2]}-${m[3]}`;
+  if (Number.isNaN(Date.parse(`${iso}T00:00:00Z`))) return null;
+  // Fecha civil (sin hora): no se corre con el huso.
+  return fecha(iso);
 }
 
 const MODALIDADES: Record<string, string> = {

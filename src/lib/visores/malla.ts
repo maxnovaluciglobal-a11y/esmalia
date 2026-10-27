@@ -4,6 +4,8 @@
 // OBJ quedan en un formato común que el visor carga en un BufferGeometry.
 // Así se prueban sin navegador y three entra solo en el chunk diferido.
 
+import { numero } from "@/lib/formato-fecha";
+
 import { ErrorDeVisor, MAX_BYTES_MALLA, MAX_BYTES_MALLA_TEXTO, MAX_TRIANGULOS } from "./limites";
 
 export { ErrorDeVisor, MAX_BYTES_MALLA, MAX_BYTES_MALLA_TEXTO, MAX_TRIANGULOS };
@@ -49,7 +51,7 @@ function controlarTriangulos(n: number) {
   if (n === 0) throw new ErrorDeVisor("El archivo no tiene triángulos para mostrar.");
   if (n > MAX_TRIANGULOS) {
     throw new ErrorDeVisor(
-      `El modelo tiene ${n.toLocaleString("es")} triángulos y el máximo es ${MAX_TRIANGULOS.toLocaleString("es")}. Exporta una versión reducida (decimada) desde el programa del escáner.`,
+      `El modelo tiene ${numero(n)} triángulos y el máximo es ${numero(MAX_TRIANGULOS)}. Exporta una versión reducida (decimada) desde el programa del escáner.`,
     );
   }
 }

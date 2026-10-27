@@ -1,5 +1,7 @@
 // Medidas en milímetros para los visores (IMG-03 y IMG-04).
 
+import { numero } from "@/lib/formato-fecha";
+
 export type Punto3 = readonly [number, number, number];
 export type Punto2 = readonly [number, number];
 
@@ -23,7 +25,7 @@ export function distanciaEnCorte(a: Punto2, b: Punto2, espaciado: Punto2): numbe
 /** "12,4 mm" con la coma decimal de la región; menos de 10 mm lleva dos decimales. */
 export function formatoMm(mm: number): string {
   const decimales = mm < 10 ? 2 : 1;
-  return `${mm.toLocaleString("es-CL", {
+  return `${numero(mm, {
     minimumFractionDigits: decimales,
     maximumFractionDigits: decimales,
   })} mm`;

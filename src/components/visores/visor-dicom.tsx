@@ -34,6 +34,7 @@ import {
   PanelDatos,
   useCargaDeExamen,
 } from "./controles";
+import { numero } from "@/lib/formato-fecha";
 
 type Herramienta = "mover" | "ventana" | "medir";
 type Ventana = { centro: number; ancho: number };
@@ -124,7 +125,7 @@ function VisorDicomListo({ vol }: { vol: Volumen }) {
     }));
 
   const fecha = formatoFechaDicom(vol.fechaEstudio);
-  const fmt = (n: number, d = 2) => n.toLocaleString("es-CL", { maximumFractionDigits: d });
+  const fmt = (n: number, d = 2) => numero(n, { maximumFractionDigits: d });
   const [ex, ey, ez] = vol.espaciado;
   const avisos = [
     vol.reduccion > 1 &&

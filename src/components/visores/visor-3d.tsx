@@ -21,6 +21,7 @@ import {
   useCargaDeExamen,
 } from "./controles";
 import { crearEscena, type Escena3D, type Vista } from "./escena-3d";
+import { numero } from "@/lib/formato-fecha";
 
 // Colores del material: son del render 3D, no de la interfaz (los tokens
 // de styles.css no tienen un "yeso"). Se eligieron para leerse en claro y
@@ -140,7 +141,7 @@ function Visor3DListo({ malla, formato }: { malla: Malla; formato: FormatoMalla 
     }
   };
 
-  const fmt = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 1 });
+  const fmt = (n: number) => numero(n, { maximumFractionDigits: 1 });
   const textoMedida =
     medida.mm !== null
       ? formatoMm(medida.mm)
@@ -241,7 +242,7 @@ function Visor3DListo({ malla, formato }: { malla: Malla; formato: FormatoMalla 
             { termino: "Formato", valor: NOMBRE_FORMATO[formato] },
             {
               termino: "Triángulos",
-              valor: <span className="cifra">{malla.triangulos.toLocaleString("es-CL")}</span>,
+              valor: <span className="cifra">{numero(malla.triangulos)}</span>,
             },
             {
               termino: "Tamaño",

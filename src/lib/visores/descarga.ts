@@ -2,6 +2,8 @@
 // El tope se revisa antes de bajar (Content-Length) y mientras baja, para no
 // llenar la memoria del navegador con un archivo que después no se puede abrir.
 
+import { numero } from "@/lib/formato-fecha";
+
 import { ErrorDeVisor } from "./limites";
 
 export type AlProgreso = (cargados: number, total: number | null) => void;
@@ -10,7 +12,7 @@ export type AlProgreso = (cargados: number, total: number | null) => void;
 export type Cargador = (alProgreso: AlProgreso, senal: AbortSignal) => Promise<Uint8Array[]>;
 
 export function megas(bytes: number): string {
-  return `${(bytes / 1024 / 1024).toLocaleString("es-CL", { maximumFractionDigits: 1 })} MB`;
+  return `${numero(bytes / 1024 / 1024, { maximumFractionDigits: 1 })} MB`;
 }
 
 export async function descargar(
