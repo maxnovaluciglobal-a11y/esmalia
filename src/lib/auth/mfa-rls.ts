@@ -110,6 +110,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   security_incidents: "incidentes de seguridad: pueden describir datos de salud de pacientes",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",
   treatment_plans: "planes de tratamiento",
+  waiting_room_turns: "turnos y llamados de la sala de espera: qué paciente llegó y a qué box pasa",
   waitlist_entries: "lista de espera: paciente y motivo",
   whatsapp_leads: "primer mensaje de un prospecto (puede contar síntomas)",
 };
@@ -131,6 +132,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   clinic_agenda_settings: "configuración de la agenda",
   clinic_counters: "correlativos (sin datos)",
   clinic_data_exports: "bitácora de exportaciones: no guarda los datos exportados",
+  clinic_devices:
+    "dispositivos de la clínica (tótem, sala, box): nombre, sucursal y huella del token, sin pacientes",
   clinic_medications: "vademécum propio de la clínica: medicamentos y posología, sin pacientes",
   clinic_members: "membresía: la app la lee antes y durante la verificación",
   clinical_protocols: "protocolos clínicos de la clínica (pasos e indicaciones), sin pacientes",
@@ -183,6 +186,8 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   storage_quota_plans: "configuración del cupo de almacenamiento por plan, sin datos de pacientes",
   stripe_events: "backend: solo service_role (sin políticas)",
   subscriptions: "suscripción de la clínica a Esmalia: la app la lee para el estado de cuenta",
+  totem_identifications:
+    "backend: intentos de identificación y sesiones del tótem (solo huellas), sin políticas",
   trial_extensions: "backend: solo service_role (sin políticas)",
   warehouses: "estructura de inventario",
   whatsapp_accounts: "configuración del canal",

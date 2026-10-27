@@ -769,6 +769,88 @@ export type Database = {
           },
         ];
       };
+      clinic_devices: {
+        Row: {
+          branch_id: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          kind: string;
+          last_used_at: string | null;
+          name: string;
+          operatory_id: string | null;
+          paired_at: string | null;
+          pairing_code_hash: string | null;
+          pairing_expires_at: string | null;
+          privacy_mode: string;
+          revoked_at: string | null;
+          revoked_by: string | null;
+          token_hash: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          branch_id: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind: string;
+          last_used_at?: string | null;
+          name: string;
+          operatory_id?: string | null;
+          paired_at?: string | null;
+          pairing_code_hash?: string | null;
+          pairing_expires_at?: string | null;
+          privacy_mode?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          token_hash?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          branch_id?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          kind?: string;
+          last_used_at?: string | null;
+          name?: string;
+          operatory_id?: string | null;
+          paired_at?: string | null;
+          pairing_code_hash?: string | null;
+          pairing_expires_at?: string | null;
+          privacy_mode?: string;
+          revoked_at?: string | null;
+          revoked_by?: string | null;
+          token_hash?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinic_devices_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clinic_devices_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clinic_devices_operatory_id_fkey";
+            columns: ["operatory_id"];
+            isOneToOne: false;
+            referencedRelation: "operatories";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinic_medications: {
         Row: {
           active: boolean;
@@ -8469,6 +8551,67 @@ export type Database = {
           },
         ];
       };
+      totem_identifications: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          device_id: string;
+          ended_at: string | null;
+          expires_at: string | null;
+          id: string;
+          ok: boolean;
+          patient_id: string | null;
+          rut_hash: string | null;
+          session_hash: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          device_id: string;
+          ended_at?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          ok: boolean;
+          patient_id?: string | null;
+          rut_hash?: string | null;
+          session_hash?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          device_id?: string;
+          ended_at?: string | null;
+          expires_at?: string | null;
+          id?: string;
+          ok?: boolean;
+          patient_id?: string | null;
+          rut_hash?: string | null;
+          session_hash?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "totem_identifications_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "totem_identifications_device_id_fkey";
+            columns: ["device_id"];
+            isOneToOne: false;
+            referencedRelation: "clinic_devices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "totem_identifications_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       treatment_items: {
         Row: {
           clinic_id: string;
@@ -8697,6 +8840,93 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "trial_extensions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      waiting_room_turns: {
+        Row: {
+          appointment_id: string;
+          branch_id: string;
+          call_count: number;
+          called_at: string | null;
+          called_by: string | null;
+          called_by_device_id: string | null;
+          called_operatory_id: string | null;
+          checked_in_at: string;
+          checked_in_via: string;
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          turn_date: string;
+          turn_number: number;
+        };
+        Insert: {
+          appointment_id: string;
+          branch_id: string;
+          call_count?: number;
+          called_at?: string | null;
+          called_by?: string | null;
+          called_by_device_id?: string | null;
+          called_operatory_id?: string | null;
+          checked_in_at?: string;
+          checked_in_via?: string;
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          turn_date: string;
+          turn_number: number;
+        };
+        Update: {
+          appointment_id?: string;
+          branch_id?: string;
+          call_count?: number;
+          called_at?: string | null;
+          called_by?: string | null;
+          called_by_device_id?: string | null;
+          called_operatory_id?: string | null;
+          checked_in_at?: string;
+          checked_in_via?: string;
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          turn_date?: string;
+          turn_number?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "waiting_room_turns_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "waiting_room_turns_branch_id_fkey";
+            columns: ["branch_id"];
+            isOneToOne: false;
+            referencedRelation: "branches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "waiting_room_turns_called_by_device_id_fkey";
+            columns: ["called_by_device_id"];
+            isOneToOne: false;
+            referencedRelation: "clinic_devices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "waiting_room_turns_called_operatory_id_fkey";
+            columns: ["called_operatory_id"];
+            isOneToOne: false;
+            referencedRelation: "operatories";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "waiting_room_turns_clinic_id_fkey";
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
@@ -8972,6 +9202,7 @@ export type Database = {
         Args: { p_clinic_id: string };
         Returns: number;
       };
+      box_estado: { Args: { p_device_id: string }; Returns: Json };
       buscar_pacientes_por_documento: {
         Args: { p_clinic_id: string; p_documento: string };
         Returns: string[];
@@ -9051,6 +9282,37 @@ export type Database = {
         Args: { p_member_id: string; p_profession: string };
         Returns: undefined;
       };
+      dispositivo_crear: {
+        Args: {
+          p_branch_id: string;
+          p_clinic_id: string;
+          p_kind: string;
+          p_name: string;
+          p_operatory_id: string | null;
+          p_privacy_mode: string;
+        };
+        Returns: string;
+      };
+      dispositivo_editar: {
+        Args: {
+          p_device_id: string;
+          p_name: string;
+          p_operatory_id: string | null;
+          p_privacy_mode: string;
+        };
+        Returns: undefined;
+      };
+      dispositivo_emitir_codigo: {
+        Args: { p_code_hash: string; p_device_id: string };
+        Returns: string;
+      };
+      dispositivo_llamar: {
+        Args: { p_appointment_id: string; p_device_id: string };
+        Returns: Json;
+      };
+      dispositivo_por_token: { Args: { p_token_hash: string }; Returns: Json };
+      dispositivo_revocar: { Args: { p_device_id: string }; Returns: undefined };
+      dispositivo_vincular: { Args: { p_code_hash: string; p_token_hash: string }; Returns: Json };
       emitir_receta: {
         Args: {
           p_allergy_alerts: Json;
@@ -9345,6 +9607,7 @@ export type Database = {
           patient_id: string;
         }[];
       };
+      llamar_a_sala: { Args: { p_appointment_id: string }; Returns: Json };
       merge_patients: {
         Args: { p_clinic_id: string; p_source_id: string; p_target_id: string };
         Returns: undefined;
@@ -9572,6 +9835,7 @@ export type Database = {
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       rut_es_valido: { Args: { p_rut: string }; Returns: boolean };
+      sala_estado: { Args: { p_device_id: string }; Returns: Json };
       seguimiento_datos_de_pacientes: {
         Args: { p_clinic_id: string };
         Returns: {
@@ -9610,6 +9874,26 @@ export type Database = {
       };
       shares_clinic_with: { Args: { _user_id: string }; Returns: boolean };
       storage_clinic_id_of: { Args: { _name: string }; Returns: string };
+      totem_agendar: {
+        Args: { p_device_id: string; p_reserva: Json; p_session_hash: string };
+        Returns: Json;
+      };
+      totem_identificar: {
+        Args: {
+          p_device_id: string;
+          p_rut: string;
+          p_session_hash: string;
+          p_tipo: string;
+          p_valor: string;
+        };
+        Returns: Json;
+      };
+      totem_marcar_llegada: {
+        Args: { p_appointment_id: string; p_device_id: string; p_session_hash: string };
+        Returns: Json;
+      };
+      totem_resumen: { Args: { p_device_id: string; p_session_hash: string }; Returns: Json };
+      totem_terminar: { Args: { p_device_id: string; p_session_hash: string }; Returns: undefined };
       uso_de_almacenamiento: {
         Args: { p_clinic_id: string };
         Returns: {
