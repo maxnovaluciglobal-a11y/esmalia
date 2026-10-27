@@ -8,7 +8,14 @@ import { AppShell } from "@/components/app-shell";
 import { AvisoCitasPasadas } from "@/components/citas-pasadas";
 import { ColaConfirmacion } from "@/components/cola-confirmacion";
 import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
+import { tituloDeAgenda } from "@/components/agenda-titulo";
+import {
+  TarjetaDelDia,
+  type CifraChica,
+  type CifraProtagonista,
+} from "@/components/hoy-tarjeta-del-dia";
 import { PanelDesempeno } from "@/components/panel-desempeno";
+import { PattyCara } from "@/components/patty-cara";
 import { buttonVariants } from "@/components/ui/button";
 import { requirePermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
@@ -16,24 +23,19 @@ import { listClinicMembers } from "@/lib/access/access.functions";
 import { getMySubscription } from "@/lib/billing.functions";
 import { accesoPorSuscripcion, requiereLlamadaOSuscripcion } from "@/lib/billing";
 import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
-import {
-  formatoFecha,
-  formatoFechaLarga,
-  hoyISO,
-  type Cita,
-} from "@/lib/clinic-operations/clinic-data";
+import { formatoFecha, hoyISO, type Cita } from "@/lib/clinic-operations/clinic-data";
 import { listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
 import {
   getAppointmentPatientBalances,
   listAppointments,
 } from "@/lib/clinic-operations/appointments.functions";
 import { getFinanceSummary } from "@/lib/finance/finance-reports.functions";
-import { formatMoney } from "@/lib/finance/finance";
+import { getEstadoIa } from "@/lib/ai/estado.functions";
+import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/messaging.functions";
 import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupados";
 import { listPatients } from "@/lib/patients/patients.functions";
-import { claseTexto, type TonoEstado } from "@/lib/clinic-operations/estado-cita-tono";
 import { cn } from "@/lib/utils";
 import { hora as horaActual } from "@/lib/formato-fecha";
 import { PacientesGes } from "@/components/pacientes-ges";
@@ -56,6 +58,15 @@ export const Route = createFileRoute("/_authenticated/_clinic/dashboard")({
   }),
   component: Dashboard,
 });
+
+/** "$1.284.000" → ["$", "1.284.000"]: el símbolo va en ocre, como en la caja. */
+function partirMonto(texto: string): [string, string] {
+  const m = /^(-?[^\d-]*)(.*)$/.exec(texto);
+  return m && m[1] ? [m[1], m[2]] : ["", texto];
+}
+
+/** Panel A+ (el de la caja): radio 14 px y borde fino. */
+const PANEL = "rounded-[14px] border border-hairline bg-card";
 
 // `inicio` llega como minutos desde las 8:00 de la sucursal (no desde
 // medianoche) — mismo criterio que usa el resto de la agenda para acotar la
@@ -98,9 +109,13 @@ function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
   const hechos = pasos.filter((p) => p.hecho).length;
 
   return (
-    <section aria-labelledby="activacion" className="rounded-lg border border-border p-5">
-      <h2 id="activacion" className="kicker">
-        Activa tu clínica · {hechos} de {pasos.length}
+    <section aria-labelledby="activacion" className={cn(PANEL, "p-5")}>
+      <h2 id="activacion" className="font-display text-[22px] font-medium leading-tight">
+        Activa tu clínica{" "}
+        <em className="text-brand-600">
+          <span className="cifra not-italic text-[0.7em]">{hechos}</span> de{" "}
+          <span className="cifra not-italic text-[0.7em]">{pasos.length}</span>
+        </em>
       </h2>
       <ul className="mt-4 space-y-3">
         {pasos.map((paso) => (
@@ -142,104 +157,80 @@ function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
   );
 }
 
-/** `tono` colorea la cifra y `tonoNota` la nota solo cuando hay algo que
- * mirar (auditoría 07-oct-2026: las cifras de Hoy eran todas tinta). */
-type Kpi = { label: string; valor: string; nota: string; tono?: TonoEstado; tonoNota?: TonoEstado };
-
-/**
- * Banda de KPIs compacta (~90px, dirección híbrida 08-oct-2026): hasta 5
- * cifras en una fila desde md. En el celular van de a dos y la quinta se
- * oculta: el celular prioriza la agenda.
- */
-function FilaKpis({ kpis, cargando }: { kpis: Kpi[]; cargando: boolean }) {
-  return (
-    <dl
-      className={cn(
-        "grid grid-cols-2 border-y border-border",
-        kpis.length >= 5 ? "md:grid-cols-5" : "md:grid-cols-4",
-      )}
-    >
-      {kpis.map((k, i) => (
-        <div
-          key={k.label}
-          className={cn(
-            "min-w-0 py-3 pr-3",
-            i % 2 === 1 ? "border-l border-hairline pl-3 md:pl-4" : "pl-0",
-            i >= 2 && "border-t border-hairline md:border-t-0",
-            i > 0 && "md:border-l md:pl-4",
-            i >= 4 && "hidden md:block",
-          )}
-        >
-          <dt className="kicker truncate">{k.label}</dt>
-          <dd
-            className={cn(
-              "mt-1.5 whitespace-nowrap font-display text-[clamp(1.25rem,6vw,1.625rem)] font-semibold leading-none tabular-nums lg:text-[30px]",
-              k.tono && claseTexto[k.tono],
-            )}
-          >
-            {cargando ? (
-              <span
-                className="inline-block h-7 w-14 animate-pulse rounded-sm bg-muted"
-                aria-label="Cargando"
-              />
-            ) : (
-              k.valor
-            )}
-          </dd>
-          <dd
-            className={cn(
-              "mt-1 truncate text-xs",
-              k.tonoNota ? claseTexto[k.tonoNota] : "text-muted-foreground",
-            )}
-          >
-            {cargando ? " " : k.nota}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
-
-/** Siempre con texto: el tono acompaña, no informa solo (auditoría 04-sep).
- * Forma + ícono por estado desde el 08-oct (dirección híbrida). */
-function EstadoCita({ cita }: { cita: Cita }) {
-  return <EstadoCitaPastilla cita={cita} />;
-}
-
 type Tarea = { n: number; titulo: string; detalle: string; cta: string; to: string };
 
 function ColaAccionable({ tareas }: { tareas: Tarea[] }) {
   return (
-    <section aria-labelledby="cola">
-      <h2 id="cola" className="kicker">
-        Para resolver hoy
+    <section aria-labelledby="cola" className={cn(PANEL, "overflow-hidden")}>
+      <h2
+        id="cola"
+        className="px-5 pt-[18px] pb-3 font-display text-[26px] font-medium leading-none"
+      >
+        Para resolver <em className="text-brand-600">hoy</em>
       </h2>
       {tareas.length === 0 ? (
-        <p className="mt-2 border-t border-hairline py-3 text-sm text-muted-foreground">
+        <p className="border-t border-hairline px-5 py-4 text-sm text-muted-foreground">
           Nada pendiente por ahora. Lo que necesite tu atención va a aparecer acá.
         </p>
       ) : (
-        <ul className="mt-1.5 divide-y divide-hairline border-t border-hairline">
+        <ul className="divide-y divide-hairline border-t border-hairline">
           {tareas.map((t) => (
-            <li key={t.titulo} className="flex items-center gap-3 py-2">
-              <span className="w-8 shrink-0 font-display text-[22px] font-semibold leading-none tabular-nums text-brand-700">
-                {t.n > 99 ? "99+" : t.n}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{t.titulo}</span>
-                <span className="block truncate text-xs text-muted-foreground">{t.detalle}</span>
-              </span>
+            <li key={t.titulo}>
               <Link
                 to={t.to}
-                className="inline-flex min-h-9 shrink-0 items-center text-sm text-brand-700 hover:underline pointer-coarse:min-h-11"
+                className="flex min-h-14 items-center gap-3.5 px-5 py-3 outline-none hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
               >
-                {t.cta} →
+                <span className="w-9 shrink-0 font-display text-[28px] font-medium leading-none text-brand-600 [font-variant-numeric:lining-nums]">
+                  {t.n > 99 ? "99+" : t.n}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-medium">{t.titulo}</span>
+                  <span className="block truncate text-[13px] text-muted-foreground">
+                    {t.detalle}
+                  </span>
+                </span>
+                <span className="shrink-0 text-sm font-semibold text-brand-700">{t.cta} →</span>
               </Link>
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Patty en Hoy (prototipo A+): lo que haría con el día. Está en habilitación
+ * (docs/IA.md): lo dice y los botones van desactivados, como en el cajón de
+ * la agenda. No promete nada que hoy no haga.
+ */
+function PattyDelDia() {
+  const pasos = [
+    "Ordenar a quién confirmar primero",
+    "Avisar los huecos que quedan libres",
+    "Resumir el día en 3 líneas",
+  ];
+  return (
+    <aside
+      aria-label="Patty, en habilitación"
+      className="grid grid-cols-[34px_minmax(0,1fr)] items-start gap-3 rounded-[14px] border border-dashed border-ai bg-ai-soft p-4"
+    >
+      <PattyCara px={34} decorativa />
+      <div className="min-w-0 text-[15px] leading-snug">
+        <p>
+          <b className="font-semibold text-ai">Patty</b> te ayudaría a ordenar el día.
+        </p>
+        <ul className="mt-2.5 grid gap-1.5 text-sm font-medium text-muted-foreground">
+          {pasos.map((paso) => (
+            <li key={paso} className="flex items-center gap-2">
+              <span aria-hidden="true" className="size-3 rounded-full border-[1.5px] border-ai" />
+              {paso}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2.5 text-sm text-muted-foreground">En habilitación: hoy no está activa.</p>
+      </div>
+    </aside>
   );
 }
 
@@ -394,6 +385,13 @@ function Dashboard() {
     queryFn: () => fetchSinResponder({ data: { clinicId: clinicId! } }),
     refetchInterval: 2 * 60_000,
   });
+  // Patty en habilitación (docs/IA.md): misma consulta y clave que el cajón.
+  const fetchEstadoIa = useServerFn(getEstadoIa);
+  const { data: estadoIa } = useQuery({
+    queryKey: ["estado-ia"],
+    queryFn: () => fetchEstadoIa(),
+    staleTime: 5 * 60_000,
+  });
 
   // Checklist de activación: solo para el dueño, con datos reales. En la
   // clínica demo no va: ya viene sembrada y es de solo lectura, así que
@@ -427,38 +425,39 @@ function Dashboard() {
     (c) => c.estado === "tentativa" && !c.pacienteConfirmo,
   ).length;
 
+  const atendidas = citasHoy.filter((c) => c.estado === "finalizada").length;
+
   // Regla 11: si la agenda no cargó, las cifras que salen de ella dicen
   // "Sin datos" en vez de un 0 que se lee como "día libre".
-  const sinDatosCitas = (label: string): Kpi => ({ label, valor: "—", nota: "Sin datos" });
-  const kpiCitas: Kpi = citasConError
+  const sinDatosCitas = (label: string): CifraChica => ({ label, valor: "—", nota: "Sin datos" });
+  const kpiCitas: CifraChica = citasConError
     ? sinDatosCitas("Citas hoy")
     : {
         label: "Citas hoy",
         valor: String(citasHoy.length),
         nota: `${profesionalesHoy} profesional${profesionalesHoy === 1 ? "" : "es"}`,
       };
-  const kpiConfirmadas: Kpi = citasConError
+  const kpiConfirmadas: CifraChica = citasConError
     ? sinDatosCitas("Confirmadas")
     : {
         label: "Confirmadas",
         valor: String(confirmadas),
         nota: `${sinRespuestaHoy} sin respuesta`,
-        tono: confirmadas > 0 ? "success" : undefined,
         tonoNota: sinRespuestaHoy > 0 ? "warning" : undefined,
       };
-  const kpiEnSala: Kpi = citasConError
+  const kpiEnSala: CifraChica = citasConError
     ? sinDatosCitas("En sala")
     : {
         label: "En sala",
         valor: String(enSala.length),
-        tono: enSala.length > 0 ? "info" : undefined,
+        tonoNota: enSala.length > 0 ? "info" : undefined,
         nota: enSala[0]
           ? `${enSala[0].paciente} · ${horaDeCita(enSala[0].inicio)}`
           : "Nadie esperando",
       };
   // Regla 11: mientras los saldos cargan (o si fallan) no se fabrica un $0.
   const saldosSinDatos = pacientesHoy.length > 0 && (saldosPendientes || saldosConError);
-  const kpiPorCobrar: Kpi = saldosSinDatos
+  const kpiPorCobrar: CifraChica = saldosSinDatos
     ? {
         label: "Por cobrar hoy",
         valor: "—",
@@ -468,30 +467,66 @@ function Dashboard() {
         label: "Por cobrar hoy",
         valor: formatMoney(porCobrarHoy, currency),
         nota: `${conDeuda.length} paciente${conDeuda.length === 1 ? "" : "s"}`,
-        tono: porCobrarHoy > 0 ? "warning" : undefined,
+        tonoNota: porCobrarHoy > 0 ? "warning" : undefined,
       };
-  // Dueño y contabilidad (finance:view): plata primero. Recepción y el
-  // equipo clínico: el movimiento del día. "Por cobrar" exige finance:view
-  // también en el servidor, así que no se le ofrece a quien no lo tiene.
-  const kpis: Kpi[] = veFinanzas
-    ? [
-        {
-          label: "Cobrado hoy",
-          valor: informesBloqueados || !cajaHoy ? "—" : formatMoney(cajaHoy.totalCents, currency),
-          nota: informesBloqueados
-            ? "Se activa al suscribirte"
-            : !cajaHoy
-              ? "Cargando…"
-              : `${cajaHoy.paymentsCount} pago${cajaHoy.paymentsCount === 1 ? "" : "s"}`,
-        },
-        kpiPorCobrar,
-        kpiCitas,
-        kpiConfirmadas,
-        // Quinta cifra (dirección híbrida): quién está ahora en el box.
-        kpiEnSala,
-      ]
+
+  // Dueño y contabilidad (finance:view): plata primero, como la caja.
+  // Recepción y el equipo clínico: el movimiento del día. "Por cobrar" y
+  // "Cobrado" exigen finance:view también en el servidor, así que no se le
+  // ofrecen a quien no lo tiene (ni siquiera se piden).
+  const mediosDeHoy = (cajaHoy?.byMethod ?? [])
+    .filter((m) => m.totalCents > 0)
+    .sort((a, b) => b.totalCents - a.totalCents);
+  const [simboloCobrado, cifraCobrado] = partirMonto(
+    formatMoney(cajaHoy?.totalCents ?? 0, currency),
+  );
+  const protagonista: CifraProtagonista = veFinanzas
+    ? {
+        label: "Cobrado hoy",
+        valor: informesBloqueados || !cajaHoy ? "—" : cifraCobrado,
+        acento:
+          informesBloqueados || !cajaHoy ? undefined : { texto: simboloCobrado, lado: "antes" },
+        desglose: informesBloqueados ? (
+          "Se activa al suscribirte."
+        ) : !cajaHoy ? (
+          "Cargando los cobros…"
+        ) : cajaHoy.paymentsCount === 0 ? (
+          "Todavía no hay cobros hoy."
+        ) : (
+          <>
+            <b>
+              {cajaHoy.paymentsCount} pago{cajaHoy.paymentsCount === 1 ? "" : "s"}
+            </b>
+            {mediosDeHoy.slice(0, 3).map((m) => (
+              <span key={m.method}>
+                {" · "}
+                {PAYMENT_METHOD_LABELS[m.method as PaymentMethod] ?? m.method}{" "}
+                <span className="cifra text-on-night">{formatMoney(m.totalCents, currency)}</span>
+              </span>
+            ))}
+          </>
+        ),
+      }
+    : {
+        label: "Citas hoy",
+        valor: citasConError ? "—" : String(citasHoy.length),
+        acento: citasConError
+          ? undefined
+          : { texto: citasHoy.length === 1 ? "cita" : "citas", lado: "despues" },
+        desglose: citasConError ? (
+          "Sin datos"
+        ) : (
+          <>
+            <b>
+              {profesionalesHoy} profesional{profesionalesHoy === 1 ? "" : "es"}
+            </b>
+            {` · ${atendidas} atendida${atendidas === 1 ? "" : "s"}`}
+          </>
+        ),
+      };
+  const cifras: CifraChica[] = veFinanzas
+    ? [kpiPorCobrar, kpiCitas, kpiConfirmadas, kpiEnSala]
     : [
-        kpiCitas,
         kpiConfirmadas,
         kpiEnSala,
         citasConError
@@ -500,9 +535,19 @@ function Dashboard() {
               label: "Sin confirmar",
               valor: String(sinConfirmar48h),
               nota: "Próximas 48 h",
-              tono: sinConfirmar48h > 0 ? "warning" : undefined,
+              tonoNota: sinConfirmar48h > 0 ? "warning" : undefined,
+            },
+        citasConError
+          ? sinDatosCitas("Atendidas")
+          : {
+              label: "Atendidas",
+              valor: String(atendidas),
+              nota: `de ${citasHoy.length} cita${citasHoy.length === 1 ? "" : "s"}`,
             },
       ];
+  const avisosPorDespachar = gestionaAgenda
+    ? contarFilasDeRecordatorios(recordatorios) + (outreach?.total ?? 0)
+    : null;
 
   const tareas: Tarea[] = [
     ...(gestionaAgenda
@@ -523,7 +568,7 @@ function Dashboard() {
           },
           {
             // Filas por paciente, como las muestra /recordatorios (UX-11).
-            n: contarFilasDeRecordatorios(recordatorios) + (outreach?.total ?? 0),
+            n: avisosPorDespachar ?? 0,
             titulo: "Avisos para despachar",
             detalle: "Recordatorios, controles y presupuestos",
             cta: "Avisar",
@@ -596,20 +641,39 @@ function Dashboard() {
     page: 1,
   };
 
+  const titulo = tituloDeAgenda("dia", hoy);
+  const enlaceAgenda = (
+    <Link
+      to="/agenda"
+      search={{ ...busquedaAgendaHoy, vista: "dia" }}
+      className="inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-brand-on-night underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-on-night sm:min-h-9"
+    >
+      Abrir la agenda →
+    </Link>
+  );
+
   return (
     <AppShell title="Hoy" access={access}>
-      {/* Dirección híbrida (08-oct-2026): identidad Classical con la densidad
-          de Industry. Objetivo: a 1200×760 entran 10 citas sin scroll; en el
-          celular la agenda queda en la primera pantalla. */}
-      {/* En el celular la grilla se disuelve (`max-md:contents`) para que el
-          orden sea saludo → aviso de la cola → agenda → cifras → tareas. */}
-      <div className="mx-auto flex max-w-6xl flex-col gap-5">
-        <header className="flex flex-wrap items-end justify-between gap-3">
+      {/* Pase A+ (27-oct-2026): encabezado editorial, tarjeta en tinta con la
+          cifra del día y el día por profesional, y a la derecha lo que hay
+          que resolver. Mismo lenguaje que la agenda y la caja. */}
+      <div className="mx-auto max-w-[84rem] space-y-[18px]">
+        <header className="flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pb-2">
           <div className="min-w-0">
-            <p className="kicker">{formatoFechaLarga(hoy)}</p>
-            <h2 className="mt-1 font-display text-[28px] font-medium leading-none tracking-[-0.015em] sm:text-[34px]">
-              {saludo(clinicTz)}
-              {primerNombre ? `, ${primerNombre}` : ""}.
+            <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
+              {access.clinic?.name && (
+                <>
+                  <b className="font-semibold text-foreground/85">{access.clinic.name}</b>
+                  <span aria-hidden>·</span>
+                </>
+              )}
+              <span>
+                {saludo(clinicTz)}
+                {primerNombre ? `, ${primerNombre}` : ""}
+              </span>
+            </p>
+            <h2 className="mt-2 font-display text-[clamp(2.25rem,3.6vw,3.5rem)] font-medium leading-none tracking-[-0.02em] text-balance [font-variant-numeric:lining-nums]">
+              {titulo.antes} <em className="text-brand-600">{titulo.enfasis}</em>
             </h2>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -625,13 +689,17 @@ function Dashboard() {
                   hasta: "",
                   page: 1,
                 }}
-                className={buttonVariants({ variant: "outline" })}
+                className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-full px-4")}
               >
                 <UserPlus aria-hidden /> Nuevo paciente
               </Link>
             )}
             {gestionaAgenda && (
-              <Link to="/agenda" search={busquedaAgendaHoy} className={buttonVariants()}>
+              <Link
+                to="/agenda"
+                search={busquedaAgendaHoy}
+                className={cn(buttonVariants(), "h-10 rounded-full px-4")}
+              >
                 <CalendarPlus aria-hidden /> Agendar cita
               </Link>
             )}
@@ -643,12 +711,8 @@ function Dashboard() {
           <AvisoCitasPasadas clinicId={clinicId} timezone={clinicTz} />
         )}
 
-        <div className="max-md:order-1">
-          <FilaKpis kpis={kpis} cargando={isLoading} />
-        </div>
-
         {/* Celular de recepción: la cola se resume en un aviso de una línea
-            que despliega la lista; la agenda queda a la vista. */}
+            que despliega la lista. */}
         {clinicId && gestionaAgenda && (
           <div className="empty:hidden md:hidden">
             <ColaConfirmacion
@@ -662,16 +726,30 @@ function Dashboard() {
           </div>
         )}
 
-        <div className="grid gap-6 max-md:contents lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] min-[1400px]:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-          <section aria-labelledby="agenda-hoy" className="min-w-0">
-            <div className="mb-1.5 flex items-baseline justify-between gap-3">
-              <h2 id="agenda-hoy" className="font-display text-[22px] font-semibold leading-tight">
-                Agenda de hoy
+        <TarjetaDelDia
+          protagonista={protagonista}
+          cifras={cifras}
+          citasHoy={citasHoy}
+          profesionales={profesionales}
+          hoy={hoy}
+          zonaHoraria={clinicTz}
+          cargando={isLoading}
+          conError={citasConError}
+          enlaceAgenda={enlaceAgenda}
+          avisosPorDespachar={avisosPorDespachar}
+          pattyEnHabilitacion={estadoIa !== undefined && estadoIa.habilitada !== true}
+        />
+
+        <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
+          <section aria-labelledby="agenda-hoy" className={cn(PANEL, "min-w-0 overflow-hidden")}>
+            <div className="flex flex-wrap items-baseline justify-between gap-3 px-5 pt-[18px] pb-3">
+              <h2 id="agenda-hoy" className="font-display text-[30px] font-medium leading-none">
+                Agenda <em className="text-brand-600">de hoy</em>
               </h2>
               <Link
                 to="/agenda"
                 search={busquedaAgendaHoy}
-                className="inline-flex min-h-11 items-center text-sm text-brand-700 hover:underline sm:min-h-9"
+                className="inline-flex min-h-11 items-center rounded-sm text-sm font-semibold text-brand-700 underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring sm:min-h-9"
               >
                 Abrir agenda →
               </Link>
@@ -681,7 +759,7 @@ function Dashboard() {
               // recepción creía que el día estaba libre (auditoría 07-oct).
               <div
                 role="alert"
-                className="flex flex-wrap items-center justify-between gap-3 border-y border-destructive-border bg-destructive-soft px-4 py-5 text-sm text-destructive"
+                className="flex flex-wrap items-center justify-between gap-3 border-t border-destructive-border bg-destructive-soft px-5 py-5 text-sm text-destructive"
               >
                 No pudimos cargar la agenda de hoy. Revisa la conexión.
                 <button
@@ -693,14 +771,14 @@ function Dashboard() {
                 </button>
               </div>
             ) : citasHoy.length === 0 ? (
-              <p className="border-y border-border py-8 text-sm text-muted-foreground">
+              <p className="border-t border-hairline px-5 py-8 text-sm text-muted-foreground">
                 {isLoading ? "Cargando la agenda…" : "No hay citas para hoy."}
               </p>
             ) : (
               <>
                 {/* Celular: lista de dos líneas, sin tabla que obligue a
                     deslizar de costado a 390px. */}
-                <ul className="divide-y divide-hairline border-y border-border md:hidden">
+                <ul className="divide-y divide-hairline border-t border-hairline md:hidden">
                   {citasHoy.map((c) => {
                     const saldo = saldos[c.pacienteId];
                     return (
@@ -708,17 +786,19 @@ function Dashboard() {
                         <Link
                           to="/pacientes/$pacienteId"
                           params={{ pacienteId: c.pacienteId }}
-                          className="flex min-h-12 items-center gap-2.5 py-2"
+                          className="flex min-h-14 items-center gap-3 px-4 py-2.5 outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                         >
-                          <span className="w-11 shrink-0 text-[13.5px] cifra text-muted-foreground">
+                          <span className="w-12 shrink-0 cifra text-sm text-muted-foreground">
                             {horaDeCita(c.inicio)}
                           </span>
                           <span className="min-w-0 flex-1 leading-snug">
-                            <span className="block truncate text-sm font-medium">{c.paciente}</span>
-                            <span className="block truncate text-xs text-muted-foreground">
+                            <span className="block truncate font-display text-[19px] font-medium leading-tight">
+                              {c.paciente}
+                            </span>
+                            <span className="block truncate text-[13px] text-muted-foreground">
                               {c.tratamiento}
                               {veFinanzas && saldo !== undefined && saldo > 0 && (
-                                <span className="tabular-nums text-warning">
+                                <span className="cifra text-warning">
                                   {" "}
                                   · debe {formatMoney(saldo, currency)}
                                 </span>
@@ -731,76 +811,77 @@ function Dashboard() {
                     );
                   })}
                 </ul>
-                {/* Escritorio: una línea por cita (≈37px). El profesional es
-                    columna desde lg, truncado, con el nombre completo en el
-                    title. */}
-                <div className="hidden border-y border-border md:block">
-                  <table className="w-full table-fixed text-sm">
+                {/* Escritorio: una fila por cita, hora en mono, paciente en
+                    serif, estado con forma + ícono + texto. */}
+                <div className="hidden md:block">
+                  <table className="w-full table-fixed border-collapse text-[15px]">
                     <thead>
-                      <tr className="text-left text-xs font-medium text-muted-foreground">
-                        <th scope="col" className="w-14 py-2 pr-3 font-normal">
+                      <tr className="border-y border-control/50 text-left text-xs font-semibold text-muted-foreground">
+                        <th scope="col" className="w-[4.5rem] py-2 pr-3 pl-5 font-semibold">
                           Hora
                         </th>
-                        <th scope="col" className="truncate py-2 pr-3 font-normal">
+                        <th scope="col" className="py-2 pr-3 font-semibold">
                           Paciente · tratamiento
                         </th>
                         <th
                           scope="col"
-                          className="hidden py-2 pr-3 font-normal lg:table-cell lg:w-12 xl:w-32"
+                          className="hidden py-2 pr-3 font-semibold xl:table-cell xl:w-36"
                         >
-                          Prof.
+                          Profesional
                         </th>
-                        <th scope="col" className="w-36 py-2 pr-3 font-normal">
+                        <th scope="col" className="w-36 py-2 pr-3 font-semibold">
                           Estado
                         </th>
                         {veFinanzas && (
-                          <th scope="col" className="w-20 py-2 text-right font-normal">
+                          <th scope="col" className="w-28 py-2 pr-5 text-right font-semibold">
                             Saldo
                           </th>
                         )}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-hairline">
+                    <tbody>
                       {citasHoy.map((c) => {
                         const saldo = saldos[c.pacienteId];
                         const profesional = nombreProfesional.get(c.profesionalId) ?? "—";
                         return (
-                          <tr key={c.id} data-cita className="align-middle leading-5">
-                            <td className="py-2 pr-3 cifra text-muted-foreground">
+                          <tr
+                            key={c.id}
+                            data-cita
+                            className="border-b border-hairline align-middle last:border-b-0 hover:bg-muted/40"
+                          >
+                            <td className="py-[11px] pr-3 pl-5 cifra text-muted-foreground">
                               {horaDeCita(c.inicio)}
                             </td>
                             {/* Paciente y tratamiento comparten celda: el
                                 ancho se reparte según el largo real de cada
                                 uno en vez de cortar los dos a la mitad. */}
                             <td
-                              className="truncate py-2 pr-3"
-                              title={`${c.paciente} · ${c.tratamiento}`}
+                              className="truncate py-[11px] pr-3"
+                              title={`${c.paciente} · ${c.tratamiento} · ${profesional}`}
                             >
                               <Link
                                 to="/pacientes/$pacienteId"
                                 params={{ pacienteId: c.pacienteId }}
-                                className="hover:text-brand-700"
+                                className="rounded-sm font-display text-[18px] font-medium outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                               >
                                 {c.paciente}
                               </Link>
-                              <span className="text-muted-foreground"> · {c.tratamiento}</span>
+                              <span className="text-[13.5px] text-muted-foreground">
+                                {" "}
+                                · {c.tratamiento}
+                                <span className="xl:hidden"> · {iniciales(profesional)}</span>
+                              </span>
                             </td>
-                            <td
-                              className="hidden truncate py-2 pr-3 text-foreground/80 lg:table-cell"
-                              title={profesional}
-                            >
-                              {/* Entre 1024 y 1280 la columna es angosta:
-                                  iniciales, y el nombre completo en el title. */}
-                              <span className="xl:hidden">{iniciales(profesional)}</span>
-                              <span className="hidden xl:inline">{profesional}</span>
+                            <td className="hidden truncate py-[11px] pr-3 text-[13.5px] text-foreground/80 xl:table-cell">
+                              {profesional}
                             </td>
-                            <td className="py-2 pr-3">
+                            <td className="py-[11px] pr-3">
                               <EstadoCitaPastilla cita={c} />
                             </td>
                             {veFinanzas && (
                               <td
                                 className={cn(
-                                  "truncate py-2 text-right cifra",
+                                  "truncate py-[11px] pr-5 text-right cifra text-sm",
                                   saldo !== undefined && saldo > 0 && "text-warning",
                                 )}
                               >
@@ -823,10 +904,10 @@ function Dashboard() {
             )}
           </section>
 
-          <div className="min-w-0 space-y-5 max-md:order-2">
+          <div className="min-w-0 space-y-[18px]">
             {/* Escritorio y tablet: la cola compacta, con "Confirmó" a un clic. */}
             {clinicId && gestionaAgenda && (
-              <div className="hidden md:block">
+              <div className="hidden empty:hidden md:block">
                 <ColaConfirmacion
                   clinicId={clinicId}
                   clinicaNombre={access.clinic?.name ?? "la clínica"}
@@ -837,6 +918,7 @@ function Dashboard() {
               </div>
             )}
             <ColaAccionable tareas={tareas} />
+            {estadoIa !== undefined && estadoIa.habilitada !== true && <PattyDelDia />}
             {clinicId && (access.clinic?.country ?? "").toUpperCase() === "CL" && (
               <PacientesGes clinicId={clinicId} />
             )}
@@ -845,12 +927,12 @@ function Dashboard() {
         </div>
 
         {clinicId && veFinanzas && (
-          <section aria-labelledby="desempeno" className="space-y-3 max-md:order-3">
+          <section aria-labelledby="desempeno" className="space-y-3 pt-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 id="desempeno" className="font-display text-2xl font-semibold">
-                Desempeño del mes
+              <h2 id="desempeno" className="font-display text-[30px] font-medium leading-none">
+                Desempeño <em className="text-brand-600">del mes</em>
               </h2>
-              <p className="text-sm text-muted-foreground">
+              <p className="cifra text-sm text-muted-foreground">
                 {formatoFecha(primerDiaDelMes)} — {formatoFecha(hoy)}
               </p>
             </div>

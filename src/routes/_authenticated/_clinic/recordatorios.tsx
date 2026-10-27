@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
+  AlertTriangle,
   Cake,
   ChevronDown,
   Clock,
@@ -80,53 +81,50 @@ function leerDiasPresupuesto(): number {
   return DIAS_SIN_RESPUESTA_POR_DEFECTO;
 }
 
-const OUTREACH_META: Record<
-  OutreachTemplateKind,
-  { label: string; icon: typeof Sparkles; badgeClass: string }
-> = {
+const OUTREACH_META: Record<OutreachTemplateKind, { label: string; icon: typeof Sparkles }> = {
   hygiene_recall: {
     label: "Control periódico",
     icon: Sparkles,
-    badgeClass: "bg-brand-soft text-brand-700",
   },
   review_request: {
     label: "Pedido de reseña",
     icon: Star,
-    badgeClass: "bg-warning-soft text-warning",
   },
   payment_due: {
     label: "Saldo pendiente",
     icon: Wallet,
-    badgeClass: "bg-destructive/10 text-destructive",
   },
   quote_follow_up: {
     label: "Seguimiento de presupuesto",
     icon: Receipt,
-    badgeClass: "bg-info-soft text-info",
   },
   birthday_greeting: {
     label: "Cumpleaños",
     icon: Cake,
-    badgeClass: "bg-warning-soft text-warning",
   },
   treatment_followup: {
     label: "Seguimiento post-tratamiento",
     icon: Stethoscope,
-    badgeClass: "bg-brand-soft text-brand-700",
   },
   referral_invite: {
     label: "Invitación a referir",
     icon: Users,
-    badgeClass: "bg-success-soft text-success",
   },
   nps_survey: {
     label: "Encuesta de satisfacción",
     icon: Star,
-    badgeClass: "bg-brand-soft text-brand-700",
   },
 };
 
 const KINDS_DE_OUTREACH = Object.keys(OUTREACH_META) as OutreachTemplateKind[];
+
+type Filtro = "todo" | "citas" | "presupuestos" | "seguimiento";
+const FILTROS: { id: Filtro; label: string }[] = [
+  { id: "todo", label: "Todo" },
+  { id: "citas", label: "Citas" },
+  { id: "presupuestos", label: "Presupuestos" },
+  { id: "seguimiento", label: "Controles y seguimiento" },
+];
 
 /** Orden de urgencia: la primera sección con algo pendiente arranca abierta. */
 type IdSeccion = "aviso3h" | "recordatorio48h" | "presupuestos" | OutreachTemplateKind;
@@ -266,6 +264,17 @@ function RecordatoriosPage() {
   const abierta = (id: IdSeccion) => abiertas[id] ?? id === masUrgente;
   const alternar = (id: IdSeccion) => setAbiertas((prev) => ({ ...prev, [id]: !abierta(id) }));
 
+  const [filtro, setFiltro] = useState<Filtro>("todo");
+  const totalSeguimiento = KINDS_DE_OUTREACH.reduce((n, k) => n + outreachByKind[k].length, 0);
+  const conteoFiltro: Record<Filtro, number> = {
+    todo:
+      aviso3h.length + recordatorio48h.length + presupuestosPorPaciente.length + totalSeguimiento,
+    citas: aviso3h.length + recordatorio48h.length,
+    presupuestos: presupuestosPorPaciente.length,
+    seguimiento: totalSeguimiento,
+  };
+  const ver = (grupo: Exclude<Filtro, "todo">) => filtro === "todo" || filtro === grupo;
+
   const invalidar = () => {
     queryClient.invalidateQueries({ queryKey: ["pending-reminders", clinicId] });
   };
@@ -291,14 +300,32 @@ function RecordatoriosPage() {
 
   return (
     <AppShell title="Recordatorios" access={access}>
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
-            presupuestos que siguen sin respuesta y pacientes candidatos a un control periódico, un
-            pedido de reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes
-            mandar de a uno o con «Enviar todos»: tú revisas antes de que salga nada.
-          </p>
+      <div className="mx-auto max-w-[84rem] space-y-[18px]">
+        {/* Pase A+ (27-oct-2026): encabezado editorial, chips por tipo y cada
+            lista como panel con su "Enviar todos (n)". Nada sale solo: cada
+            envío lo dispara alguien de la clínica, con vista previa. */}
+        <header className="flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pb-1">
+          <div className="min-w-0">
+            <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
+              <b className="font-semibold text-foreground/85">Mensajes</b>
+              {clinicaNombre && (
+                <>
+                  <span aria-hidden>·</span>
+                  <span>{clinicaNombre}</span>
+                </>
+              )}
+            </p>
+            <h2 className="mt-2 font-display text-[clamp(2.25rem,3.6vw,3.5rem)] font-medium leading-none tracking-[-0.02em] text-balance">
+              Recordatorios <em className="text-brand-600">por enviar</em>
+            </h2>
+            <p className="mt-3 max-w-[68ch] text-[15px] text-muted-foreground">
+              Citas que entran a la ventana de 48 h (recordatorio) o de 3 h (aviso previo),
+              presupuestos sin respuesta y pacientes para un control, una reseña o un aviso de
+              saldo. Cada paciente aparece una vez por lista.{" "}
+              <b className="font-semibold text-foreground">Nada sale solo:</b> mandas de a uno o con
+              «Enviar todos», y revisas antes de que salga.
+            </p>
+          </div>
           {clinicId && (
             <ExportarCsvLista<FilaRecordatorioCsv>
               clinicId={clinicId}
@@ -324,6 +351,34 @@ function RecordatoriosPage() {
               ]}
             />
           )}
+        </header>
+
+        <div role="group" aria-label="Filtrar por tipo" className="flex flex-wrap gap-1.5">
+          {FILTROS.map((f) => {
+            const activo = filtro === f.id;
+            const n = conteoFiltro[f.id];
+            return (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={activo}
+                onClick={() => setFiltro(f.id)}
+                className={cn(
+                  "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3.5 text-[13.5px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11",
+                  activo
+                    ? "border-foreground bg-foreground text-background"
+                    : "border-control text-foreground/80 hover:border-foreground",
+                )}
+              >
+                {f.label}
+                <span
+                  className={cn("cifra text-xs", activo ? "opacity-80" : "text-muted-foreground")}
+                >
+                  {n}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {(isLoading || isLoadingOutreach) && (
@@ -351,8 +406,21 @@ function RecordatoriosPage() {
           />
         )}
 
+        {!nadaPendiente && filtro !== "todo" && conteoFiltro[filtro] === 0 && (
+          <p className="rounded-[14px] border border-hairline bg-card px-5 py-6 text-sm text-muted-foreground">
+            Nada pendiente en esta lista.{" "}
+            <button
+              type="button"
+              onClick={() => setFiltro("todo")}
+              className="rounded-sm font-semibold text-brand-700 underline-offset-4 outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            >
+              Ver todo
+            </button>
+          </p>
+        )}
+
         {nadaPendiente && (
-          <div className="card-clinical p-10 text-center">
+          <div className="rounded-[14px] border border-hairline bg-card p-10 text-center">
             <MessageCircleMore className="mx-auto mb-3 size-8 text-muted-foreground" />
             <p className="text-sm font-medium">No hay nada pendiente ahora mismo.</p>
             <p className="mt-1 text-xs text-muted-foreground">
@@ -362,12 +430,11 @@ function RecordatoriosPage() {
           </div>
         )}
 
-        {clinicId && !isLoading && aviso3h.length > 0 && (
+        {clinicId && !isLoading && ver("citas") && aviso3h.length > 0 && (
           <Seccion
-            icono={<Clock className="size-4 text-warning" aria-hidden />}
-            titulo="Aviso de 3h"
+            icono={<Clock className="size-[18px]" aria-hidden />}
+            titulo="Aviso de 3 h"
             conteo={aviso3h.length}
-            badgeClass="bg-warning-soft text-warning"
             abierta={abierta("aviso3h")}
             onAlternar={() => alternar("aviso3h")}
             acciones={
@@ -388,12 +455,11 @@ function RecordatoriosPage() {
           </Seccion>
         )}
 
-        {clinicId && !isLoading && recordatorio48h.length > 0 && (
+        {clinicId && !isLoading && ver("citas") && recordatorio48h.length > 0 && (
           <Seccion
-            icono={<Clock className="size-4 text-brand" aria-hidden />}
-            titulo="Recordatorio de 48h"
+            icono={<Clock className="size-[18px]" aria-hidden />}
+            titulo="Recordatorio de 48 h"
             conteo={recordatorio48h.length}
-            badgeClass="bg-brand-soft text-brand-700"
             abierta={abierta("recordatorio48h")}
             onAlternar={() => alternar("recordatorio48h")}
             acciones={
@@ -414,12 +480,11 @@ function RecordatoriosPage() {
           </Seccion>
         )}
 
-        {!isLoadingPresupuestos && !presupuestosConError && clinicId && (
+        {!isLoadingPresupuestos && !presupuestosConError && clinicId && ver("presupuestos") && (
           <Seccion
-            icono={<Receipt className="size-4 text-info" aria-hidden />}
+            icono={<Receipt className="size-[18px]" aria-hidden />}
             titulo="Presupuestos sin respuesta"
             conteo={presupuestosPorPaciente.length}
-            badgeClass="bg-info-soft text-info"
             abierta={abierta("presupuestos")}
             onAlternar={() => alternar("presupuestos")}
             acciones={
@@ -446,6 +511,7 @@ function RecordatoriosPage() {
 
         {clinicId &&
           !isLoadingOutreach &&
+          ver("seguimiento") &&
           KINDS_DE_OUTREACH.map((kind) => {
             const grupos = outreachByKind[kind];
             if (grupos.length === 0) return null;
@@ -454,10 +520,9 @@ function RecordatoriosPage() {
             return (
               <Seccion
                 key={kind}
-                icono={<Icon className="size-4" aria-hidden />}
+                icono={<Icon className="size-[18px]" aria-hidden />}
                 titulo={meta.label}
                 conteo={grupos.length}
-                badgeClass={meta.badgeClass}
                 abierta={abierta(kind)}
                 onAlternar={() => alternar(kind)}
                 acciones={
@@ -484,14 +549,14 @@ function RecordatoriosPage() {
 }
 
 /**
- * Sección plegable con su cuenta a la vista. Plegada, la página entera entra
- * en una pantalla; antes medía casi 5000px con todo desplegado.
+ * Lista plegable con su cuenta a la vista, como panel A+ (el de la caja).
+ * Plegada, la página entera entra en una pantalla; antes medía casi 5000px
+ * con todo desplegado.
  */
 function Seccion({
   icono,
   titulo,
   conteo,
-  badgeClass,
   abierta,
   onAlternar,
   acciones,
@@ -500,7 +565,6 @@ function Seccion({
   icono: React.ReactNode;
   titulo: string;
   conteo: number;
-  badgeClass: string;
   abierta: boolean;
   onAlternar: () => void;
   acciones?: React.ReactNode;
@@ -508,15 +572,21 @@ function Seccion({
 }) {
   const id = useId();
   return (
-    <section aria-labelledby={`${id}-titulo`} className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-hairline pb-2">
-        <h2 id={`${id}-titulo`} className="font-display text-lg font-semibold">
+    <section
+      aria-labelledby={`${id}-titulo`}
+      className="overflow-hidden rounded-[14px] border border-hairline bg-card"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-2.5 sm:px-4">
+        <h2
+          id={`${id}-titulo`}
+          className="min-w-0 font-display text-[23px] font-medium leading-tight"
+        >
           <button
             type="button"
             onClick={onAlternar}
             aria-expanded={abierta}
             aria-controls={`${id}-contenido`}
-            className="flex min-h-11 items-center gap-1.5 rounded-md text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+            className="flex min-h-11 items-center gap-2 rounded-md px-1 text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             <ChevronDown
               className={cn(
@@ -525,16 +595,24 @@ function Seccion({
               )}
               aria-hidden
             />
-            {icono}
+            <span className="text-muted-foreground">{icono}</span>
             {titulo}
-            <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", badgeClass)}>
+            <span className="cifra rounded-full border border-hairline px-2 py-px font-sans text-xs font-medium text-muted-foreground">
               {conteo}
             </span>
           </button>
         </h2>
-        {acciones && <div className="flex flex-wrap items-center gap-2">{acciones}</div>}
+        {acciones && (
+          <div className="flex flex-wrap items-center gap-2 [&_button]:rounded-full">
+            {acciones}
+          </div>
+        )}
       </div>
-      {abierta && <div id={`${id}-contenido`}>{children}</div>}
+      {abierta && (
+        <div id={`${id}-contenido`} className="border-t border-hairline">
+          {children}
+        </div>
+      )}
     </section>
   );
 }
@@ -544,7 +622,7 @@ function SelectorDeDias({ dias, onCambiar }: { dias: number; onCambiar: (d: numb
     <div
       role="group"
       aria-label="Días sin respuesta"
-      className="inline-flex items-center gap-0.5 rounded-lg border border-hairline p-0.5"
+      className="inline-flex items-center gap-0.5 rounded-full border border-hairline p-[3px]"
     >
       <span className="px-2 text-xs text-muted-foreground">Sin respuesta hace</span>
       {OPCIONES_DE_DIAS_SIN_RESPUESTA.map((opcion) => (
@@ -554,9 +632,9 @@ function SelectorDeDias({ dias, onCambiar }: { dias: number; onCambiar: (d: numb
           aria-pressed={opcion === dias}
           onClick={() => onCambiar(opcion)}
           className={cn(
-            "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+            "h-7 rounded-full px-2.5 text-xs font-semibold transition-colors outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring pointer-coarse:h-10",
             opcion === dias
-              ? "bg-brand-soft text-brand-700"
+              ? "bg-foreground text-background"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
@@ -611,16 +689,18 @@ function ReminderList({
   onSent: () => void;
 }) {
   return (
-    <div className="card-clinical divide-y divide-hairline overflow-hidden">
+    <ul className="divide-y divide-hairline">
       {filas.map((fila) => {
         const citas = fila.envios.reduce((n, e) => n + e.citas.length, 0);
         return (
-          <div key={fila.patientId} className="space-y-2 px-5 py-4">
-            <div className="flex items-center gap-2">
-              <p className="truncate text-sm font-medium">{fila.patientName}</p>
+          <li key={fila.patientId} className="space-y-2.5 px-5 py-4">
+            <div className="flex items-baseline gap-2">
+              <p className="truncate font-display text-[20px] font-medium leading-tight">
+                {fila.patientName}
+              </p>
               {citas > 1 && (
-                <span className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                  {citas} citas
+                <span className="shrink-0 text-xs font-medium text-muted-foreground">
+                  <span className="cifra">{citas}</span> citas
                 </span>
               )}
             </div>
@@ -631,20 +711,17 @@ function ReminderList({
                   key={envio.clave}
                   className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
                 >
-                  <p className="min-w-0 text-xs text-muted-foreground">
-                    <span
-                      className={cn(
-                        "mr-1.5 inline-block rounded px-1.5 py-0.5 text-[11px] font-medium",
-                        envio.kind === "appointment_checkin"
-                          ? "bg-warning-soft text-warning"
-                          : "bg-brand-soft text-brand-700",
-                      )}
-                    >
-                      {envio.kind === "appointment_checkin" ? "3h" : "48h"}
-                    </span>
-                    {detalleDeEnvio(envio)}
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                    <ChipVentana kind={envio.kind} />
+                    <span>{envio.principal.fechaLarga}</span>
+                    {envio.citas.map((c) => (
+                      <span key={c.appointmentId} className="min-w-0">
+                        <span className="cifra text-foreground">{c.hora}</span> {c.treatmentLabel}{" "}
+                        <span className="text-muted-foreground">· {c.professionalName}</span>
+                      </span>
+                    ))}
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 [&_button]:rounded-full">
                     {envio.whatsappPendiente && (
                       <WhatsAppButton
                         clinicId={clinicId}
@@ -674,14 +751,39 @@ function ReminderList({
               );
             })}
             {!fila.patientPhone && !fila.patientEmail && (
-              <p className="text-xs text-destructive">
-                Sin teléfono ni email cargados — no se puede enviar.
-              </p>
+              <SinCanal texto="Sin teléfono ni email cargados: no se puede enviar." />
             )}
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
+  );
+}
+
+/** Ventana del recordatorio: forma (borde), ícono y texto, no solo color. */
+function ChipVentana({ kind }: { kind: EnvioDeRecordatorio<PendingReminder>["kind"] }) {
+  const tresHoras = kind === "appointment_checkin";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 rounded-full border px-2 py-px text-xs font-semibold",
+        tresHoras
+          ? "border-dashed border-warning-border bg-warning-soft text-warning"
+          : "border-hairline text-foreground/80",
+      )}
+    >
+      <Clock aria-hidden className="size-3" strokeWidth={2.4} />
+      {tresHoras ? "En 3 h" : "En 48 h"}
+    </span>
+  );
+}
+
+function SinCanal({ texto }: { texto: string }) {
+  return (
+    <p className="flex items-start gap-1.5 text-[13px] font-medium text-destructive">
+      <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+      {texto}
+    </p>
   );
 }
 
@@ -813,7 +915,7 @@ function OutreachList({
   onSent: () => void;
 }) {
   return (
-    <div className="card-clinical divide-y divide-hairline overflow-hidden">
+    <div className="divide-y divide-hairline">
       {grupos.map((g) => {
         const item = g.principal;
         return (
@@ -822,16 +924,19 @@ function OutreachList({
             className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{item.patientName}</p>
-              <p className="text-xs text-muted-foreground">{detalleDeGrupo(g)}</p>
+              <p className="truncate font-display text-[20px] font-medium leading-tight">
+                {item.patientName}
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">{detalleDeGrupo(g)}</p>
               {!item.patientPhone && (
-                <p className="mt-1 text-xs text-destructive">
-                  Sin teléfono cargado — no se puede enviar.
-                </p>
+                <div className="mt-1">
+                  <SinCanal texto="Sin teléfono cargado: no se puede enviar." />
+                </div>
               )}
             </div>
             {item.patientPhone && (
               <WhatsAppButton
+                className="rounded-full"
                 clinicId={clinicId}
                 patientId={g.patientId}
                 appointmentId={item.appointmentId}
@@ -906,13 +1011,13 @@ function PresupuestosSinRespuesta({
 }) {
   if (grupos.length === 0) {
     return (
-      <p className="card-clinical px-5 py-4 text-sm text-muted-foreground">
+      <p className="px-5 py-4 text-sm text-muted-foreground">
         Ningún presupuesto lleva {dias} días o más sin aceptarse.
       </p>
     );
   }
   return (
-    <div className="card-clinical divide-y divide-hairline overflow-hidden">
+    <div className="divide-y divide-hairline">
       {grupos.map((g) => {
         const item = g.principal;
         const variables = variablesDePresupuestos(g, clinica);
@@ -924,9 +1029,11 @@ function PresupuestosSinRespuesta({
             className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{item.patientName}</p>
+              <p className="truncate font-display text-[20px] font-medium leading-tight">
+                {item.patientName}
+              </p>
               {g.items.map((q) => (
-                <p key={q.quoteId} className="text-xs text-muted-foreground">
+                <p key={q.quoteId} className="mt-0.5 text-sm text-muted-foreground">
                   Presupuesto {q.quoteNumber} ·{" "}
                   <span className="cifra">{formatMoney(q.quoteTotalCents, q.currency)}</span> ·{" "}
                   {q.estado === "draft" ? "creado" : "enviado"} {hace(q.diasSinRespuesta)}
@@ -949,9 +1056,11 @@ function PresupuestosSinRespuesta({
                 </p>
               )}
               {sinCanal ? (
-                <p className="mt-1 text-xs text-destructive">
-                  {item.motivoSinWhatsApp} Sin email cargado — no se puede enviar.
-                </p>
+                <div className="mt-1">
+                  <SinCanal
+                    texto={`${item.motivoSinWhatsApp} Sin email cargado: no se puede enviar.`}
+                  />
+                </div>
               ) : (
                 !item.puedeWhatsApp && (
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -960,7 +1069,7 @@ function PresupuestosSinRespuesta({
                 )
               )}
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 [&_button]:rounded-full">
               {item.puedeWhatsApp && (
                 <WhatsAppButton
                   clinicId={clinicId}

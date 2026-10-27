@@ -83,45 +83,51 @@ function ConversacionesPage() {
     void navigate({ search: { paciente: patientId }, replace: true });
   }
 
-  const titular =
+  // Título editorial A+: una parte en redonda y la otra en itálica ocre.
+  const titular: [string, string] =
     isLoading || isError
-      ? "Conversaciones"
+      ? ["Tus", "conversaciones"]
       : conversaciones.length === 0
-        ? "Todavía no hay conversaciones."
+        ? ["Todavía no hay", "conversaciones"]
         : pendientes === 0
-          ? "Todo respondido."
-          : `${pendientes} ${pendientes === 1 ? "conversación espera" : "conversaciones esperan"} respuesta.`;
+          ? ["Todo", "respondido"]
+          : [
+              `${pendientes} ${pendientes === 1 ? "conversación" : "conversaciones"}`,
+              pendientes === 1 ? "espera respuesta" : "esperan respuesta",
+            ];
 
   return (
     <AppShell title="Conversaciones" access={access}>
-      <div className="mx-auto max-w-6xl space-y-8">
+      <div className="mx-auto max-w-[84rem] space-y-[18px]">
         {/* En celular, con un hilo abierto, la conversación es su propia
             pantalla: el encabezado y la lista se ocultan. */}
         <header
           className={cn(
-            "flex flex-wrap items-end justify-between gap-4",
+            "flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pb-1",
             pacienteSeleccionado && "hidden lg:flex",
           )}
         >
           <div className="min-w-0">
-            <p className="kicker">Mensajes · WhatsApp</p>
-            <h2 className="mt-2 font-display text-4xl font-normal leading-tight text-balance sm:text-[44px] sm:leading-none">
-              {titular}
+            <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
+              <b className="font-semibold text-foreground/85">Mensajes</b>
+              <span aria-hidden>·</span>
+              <span>WhatsApp</span>
+            </p>
+            <h2 className="mt-2 font-display text-[clamp(2.25rem,3.6vw,3.5rem)] font-medium leading-none tracking-[-0.02em] text-balance [font-variant-numeric:lining-nums]">
+              {titular[0]} <em className="text-brand-600">{titular[1]}</em>
             </h2>
-            <p className="mt-3 max-w-prose text-sm text-muted-foreground">
+            <p className="mt-3 max-w-prose text-[15px] text-muted-foreground">
               Un hilo por paciente. Queda <span className="text-warning">sin responder</span> cuando
               el último mensaje lo escribió el paciente.
             </p>
           </div>
-          <div role="group" aria-label="Filtrar conversaciones" className="flex shrink-0 gap-1">
+          <div role="group" aria-label="Filtrar conversaciones" className="flex shrink-0 gap-1.5">
             <FiltroBoton activo={!soloSinResponder} onClick={() => setSoloSinResponder(false)}>
-              Todas <span className="tabular-nums">({conversaciones.length})</span>
+              Todas <span className="cifra text-xs opacity-80">{conversaciones.length}</span>
             </FiltroBoton>
             <FiltroBoton activo={soloSinResponder} onClick={() => setSoloSinResponder(true)}>
-              Sin responder{" "}
-              <span className={cn("tabular-nums", pendientes > 0 && "text-warning")}>
-                ({pendientes})
-              </span>
+              <Clock aria-hidden className="size-3.5" />
+              Sin responder <span className="cifra text-xs opacity-80">{pendientes}</span>
             </FiltroBoton>
           </div>
         </header>
@@ -129,7 +135,7 @@ function ConversacionesPage() {
         {data?.truncated && (
           <p
             className={cn(
-              "flex items-start gap-2 border-y border-warning-border bg-warning-soft px-4 py-3 text-sm text-warning",
+              "flex items-start gap-2 rounded-[14px] border border-warning-border bg-warning-soft px-4 py-3 text-sm text-warning",
               pacienteSeleccionado && "hidden lg:flex",
             )}
           >
@@ -141,7 +147,7 @@ function ConversacionesPage() {
           </p>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)]">
+        <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,24rem)_minmax(0,1fr)]">
           <section
             aria-label="Lista de conversaciones"
             className={cn("min-w-0", pacienteSeleccionado && "hidden lg:block")}
@@ -172,7 +178,7 @@ function ConversacionesPage() {
                 onVolver={() => seleccionar(undefined)}
               />
             ) : (
-              <div className="flex h-full min-h-[24rem] flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border p-8 text-center">
+              <div className="flex h-full min-h-[24rem] flex-col items-center justify-center gap-3 rounded-[14px] border border-dashed border-border p-8 text-center">
                 <Inbox className="size-7 text-muted-foreground" aria-hidden />
                 <p className="max-w-xs text-sm text-muted-foreground">
                   Elige una conversación de la lista para leerla y responder.
@@ -201,10 +207,10 @@ function FiltroBoton({
       onClick={onClick}
       aria-pressed={activo}
       className={cn(
-        "h-10 border-b-2 px-3 text-sm transition-colors",
+        "inline-flex h-[34px] items-center gap-1.5 rounded-full border px-3.5 text-[13.5px] font-semibold outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring pointer-coarse:h-11",
         activo
-          ? "border-brand font-medium text-foreground"
-          : "border-transparent text-muted-foreground hover:text-foreground",
+          ? "border-foreground bg-foreground text-background"
+          : "border-control text-foreground/80 hover:border-foreground",
       )}
     >
       {children}
@@ -229,7 +235,7 @@ function ListaConversaciones({
 }) {
   if (cargando) {
     return (
-      <p className="border-y border-border py-8 text-sm text-muted-foreground">
+      <p className="rounded-[14px] border border-hairline bg-card px-5 py-8 text-sm text-muted-foreground">
         Cargando conversaciones…
       </p>
     );
@@ -237,7 +243,7 @@ function ListaConversaciones({
 
   if (conversaciones.length === 0) {
     return (
-      <div className="space-y-3 border-y border-border py-6">
+      <div className="space-y-3 rounded-[14px] border border-hairline bg-card px-5 py-6">
         <p className="text-sm font-medium">
           {vacioPorFiltro ? "No queda nada sin responder." : "Todavía no hay conversaciones."}
         </p>
@@ -264,7 +270,7 @@ function ListaConversaciones({
   }
 
   return (
-    <ul className="divide-y divide-hairline border-y border-border">
+    <ul className="divide-y divide-hairline overflow-hidden rounded-[14px] border border-hairline bg-card">
       {conversaciones.map((c) => {
         const pendiente = sinResponder(c);
         const activo = seleccionado === c.patientId;
@@ -276,21 +282,21 @@ function ListaConversaciones({
               onClick={() => onSeleccionar(c.patientId)}
               aria-current={activo ? "true" : undefined}
               className={cn(
-                "flex w-full flex-col gap-1 px-3 py-3.5 text-left transition-colors",
-                activo ? "bg-brand-soft" : "hover:bg-muted/60",
+                "flex w-full flex-col gap-1 px-4 py-3.5 text-left outline-none transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                activo ? "bg-brand-soft" : "hover:bg-muted/50",
               )}
             >
               <span className="flex items-baseline justify-between gap-3">
                 <span
                   className={cn(
-                    "truncate",
+                    "truncate font-display text-[19px] leading-tight",
                     pendiente || activo ? "font-semibold" : "font-medium",
                     activo && "text-brand-700",
                   )}
                 >
                   {c.patientName}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
+                <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
                   {tiempoRelativo(c.lastMessageAt)}
                 </span>
               </span>
@@ -305,10 +311,11 @@ function ListaConversaciones({
                   {pendiente && (
                     <span
                       className={cn(
-                        "inline-flex rounded-sm border px-2 py-0.5 text-xs",
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
                         clasePastilla.warning,
                       )}
                     >
+                      <Clock className="size-3" aria-hidden strokeWidth={2.4} />
                       {c.inboundStreak > 1
                         ? `${c.inboundStreak} mensajes sin responder`
                         : "Sin responder"}
@@ -317,7 +324,7 @@ function ListaConversaciones({
                   {deBaja && (
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs",
+                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
                         clasePastilla.danger,
                       )}
                     >
@@ -411,7 +418,7 @@ function Hilo({
     return (
       <div className="space-y-3">
         {volver}
-        <p className="border-y border-border py-8 text-sm text-muted-foreground">
+        <p className="rounded-[14px] border border-hairline bg-card px-5 py-8 text-sm text-muted-foreground">
           Cargando conversación…
         </p>
       </div>
@@ -426,21 +433,24 @@ function Hilo({
       {volver}
       <section
         aria-label={`Conversación con ${hilo.patientName}`}
-        className="flex flex-col overflow-hidden rounded-lg border border-border"
+        className="flex flex-col overflow-hidden rounded-[14px] border border-hairline bg-card"
       >
-        <header className="flex items-center gap-3 border-b border-hairline px-4 py-3.5">
+        <header className="flex items-center gap-3 border-b border-hairline px-5 py-4">
           <div className="min-w-0 flex-1">
-            <h3 className="truncate font-display text-xl font-semibold leading-tight">
+            <h3 className="truncate font-display text-[28px] font-medium leading-none">
               {hilo.patientName}
             </h3>
-            <p className="truncate text-sm text-muted-foreground tabular-nums">
+            <p className="mt-1 truncate text-sm text-muted-foreground cifra">
               {hilo.patientPhone ?? "Sin teléfono en la ficha"}
             </p>
           </div>
           <Link
             to="/pacientes/$pacienteId"
             params={{ pacienteId: patientId }}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "shrink-0")}
+            className={cn(
+              buttonVariants({ variant: "outline", size: "sm" }),
+              "shrink-0 rounded-full",
+            )}
           >
             <User aria-hidden /> Ficha
           </Link>
@@ -468,7 +478,7 @@ function Hilo({
           </p>
         )}
 
-        <div className="max-h-[60dvh] flex-1 space-y-3 overflow-y-auto px-4 py-4 lg:max-h-[30rem]">
+        <div className="max-h-[60dvh] flex-1 space-y-3 overflow-y-auto bg-background/60 px-5 py-5 lg:max-h-[32rem]">
           {hilo.messages.length === 0 && (
             <p className="text-sm text-muted-foreground">
               No hay mensajes en este hilo todavía. Lo que escribas abajo será el primero.
@@ -480,7 +490,7 @@ function Hilo({
           <div ref={finRef} />
         </div>
 
-        <footer className="space-y-2.5 border-t border-hairline px-4 py-3.5">
+        <footer className="space-y-2.5 border-t border-hairline px-5 py-4">
           <p
             className={cn(
               "flex items-start gap-1.5 text-sm",
@@ -535,7 +545,7 @@ function Hilo({
               disabled={!texto.trim() || mutation.isPending}
               className={cn(
                 buttonVariants({ variant: enviaPorApi ? "default" : "outline" }),
-                "h-11 shrink-0",
+                "h-11 shrink-0 rounded-full px-4",
               )}
             >
               {mutation.isPending ? (
@@ -566,15 +576,15 @@ function Burbuja({ mensaje: m }: { mensaje: ConversationMessage }) {
     <div className={cn("flex", entrante ? "justify-start" : "justify-end")}>
       <div
         className={cn(
-          "max-w-[85%] rounded-lg px-3.5 py-2.5",
+          "max-w-[85%] rounded-[14px] px-3.5 py-2.5",
           entrante
-            ? "rounded-bl-sm border border-hairline bg-muted text-foreground"
-            : "rounded-br-sm border border-hairline bg-brand-soft text-foreground",
+            ? "rounded-bl-[4px] border border-hairline bg-card text-foreground"
+            : "rounded-br-[4px] border border-hairline bg-brand-soft text-foreground",
         )}
       >
-        {etiqueta && <p className="kicker mb-1">{etiqueta}</p>}
-        <p className="whitespace-pre-wrap text-sm">{m.body}</p>
-        <p className="mt-1 flex items-center justify-end gap-1 text-xs text-muted-foreground tabular-nums">
+        {etiqueta && <p className="mb-1 text-xs font-semibold text-muted-foreground">{etiqueta}</p>}
+        <p className="whitespace-pre-wrap text-[15px]">{m.body}</p>
+        <p className="mt-1 flex items-center justify-end gap-1 text-[11.5px] text-muted-foreground cifra">
           {fechaCortaHora(m.createdAt, zona)}
           {!entrante && m.status === "read" && (
             <CheckCheck className="size-3.5 text-info" aria-label="Leído" />

@@ -99,7 +99,7 @@ export function ColaConfirmacion({
       id={idLista}
       className={cn(
         "divide-y divide-hairline",
-        variante === "compacta" ? "rounded-md border border-border" : "border-y border-border",
+        variante === "compacta" ? "border-t border-hairline" : "border-y border-border",
       )}
     >
       {visibles.map((c) => {
@@ -107,23 +107,23 @@ export function ColaConfirmacion({
         const enviando = confirmar.isPending && confirmar.variables === c.id;
         const profesional = nombreProfesional.get(c.profesionalId) ?? "—";
         return (
-          <li key={c.id} className={cn("space-y-2", tactil ? "py-3" : "px-3 py-2.5")}>
+          <li key={c.id} className={cn("space-y-2.5", tactil ? "py-3" : "px-5 py-3.5")}>
             <div className="flex items-start justify-between gap-3">
               <Link
                 to="/pacientes/$pacienteId"
                 params={{ pacienteId: c.pacienteId }}
-                className="min-w-0 hover:text-brand-700"
+                className="min-w-0 rounded-sm outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
               >
-                <span className="block truncate text-sm font-medium">{c.paciente}</span>
-                <span className="block truncate text-xs text-muted-foreground">
+                <span className="block truncate font-display text-[19px] font-medium leading-tight">
+                  {c.paciente}
+                </span>
+                <span className="block truncate text-[13px] text-muted-foreground">
                   {c.tratamiento} · {profesional}
                 </span>
               </Link>
               <span className="shrink-0 text-right leading-none">
-                <span className="block font-display text-[22px] font-semibold tabular-nums">
-                  {hora(c.inicio)}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
+                <span className="cifra block text-[15px] font-medium">{hora(c.inicio)}</span>
+                <span className="text-[11.5px] font-medium text-muted-foreground">
                   {c.fecha === hoy ? "Hoy" : "Mañana"}
                 </span>
               </span>
@@ -140,7 +140,7 @@ export function ColaConfirmacion({
                 variant="full"
                 label="WhatsApp"
                 className={cn(
-                  "justify-center rounded-md border-control px-2.5 text-[13px]",
+                  "justify-center rounded-full border-control px-3 text-[13px]",
                   tactil ? "h-11 flex-1" : "h-9 pointer-coarse:min-h-11",
                 )}
                 variables={{
@@ -158,6 +158,7 @@ export function ColaConfirmacion({
                 title="Llamar"
                 className={cn(
                   buttonVariants({ variant: "outline", size: "icon" }),
+                  "rounded-full",
                   tactil && "size-11",
                   !tel && "pointer-events-none opacity-45",
                 )}
@@ -170,7 +171,7 @@ export function ColaConfirmacion({
                 onClick={() => confirmar.mutate(c.id)}
                 className={cn(
                   buttonVariants({ size: "default" }),
-                  "ml-auto px-3 text-[13px]",
+                  "ml-auto rounded-full px-3.5 text-[13px]",
                   tactil && "h-11 flex-1",
                 )}
               >
@@ -219,21 +220,25 @@ export function ColaConfirmacion({
   }
 
   return (
-    <section aria-labelledby="por-confirmar">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-3">
+    <section
+      aria-labelledby="por-confirmar"
+      className="overflow-hidden rounded-[14px] border border-hairline bg-card"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-5 pt-[18px] pb-3">
         <h2
           id="por-confirmar"
-          className="font-display text-[22px] font-semibold leading-tight whitespace-nowrap"
+          className="font-display text-[26px] font-medium leading-none whitespace-nowrap"
         >
-          {n} por confirmar
+          <span className="[font-variant-numeric:lining-nums]">{n}</span>{" "}
+          <em className="text-brand-600">por confirmar</em>
         </h2>
-        <span className="kicker">Hoy y mañana</span>
+        <span className="text-[13px] font-medium text-muted-foreground">Hoy y mañana</span>
       </div>
       {lista}
       {n > MAX_COMPACTA && (
         <Link
           to="/recordatorios"
-          className="mt-2 inline-block text-sm text-brand-700 hover:underline"
+          className="flex min-h-11 items-center border-t border-hairline px-5 text-sm font-semibold text-brand-700 outline-none hover:underline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
         >
           Ver las {n} →
         </Link>

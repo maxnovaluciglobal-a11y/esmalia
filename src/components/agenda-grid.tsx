@@ -121,6 +121,7 @@ export function AgendaGrid({
   conflictos,
   nombreProfesional,
   disponibilidad,
+  citaInicial,
 }: {
   compacta?: boolean;
   citas: Cita[];
@@ -150,6 +151,8 @@ export function AgendaGrid({
   nombreProfesional?: (id: string) => string;
   /** Bloqueos, aperturas, sucursal cerrada e intervalo de la grilla (Ola 2). */
   disponibilidad?: DisponibilidadGrilla;
+  /** Cita que arranca abierta en el cajón (`?cita=`, desde los carriles de Hoy). */
+  citaInicial?: string;
 }) {
   // Capa de disponibilidad (Ola 2): franjas por columna, calculadas una vez.
   const franjasPorProfesional = useMemo(() => {
@@ -174,7 +177,7 @@ export function AgendaGrid({
   const ppm = tactil ? PIXELES_POR_MINUTO_TACTIL : PIXELES_POR_MINUTO;
   const altoHueco = paso * ppm;
   const alto = (hasta - desde) * ppm;
-  const [seleccionId, setSeleccionId] = useState<string | null>(null);
+  const [seleccionId, setSeleccionId] = useState<string | null>(citaInicial ?? null);
   // La cita elegida se abre en el cajón lateral (abajo en el celular), igual
   // que en la semana: el mismo panel con recordatorios, plan y acciones.
   const seleccionada = seleccionId ? citas.find((c) => c.id === seleccionId) : undefined;
