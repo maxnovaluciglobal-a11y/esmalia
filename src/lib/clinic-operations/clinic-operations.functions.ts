@@ -555,8 +555,9 @@ export const listDuplicateCandidates = createServerFn({ method: "GET" })
   );
 
 /**
- * Fusiona dos fichas. La validación de permisos y la reasignación de las once
- * tablas viven en la RPC `merge_patients`, que corre todo en una transacción:
+ * Fusiona dos fichas. La validación de permisos y la reasignación de las tablas
+ * (citas, pagos, cuentas, presupuestos, empresa con convenio, membresía y sus
+ * cuotas, inscripciones a citas grupales…) viven en la RPC `merge_patients`, que corre todo en una transacción:
  * si fallara a mitad de camino, el paciente quedaría con las citas movidas y
  * las notas no, que es peor que no haber fusionado.
  */

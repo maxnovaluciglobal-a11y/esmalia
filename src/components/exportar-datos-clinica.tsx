@@ -82,12 +82,12 @@ export function ExportarDatosClinica({
           bloqueos), notas clínicas con todas sus versiones, odontogramas, periodontogramas,
           ortodoncia, consentimientos, recetas, documentos emitidos y sus plantillas, firmas a
           distancia, presupuestos, planes de tratamiento, arancel, especialidades y paquetes, pagos
-          con sus medios, cuentas por cobrar y cuotas, bonos, cajas, gastos, convenios, comisiones,
-          mensajes, radiografías, laboratorios, inventario, solicitudes de los pacientes sobre sus
-          datos, incidentes de seguridad y los registros de auditoría. Son planillas CSV que se
-          abren en Excel, una ficha en PDF por paciente, un LEEME.txt que explica cada archivo y
-          columna, y un manifiesto con la huella de cada archivo para comprobar que el ZIP está
-          completo.
+          con sus medios, cuentas por cobrar y cuotas, bonos, cajas, gastos, seguros y coberturas,
+          empresas con convenio, comisiones, mensajes, radiografías, laboratorios, inventario,
+          solicitudes de los pacientes sobre sus datos, incidentes de seguridad y los registros de
+          auditoría. Son planillas CSV que se abren en Excel, una ficha en PDF por paciente, un
+          LEEME.txt que explica cada archivo y columna, y un manifiesto con la huella de cada
+          archivo para comprobar que el ZIP está completo.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Contiene datos de salud de tus pacientes: guárdalo en un lugar seguro. Cada exportación

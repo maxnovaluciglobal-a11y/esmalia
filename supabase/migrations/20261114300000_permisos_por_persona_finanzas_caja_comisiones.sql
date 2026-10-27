@@ -724,26 +724,12 @@ begin
 end;
 $$;
 
-create or replace function public.informe_embudo(
-  p_clinic_id uuid,
-  p_desde date,
-  p_hasta date,
-  p_branch_id uuid default null
-)
-returns table (
-  canal text,
-  contactos bigint,
-  con_cita bigint,
-  atendidos bigint,
-  con_presupuesto bigint,
-  aceptados bigint,
-  pagados bigint
-)
-language plpgsql
-stable
-security invoker
-set search_path = ''
-as $$
+CREATE OR REPLACE FUNCTION public.informe_embudo(p_clinic_id uuid, p_desde date, p_hasta date, p_branch_id uuid DEFAULT NULL::uuid)
+ RETURNS TABLE(canal text, contactos bigint, con_cita bigint, atendidos bigint, con_presupuesto bigint, aceptados bigint, pagados bigint)
+ LANGUAGE plpgsql
+ STABLE
+ SET search_path TO ''
+AS $function$
 declare
   v_finanzas boolean := (
     public.has_clinic_role(p_clinic_id, array['owner','admin','accounting']::public.app_role[])
@@ -770,18 +756,47 @@ begin
     pasos as (
       select c.id,
              coalesce((
-               select a.booking_source from public.appointments a
-                where a.clinic_id = p_clinic_id and a.patient_id = c.id
-                order by a.created_at, a.id limit 1
+               select x.booking_source
+                 from (
+                   select a.booking_source, a.created_at, a.id from public.appointments a
+                    where a.clinic_id = p_clinic_id and a.patient_id = c.id
+                   union all
+                   -- Cita grupal (AGE-22): vale la fecha en que se inscribió.
+                   select a.booking_source, gp.enrolled_at, gp.id
+                     from public.appointment_group_participants gp
+                     join public.appointments a on a.id = gp.appointment_id
+                    where gp.clinic_id = p_clinic_id and gp.patient_id = c.id
+                 ) x
+                order by x.created_at, x.id limit 1
              ), 'otros') as canal,
-             exists (
-               select 1 from public.appointments a
-                where a.clinic_id = p_clinic_id and a.patient_id = c.id
+             (
+               exists (
+                 select 1 from public.appointments a
+                  where a.clinic_id = p_clinic_id and a.patient_id = c.id
+               )
+               or exists (
+                 select 1 from public.appointment_group_participants gp
+                  where gp.clinic_id = p_clinic_id and gp.patient_id = c.id
+               )
              ) as con_cita,
-             exists (
-               select 1 from public.appointments a
-                where a.clinic_id = p_clinic_id and a.patient_id = c.id
-                  and (a.status = 'finalizada' or a.arrived_at is not null)
+             (
+               exists (
+                 select 1 from public.appointments a
+                  where a.clinic_id = p_clinic_id and a.patient_id = c.id
+                    and not exists (select 1 from public.appointment_groups g where g.appointment_id = a.id)
+                    and (a.status = 'finalizada' or a.arrived_at is not null)
+               )
+               -- Cita grupal: atendido es quien asistió (o, sin lista, si la sesión se finalizó).
+               or exists (
+                 select 1
+                   from public.appointment_group_participants gp
+                   join public.appointments a on a.id = gp.appointment_id
+                  where gp.clinic_id = p_clinic_id and gp.patient_id = c.id
+                    and gp.withdrawn_at is null
+                    and (gp.attendance = 'asistio'
+                         or (gp.attendance = 'pendiente'
+                             and (a.status = 'finalizada' or a.arrived_at is not null)))
+               )
              ) as atendido,
              exists (
                select 1 from public.quotes q
@@ -809,7 +824,7 @@ begin
       from pasos p
      group by p.canal;
 end;
-$$;
+$function$;
 
 -- ═══ Reversa (no se ejecuta) ════════════════════════════════════════════════
 -- Las funciones vuelven a su versión anterior re-ejecutando las definiciones

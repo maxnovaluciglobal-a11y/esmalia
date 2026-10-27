@@ -102,9 +102,11 @@ function FusionarFichasPage() {
           <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Toda clínica que migra de otro sistema llega con el mismo paciente cargado más de una
             vez. Elige cuál ficha sobrevive y el resto se fusiona en ella: citas, pagos,
-            presupuestos, odontograma y periodontograma se reasignan; las notas, documentos y
+            presupuestos, odontograma, periodontograma, empresa con convenio, membresía con sus
+            cuotas e inscripciones a citas grupales se reasignan; las notas, documentos y
             consentimientos (que no se reescriben) y la anamnesis de la ficha vieja se muestran en
-            la que queda.
+            la que queda. Si las dos fichas tienen una membresía vigente o empresas distintas, te
+            pedimos resolverlo antes de fusionar.
           </p>
         </EncabezadoEditorial>
 

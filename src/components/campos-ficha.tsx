@@ -3,15 +3,18 @@ import type { ReactNode } from "react";
 import { Label } from "@/components/ui/label";
 import {
   ETIQUETA_PREVISION,
+  ETIQUETA_SEXO,
   INSTITUCIONES_FFAA,
   ISAPRES_POR_DEFECTO,
   ORIGEN_OTRO,
   ORIGENES_POR_DEFECTO,
   PREVISIONES,
+  SEXOS,
   TRAMOS_FONASA,
   type CampoFicha,
   type EstadoCamposFicha,
   type Prevision,
+  type Sexo,
   type TramoFonasa,
 } from "@/lib/patients/datos-ficha";
 import {
@@ -190,6 +193,28 @@ export function CamposFicha({
           </div>
         </div>
       )}
+
+      <div className="space-y-1.5 sm:max-w-xs">
+        <Label htmlFor={id("sexo")}>
+          Sexo <span className="font-normal text-muted-foreground">(opcional)</span>
+        </Label>
+        <select
+          id={id("sexo")}
+          value={valor.sexo}
+          onChange={(e) => onChange({ sexo: e.target.value as Sexo | "" })}
+          className={CAMPO}
+        >
+          <option value="">Sin registrar</option>
+          {SEXOS.map((s) => (
+            <option key={s} value={s}>
+              {ETIQUETA_SEXO[s]}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground">
+          Solo sirve para los informes de la clínica. Puedes dejarlo sin registrar.
+        </p>
+      </div>
 
       <fieldset className="space-y-2">
         <legend className="text-sm font-medium">

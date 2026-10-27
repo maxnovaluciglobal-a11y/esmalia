@@ -5,8 +5,9 @@ import type { Database } from "@/integrations/supabase/types";
 /**
  * Fichas fusionadas (CLI-06, auditoría 360 del 18-oct-2026).
  *
- * `merge_patients` mueve citas, pagos, odontograma, documentos, etc. a la
- * ficha que queda, pero hay dos cosas que se quedan donde nacieron:
+ * `merge_patients` mueve citas, pagos, odontograma, empresa con convenio,
+ * membresía y cuotas, inscripciones a citas grupales, etc. a la ficha que
+ * queda, pero hay dos cosas que se quedan donde nacieron:
  *  - las notas clínicas (cuelgan de `patient_ref` y una nota firmada no se
  *    reescribe), y
  *  - la anamnesis (combinar dos historias médicas sola inventaría un cuadro

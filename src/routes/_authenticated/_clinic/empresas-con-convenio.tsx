@@ -125,7 +125,7 @@ function EmpresasPage() {
             conclusion={
               consulta.data
                 ? empresas.length === 0
-                  ? "Agrega las empresas que dan descuento a sus trabajadores. Los seguros e isapres siguen en Convenios."
+                  ? "Agrega las empresas que dan descuento a sus trabajadores. Los seguros e isapres están en «Seguros y coberturas»."
                   : `${numero(activas.length)} ${activas.length === 1 ? "empresa activa" : "empresas activas"} con ${numero(afiliados)} ${afiliados === 1 ? "paciente afiliado" : "pacientes afiliados"}. El paciente se afilia desde su ficha.`
                 : undefined
             }

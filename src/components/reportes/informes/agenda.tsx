@@ -56,9 +56,19 @@ const LEYENDA: { nivel: CeldaCalor["nivel"]; texto: string }[] = [
   { nivel: 4, texto: "90% o más" },
 ];
 
+/** «Descontado: 12 h por bloqueos y 8 h por feriados.» (vacío si no se descontó nada). */
+function descuentos(bloqueados: number, feriado: number): string {
+  const partes = [
+    bloqueados > 0 ? `${formatearMinutos(bloqueados)} por bloqueos` : null,
+    feriado > 0 ? `${formatearMinutos(feriado)} por feriados` : null,
+  ].filter(Boolean);
+  return partes.length ? ` Descontado: ${partes.join(" y ")}.` : "";
+}
+
 function textoCelda(c: CeldaCalor): string {
   if (c.pct !== null) return `${c.pct}%`;
   if (c.minutosOcupados > 0) return String(c.citas);
+  if (c.minutosBloqueados > 0 || c.minutosFeriado > 0) return "—";
   return "·";
 }
 
@@ -75,7 +85,8 @@ export function VistaAgenda({ ctx }: { ctx: ContextoInforme }) {
     queryKey: ["informe-calor", filtros],
     queryFn: () => fetchCalor({ data: filtros }),
   });
-  const mapa = calor.data ? armarMapaDeCalor(calor.data) : null;
+  const mapa = calor.data ? armarMapaDeCalor(calor.data.filas) : null;
+  const feriadosLeidos = calor.data?.feriadosDescontados ?? true;
 
   type FilaCsv = CeldaCalor;
   const columnas: ColumnaLista<FilaCsv>[] = [
@@ -84,6 +95,8 @@ export function VistaAgenda({ ctx }: { ctx: ContextoInforme }) {
     { header: "Citas que empiezan", value: (c) => c.citas },
     { header: "Minutos agendados", value: (c) => c.minutosOcupados },
     { header: "Minutos de horario", value: (c) => c.minutosDisponibles },
+    { header: "Minutos bloqueados", value: (c) => c.minutosBloqueados },
+    { header: "Minutos en feriado", value: (c) => c.minutosFeriado },
     { header: "Ocupación %", value: (c) => c.pct },
   ];
 
@@ -144,7 +157,7 @@ export function VistaAgenda({ ctx }: { ctx: ContextoInforme }) {
               titulo="Mapa de calor"
               detalle={
                 mapa.conHorario
-                  ? "Porcentaje del horario declarado que estuvo agendado, por día y hora. Bloqueos y feriados todavía no se descuentan."
+                  ? `Porcentaje del horario declarado que estuvo agendado, por día y hora. Al horario se le descuentan los bloqueos de la agenda${feriadosLeidos ? " y los feriados" : ""}.${feriadosLeidos ? "" : " No pudimos leer los feriados del país: hoy solo se descontaron los bloqueos."}${descuentos(mapa.minutosBloqueados, mapa.minutosFeriado)}`
                   : "Citas que empiezan en cada franja."
               }
               acciones={

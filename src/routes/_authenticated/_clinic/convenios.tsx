@@ -47,11 +47,11 @@ export const Route = createFileRoute("/_authenticated/_clinic/convenios")({
   beforeLoad: requirePermission("settings:manage"),
   head: () => ({
     meta: [
-      { title: "Convenios | Esmalia" },
+      { title: "Seguros y coberturas | Esmalia" },
       {
         name: "description",
         content:
-          "Convenios y seguros de la clínica, con la cobertura que aplica cada uno prestación por prestación.",
+          "Seguros y coberturas de la clínica (Fonasa, isapres, seguros complementarios), con lo que cubre cada uno prestación por prestación.",
       },
     ],
   }),
@@ -69,7 +69,7 @@ const INPUT =
 const TIPOS_SUGERIDOS = [
   "Fonasa",
   "Isapre",
-  "Convenio de empresa",
+  "Seguro de empresa",
   "Seguro complementario",
   "Obra social",
   "Prepaga",
@@ -108,7 +108,7 @@ function ConvenioDialog({ clinicId, convenio }: { clinicId: string; convenio?: A
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["agreements", clinicId] });
-      toast.success(convenio ? "Convenio actualizado" : "Convenio creado");
+      toast.success(convenio ? "Cobertura actualizada" : "Cobertura creada");
       setOpen(false);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -123,16 +123,19 @@ function ConvenioDialog({ clinicId, convenio }: { clinicId: string; convenio?: A
           </Button>
         ) : (
           <Button size="sm">
-            <Plus className="size-4" /> Nuevo convenio
+            <Plus className="size-4" /> Nuevo seguro
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>{convenio ? "Editar convenio" : "Nuevo convenio"}</DialogTitle>
+          <DialogTitle>
+            {convenio ? "Editar seguro o cobertura" : "Nuevo seguro o cobertura"}
+          </DialogTitle>
           <DialogDescription>
             Después de crearlo, define qué cubre de cada prestación. Los pacientes que tengan este
-            convenio verán el presupuesto ya repartido.
+            seguro verán el presupuesto ya repartido. Los descuentos de una empresa a sus
+            trabajadores van en «Empresas con convenio».
           </DialogDescription>
         </DialogHeader>
 
@@ -217,7 +220,7 @@ function ConvenioDialog({ clinicId, convenio }: { clinicId: string; convenio?: A
         <DialogFooter>
           <Button onClick={() => guardar.mutate()} disabled={!d.name.trim() || guardar.isPending}>
             {guardar.isPending && <Loader2 className="size-3.5 animate-spin" />}
-            {convenio ? "Guardar cambios" : "Crear convenio"}
+            {convenio ? "Guardar cambios" : "Crear seguro"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -358,12 +361,12 @@ function CoberturaDelConvenio({
   if (isLoading)
     return <p className="px-4 py-3 text-xs text-muted-foreground">Cargando cobertura…</p>;
 
-  // Sin esto, un error mostraba la tabla como si el convenio no cubriera nada.
+  // Sin esto, un error mostraba la tabla como si el seguro no cubriera nada.
   if (isError)
     return (
       <ErrorDeCarga
         onReintentar={refetch}
-        mensaje="No pudimos cargar la cobertura de este convenio."
+        mensaje="No pudimos cargar la cobertura de este seguro."
         className="m-3"
       />
     );
@@ -445,38 +448,44 @@ function ConveniosPage() {
       setActiveFn({ data: { clinicId: clinicId!, ...v } }),
     onSuccess: (_r, v) => {
       queryClient.invalidateQueries({ queryKey: ["agreements", clinicId] });
-      toast.success(v.isActive ? "Convenio reactivado" : "Convenio dado de baja");
+      toast.success(v.isActive ? "Seguro reactivado" : "Seguro dado de baja");
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
   return (
-    <AppShell title="Convenios" access={access}>
+    <AppShell title="Seguros y coberturas" access={access}>
       {bloqueado ? (
-        <TrialDesbloqueo pantalla="Convenios" sub={sub ?? null} />
+        <TrialDesbloqueo pantalla="Seguros y coberturas" sub={sub ?? null} />
       ) : (
         <div className="space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="max-w-xl text-sm text-muted-foreground">
-              Cuando un paciente tiene convenio, el presupuesto se parte solo entre lo que cubre el
-              convenio y lo que paga él — y el saldo que ves en la ficha y en la agenda pasa a ser
-              solo su parte.
+              Cuando un paciente tiene un seguro (Fonasa, isapre, seguro complementario…), el
+              presupuesto se parte solo entre lo que cubre el seguro y lo que paga él — y el saldo
+              que ves en la ficha y en la agenda pasa a ser solo su parte.
             </p>
             <ConvenioDialog clinicId={clinicId!} />
           </div>
 
-          {isLoading && <p className="text-sm text-muted-foreground">Cargando convenios…</p>}
+          {isLoading && <p className="text-sm text-muted-foreground">Cargando seguros…</p>}
 
           {isError && (
-            <ErrorDeCarga onReintentar={refetch} mensaje="No pudimos cargar los convenios." />
+            <ErrorDeCarga
+              onReintentar={refetch}
+              mensaje="No pudimos cargar los seguros y coberturas."
+            />
           )}
 
           {!isLoading && !isError && convenios.length === 0 && (
             <div className="card-clinical p-8 text-center">
-              <p className="mb-1 font-display text-lg font-semibold">Todavía no hay convenios</p>
+              <p className="mb-1 font-display text-lg font-semibold">
+                Todavía no hay seguros ni coberturas
+              </p>
               <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
-                Si atiendes Fonasa, Isapre o convenios de empresa, cárgalos aquí una vez y define
-                qué cubre cada uno. Sin esto, cada presupuesto con convenio se calcula a mano.
+                Si atiendes Fonasa, isapres o seguros complementarios, cárgalos aquí una vez y
+                define qué cubre cada uno. Sin esto, cada presupuesto con seguro se calcula a mano.
+                Los descuentos de una empresa a sus trabajadores van en «Empresas con convenio».
               </p>
               <div className="flex justify-center">
                 <ConvenioDialog clinicId={clinicId!} />
@@ -547,9 +556,8 @@ function ConveniosPage() {
           })}
 
           <p className="text-xs text-muted-foreground">
-            Dejar la cobertura vacía significa que el convenio no cubre esa prestación. Un convenio
-            dado de baja no reparte presupuestos nuevos, pero los ya emitidos conservan lo que
-            decían.
+            Dejar la cobertura vacía significa que el seguro no cubre esa prestación. Un seguro dado
+            de baja no reparte presupuestos nuevos, pero los ya emitidos conservan lo que decían.
           </p>
         </div>
       )}

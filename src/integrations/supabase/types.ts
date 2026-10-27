@@ -234,6 +234,8 @@ export type Database = {
           enrolled_at: string;
           enrolled_by: string | null;
           id: string;
+          patient_confirmed_at: string | null;
+          patient_confirmed_via: string | null;
           patient_id: string;
           updated_at: string;
           withdraw_reason: string | null;
@@ -249,6 +251,8 @@ export type Database = {
           enrolled_at?: string;
           enrolled_by?: string | null;
           id?: string;
+          patient_confirmed_at?: string | null;
+          patient_confirmed_via?: string | null;
           patient_id: string;
           updated_at?: string;
           withdraw_reason?: string | null;
@@ -264,6 +268,8 @@ export type Database = {
           enrolled_at?: string;
           enrolled_by?: string | null;
           id?: string;
+          patient_confirmed_at?: string | null;
+          patient_confirmed_via?: string | null;
           patient_id?: string;
           updated_at?: string;
           withdraw_reason?: string | null;
@@ -6488,6 +6494,7 @@ export type Database = {
           primary_professional_id: string | null;
           referral_code: string | null;
           referred_by_patient_id: string | null;
+          sex: string | null;
           status: Database["public"]["Enums"]["patient_status"];
           tags: string[];
           updated_at: string;
@@ -6543,6 +6550,7 @@ export type Database = {
           primary_professional_id?: string | null;
           referral_code?: string | null;
           referred_by_patient_id?: string | null;
+          sex?: string | null;
           status?: Database["public"]["Enums"]["patient_status"];
           tags?: string[];
           updated_at?: string;
@@ -6598,6 +6606,7 @@ export type Database = {
           primary_professional_id?: string | null;
           referral_code?: string | null;
           referred_by_patient_id?: string | null;
+          sex?: string | null;
           status?: Database["public"]["Enums"]["patient_status"];
           tags?: string[];
           updated_at?: string;
@@ -9946,6 +9955,26 @@ export type Database = {
           dias: number;
           hora: number;
           minutos_disponibles: number;
+          minutos_ocupados: number;
+        }[];
+      };
+      informe_ocupacion_neta: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clinic_id: string;
+          p_desde: string;
+          p_feriados?: string[];
+          p_hasta: string;
+          p_professional_id?: string | null;
+        };
+        Returns: {
+          citas: number;
+          dia_semana: number;
+          dias: number;
+          hora: number;
+          minutos_bloqueados: number;
+          minutos_disponibles: number;
+          minutos_feriado: number;
           minutos_ocupados: number;
         }[];
       };

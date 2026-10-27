@@ -34,6 +34,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { citasPorIds } from "@/lib/clinic-operations/inscripciones-grupales";
 import {
   COOLDOWN_SEGUIMIENTO_MS,
   DIAS_SIN_RESPUESTA_MAXIMO,
@@ -457,6 +458,62 @@ function formatFechaHoraLocal(iso: string, timeZone: string): { fechaLarga: stri
   return { fechaLarga: fechaLargaFmt(iso, timeZone), hora: horaFmt(iso, timeZone) };
 }
 
+/**
+ * Inscritos vigentes y nombre de la actividad de las citas grupales entre las
+ * dadas (AGE-22). Las individuales no aparecen en el mapa.
+ */
+export async function inscritosDeCitasGrupales(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  appointmentIds: readonly string[],
+): Promise<
+  Map<
+    string,
+    {
+      titulo: string;
+      inscritos: string[];
+      /** Los que asistieron o quedaron sin marcar (no los ausentes). */
+      queVinieron: string[];
+    }
+  >
+> {
+  const salida = new Map<string, { titulo: string; inscritos: string[]; queVinieron: string[] }>();
+  const ids = [...new Set(appointmentIds)];
+  if (ids.length === 0) return salida;
+  const grupos = await citasPorIds(
+    ids,
+    (tanda) =>
+      supabase
+        .from("appointment_groups")
+        .select("appointment_id, title")
+        .eq("clinic_id", clinicId)
+        .in("appointment_id", tanda),
+    "No pudimos cargar las citas grupales.",
+  );
+  if (grupos.length === 0) return salida;
+  const inscritos = await citasPorIds(
+    grupos.map((g) => g.appointment_id),
+    (tanda) =>
+      supabase
+        .from("appointment_group_participants")
+        .select("appointment_id, patient_id, attendance, enrolled_at")
+        .eq("clinic_id", clinicId)
+        .is("withdrawn_at", null)
+        .in("appointment_id", tanda)
+        .order("enrolled_at", { ascending: true }),
+    "No pudimos cargar los inscritos de las citas grupales.",
+  );
+  for (const g of grupos) {
+    const suyos = inscritos.filter((i) => i.appointment_id === g.appointment_id);
+    salida.set(g.appointment_id, {
+      titulo: g.title,
+      inscritos: suyos.map((i) => i.patient_id),
+      queVinieron: suyos.filter((i) => i.attendance !== "ausente").map((i) => i.patient_id),
+    });
+  }
+  return salida;
+}
+
 export interface PendingReminder {
   appointmentId: string;
   patientId: string;
@@ -506,7 +563,25 @@ export const listPendingReminders = createServerFn({ method: "GET" })
       .order("starts_at", { ascending: true });
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar las citas próximas."));
 
-    const candidatas = (appts ?? [])
+    // Citas grupales (AGE-22): `appointments.patient_id` es solo el titular. El
+    // aviso es por persona, así que cada inscrito vigente tiene el suyo (el
+    // equipo lo despacha a mano, como todo en esta cola: nada sale solo).
+    const grupalesDe = await inscritosDeCitasGrupales(
+      supabase,
+      data.clinicId,
+      (appts ?? []).map((a) => a.id),
+    );
+    const apptsPorPersona = (appts ?? []).flatMap((a) => {
+      const grupal = grupalesDe.get(a.id);
+      if (!grupal) return [a];
+      return grupal.inscritos.map((patientId) => ({
+        ...a,
+        patient_id: patientId,
+        treatment_label: grupal.titulo,
+      }));
+    });
+
+    const candidatas = apptsPorPersona
       .map((a) => {
         const faltaMs = new Date(a.starts_at).getTime() - ahora;
         // Más cerca de la ventana de 3h que de la de 48h → es el aviso corto.
@@ -531,7 +606,7 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     // viceversa — son dos avisos independientes, no uno con dos caminos.
     const { data: enviados, error: msgError } = await supabase
       .from("messages")
-      .select("appointment_id, template_kind, channel")
+      .select("appointment_id, patient_id, template_kind, channel")
       .eq("clinic_id", data.clinicId)
       .in("appointment_id", appointmentIds)
       .in("template_kind", ["appointment_reminder", "appointment_checkin"])
@@ -543,14 +618,18 @@ export const listPendingReminders = createServerFn({ method: "GET" })
     if (msgError)
       throw new Error(mensajeDb(msgError, "No pudimos revisar los recordatorios ya enviados."));
 
+    // La clave lleva al paciente: en una cita grupal el aviso de uno no tapa
+    // el de los demás. En una individual el mensaje es del titular, igual que antes.
     const enviadoPorCanal = new Set(
-      (enviados ?? []).map((m) => `${m.appointment_id}:${m.template_kind}:${m.channel}`),
+      (enviados ?? []).map(
+        (m) => `${m.appointment_id}:${m.patient_id}:${m.template_kind}:${m.channel}`,
+      ),
     );
     const pendientes = candidatas
       .map((a) => ({
         ...a,
-        whatsappSent: enviadoPorCanal.has(`${a.id}:${a.reminderKind}:whatsapp`),
-        emailSent: enviadoPorCanal.has(`${a.id}:${a.reminderKind}:email`),
+        whatsappSent: enviadoPorCanal.has(`${a.id}:${a.patient_id}:${a.reminderKind}:whatsapp`),
+        emailSent: enviadoPorCanal.has(`${a.id}:${a.patient_id}:${a.reminderKind}:email`),
       }))
       .filter((a) => !a.whatsappSent || !a.emailSent);
     if (pendientes.length === 0) return [];
@@ -856,7 +935,22 @@ export async function calcularOutreachPendiente(
   if (branchErr)
     throw new Error(mensajeDb(branchErr, "No pudimos cargar los datos de las sucursales."));
 
-  const finalizadas = finalizadasRecientes;
+  // Citas grupales (AGE-22): el pedido de reseña es por persona, para quien
+  // asistió (o quedó sin marcar en una sesión finalizada); no solo el titular.
+  const grupalesFinalizadas = await inscritosDeCitasGrupales(
+    supabase,
+    clinicId,
+    (finalizadasRecientes ?? []).map((a) => a.id),
+  );
+  const finalizadas = (finalizadasRecientes ?? []).flatMap((a) => {
+    const g = grupalesFinalizadas.get(a.id);
+    if (!g) return [a];
+    return g.queVinieron.map((patientId) => ({
+      ...a,
+      patient_id: patientId,
+      treatment_label: g.titulo,
+    }));
+  });
   // Última visita finalizada por paciente, de la más reciente a la más vieja
   // (el orden en que se listaban antes los candidatos).
   const lastVisitByPatient = new Map<string, string>(
@@ -903,7 +997,7 @@ export async function calcularOutreachPendiente(
       lastNpsSurveyByPatient.set(m.patient_id, m.created_at);
     }
     if (m.template_kind === "review_request" && m.appointment_id) {
-      reviewRequestedAppointments.add(m.appointment_id);
+      reviewRequestedAppointments.add(`${m.appointment_id}:${m.patient_id}`);
     }
     if (m.template_kind === "review_request" && !lastReviewRequestByPatient.has(m.patient_id)) {
       lastReviewRequestByPatient.set(m.patient_id, m.created_at);
@@ -936,7 +1030,7 @@ export async function calcularOutreachPendiente(
     if (!patient) continue;
     const sinceMs = ahora - new Date(a.ends_at).getTime();
     if (sinceMs < REVIEW_REQUEST_MIN_DELAY_MS || sinceMs > REVIEW_REQUEST_MAX_WINDOW_MS) continue;
-    if (reviewRequestedAppointments.has(a.id)) continue;
+    if (reviewRequestedAppointments.has(`${a.id}:${a.patient_id}`)) continue;
     // UX-11: un pedido de reseña cubre las visitas anteriores del paciente
     // (antes cada visita de la ventana pedía la suya: 39 filas repetidas).
     if (!visitaPendienteDeResena(a.ends_at, lastReviewRequestByPatient.get(a.patient_id))) continue;

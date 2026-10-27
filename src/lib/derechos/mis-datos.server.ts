@@ -8,6 +8,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
+import { estadoParaInscrito } from "@/lib/clinic-operations/citas-grupales";
+import {
+  citasPorIds,
+  inscripcionesVigentesDe,
+} from "@/lib/clinic-operations/inscripciones-grupales";
 import type { FilasDelTitular } from "@/lib/derechos/mis-datos";
 import { idsDeLaFicha } from "@/lib/patients/fusion";
 
@@ -46,7 +51,7 @@ export async function leerFilasDelTitular(
     admin
       .from("patients")
       .select(
-        "id, full_name, birth_date, email, phone, address, commune, health_plan, health_plan_institution, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, document_id_enc, document_id, wa_opt_out_at, email_opt_out_at, created_at",
+        "id, full_name, birth_date, email, phone, address, commune, sex, health_plan, health_plan_institution, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, document_id_enc, document_id, wa_opt_out_at, email_opt_out_at, created_at",
       )
       .eq("clinic_id", clinicId)
       .eq("id", patientId)
@@ -67,7 +72,7 @@ export async function leerFilasDelTitular(
       .limit(TOPE),
     admin
       .from("appointments")
-      .select("patient_id, starts_at, treatment_label, status")
+      .select("id, patient_id, starts_at, treatment_label, status")
       .eq("clinic_id", clinicId)
       .in("patient_id", ids)
       .order("starts_at", { ascending: false })
@@ -124,6 +129,58 @@ export async function leerFilasDelTitular(
   if (consentimientos.error) fallo("tus consentimientos");
   if (solicitudes.error) fallo("tus solicitudes");
 
+  // Citas grupales (AGE-22): la cita de una grupal cuelga del titular; cada
+  // inscrito la ve por su inscripción, con su propia asistencia.
+  const inscripciones = await inscripcionesVigentesDe(admin, clinicId, ids);
+  const idsGrupales = inscripciones.map((i) => i.appointment_id);
+  const [citasGrupales, titulos] = await Promise.all([
+    citasPorIds(
+      idsGrupales,
+      (tanda) =>
+        admin
+          .from("appointments")
+          .select("id, starts_at, status")
+          .eq("clinic_id", clinicId)
+          .in("id", tanda),
+      "No pudimos leer tus citas. Intenta de nuevo en unos minutos.",
+    ),
+    citasPorIds(
+      idsGrupales,
+      (tanda) =>
+        admin
+          .from("appointment_groups")
+          .select("appointment_id, title")
+          .eq("clinic_id", clinicId)
+          .in("appointment_id", tanda),
+      "No pudimos leer tus citas. Intenta de nuevo en unos minutos.",
+    ),
+  ]);
+  const citaGrupal = new Map(citasGrupales.map((c) => [c.id, c]));
+  const tituloDe = new Map(titulos.map((t) => [t.appointment_id, t.title]));
+  const citasDelTitular = (citas.data ?? [])
+    .filter((c) => !citaGrupal.has(c.id))
+    .map((c) => ({
+      patient_id: c.patient_id,
+      starts_at: c.starts_at,
+      treatment_label: c.treatment_label,
+      status: c.status,
+    }));
+  const citasComoInscrito = inscripciones.flatMap((i) => {
+    const cita = citaGrupal.get(i.appointment_id);
+    if (!cita) return [];
+    return [
+      {
+        patient_id: i.patient_id,
+        starts_at: cita.starts_at,
+        treatment_label: tituloDe.get(i.appointment_id) ?? "Cita grupal",
+        status: estadoParaInscrito(cita.status, i.attendance),
+      },
+    ];
+  });
+  const todasLasCitas = [...citasDelTitular, ...citasComoInscrito].sort((a, b) =>
+    b.starts_at.localeCompare(a.starts_at),
+  );
+
   const p = paciente.data;
   return {
     ids,
@@ -140,6 +197,7 @@ export async function leerFilasDelTitular(
         phone: p.phone,
         address: p.address,
         commune: p.commune,
+        sex: p.sex,
         health_plan: p.health_plan,
         health_plan_institution: p.health_plan_institution,
         emergency_contact_name: p.emergency_contact_name,
@@ -153,7 +211,7 @@ export async function leerFilasDelTitular(
       },
       anamnesis: anamnesis.data ?? [],
       notas: notas.data ?? [],
-      citas: citas.data ?? [],
+      citas: todasLasCitas,
       presupuestos: presupuestos.data ?? [],
       planes: planes.data ?? [],
       pagos: pagos.data ?? [],

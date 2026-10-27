@@ -60,7 +60,8 @@ export async function actualizarPaciente(
     rest.contactoEmergencia !== undefined ||
     rest.origen !== undefined ||
     rest.direccion !== undefined ||
-    rest.comuna !== undefined;
+    rest.comuna !== undefined ||
+    rest.sexo !== undefined;
   const { data: actual, error: lecturaError } = await supabase
     .from("patients")
     .select(

@@ -6,6 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertNotDemoClinic } from "@/lib/access/clinic-guards.server";
 import { appOrigin } from "@/lib/app-origin.server";
 import { throwIfRequiresLlamadaOSuscripcion } from "@/lib/billing.functions";
+import { proximasCitasConGrupales } from "@/lib/clinic-operations/inscripciones-grupales";
 import { mensajeDb } from "@/lib/db-errors";
 import { buildWaMeUrl, normalizeToWaMe } from "@/lib/messaging/messaging";
 import {
@@ -398,9 +399,20 @@ export const getMyPortalOverview = createServerFn({ method: "GET" }).handler(asy
   if (cErr) throw new Error(mensajeDb(cErr, "No pudimos cargar los datos de la clínica."));
   if (!patient) throw new Error("Paciente no encontrado.");
 
+  // Citas grupales: `appointments.patient_id` es solo el titular, así que cada
+  // inscrito las ve por su inscripción (AGE-22). Muestra el nombre de la
+  // actividad, nunca nada de los demás inscritos.
+  const proximas = await proximasCitasConGrupales(
+    supabaseAdmin,
+    clinicId,
+    patientId,
+    appts ?? [],
+    new Date().toISOString(),
+  );
+
   return {
     patient: { id: patient.id, name: patient.full_name },
-    appointments: appts ?? [],
+    appointments: proximas,
     plans: plans ?? [],
     clinic: { country: clinic?.country || "CL" },
   };

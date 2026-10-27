@@ -34,7 +34,7 @@ const SE_ACTIVA_AL_SUSCRIBIRTE = [
   "Panel de desempeño",
   "Inventario",
   "Laboratorios",
-  "Convenios",
+  "Seguros y coberturas",
 ];
 
 export function TrialDesbloqueo({

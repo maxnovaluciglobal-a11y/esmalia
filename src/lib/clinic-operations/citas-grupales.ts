@@ -37,6 +37,8 @@ export interface ParticipanteGrupal {
   inscritoEn: string;
   retiradoEn: string | null;
   motivoRetiro: string | null;
+  /** Cuándo avisó ESTE inscrito que viene (por persona, no por cita). */
+  avisoEl?: string | null;
 }
 
 /** Cupos libres (nunca negativo, aunque los datos vengan desordenados). */
@@ -141,4 +143,39 @@ export function pacientesDeCita(c: {
   grupal?: Pick<InfoGrupal, "pacienteIds">;
 }): string[] {
   return c.grupal?.pacienteIds.length ? c.grupal.pacienteIds : [c.pacienteId];
+}
+
+/**
+ * Cómo ve la cita grupal CADA inscrito. Es la misma regla que aplica la base
+ * (`patient_appointment_counters`, seguimiento, informes): una cita cancelada
+ * manda; después la asistencia propia (asistió → finalizada, ausente →
+ * ausente); sin marcar, el estado de la cita.
+ */
+export function estadoParaInscrito(estadoCita: string, asistencia: Asistencia): string {
+  if (estadoCita === "cancelada") return "cancelada";
+  if (asistencia === "asistio") return "finalizada";
+  if (asistencia === "ausente") return "ausente";
+  return estadoCita;
+}
+
+/**
+ * Las citas de un paciente: las suyas y las grupales donde está inscrito, sin
+ * repetir (el titular de una grupal aparece por las dos vías) y de la más
+ * próxima a la más lejana, o al revés con `desc`.
+ */
+export function unirCitasDelPaciente<T extends { id: string; starts_at: string }>(
+  individuales: readonly T[],
+  grupales: readonly T[],
+  desc = false,
+): T[] {
+  const vistas = new Set<string>();
+  const salida: T[] = [];
+  for (const c of [...individuales, ...grupales]) {
+    if (vistas.has(c.id)) continue;
+    vistas.add(c.id);
+    salida.push(c);
+  }
+  return salida.sort((a, b) =>
+    desc ? b.starts_at.localeCompare(a.starts_at) : a.starts_at.localeCompare(b.starts_at),
+  );
 }

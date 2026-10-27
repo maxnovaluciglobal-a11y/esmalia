@@ -133,6 +133,11 @@ export const Route = createFileRoute("/api/demo-reset")({
         await (
           await import("@/lib/demo/grupales-esterilizacion.server")
         ).sembrarGrupalesYEsterilizacionDeLaDemo(supabaseAdmin);
+        // Cierre de la fase: almuerzo semanal bloqueado (mapa de calor neto) y
+        // avisos por inscrito en la charla de hoy. Nunca lanza.
+        await (
+          await import("@/lib/demo/cierre-pacientes-grupales.server")
+        ).sembrarCierrePacientesGrupalesDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },
