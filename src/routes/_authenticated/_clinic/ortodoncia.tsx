@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
+import { cn } from "@/lib/utils";
+import { AvatarIniciales, EncabezadoEditorial, PANEL_LISTA } from "@/components/a-plus/lista";
 import { AppShell } from "@/components/app-shell";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { Button } from "@/components/ui/button";
@@ -299,29 +301,37 @@ function OrtodonciaPage() {
 
   return (
     <AppShell title="Ortodoncia" access={access}>
-      <div className="space-y-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-sm text-muted-foreground">
-            {isError
-              ? "Casos de ortodoncia"
-              : `${activos.length} caso${activos.length === 1 ? "" : "s"} activo${activos.length === 1 ? "" : "s"}`}
-            {atrasados.length > 0 && (
-              <span className="ml-2 inline-flex items-center gap-1 text-destructive">
-                <AlertTriangle className="size-3.5" />
+      <div className="mx-auto max-w-[84rem] space-y-6 text-base">
+        <EncabezadoEditorial
+          contexto={[
+            access.clinic?.name,
+            atrasados.length > 0 && (
+              <span key="atrasados" className="inline-flex items-center gap-1 text-destructive">
+                <AlertTriangle className="size-3.5" aria-hidden />
                 {atrasados.length} sin control hace 45+ días
               </span>
-            )}
-          </p>
-          <NuevoCasoDialog clinicId={clinicId} />
-        </div>
+            ),
+          ]}
+          titulo={
+            isError || isLoading
+              ? "Casos"
+              : `${activos.length} ${activos.length === 1 ? "caso" : "casos"}`
+          }
+          enfasis={
+            isError || isLoading
+              ? "de ortodoncia"
+              : `${activos.length === 1 ? "activo" : "activos"} de ortodoncia`
+          }
+          acciones={<NuevoCasoDialog clinicId={clinicId} />}
+        />
 
         {isLoading && <p className="text-sm text-muted-foreground">Cargando casos…</p>}
 
         {isError && <ErrorDeCarga onReintentar={refetch} mensaje="No pudimos cargar los casos." />}
 
         {!isLoading && !isError && casos.length === 0 && (
-          <div className="card-clinical p-8 text-center">
-            <p className="mb-1 font-display text-lg font-semibold">Sin casos de ortodoncia</p>
+          <div className={cn(PANEL_LISTA, "p-8 text-center")}>
+            <p className="mb-1 font-display text-2xl font-medium">Sin casos de ortodoncia</p>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Registra aquí los tratamientos largos — brackets o alineadores — con su control y su
               cuota mensual, para que no se pierdan entre las citas del día a día.
@@ -330,27 +340,32 @@ function OrtodonciaPage() {
         )}
 
         {!isLoading && casos.length > 0 && (
-          <section className="card-clinical divide-y divide-hairline">
+          <section className={cn(PANEL_LISTA, "divide-y divide-hairline")}>
             {casos.map((c) => (
               <div
                 key={c.id}
                 className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
               >
-                <div>
-                  <p className="font-medium">
-                    {c.patientName}
-                    {controlAtrasado(c, hoy) && (
-                      <AlertTriangle className="ml-1.5 inline size-3.5 text-destructive" />
-                    )}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {ORTHO_CASE_KIND_LABELS[c.kind]} · Desde {formatoFecha(c.startedOn)}
-                    {c.monthlyFeeCents !== null &&
-                      ` · ${formatMoney(c.monthlyFeeCents, c.currency)}/mes`}
-                    {c.lastControlOn
-                      ? ` · Último control ${formatoFecha(c.lastControlOn)}`
-                      : " · Sin controles"}
-                  </p>
+                <div className="flex min-w-0 items-center gap-3">
+                  <AvatarIniciales nombre={c.patientName} className="size-10" />
+                  <div className="min-w-0">
+                    <p className="font-display text-[19px] font-medium leading-tight">
+                      {c.patientName}
+                      {controlAtrasado(c, hoy) && (
+                        <span className="ml-2 inline-flex items-center gap-1 align-middle font-sans text-xs font-semibold text-destructive">
+                          <AlertTriangle className="size-3.5" aria-hidden /> Control atrasado
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {ORTHO_CASE_KIND_LABELS[c.kind]} · Desde {formatoFecha(c.startedOn)}
+                      {c.monthlyFeeCents !== null &&
+                        ` · ${formatMoney(c.monthlyFeeCents, c.currency)}/mes`}
+                      {c.lastControlOn
+                        ? ` · Último control ${formatoFecha(c.lastControlOn)}`
+                        : " · Sin controles"}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <select

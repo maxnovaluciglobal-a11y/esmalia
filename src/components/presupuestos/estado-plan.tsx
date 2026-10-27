@@ -1,4 +1,14 @@
-import { CalendarClock } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCheck,
+  CheckCircle2,
+  CircleDashed,
+  CircleDot,
+  Hourglass,
+  Send,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   ETIQUETA_ESTADO_PLAN,
@@ -10,16 +20,30 @@ import {
 } from "@/lib/finance/estados-presupuesto";
 import { cn } from "@/lib/utils";
 
+/** Ícono por estado: con el texto y el color, el estado se lee por tres canales (A+). */
+const ICONO_ESTADO_PLAN: Record<EstadoPlan, LucideIcon> = {
+  borrador: CircleDashed,
+  emitido: Send,
+  aceptado: CheckCircle2,
+  aceptado_parcial: CircleDot,
+  rechazado: XCircle,
+  vencido: Hourglass,
+  finalizado: CheckCheck,
+};
+
 /** Pastilla del estado del plan (PLA-02), con los siete estados visibles. */
 export function ChipEstadoPlan({ estado, className }: { estado: EstadoPlan; className?: string }) {
+  const Icono = ICONO_ESTADO_PLAN[estado];
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium",
+        estado === "borrador" && "border-dashed",
         TONO_ESTADO_PLAN[estado],
         className,
       )}
     >
+      <Icono className="size-3.5 shrink-0" aria-hidden />
       {ETIQUETA_ESTADO_PLAN[estado]}
     </span>
   );

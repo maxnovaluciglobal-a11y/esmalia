@@ -7,7 +7,16 @@ import { AppShell } from "@/components/app-shell";
 import { ExportarCsvLista } from "@/components/exportar-csv-lista";
 import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
-import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
+import { Paginacion } from "@/components/filters";
+import {
+  BuscadorCompacto,
+  EncabezadoEditorial,
+  FiltroCompacto,
+  FiltroRangoFechas,
+  LimpiarFiltros,
+  PANEL_LISTA,
+} from "@/components/a-plus/lista";
+import { enmascararDocumento } from "@/lib/patients/encabezado-ficha";
 import { requirePermission } from "@/lib/access/route-guards";
 import { formatoFecha } from "@/lib/clinic-operations/clinic-data";
 import {
@@ -112,73 +121,84 @@ function TratamientosPage() {
 
   return (
     <AppShell title="Tratamientos" access={access}>
-      <div className="space-y-6">
-        <FilterBar
-          activos={activos}
-          onReset={() => navigate({ search: { q: "", estado: "", desde: "", hasta: "", page: 1 } })}
-        >
-          <SearchField
-            label="Buscar"
-            value={search.q}
+      <div className="mx-auto max-w-[84rem] space-y-6 text-base">
+        <EncabezadoEditorial
+          contexto={[
+            access.clinic?.name,
+            !isLoading && `${plans.filter((t) => t.status === "active").length} activos`,
+          ]}
+          titulo={
+            isLoading ? "Planes" : `${plans.length} ${plans.length === 1 ? "plan" : "planes"}`
+          }
+          enfasis="de tratamiento"
+          acciones={
+            clinicId && (
+              <ExportarCsvLista<(typeof filtrados)[number]>
+                clinicId={clinicId}
+                rol={access.role}
+                lista="tratamientos"
+                filas={filtrados}
+                timezone={timezone}
+                filtros={{
+                  q: search.q,
+                  estado: search.estado,
+                  desde: search.desde,
+                  hasta: search.hasta,
+                }}
+                columnas={[
+                  { header: "Paciente", value: (t) => t.patientName },
+                  { header: "Documento", value: (t) => t.patientDocument ?? null },
+                  { header: "Plan", value: (t) => t.name },
+                  { header: "Estado", value: (t) => TREATMENT_PLAN_STATUS_LABELS[t.status] },
+                  {
+                    header: "Inicio",
+                    value: (t) => fechaPlanilla(t.startedAt ?? t.createdAt, timezone),
+                  },
+                  { header: "Ítems completados", value: (t) => t.itemsCompleted },
+                  { header: "Ítems totales", value: (t) => t.itemsCount },
+                  {
+                    header: "Total",
+                    value: (t) => montoPlanilla(t.totalCents, t.currency),
+                    dinero: true,
+                  },
+                  { header: "Moneda", value: (t) => t.currency, dinero: true },
+                ]}
+              />
+            )
+          }
+        />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <BuscadorCompacto
+            etiqueta="Buscar planes"
+            valor={search.q}
             onChange={(q) => set({ q })}
-            placeholder="Plan, paciente o documento…"
+            placeholder="Plan, paciente o documento"
+            className="sm:w-72"
           />
-          <SelectField
-            label="Estado"
-            value={search.estado}
+          <FiltroCompacto
+            etiqueta="Estado"
+            valor={search.estado}
             onChange={(estado) => set({ estado })}
-            allLabel="Todos los estados"
-            options={estados}
+            todas="Estado"
+            opciones={estados}
           />
-          <DateField
-            label="Inicio desde"
-            value={search.desde}
-            onChange={(desde) => set({ desde })}
+          <FiltroRangoFechas
+            etiqueta="Inicio"
+            desde={search.desde}
+            hasta={search.hasta}
+            onChange={(rango) => set(rango)}
           />
-          <DateField
-            label="Inicio hasta"
-            value={search.hasta}
-            onChange={(hasta) => set({ hasta })}
-          />
-        </FilterBar>
-
-        {clinicId && (
-          <div className="flex justify-end">
-            <ExportarCsvLista<(typeof filtrados)[number]>
-              clinicId={clinicId}
-              rol={access.role}
-              lista="tratamientos"
-              filas={filtrados}
-              timezone={timezone}
-              filtros={{
-                q: search.q,
-                estado: search.estado,
-                desde: search.desde,
-                hasta: search.hasta,
-              }}
-              columnas={[
-                { header: "Paciente", value: (t) => t.patientName },
-                { header: "Documento", value: (t) => t.patientDocument ?? null },
-                { header: "Plan", value: (t) => t.name },
-                { header: "Estado", value: (t) => TREATMENT_PLAN_STATUS_LABELS[t.status] },
-                {
-                  header: "Inicio",
-                  value: (t) => fechaPlanilla(t.startedAt ?? t.createdAt, timezone),
-                },
-                { header: "Ítems completados", value: (t) => t.itemsCompleted },
-                { header: "Ítems totales", value: (t) => t.itemsCount },
-                {
-                  header: "Total",
-                  value: (t) => montoPlanilla(t.totalCents, t.currency),
-                  dinero: true,
-                },
-                { header: "Moneda", value: (t) => t.currency, dinero: true },
-              ]}
+          {activos > 0 && (
+            <LimpiarFiltros
+              onClick={() =>
+                void navigate({ search: { q: "", estado: "", desde: "", hasta: "", page: 1 } })
+              }
             />
-          </div>
-        )}
+          )}
+        </div>
 
-        <div className="card-clinical overflow-hidden">
+        <div className={cn(PANEL_LISTA, "overflow-hidden")}>
           <div className="divide-y divide-hairline">
             {isLoading && (
               <p className="px-5 py-10 text-center text-sm text-muted-foreground">
@@ -200,12 +220,14 @@ function TratamientosPage() {
                       <Link
                         to="/pacientes/$pacienteId"
                         params={{ pacienteId: t.patientId }}
-                        className="truncate text-sm font-medium hover:text-brand-700"
+                        className="truncate font-display text-[19px] font-medium leading-tight hover:text-brand-700"
                       >
                         {t.patientName}
                       </Link>
                       {t.patientDocument && (
-                        <p className="text-xs text-muted-foreground">{t.patientDocument}</p>
+                        <p className="cifra text-[12px] text-muted-foreground">
+                          {enmascararDocumento(t.patientDocument)}
+                        </p>
                       )}
                     </div>
                     <div>
@@ -222,18 +244,18 @@ function TratamientosPage() {
                         />
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="cifra text-xs text-muted-foreground">
                       {avance}% ({t.itemsCompleted}/{t.itemsCount})
                     </span>
                     <span
                       className={cn(
-                        "w-fit rounded px-1.5 py-0.5 text-[11px] font-medium",
+                        "w-fit rounded-full border border-transparent px-2.5 py-0.5 text-xs font-semibold",
                         estadoClase[t.status],
                       )}
                     >
                       {TREATMENT_PLAN_STATUS_LABELS[t.status]}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span className="cifra text-[14px] sm:text-right">
                       {formatMoney(t.totalCents, t.currency)}
                     </span>
                   </div>

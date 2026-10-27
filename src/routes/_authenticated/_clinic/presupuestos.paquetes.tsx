@@ -33,6 +33,7 @@ import {
 } from "@/lib/finance/paquetes.functions";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
+import { EncabezadoEditorial, PANEL_LISTA } from "@/components/a-plus/lista";
 
 /**
  * Paquetes de prestaciones (PLA-12): combos del arancel con un precio
@@ -94,28 +95,44 @@ function PaquetesPage() {
 
   return (
     <AppShell title="Paquetes" access={access}>
-      <div className="space-y-6">
-        {puedeVerLista && (
-          <Link
-            to="/presupuestos"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden /> Presupuestos
-          </Link>
-        )}
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <p className="max-w-2xl text-sm text-muted-foreground">
+      <div className="mx-auto max-w-[84rem] space-y-6 text-base">
+        <EncabezadoEditorial
+          contexto={[
+            puedeVerLista ? (
+              <Link
+                key="volver"
+                to="/presupuestos"
+                className="inline-flex items-center gap-1.5 hover:underline"
+              >
+                <ArrowLeft className="size-4" aria-hidden /> Presupuestos
+              </Link>
+            ) : (
+              "Presupuestos"
+            ),
+            !isLoading &&
+              paquetes.length > 0 &&
+              `${paquetes.filter((p) => p.isActive).length} activos`,
+          ]}
+          titulo="Paquetes"
+          enfasis="de prestaciones"
+          acciones={
+            puedeEditar && (
+              <BloqueoEscritura>
+                <Button
+                  className="h-10 rounded-full px-4 text-[14.5px] pointer-coarse:h-11"
+                  onClick={() => setEditando("nuevo")}
+                >
+                  <Plus className="size-4" aria-hidden /> Nuevo paquete
+                </Button>
+              </BloqueoEscritura>
+            )
+          }
+        >
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
             Combos de prestaciones del arancel con un precio cerrado. En el presupuesto se suman de
             una vez, cada prestación con su parte del precio y el ahorro como descuento.
           </p>
-          {puedeEditar && (
-            <BloqueoEscritura>
-              <Button size="sm" onClick={() => setEditando("nuevo")}>
-                <Plus className="size-4" /> Nuevo paquete
-              </Button>
-            </BloqueoEscritura>
-          )}
-        </div>
+        </EncabezadoEditorial>
 
         {isLoading ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -128,7 +145,7 @@ function PaquetesPage() {
             mensaje="No pudimos cargar los paquetes."
           />
         ) : paquetes.length === 0 ? (
-          <div className="card-clinical px-5 py-10 text-center text-sm text-muted-foreground">
+          <div className={cn(PANEL_LISTA, "px-5 py-10 text-center text-sm text-muted-foreground")}>
             Todavía no hay paquetes.
             {puedeEditar && " Crea el primero con las prestaciones que más se cotizan juntas."}
           </div>
@@ -140,11 +157,11 @@ function PaquetesPage() {
               return (
                 <li
                   key={p.id}
-                  className={cn("card-clinical space-y-3 p-4 sm:p-5", !p.isActive && "opacity-70")}
+                  className={cn(PANEL_LISTA, "space-y-3 p-4 sm:p-5", !p.isActive && "opacity-70")}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="flex items-center gap-2 font-display text-lg font-semibold">
+                      <h2 className="flex items-center gap-2 font-display text-[24px] leading-tight font-medium">
                         <Package className="size-4 shrink-0 text-brand" aria-hidden />
                         <span className="truncate">{p.name}</span>
                       </h2>
@@ -156,7 +173,9 @@ function PaquetesPage() {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="cifra font-semibold">{formatMoney(p.priceCents, p.currency)}</p>
+                      <p className="font-display text-[26px] leading-none font-medium [font-variant-numeric:lining-nums]">
+                        {formatMoney(p.priceCents, p.currency)}
+                      </p>
                       {ahorro > 0 && (
                         <p className="cifra text-xs text-success">
                           Ahorro {formatMoney(ahorro, p.currency)}
