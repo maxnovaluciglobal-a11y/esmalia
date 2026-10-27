@@ -115,6 +115,8 @@ export const Route = createFileRoute("/api/demo-reset")({
         await (
           await import("@/lib/demo/caja-comisiones.server")
         ).sembrarCajaYComisionesDeLaDemo(supabaseAdmin);
+        // Ola 11 · A: informes guardados de ejemplo en el constructor (nunca lanza).
+        await (await import("@/lib/demo/informes.server")).sembrarInformesDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },
