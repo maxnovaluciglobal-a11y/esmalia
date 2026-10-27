@@ -92,6 +92,12 @@ export interface Paciente {
   /** null = aún no calculado (IA de predicción de ausencias, fase 4) */
   riesgoAusencia: number | null;
   etiquetas: string[];
+  /** PAC-07: ids de las etiquetas del catálogo (solo en el listado). */
+  etiquetaIds?: string[];
+  /** PAC-08: total pagado en cents (solo con `finance:view`; null = sin pagos o sin permiso). */
+  valorHistorico?: number | null;
+  /** PAC-15: motivo con que se archivó la ficha. */
+  motivoArchivo?: string | null;
   /** Convenio o seguro del paciente. `null` = particular, el caso más común. */
   convenioId?: string | null;
   convenioNombre?: string | null;

@@ -92,6 +92,7 @@ type PatientRow = {
   agreement_id?: string | null;
   agreement_member_id?: string | null;
   archived_at?: string | null;
+  archive_reason?: string | null;
   id: string;
   full_name: string;
   document_id: string | null;
@@ -173,6 +174,7 @@ function mapPatientRow(
     waOptIn: row.wa_opt_in,
     referralCode: row.referral_code,
     archivadaEl: row.archived_at ?? null,
+    motivoArchivo: row.archive_reason ?? null,
     creadaEl: row.created_at ?? null,
     documentoTipo: esTipoDocumento(row.document_type) ? row.document_type : null,
     prevision: esPrevision(row.health_plan) ? row.health_plan : null,
@@ -196,7 +198,7 @@ function mapPatientRow(
 }
 
 const PATIENT_COLUMNS =
-  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, created_at, agreement_id, agreement_member_id, archived_at, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
+  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, created_at, agreement_id, agreement_member_id, archived_at, archive_reason, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
 
 /**
  * Tope de fila del listado — red de seguridad, no la estrategia de paginado
@@ -220,152 +222,229 @@ const PATIENTS_ROW_LIMIT = 5_000;
  * que hace el cálculo en Postgres con índice `appointments_clinic_patient_idx`
  * y devuelve solo 1 fila por paciente.
  */
+const OpcionesListado = z.object({
+  clinicId: z.string().uuid(),
+  /** LEG-08: las fichas archivadas no aparecen salvo que se pidan. */
+  archivo: z.enum(FILTROS_DE_ARCHIVO).default("activas"),
+  /**
+   * UX-15: saldo real por paciente (RPC `patient_balances`) para el
+   * listado de /pacientes. Solo lo pide esa pantalla (las demás no lo
+   * usan y no pagan la consulta) y solo se calcula para quien tiene
+   * `finance:view`: a los demás el saldo les llega `null`.
+   */
+  conSaldos: z.boolean().default(false),
+  /**
+   * SEG-08: qué le falta a cada ficha (filtro "Fichas incompletas").
+   * La anamnesis solo cuenta para quien ve la historia clínica.
+   */
+  conCompletitud: z.boolean().default(false),
+  /** PAC-07: ids de las etiquetas del catálogo de cada paciente. */
+  conEtiquetas: z.boolean().default(false),
+  /**
+   * PAC-08: total pagado por paciente (`patient_lifetime_values`). Solo
+   * para `finance:view`; a los demás les llega `null` (regla 15). La
+   * función de la base también rechaza a quien no tiene el rol.
+   */
+  conValorHistorico: z.boolean().default(false),
+});
+export type OpcionesListadoPacientes = z.input<typeof OpcionesListado>;
+
 export const listPatients = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) =>
-    z
-      .object({
-        clinicId: z.string().uuid(),
-        /** LEG-08: las fichas archivadas no aparecen salvo que se pidan. */
-        archivo: z.enum(FILTROS_DE_ARCHIVO).default("activas"),
-        /**
-         * UX-15: saldo real por paciente (RPC `patient_balances`) para el
-         * listado de /pacientes. Solo lo pide esa pantalla (las demás no lo
-         * usan y no pagan la consulta) y solo se calcula para quien tiene
-         * `finance:view`: a los demás el saldo les llega `null`.
-         */
-        conSaldos: z.boolean().default(false),
-        /**
-         * SEG-08: qué le falta a cada ficha (filtro "Fichas incompletas").
-         * La anamnesis solo cuenta para quien ve la historia clínica.
-         */
-        conCompletitud: z.boolean().default(false),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }): Promise<{ items: Paciente[]; truncated: boolean }> => {
-    const { supabase, userId } = context;
+  .validator((input: unknown) => OpcionesListado.parse(input))
+  .handler(({ data, context }) => cargarPacientes(context.supabase, context.userId, data));
 
-    // Una consulta nueva por página: los builders de supabase-js acumulan
-    // parámetros si se reusan.
-    const consultaPacientes = () => {
-      const consulta = supabase
-        .from("patients")
-        .select(PATIENT_COLUMNS)
-        .eq("clinic_id", data.clinicId);
-      if (data.archivo === "activas") return consulta.is("archived_at", null);
-      if (data.archivo === "archivadas") return consulta.not("archived_at", "is", null);
-      return consulta;
-    };
+/**
+ * Cuerpo de `listPatients`, reutilizable desde el servidor (resolver un
+ * segmento para una campaña: `segmentos.server.ts`). Corre con el cliente
+ * del usuario, así que la RLS aplica igual.
+ */
+export async function cargarPacientes(
+  supabase: SupabaseClient<Database>,
+  userId: string,
+  opciones: OpcionesListadoPacientes,
+): Promise<{ items: Paciente[]; truncated: boolean; veFinanzas: boolean }> {
+  const data = OpcionesListado.parse(opciones);
 
-    // Orden estable entre páginas: dos pacientes pueden llamarse igual.
-    const [{ filas: rows, truncado: truncated, error }, { filas: apptRows, error: apptError }] =
-      await Promise.all([
-        leerTodasLasPaginas(
-          (desde, hasta) =>
-            consultaPacientes()
-              .order("full_name", { ascending: true })
-              .order("id", { ascending: true })
-              .range(desde, hasta),
-          { tope: PATIENTS_ROW_LIMIT },
-        ),
-        // Una fila por paciente de la clínica: también pasa de 1000.
-        leerTodasLasPaginas((desde, hasta) =>
-          supabase
-            .rpc("list_patients_with_last_and_next_appointment", { p_clinic_id: data.clinicId })
-            .order("patient_id", { ascending: true })
+  // Una consulta nueva por página: los builders de supabase-js acumulan
+  // parámetros si se reusan.
+  const consultaPacientes = () => {
+    const consulta = supabase
+      .from("patients")
+      .select(PATIENT_COLUMNS)
+      .eq("clinic_id", data.clinicId);
+    if (data.archivo === "activas") return consulta.is("archived_at", null);
+    if (data.archivo === "archivadas") return consulta.not("archived_at", "is", null);
+    return consulta;
+  };
+
+  // Orden estable entre páginas: dos pacientes pueden llamarse igual.
+  const [{ filas: rows, truncado: truncated, error }, { filas: apptRows, error: apptError }] =
+    await Promise.all([
+      leerTodasLasPaginas(
+        (desde, hasta) =>
+          consultaPacientes()
+            .order("full_name", { ascending: true })
+            .order("id", { ascending: true })
             .range(desde, hasta),
-        ),
-      ]);
+        { tope: PATIENTS_ROW_LIMIT },
+      ),
+      // Una fila por paciente de la clínica: también pasa de 1000.
+      leerTodasLasPaginas((desde, hasta) =>
+        supabase
+          .rpc("list_patients_with_last_and_next_appointment", { p_clinic_id: data.clinicId })
+          .order("patient_id", { ascending: true })
+          .range(desde, hasta),
+      ),
+    ]);
 
-    if (error) throw new Error(mensajeDb(error, "No pudimos cargar la lista de pacientes."));
-    if (apptError)
-      throw new Error(
-        mensajeDb(apptError, "No pudimos cargar la información de citas de los pacientes."),
-      );
-
-    type ApptSummary = {
-      patient_id: string;
-      last_appointment_at: string | null;
-      next_appointment_at: string | null;
-    };
-    const summaryByPatient = new Map<string, ApptSummary>(
-      apptRows.map((r) => [(r as ApptSummary).patient_id, r as ApptSummary]),
+  if (error) throw new Error(mensajeDb(error, "No pudimos cargar la lista de pacientes."));
+  if (apptError)
+    throw new Error(
+      mensajeDb(apptError, "No pudimos cargar la información de citas de los pacientes."),
     );
 
-    // `patients.balance_cents` quedó del esquema original y no se mantiene:
-    // el saldo real sale de `fetchPatientBalances`, como en la ficha.
-    let saldos: Map<string, { billedCents: number; paidCents: number }> | null = null;
-    let permisos: readonly string[] = [];
-    if (data.conSaldos || data.conCompletitud) {
-      const { data: membership } = await supabase
-        .from("clinic_members")
-        .select("role")
+  type ApptSummary = {
+    patient_id: string;
+    last_appointment_at: string | null;
+    next_appointment_at: string | null;
+  };
+  const summaryByPatient = new Map<string, ApptSummary>(
+    apptRows.map((r) => [(r as ApptSummary).patient_id, r as ApptSummary]),
+  );
+
+  // `patients.balance_cents` quedó del esquema original y no se mantiene:
+  // el saldo real sale de `fetchPatientBalances`, como en la ficha.
+  let saldos: Map<string, { billedCents: number; paidCents: number }> | null = null;
+  let permisos: readonly string[] = [];
+  if (data.conSaldos || data.conCompletitud || data.conValorHistorico) {
+    const { data: membership } = await supabase
+      .from("clinic_members")
+      .select("role")
+      .eq("clinic_id", data.clinicId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    permisos = membership?.role ? permissionsForRole(membership.role as ClinicRole) : [];
+  }
+  const veFinanzas = permisos.includes("finance:view");
+  if (data.conSaldos && veFinanzas) {
+    saldos = await fetchPatientBalances(supabase, data.clinicId);
+  }
+
+  // PAC-08: valor histórico (total pagado), solo con `finance:view`.
+  let valores: Map<string, number> | null = null;
+  if (data.conValorHistorico && veFinanzas) {
+    valores = await fetchPatientLifetimeValues(supabase, data.clinicId);
+  }
+
+  // PAC-07: etiquetas del catálogo de cada paciente.
+  let etiquetasPorPaciente: Map<string, string[]> | null = null;
+  if (data.conEtiquetas) {
+    const { filas, error: etError } = await leerTodasLasPaginas((desde, hasta) =>
+      supabase
+        .from("patient_label_assignments")
+        .select("patient_id, label_id")
         .eq("clinic_id", data.clinicId)
-        .eq("user_id", userId)
-        .maybeSingle();
-      permisos = membership?.role ? permissionsForRole(membership.role as ClinicRole) : [];
+        .order("patient_id", { ascending: true })
+        .order("label_id", { ascending: true })
+        .range(desde, hasta),
+    );
+    if (etError) throw new Error(mensajeDb(etError, "No pudimos cargar las etiquetas."));
+    etiquetasPorPaciente = new Map();
+    for (const f of filas) {
+      const lista = etiquetasPorPaciente.get(f.patient_id) ?? [];
+      lista.push(f.label_id);
+      etiquetasPorPaciente.set(f.patient_id, lista);
     }
-    if (data.conSaldos && permisos.includes("finance:view")) {
-      saldos = await fetchPatientBalances(supabase, data.clinicId);
-    }
+  }
 
-    // SEG-08: con anamnesis = tiene fila en patient_medical_history. Solo
-    // para quien ve la historia clínica (la RLS igual no le daría filas a
-    // los demás, y "falta anamnesis" sería falso).
-    let conAnamnesis: Set<string> | null = null;
-    let pais: string | null = null;
-    if (data.conCompletitud) {
-      pais = await paisDeLaClinica(supabase, data.clinicId);
-      if (permisos.includes("clinical:view")) {
-        const { filas, error: mhError } = await leerTodasLasPaginas((desde, hasta) =>
-          supabase
-            .from("patient_medical_history")
-            .select("patient_id")
-            .eq("clinic_id", data.clinicId)
-            .order("patient_id", { ascending: true })
-            .range(desde, hasta),
-        );
-        if (!mhError) conAnamnesis = new Set(filas.map((f) => f.patient_id));
-      }
+  // SEG-08: con anamnesis = tiene fila en patient_medical_history. Solo
+  // para quien ve la historia clínica (la RLS igual no le daría filas a
+  // los demás, y "falta anamnesis" sería falso).
+  let conAnamnesis: Set<string> | null = null;
+  let pais: string | null = null;
+  if (data.conCompletitud) {
+    pais = await paisDeLaClinica(supabase, data.clinicId);
+    if (permisos.includes("clinical:view")) {
+      const { filas, error: mhError } = await leerTodasLasPaginas((desde, hasta) =>
+        supabase
+          .from("patient_medical_history")
+          .select("patient_id")
+          .eq("clinic_id", data.clinicId)
+          .order("patient_id", { ascending: true })
+          .range(desde, hasta),
+      );
+      if (!mhError) conAnamnesis = new Set(filas.map((f) => f.patient_id));
     }
+  }
 
-    const items = rows.map((row) => {
-      const s = summaryByPatient.get(row.id);
-      if (data.conSaldos) {
-        const saldo = saldos?.get(row.id);
-        // Regla 11: sin movimientos es `null`, no "$0".
-        (row as PatientRow).balance_cents =
-          saldo && (saldo.billedCents !== 0 || saldo.paidCents !== 0)
-            ? saldo.billedCents - saldo.paidCents
-            : null;
-      }
-      const paciente = mapPatientRow(row as PatientRow, {
-        ultimaVisita: s?.last_appointment_at
-          ? formatoFecha(s.last_appointment_at.slice(0, 10))
-          : "Sin visitas",
-        ultimaVisitaISO: s?.last_appointment_at ? s.last_appointment_at.slice(0, 10) : "",
-        proximoControl: s?.next_appointment_at
-          ? formatoFecha(s.next_appointment_at.slice(0, 10))
-          : null,
-      });
-      if (data.conCompletitud) {
-        paciente.faltantes = faltantesDeLaFicha(
-          {
-            prevision: paciente.prevision ?? null,
-            documento: paciente.documento,
-            fechaNacimiento: paciente.fechaNacimiento ?? null,
-            direccion: paciente.direccion ?? null,
-            comuna: paciente.comuna ?? null,
-            tieneAnamnesis: conAnamnesis ? conAnamnesis.has(paciente.id) : null,
-          },
-          (pais ?? "").toUpperCase() === "CL",
-        );
-      }
-      return paciente;
+  const items = rows.map((row) => {
+    const s = summaryByPatient.get(row.id);
+    if (data.conSaldos) {
+      const saldo = saldos?.get(row.id);
+      // Regla 11: sin movimientos es `null`, no "$0".
+      (row as PatientRow).balance_cents =
+        saldo && (saldo.billedCents !== 0 || saldo.paidCents !== 0)
+          ? saldo.billedCents - saldo.paidCents
+          : null;
+    }
+    const paciente = mapPatientRow(row as PatientRow, {
+      ultimaVisita: s?.last_appointment_at
+        ? formatoFecha(s.last_appointment_at.slice(0, 10))
+        : "Sin visitas",
+      ultimaVisitaISO: s?.last_appointment_at ? s.last_appointment_at.slice(0, 10) : "",
+      proximoControl: s?.next_appointment_at
+        ? formatoFecha(s.next_appointment_at.slice(0, 10))
+        : null,
     });
-    return { items, truncated };
+    if (data.conCompletitud) {
+      paciente.faltantes = faltantesDeLaFicha(
+        {
+          prevision: paciente.prevision ?? null,
+          documento: paciente.documento,
+          fechaNacimiento: paciente.fechaNacimiento ?? null,
+          direccion: paciente.direccion ?? null,
+          comuna: paciente.comuna ?? null,
+          tieneAnamnesis: conAnamnesis ? conAnamnesis.has(paciente.id) : null,
+        },
+        (pais ?? "").toUpperCase() === "CL",
+      );
+    }
+    if (etiquetasPorPaciente) paciente.etiquetaIds = etiquetasPorPaciente.get(paciente.id) ?? [];
+    if (data.conValorHistorico) paciente.valorHistorico = valores?.get(paciente.id) ?? null;
+    return paciente;
   });
+  return { items, truncated, veFinanzas };
+}
+
+/**
+ * PAC-08: total pagado (no reversado) por paciente, en cents. La base
+ * rechaza a quien no tiene `finance:view` (owner/admin/accounting); acá se
+ * llama solo si el rol ya lo tiene. Sin pagos = no aparece (la UI muestra
+ * "Sin datos", regla 11).
+ */
+export async function fetchPatientLifetimeValues(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  patientIds?: readonly string[],
+): Promise<Map<string, number>> {
+  const valores = new Map<string, number>();
+  if (patientIds && patientIds.length === 0) return valores;
+  const { filas, error } = await leerTodasLasPaginas((desde, hasta) =>
+    supabase
+      .rpc(
+        "patient_lifetime_values",
+        patientIds
+          ? { p_clinic_id: clinicId, p_patient_ids: [...patientIds] }
+          : { p_clinic_id: clinicId },
+      )
+      .order("patient_id", { ascending: true })
+      .range(desde, hasta),
+  );
+  if (error) throw new Error(mensajeDb(error, "No pudimos calcular el valor histórico."));
+  for (const f of filas) valores.set(f.patient_id, Number(f.paid_cents ?? 0));
+  return valores;
+}
 
 /**
  * Saldo por paciente: total facturado en treatment_items (lo que le toca al
@@ -700,13 +779,22 @@ export const setPatientArchived = createServerFn({ method: "POST" })
         clinicId: z.string().uuid(),
         patientId: z.string().uuid(),
         archivar: z.boolean(),
+        /** PAC-15: por qué se archiva (obligatorio al archivar; al restaurar se borra). */
+        motivo: z.string().trim().max(500).optional(),
+      })
+      .refine((d) => !d.archivar || (d.motivo ?? "").length >= 3, {
+        message: "Escribe el motivo del archivo (al menos 3 letras).",
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { data: fila, error } = await context.supabase
       .from("patients")
-      .update({ archived_at: data.archivar ? new Date().toISOString() : null })
+      .update(
+        data.archivar
+          ? { archived_at: new Date().toISOString(), archive_reason: data.motivo ?? null }
+          : { archived_at: null },
+      )
       .eq("id", data.patientId)
       .eq("clinic_id", data.clinicId)
       .select("id")
@@ -722,4 +810,39 @@ export const setPatientArchived = createServerFn({ method: "POST" })
       );
     if (!fila) throw new Error("No tienes permisos para cambiar el archivo de esta ficha.");
     return { ok: true };
+  });
+
+/** Tope de fichas por archivo masivo (PAC-15): una página grande de la lista. */
+export const TOPE_ARCHIVO_MASIVO = 500;
+
+/**
+ * PAC-15: archiva varias fichas de una vez, con un mismo motivo. Nunca
+ * borra: solo marca `archived_at` (la historia clínica se conserva por el
+ * Decreto 41). Quién puede (owner/admin), la fecha y el actor los pone la
+ * base (`patients_controlar_archivo`); el motivo lo cuida
+ * `patients_motivo_de_archivo`. Las que ya estaban archivadas no se tocan.
+ * Devuelve cuántas se archivaron de verdad.
+ */
+export const archivePatients = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        patientIds: z.array(z.string().uuid()).min(1).max(TOPE_ARCHIVO_MASIVO),
+        motivo: z.string().trim().min(3, "Escribe el motivo del archivo.").max(500),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ archivadas: number }> => {
+    const ids = [...new Set(data.patientIds)];
+    const { data: filas, error } = await context.supabase
+      .from("patients")
+      .update({ archived_at: new Date().toISOString(), archive_reason: data.motivo })
+      .eq("clinic_id", data.clinicId)
+      .in("id", ids)
+      .is("archived_at", null)
+      .select("id");
+    if (error) throw new Error(mensajeDb(error, "No tienes permisos para archivar estas fichas."));
+    return { archivadas: filas?.length ?? 0 };
   });

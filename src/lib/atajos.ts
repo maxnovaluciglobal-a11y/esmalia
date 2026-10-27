@@ -4,6 +4,8 @@
  * - `/` abre la búsqueda de pacientes (el mismo buscador que ⌘K).
  * - `?` abre la hoja de atajos.
  * - En la agenda, `N` abre "Nueva cita".
+ * - En Pacientes (Ola 8, NAV-05): `N` abre "Nuevo paciente", `F` lleva al
+ *   buscador de la lista y `Esc` quita la selección de fichas.
  *
  * Una tecla suelta nunca se roba mientras alguien escribe: si el foco está
  * en un campo editable, con un modificador apretado o con un diálogo abierto,
@@ -81,6 +83,16 @@ export function esAtajoNuevaCita(e: EventoTecla, hayDialogoAbierto = false): boo
   return (e.key === "n" || e.key === "N") && puedeAtenderAtajo(e, hayDialogoAbierto);
 }
 
+/** `N` en Pacientes: abre "Nuevo paciente" (misma tecla que en la agenda). */
+export function esAtajoNuevoPaciente(e: EventoTecla, hayDialogoAbierto = false): boolean {
+  return esAtajoNuevaCita(e, hayDialogoAbierto);
+}
+
+/** `F` en una lista: lleva el foco al buscador de esa lista. */
+export function esAtajoFiltrar(e: EventoTecla, hayDialogoAbierto = false): boolean {
+  return (e.key === "f" || e.key === "F") && puedeAtenderAtajo(e, hayDialogoAbierto);
+}
+
 /** ⌘/Ctrl + Enter dentro de un formulario de cita: guardar. */
 export function esAtajoGuardar(e: EventoTecla): boolean {
   return e.key === "Enter" && Boolean(e.metaKey || e.ctrlKey) && !e.altKey;
@@ -107,6 +119,26 @@ export function gruposDeAtajos(mod: "⌘" | "Ctrl"): GrupoDeAtajos[] {
         { teclas: ["/"], descripcion: "Buscar paciente" },
         { teclas: ["?"], descripcion: "Ver estos atajos" },
         { teclas: ["Esc"], descripcion: "Cerrar el diálogo abierto" },
+      ],
+    },
+    {
+      titulo: `En el buscador (${mod} K)`,
+      atajos: [
+        { teclas: ["↑", "↓", "Enter"], descripcion: "Elegir un resultado" },
+        { teclas: ["cobrar"], descripcion: "Registrar pago (también “pagar” o “abono”)" },
+        { teclas: ["turno"], descripcion: "Nueva cita (también “hora” o “agendar”)" },
+        { teclas: ["saldo"], descripcion: "Pacientes con saldo" },
+        { teclas: ["ajustes"], descripcion: "Ir a cualquier pantalla de Ajustes" },
+      ],
+    },
+    {
+      titulo: "Pacientes",
+      atajos: [
+        { teclas: ["N"], descripcion: "Nuevo paciente" },
+        { teclas: ["F"], descripcion: "Buscar en la lista" },
+        { teclas: ["Espacio"], descripcion: "Marcar la ficha (en su casilla)" },
+        { teclas: ["Esc"], descripcion: "Quitar la selección" },
+        { teclas: ["Enter"], descripcion: "Abrir el menú ⋮ de la fila enfocada" },
       ],
     },
     {
