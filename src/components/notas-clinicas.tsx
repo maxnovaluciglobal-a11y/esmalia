@@ -10,6 +10,7 @@ import {
   History,
   ListTree,
   Loader2,
+  Lock,
   MessageSquare,
   RotateCcw,
   Save,
@@ -49,6 +50,7 @@ import {
   formatoFechaHora,
   lineaDeFirma,
   ordenarConAdendas,
+  puedeCambiarRestriccion,
   tituloDeAdenda,
   type ClinicalNoteEntity,
   type NoteReviewStatus,
@@ -78,6 +80,9 @@ import { mensajeDeError } from "@/lib/mensaje-error";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { TituloSeccion } from "@/components/titulo-seccion";
+import { AvisoRestringidasOcultas, RestriccionDeNota } from "@/components/ficha/nota-restringida";
+import { SelectorDeProtocolo } from "@/components/ficha/protocolo-en-nota";
+import { agregarProtocoloANota } from "@/lib/clinical/protocolos";
 
 const REVIEW_BADGE: Record<NoteReviewStatus, string> = {
   none: "border-hairline text-muted-foreground",
@@ -618,6 +623,8 @@ export function NotasClinicas({
         </div>
       </div>
 
+      <AvisoRestringidasOcultas cantidad={data?.restringidasOcultas ?? 0} />
+
       {notas.length > 0 && (
         <div className="mb-4 flex flex-wrap gap-2">
           {notas.map((n) => (
@@ -641,6 +648,7 @@ export function NotasClinicas({
                 <span className="text-[11px] opacity-70">· ficha fusionada</span>
               )}
               {n.status === "signed" && <ShieldCheck className="size-3" />}
+              {n.restricted && <Lock className="size-3" aria-label="Restringida" />}
               {n.reviewStatus !== "none" && (
                 <span
                   className={`rounded-full border px-1.5 text-[11px] ${REVIEW_BADGE[n.reviewStatus]}`}
@@ -703,6 +711,39 @@ export function NotasClinicas({
                   : "Elige un motivo de consulta para partir desde un formato predefinido."}
               </p>
             </div>
+          )}
+
+          {puedeEditar && !bloqueada && !firmada && clinicId && (
+            <SelectorDeProtocolo
+              clinicId={clinicId}
+              puedeAdministrar={esProfesional}
+              onAplicar={(bloque, protocolo) => {
+                setContenido((actual) => agregarProtocoloANota(actual, bloque));
+                toast.success(
+                  `Protocolo «${protocolo.name}» agregado a la nota. Guarda la versión para registrarlo.`,
+                );
+              }}
+            />
+          )}
+
+          {notaActual && clinicId && (
+            <RestriccionDeNota
+              clinicId={clinicId}
+              patientId={paciente.id}
+              noteId={notaActual.id}
+              restringida={notaActual.restricted}
+              restringidaEl={notaActual.restrictedAt}
+              esAdenda={Boolean(notaActual.addendumOf)}
+              puedeCambiar={
+                puedeEditar &&
+                Boolean(userId) &&
+                puedeCambiarRestriccion({
+                  rol,
+                  userId: userId ?? "",
+                  autorId: notaActual.createdBy,
+                })
+              }
+            />
           )}
 
           {notaCorregida && (

@@ -9,6 +9,7 @@ import {
   SEVERIDADES_ALERGIA,
   conciliarCuestionario,
   etiquetaSeveridad,
+  preguntasPorGrupo,
   preguntasRespondidas,
   riesgosDesdeAntecedentes,
   type AlergiaDetallada,
@@ -24,7 +25,6 @@ import {
 import { unirSinRepetir } from "@/lib/patients/fusion";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { cn } from "@/lib/utils";
-import { TituloSeccion } from "@/components/titulo-seccion";
 
 function ChipListEditor({
   label,
@@ -54,15 +54,15 @@ function ChipListEditor({
   return (
     <div className="space-y-1.5">
       {disabled ? (
-        <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        <p className="text-sm font-semibold text-muted-foreground">{label}</p>
       ) : (
-        <label htmlFor={inputId} className="block text-xs font-medium text-muted-foreground">
+        <label htmlFor={inputId} className="block text-sm font-semibold text-muted-foreground">
           {label}
         </label>
       )}
       <div className="flex flex-wrap gap-1.5">
         {items.length === 0 && (
-          <span className="text-xs text-muted-foreground">Sin registrar.</span>
+          <span className="text-sm text-muted-foreground">Sin registrar.</span>
         )}
         {items.map((item) => (
           <span
@@ -70,7 +70,7 @@ function ChipListEditor({
             className={
               tone === "destructive"
                 ? "flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-xs font-medium text-destructive"
-                : "flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-xs"
+                : "flex items-center gap-1 rounded-full bg-secondary px-2.5 py-1 text-sm"
             }
           >
             {item}
@@ -159,15 +159,15 @@ function AllergyEditor({
   return (
     <div className="space-y-1.5">
       {disabled ? (
-        <p className="text-xs font-medium text-muted-foreground">Alergias</p>
+        <p className="text-sm font-semibold text-muted-foreground">Alergias</p>
       ) : (
-        <label htmlFor={inputId} className="block text-xs font-medium text-muted-foreground">
+        <label htmlFor={inputId} className="block text-sm font-semibold text-muted-foreground">
           Alergias
         </label>
       )}
       <div className="flex flex-wrap gap-1.5">
         {items.length === 0 && (
-          <span className="text-xs text-muted-foreground">Sin registrar.</span>
+          <span className="text-sm text-muted-foreground">Sin registrar.</span>
         )}
         {items.map((a) => (
           <span
@@ -283,104 +283,128 @@ function RiskQuestionnaire({
     onChange({ ...value, [key]: { ...actual, detail } });
   }
 
+  const grupos = preguntasPorGrupo();
   return (
-    <fieldset className="space-y-2">
-      <legend className="text-xs font-medium text-muted-foreground">
-        Cuestionario de riesgo · {preguntasRespondidas(efectivo)} de {PREGUNTAS_RIESGO.length}{" "}
-        respondidas
+    <fieldset className="space-y-4">
+      <legend className="text-sm font-semibold text-muted-foreground">
+        Antecedentes · <span className="cifra">{preguntasRespondidas(efectivo)}</span> de{" "}
+        <span className="cifra">{PREGUNTAS_RIESGO.length}</span> respondidos
         {desdeAntecedentes.length > 0 &&
           ` (${desdeAntecedentes.length} según antecedentes, sin confirmar)`}
       </legend>
-      <ul className="divide-y divide-hairline rounded-lg border border-hairline">
-        {PREGUNTAS_RIESGO.map((p) => {
-          const guardada = value[p.key];
-          const inferida = desdeAntecedentes.includes(p.key);
-          const contradice = contradicciones.includes(p.key);
-          const r = guardada ?? efectivo[p.key];
-          return (
-            <li key={p.key} className="space-y-1.5 px-3 py-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span
-                  className={cn(
-                    "text-xs",
-                    r?.answer === "yes" && p.critica && "font-semibold text-destructive",
-                    r?.answer === "yes" && !p.critica && "font-semibold",
-                  )}
-                >
-                  {p.label}
-                  {p.critica && <span className="sr-only"> (riesgo crítico)</span>}
-                </span>
-                {disabled ? (
-                  <span className="text-xs text-muted-foreground">
-                    {r ? (r.answer === "yes" ? "Sí" : "No") : "Sin responder"}
-                    {inferida && " · según antecedentes"}
+      {grupos.map((g) => {
+        const respondidas = g.preguntas.filter((p) => efectivo[p.key]).length;
+        const positivas = g.preguntas.filter((p) => efectivo[p.key]?.answer === "yes").length;
+        return (
+          <section key={g.key} aria-labelledby={`antecedentes-${g.key}`} className="space-y-2">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h4 id={`antecedentes-${g.key}`} className="font-display text-xl font-semibold">
+                {g.label}
+              </h4>
+              <span className="text-[13px] text-muted-foreground">
+                <span className="cifra">{respondidas}</span>/
+                <span className="cifra">{g.preguntas.length}</span>
+                {positivas > 0 && (
+                  <span className="ml-2 inline-flex h-6 items-center rounded-full border border-destructive-border bg-destructive-soft px-2 text-[12px] font-semibold text-destructive">
+                    {positivas === 1 ? "1 positivo" : `${positivas} positivos`}
                   </span>
-                ) : (
-                  <div role="radiogroup" aria-label={p.label} className="flex gap-1">
-                    {(
-                      [
-                        ["yes", "Sí"],
-                        ["no", "No"],
-                      ] as const
-                    ).map(([answer, texto]) => (
-                      <button
-                        key={answer}
-                        type="button"
-                        role="radio"
-                        aria-checked={guardada?.answer === answer}
-                        onClick={() =>
-                          responder(p.key, guardada?.answer === answer ? null : answer)
-                        }
+                )}
+              </span>
+            </div>
+            <ul className="divide-y divide-hairline rounded-[14px] border border-hairline">
+              {g.preguntas.map((p) => {
+                const guardada = value[p.key];
+                const inferida = desdeAntecedentes.includes(p.key);
+                const contradice = contradicciones.includes(p.key);
+                const r = guardada ?? efectivo[p.key];
+                return (
+                  <li key={p.key} className="space-y-1.5 px-3 py-2.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span
                         className={cn(
-                          "min-h-8 min-w-10 rounded-md border px-2 text-xs",
-                          inferida && answer === "yes"
-                            ? "border-dashed border-destructive/60 text-destructive"
-                            : guardada?.answer === answer
-                              ? answer === "yes"
-                                ? "border-destructive bg-destructive/10 font-medium text-destructive"
-                                : "border-brand bg-brand/12 font-medium text-brand-700"
-                              : "border-hairline text-muted-foreground hover:bg-secondary",
+                          "min-w-0 text-[15px]",
+                          r?.answer === "yes" && p.critica && "font-semibold text-destructive",
+                          r?.answer === "yes" && !p.critica && "font-semibold",
                         )}
                       >
-                        {texto}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {inferida && (
-                <p className="text-[11px] text-muted-foreground">
-                  Según antecedentes: {r?.detail}.{" "}
-                  {!disabled && "Toca «Sí» para confirmarla o «No» si ya no aplica."}
-                </p>
-              )}
-              {contradice && (
-                <p className="flex items-center gap-1 text-[11px] text-warning">
-                  <AlertTriangle aria-hidden className="size-3 shrink-0" />
-                  Respondida «No», pero los antecedentes la mencionan. Revísalo con el paciente.
-                </p>
-              )}
-              {guardada?.answer === "yes" &&
-                (disabled ? (
-                  guardada.detail && (
-                    <p className="text-xs text-muted-foreground">{guardada.detail}</p>
-                  )
-                ) : (
-                  <input
-                    aria-label={`Detalle: ${p.label}`}
-                    value={guardada.detail ?? ""}
-                    onChange={(e) => detallar(p.key, e.target.value)}
-                    placeholder={p.ayuda ?? "Detalle (opcional)"}
-                    maxLength={300}
-                    className="w-full rounded-lg border border-input bg-transparent px-3 py-1.5 text-xs focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
-                  />
-                ))}
-            </li>
-          );
-        })}
-      </ul>
+                        {p.label}
+                        {p.critica && <span className="sr-only"> (riesgo crítico)</span>}
+                      </span>
+                      {disabled ? (
+                        <span className="text-sm text-muted-foreground">
+                          {r ? (r.answer === "yes" ? "Sí" : "No") : "Sin responder"}
+                          {inferida && " · según antecedentes"}
+                        </span>
+                      ) : (
+                        <div role="radiogroup" aria-label={p.label} className="flex gap-1">
+                          {(
+                            [
+                              ["yes", "Sí"],
+                              ["no", "No"],
+                            ] as const
+                          ).map(([answer, texto]) => (
+                            <button
+                              key={answer}
+                              type="button"
+                              role="radio"
+                              aria-checked={guardada?.answer === answer}
+                              onClick={() =>
+                                responder(p.key, guardada?.answer === answer ? null : answer)
+                              }
+                              className={cn(
+                                "h-8 min-w-11 rounded-full border px-3 text-sm font-semibold pointer-coarse:h-11",
+                                inferida && answer === "yes"
+                                  ? "border-dashed border-destructive/60 text-destructive"
+                                  : guardada?.answer === answer
+                                    ? answer === "yes"
+                                      ? "border-destructive bg-destructive-soft text-destructive"
+                                      : "border-foreground bg-foreground text-background"
+                                    : "border-control text-muted-foreground hover:border-foreground",
+                              )}
+                            >
+                              {texto}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {inferida && (
+                      <p className="text-[13px] text-muted-foreground">
+                        Según antecedentes: {r?.detail}.{" "}
+                        {!disabled && "Toca «Sí» para confirmarla o «No» si ya no aplica."}
+                      </p>
+                    )}
+                    {contradice && (
+                      <p className="flex items-center gap-1 text-[13px] text-warning">
+                        <AlertTriangle aria-hidden className="size-3.5 shrink-0" />
+                        Respondida «No», pero los antecedentes la mencionan. Revísalo con el
+                        paciente.
+                      </p>
+                    )}
+                    {guardada?.answer === "yes" &&
+                      (disabled ? (
+                        guardada.detail && (
+                          <p className="text-sm text-muted-foreground">{guardada.detail}</p>
+                        )
+                      ) : (
+                        <input
+                          aria-label={`Detalle: ${p.label}`}
+                          value={guardada.detail ?? ""}
+                          onChange={(e) => detallar(p.key, e.target.value)}
+                          placeholder={p.ayuda ?? "Detalle (opcional)"}
+                          maxLength={300}
+                          className="w-full rounded-lg border border-input bg-transparent px-3 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 pointer-coarse:text-base"
+                        />
+                      ))}
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
       {!disabled && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[13px] text-muted-foreground">
           Toca de nuevo una respuesta para dejarla sin responder.
         </p>
       )}
@@ -465,15 +489,29 @@ export function MedicalHistoryCard({
       JSON.stringify(cuestionario) !== JSON.stringify(historyQuery.data.riskQuestionnaire));
 
   return (
-    <section className="card-clinical p-6">
-      <div className="flex items-center justify-between gap-3">
-        <TituloSeccion>Anamnesis</TituloSeccion>
+    <section
+      aria-labelledby="anamnesis-titulo"
+      className="rounded-panel border border-border bg-card p-5"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h3
+            id="anamnesis-titulo"
+            className="font-display text-[30px] leading-none font-medium tracking-[-0.01em]"
+          >
+            Anamnesis y <em className="text-brand-600">antecedentes</em>
+          </h3>
+          <p className="mt-1.5 text-sm text-muted-foreground">
+            Mórbidos, quirúrgicos, alergias, medicamentos, hábitos, familiares, embarazo y
+            odontológicos. Es lo mismo que responde el paciente en el formulario antes de la cita.
+          </p>
+        </div>
         {puedeEditar && dirty && (
           <button
             type="button"
             onClick={guardar}
             disabled={guardarOffline.enCurso}
-            className="flex items-center gap-1.5 rounded-lg border border-brand bg-transparent px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand/12 disabled:opacity-60"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-foreground bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-60 pointer-coarse:h-11"
           >
             {guardarOffline.enCurso ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -515,14 +553,14 @@ export function MedicalHistoryCard({
           ))}
           <AllergyEditor items={allergies} onChange={setAllergies} disabled={!puedeEditar} />
           <ChipListEditor
-            label="Medicación actual"
+            label="Medicación crónica"
             placeholder="Ej. Losartán 50mg"
             items={medications}
             onChange={setMedications}
             disabled={!puedeEditar}
           />
           <ChipListEditor
-            label="Antecedentes / patologías"
+            label="Otros antecedentes o patologías (texto libre)"
             placeholder="Ej. Diabetes tipo 2"
             items={conditions}
             onChange={setConditions}
@@ -538,7 +576,7 @@ export function MedicalHistoryCard({
             />
           )}
           <div className="space-y-1.5">
-            <p className="text-xs font-medium text-muted-foreground">Notas adicionales</p>
+            <p className="text-sm font-semibold text-muted-foreground">Notas adicionales</p>
             {puedeEditar ? (
               <textarea
                 aria-label="Notas adicionales"

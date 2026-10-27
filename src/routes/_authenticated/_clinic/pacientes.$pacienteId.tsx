@@ -20,6 +20,8 @@ import {
 import { requirePermission } from "@/lib/access/route-guards";
 import { PacienteTimeline } from "@/components/paciente-timeline";
 import { NotasClinicas } from "@/components/notas-clinicas";
+import { ImplantesCard } from "@/components/ficha/implantes-card";
+import { InterconsultasCard } from "@/components/ficha/interconsultas-card";
 import { MedicalHistoryCard } from "@/components/medical-history-card";
 import { FormularioPrevioPendiente } from "@/components/notificaciones/formulario-previo-pendiente";
 import { VitalSignsCard } from "@/components/vital-signs-card";
@@ -726,7 +728,7 @@ function PacienteDetalle() {
           )}
 
           {puedeVerClinico && (
-            <TabsContent value="notas">
+            <TabsContent value="notas" className="space-y-[18px]">
               <NotasClinicas
                 paciente={paciente}
                 clinicId={clinicId ?? null}
@@ -736,6 +738,29 @@ function PacienteDetalle() {
                 rol={access.role}
                 abrir={notaPedida}
               />
+              {/* Ola 9 · frente B: interconsultas (FIC-14) e implantes (MKT-09). */}
+              {clinicId && (
+                <div className="grid items-start gap-[18px] xl:grid-cols-2">
+                  <InterconsultasCard
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    puedeEditar={puedeEscribirClinico}
+                    puedeEmitir={
+                      puedeEscribirClinico &&
+                      (access.role === "owner" ||
+                        access.role === "admin" ||
+                        access.role === "dentist")
+                    }
+                    timezone={timezone ?? "America/Santiago"}
+                  />
+                  <ImplantesCard
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    puedeEditar={puedeEscribirClinico}
+                    timezone={timezone ?? "America/Santiago"}
+                  />
+                </div>
+              )}
             </TabsContent>
           )}
 
