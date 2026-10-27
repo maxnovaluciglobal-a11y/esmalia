@@ -7,6 +7,15 @@
 import type { Novedad } from "@/content/ayuda/tipos";
 
 export const NOVEDADES: readonly Novedad[] = [
+  // ── Cierre de la fase ───────────────────────────────────────────────────
+  {
+    id: "grupales-para-todos-y-sexo",
+    fecha: "2026-10-27",
+    titulo: "Citas grupales para todos los inscritos, sexo en la ficha y mapa de calor más justo",
+    texto:
+      "En una cita grupal, cada paciente inscrito ve su cita en el portal, entra a los controles periódicos y a las campañas, y tiene su propio aviso de que viene. La fusión de fichas ahora mueve también la empresa con convenio, la membresía con sus cuotas y las inscripciones. La ficha tiene un campo opcional de sexo (con «Prefiere no decir») y Informes lo corta. El mapa de calor de la agenda descuenta los bloqueos y los feriados. «Convenios» pasó a llamarse «Seguros y coberturas» para no confundirse con «Empresas con convenio».",
+    enlace: { href: "/informes", texto: "Ver Informes", permiso: "agenda:view" },
+  },
   // ── Ola 12 ──────────────────────────────────────────────────────────────
   {
     id: "ayuda-en-cada-pantalla",
@@ -66,7 +75,7 @@ export const NOVEDADES: readonly Novedad[] = [
   {
     id: "finanzas-y-membresias",
     fecha: "2026-10-27",
-    titulo: "Finanzas, gastos fijos, convenios y membresías",
+    titulo: "Finanzas, gastos fijos, empresas con convenio y membresías",
     texto:
       "Una vista general de las finanzas por sucursal, gastos fijos que se confirman cada mes, empresas con convenio y membresías con sus cuotas.",
   },

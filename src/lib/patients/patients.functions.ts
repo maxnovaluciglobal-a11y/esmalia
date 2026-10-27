@@ -22,6 +22,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
 import {
   esPrevision,
+  esSexo,
   faltantesDeLaFicha,
   normalizarCodigoReferido,
   origenPorReferido,
@@ -124,6 +125,7 @@ type PatientRow = {
   acquisition_source_detail?: string | null;
   address?: string | null;
   commune?: string | null;
+  sex?: string | null;
 };
 
 type AppointmentSlim = { patient_id: string; starts_at: string; status: string };
@@ -194,11 +196,12 @@ function mapPatientRow(
     origenDetalle: row.acquisition_source_detail ?? null,
     direccion: row.address ?? null,
     comuna: row.commune ?? null,
+    sexo: esSexo(row.sex) ? row.sex : null,
   };
 }
 
 const PATIENT_COLUMNS =
-  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, created_at, agreement_id, agreement_member_id, archived_at, archive_reason, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
+  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, created_at, agreement_id, agreement_member_id, archived_at, archive_reason, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune, sex";
 
 /**
  * Tope de fila del listado — red de seguridad, no la estrategia de paginado
@@ -665,6 +668,7 @@ export const createPatient = createServerFn({ method: "POST" })
           : data.origen,
         direccion: data.direccion,
         comuna: data.comuna,
+        sexo: data.sexo,
       },
       { pais, esAlta: true, documentoFinal: documento, tipoFinal: tipo },
     );

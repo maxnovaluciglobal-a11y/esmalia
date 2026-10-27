@@ -135,6 +135,8 @@ export interface Paciente {
   origenDetalle?: string | null;
   direccion?: string | null;
   comuna?: string | null;
+  /** Opcional: «prefiere no decir» es una respuesta; null = sin registrar. */
+  sexo?: "femenino" | "masculino" | "otro" | "prefiere_no_decir" | null;
   /** SEG-08: lo que le falta a la ficha (solo en el listado, si se pidió). */
   faltantes?: ("prevision" | "documento" | "fechaNacimiento" | "direccion" | "anamnesis")[];
 }

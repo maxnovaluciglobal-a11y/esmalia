@@ -336,7 +336,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       },
     ],
     tenEnCuenta: [
-      "Gastos fijos, membresías y empresas con convenio tienen su propia pestaña.",
+      "Gastos fijos, membresías y empresas con convenio (descuento a trabajadores) tienen su propia pestaña.",
       "Se ve con permiso de finanzas.",
     ],
     palabras: ["ingresos", "gastos", "produccion", "utilidad", "folios", "contador"],
@@ -373,6 +373,9 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     tenEnCuenta: [
       "Sin permiso de finanzas no se ven montos.",
       "El detalle muestra hasta 500 registros.",
+      "El mapa de calor de la agenda descuenta del horario los bloqueos y los feriados.",
+      "En una cita grupal, las atenciones y las ausencias cuentan a cada paciente; las citas y las horas, la sesión una vez.",
+      "El corte por sexo usa el dato opcional de la ficha: «Sin dato» son las fichas donde no se registró.",
     ],
     palabras: ["reportes", "estadisticas", "indicadores", "metricas", "embudo", "ocupacion"],
     video: {
@@ -696,8 +699,20 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
         texto: "Propietario y administración descargan todos los datos de la clínica en un ZIP.",
       },
     ],
-    tenEnCuenta: ["Muchos ajustes son solo de propietario y administración."],
-    palabras: ["configuracion", "preferencias", "datos de la clinica", "exportar", "rol"],
+    tenEnCuenta: [
+      "Muchos ajustes son solo de propietario y administración.",
+      "«Seguros y coberturas» es lo que cubre Fonasa, una isapre o un seguro; «Empresas con convenio» es el descuento que una empresa da a sus trabajadores.",
+    ],
+    palabras: [
+      "configuracion",
+      "preferencias",
+      "datos de la clinica",
+      "exportar",
+      "rol",
+      "convenios",
+      "seguros",
+      "coberturas",
+    ],
     video: {
       estado: "pendiente",
       duracion: "2 min",

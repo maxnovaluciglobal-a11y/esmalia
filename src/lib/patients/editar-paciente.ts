@@ -14,7 +14,7 @@ import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import type { ClinicRole } from "@/lib/access/access";
 import { hasPermission } from "@/lib/access/access";
 import { CODIGO_PAIS, esPaisTelefono, toE164 } from "@/lib/messaging/telefonos";
-import { PREVISIONES, TRAMOS_FONASA } from "@/lib/patients/datos-ficha";
+import { PREVISIONES, SEXOS, TRAMOS_FONASA } from "@/lib/patients/datos-ficha";
 import { TIPOS_DOCUMENTO } from "@/lib/patients/rut";
 
 /** Mismas reglas que el alta (`createPatient`): formato, no futura, desde 1900. */
@@ -62,6 +62,7 @@ export const CAMPOS_FICHA_OLA1 = z.object({
   origen: ORIGEN_SCHEMA.optional(),
   direccion: z.string().trim().max(200, "La dirección es demasiado larga.").optional(),
   comuna: z.string().trim().max(80, "La comuna es demasiado larga.").optional(),
+  sexo: z.enum(SEXOS).nullable().optional(),
 });
 
 /**

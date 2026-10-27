@@ -8,13 +8,12 @@ import { normalizeToWaMe } from "@/lib/messaging/messaging";
 import { isClinicOpenNow } from "@/lib/messaging/whatsapp";
 import { sendMetaTextMessage } from "@/lib/messaging/whatsapp.functions";
 import { notifyClinicStaff, ROLES_BANDEJA } from "@/lib/messaging/notifications.functions";
-import { esConfirmacionDePaciente } from "@/lib/messaging/patient-confirmation";
 import { hoyEnLaClinica, interpretarMensajeDeAgenda } from "@/lib/messaging/intencion-de-agenda";
 import { interpretarConIA } from "@/lib/messaging/intencion-de-agenda-ia";
 import { avisoDeAgenda, type FuenteDeLectura } from "@/lib/messaging/aviso-de-agenda";
 import { captureException } from "@/lib/sentry";
 import type { Database } from "@/integrations/supabase/types";
-import { fechaCortaHora } from "@/lib/formato-fecha";
+import { anotarConfirmacionDelPaciente } from "@/lib/messaging/confirmacion-del-paciente.server";
 
 type SupabaseAdminClient = SupabaseClient<Database>;
 
@@ -435,65 +434,6 @@ async function anotarSolicitudDeAgenda(
   }
 
   return avisoDeAgenda(lectura, fuente);
-}
-
-/** Ventana en la que un "sí" suelto se puede atribuir a una cita concreta. */
-const DIAS_ATRIBUIBLES = 30;
-
-/**
- * Anota que el paciente avisó que viene a su próxima cita.
- *
- * Escribe SOLO `patient_confirmed_at`/`patient_confirmed_via`. `status`,
- * `confirmed_at` y `confirmed_by` no se tocan: son el visto bueno del
- * profesional y el paciente no tiene por qué poder moverlos. Ese es
- * exactamente el error que llevó a remover la confirmación automática.
- *
- * Devuelve la fecha legible de la cita anotada, o null si no había ninguna a
- * la que atribuir el mensaje (y entonces el aviso al equipo es el genérico).
- */
-async function anotarConfirmacionDelPaciente(
-  supabaseAdmin: SupabaseAdminClient,
-  clinicId: string,
-  patientId: string,
-  bodyText: string,
-): Promise<string | null> {
-  if (!esConfirmacionDePaciente(bodyText)) return null;
-
-  const ahora = new Date();
-  const limite = new Date(ahora.getTime() + DIAS_ATRIBUIBLES * 24 * 60 * 60 * 1000);
-
-  const { data: cita } = await supabaseAdmin
-    .from("appointments")
-    .select("id, starts_at, patient_confirmed_at")
-    .eq("clinic_id", clinicId)
-    .eq("patient_id", patientId)
-    .gt("starts_at", ahora.toISOString())
-    .lt("starts_at", limite.toISOString())
-    .not("status", "in", "(cancelada,ausente,finalizada)")
-    .order("starts_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-
-  // Sin cita próxima el "sí" no se puede atribuir a nada. No se inventa.
-  if (!cita) return null;
-  // Ya estaba anotado: no se pisa la marca original ni se re-avisa al equipo.
-  if (cita.patient_confirmed_at) return null;
-
-  const { error } = await supabaseAdmin
-    .from("appointments")
-    .update({ patient_confirmed_at: ahora.toISOString(), patient_confirmed_via: "whatsapp" })
-    .eq("id", cita.id);
-  if (error) {
-    console.error("[whatsapp-webhook] no se pudo anotar la confirmación:", error.message);
-    return null;
-  }
-
-  const { data: clinica } = await supabaseAdmin
-    .from("clinics")
-    .select("timezone")
-    .eq("id", clinicId)
-    .maybeSingle();
-  return fechaCortaHora(cita.starts_at, clinica?.timezone);
 }
 
 /** Recorta el cuerpo del mensaje para que entre en el aviso sin desbordarlo. */

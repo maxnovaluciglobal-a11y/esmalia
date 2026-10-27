@@ -190,6 +190,7 @@ export function NuevoPacienteDialog({
               }
             : {}),
           contactoEmergencia: contactoDeEstado(ficha),
+          sexo: ficha.sexo || null,
           origen: { fuente: ficha.origen, detalle: ficha.origenDetalle },
           codigoReferido: codigoReferido.trim() || undefined,
           permitirDuplicado: confirmaDuplicado,
