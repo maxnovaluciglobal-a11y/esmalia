@@ -70,6 +70,8 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       audit: ClinicalNoteAuditEntry[];
       entities: ClinicalNoteEntity[];
       reviews: ClinicalNoteReview[];
+      /** FIC-11: notas restringidas de este paciente que quien pregunta no ve (solo el número). */
+      restringidasOcultas: number;
     }> => {
       const { supabase } = context;
       // SEG-02: en paralelo con la carga; se espera antes de responder.
@@ -222,8 +224,30 @@ export const getPatientNotes = createServerFn({ method: "GET" })
         eventosIa,
       });
 
+      // FIC-11: cada entrega de una nota restringida a quien puede verla
+      // queda en la bitácora (la escribe la base, regla 16), y la ficha
+      // avisa cuántas hay que esta persona no ve.
+      const restringidas = notes.filter((n) => n.restricted).map((n) => n.id);
+      const [accesoRes, ocultasRes] = await Promise.all([
+        restringidas.length
+          ? supabase.rpc("registrar_acceso_a_notas_restringidas", {
+              p_clinic_id: data.clinicId,
+              p_note_ids: restringidas,
+            })
+          : Promise.resolve({ error: null }),
+        supabase.rpc("contar_notas_restringidas_ocultas", {
+          p_clinic_id: data.clinicId,
+          p_patient_refs: refs,
+        }),
+      ]);
+      if (accesoRes.error)
+        throw new Error(
+          mensajeDb(accesoRes.error, "No pudimos registrar el acceso a la nota restringida."),
+        );
+
       await lectura;
       return {
+        restringidasOcultas: ocultasRes.error ? 0 : (ocultasRes.data ?? 0),
         notes: notes.map((n) => ({
           id: n.id,
           patientRef: n.patient_ref,
@@ -246,6 +270,9 @@ export const getPatientNotes = createServerFn({ method: "GET" })
           signedAt: n.signed_at ?? null,
           signerName: n.signer_name ?? null,
           signerLicense: n.signer_license ?? null,
+          restricted: n.restricted ?? false,
+          restrictedAt: n.restricted_at ?? null,
+          createdBy: n.created_by,
 
           updatedAt: n.updated_at,
           updatedBy: n.updated_by,
@@ -284,6 +311,36 @@ export const getPatientNotes = createServerFn({ method: "GET" })
       };
     },
   );
+
+/**
+ * FIC-11: restringir una nota (o quitarle la restricción). Solo su autor u
+ * owner/admin: lo decide el trigger `proteger_restriccion_de_nota`, que
+ * además estampa quién y cuándo, y la bitácora la escribe otro trigger
+ * (regla 16). Una adenda hereda la restricción de su nota en la base.
+ */
+export const setNoteRestricted = createServerFn({ method: "POST" })
+  .middleware([requireEscritura])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        noteId: z.string().uuid(),
+        restricted: z.boolean(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const { data: filas, error } = await context.supabase
+      .from("clinical_notes")
+      .update({ restricted: data.restricted, updated_by: context.userId })
+      .eq("id", data.noteId)
+      .eq("clinic_id", data.clinicId)
+      .select("id");
+    if (error)
+      throw new Error(mensajeDb(error, "No tienes permisos para cambiar quién ve esta nota."));
+    if (!filas?.length) throw new Error("No tienes permisos para cambiar quién ve esta nota.");
+    return { ok: true };
+  });
 
 /**
  * Contenido completo de las versiones de UNA nota, para el comparador. Se

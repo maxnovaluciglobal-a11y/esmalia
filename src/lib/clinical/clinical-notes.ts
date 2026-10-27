@@ -68,6 +68,11 @@ export interface ClinicalNote {
   signedAt: string | null;
   signerName: string | null;
   signerLicense: string | null;
+  /** FIC-11: evolución restringida (solo la ven su autor y owner/admin; lo aplica la RLS). */
+  restricted: boolean;
+  restrictedAt: string | null;
+  /** Autor de la nota: quien, además de owner/admin, puede cambiar la restricción. */
+  createdBy: string;
 }
 
 export interface ClinicalNoteReview {
@@ -198,7 +203,23 @@ export const AUDIT_LABELS: Record<string, string> = {
   review_changes_requested: "Solicitó cambios en la revisión",
   review_comment: "Comentó en la revisión",
   review_cancelled: "Canceló la solicitud de revisión",
+  restrict: "Restringió la nota (solo autor y administración)",
+  unrestrict: "Quitó la restricción de la nota",
+  restricted_view: "Abrió la nota restringida",
 };
+
+/**
+ * FIC-11: quién puede cambiar la restricción de una nota. El mismo criterio
+ * que el trigger `proteger_restriccion_de_nota` (la base decide; esto solo
+ * muestra u oculta el control).
+ */
+export function puedeCambiarRestriccion(datos: {
+  rol: string | null | undefined;
+  userId: string;
+  autorId: string;
+}): boolean {
+  return datos.rol === "owner" || datos.rol === "admin" || datos.userId === datos.autorId;
+}
 
 export const AI_ACTION_LABELS: Record<string, string> = {
   draft: "Borrador de Patty (IA)",

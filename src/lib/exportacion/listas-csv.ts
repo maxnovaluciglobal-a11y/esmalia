@@ -33,6 +33,7 @@ export const LISTAS_CSV = {
   gastos: { titulo: "Gastos", permiso: "finance:view" },
   laboratorio: { titulo: "Órdenes de laboratorio", permiso: "treatments:view" },
   arancel: { titulo: "Arancel", permiso: "settings:manage" },
+  implantes: { titulo: "Implantes por lote", permiso: "clinical:view" },
 } as const satisfies Record<string, { titulo: string; permiso: Permission }>;
 
 export type ListaCsv = keyof typeof LISTAS_CSV;
