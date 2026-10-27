@@ -812,7 +812,7 @@ function PacienteDetalle() {
                 patientId={paciente.id}
                 patientName={paciente.nombre}
                 timezone={access.clinic?.timezone ?? "America/Santiago"}
-                rol={access.role}
+                rol={access}
               />
             )}
             {clinicId && access.clinic && (

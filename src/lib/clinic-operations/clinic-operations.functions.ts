@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mensajeDb } from "@/lib/db-errors";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { LAB_ORDER_STATUSES, type Lab, type LabOrder, type Warehouse } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
@@ -114,15 +114,12 @@ export const listLabOrders = createServerFn({ method: "GET" })
     // El costo es lo que la clínica le paga al laboratorio: mismo tipo de dato
     // que un gasto. La fila entera es operativa y la ve todo el equipo, pero
     // el número solo quien tiene `finance:view` (auditoría 04-sep).
-    const { data: membresia } = await supabase
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    const puedeVerCostos = membresia?.role
-      ? permissionsForRole(membresia.role as ClinicRole).includes("finance:view")
-      : false;
+    const puedeVerCostos = await tienePermisoEnClinica(
+      supabase,
+      data.clinicId,
+      userId,
+      "finance:view",
+    );
 
     let query = supabase
       .from("lab_orders")

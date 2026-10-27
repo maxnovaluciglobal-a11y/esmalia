@@ -6,7 +6,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import type { ClinicRole } from "@/lib/access/access";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { TOOTH_SURFACES } from "@/lib/clinical/odontogram";
 import { filaYaCreada } from "@/lib/idempotency";
 import { leerTodasLasPaginas } from "@/lib/paginacion";
@@ -1090,15 +1091,7 @@ async function exigirPermisoDePresupuestar(
   clinicId: string,
   userId: string,
 ) {
-  const { data: membership } = await supabase
-    .from("clinic_members")
-    .select("role")
-    .eq("clinic_id", clinicId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  const puede = membership?.role
-    ? permissionsForRole(membership.role as ClinicRole).includes("patients:manage")
-    : false;
+  const puede = await tienePermisoEnClinica(supabase, clinicId, userId, "patients:manage");
   if (!puede) throw new Error("No tienes permisos para presupuestar.");
 }
 
@@ -2174,15 +2167,12 @@ export const reversePayment = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<void> => {
-    const { data: membership } = await context.supabase
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", context.userId)
-      .maybeSingle();
-    const puedeReversar = membership?.role
-      ? permissionsForRole(membership.role as ClinicRole).includes("payments:reverse")
-      : false;
+    const puedeReversar = await tienePermisoEnClinica(
+      context.supabase,
+      data.clinicId,
+      context.userId,
+      "payments:reverse",
+    );
     if (!puedeReversar) throw new Error("No tienes permisos para reversar pagos.");
 
     const { data: existing, error: fetchError } = await context.supabase

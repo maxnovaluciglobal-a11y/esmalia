@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { requireClinicRole } from "@/lib/access/clinic-guards.server";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { mensajeDb } from "@/lib/db-errors";
 import {
   MATERIALES,
@@ -35,15 +35,12 @@ export const listLabCatalog = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<ItemCatalogoLab[]> => {
     const { supabase, userId } = context;
-    const { data: membresia } = await supabase
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    const puedeVerCostos = membresia?.role
-      ? permissionsForRole(membresia.role as ClinicRole).includes("finance:view")
-      : false;
+    const puedeVerCostos = await tienePermisoEnClinica(
+      supabase,
+      data.clinicId,
+      userId,
+      "finance:view",
+    );
 
     let query = supabase.from("lab_catalog_items").select(COLUMNAS).eq("clinic_id", data.clinicId);
     if (data.labId) query = query.eq("lab_id", data.labId);

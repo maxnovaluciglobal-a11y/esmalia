@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { mensajeDb } from "@/lib/db-errors";
 import {
@@ -328,15 +328,7 @@ export const anularCuenta = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
     const { supabase, userId } = context;
-    const { data: membership } = await supabase
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    const puede = membership?.role
-      ? permissionsForRole(membership.role as ClinicRole).includes("payments:reverse")
-      : false;
+    const puede = await tienePermisoEnClinica(supabase, data.clinicId, userId, "payments:reverse");
     if (!puede) throw new Error("No tienes permisos para anular cuentas por cobrar.");
 
     const { data: anuladas, error } = await supabase

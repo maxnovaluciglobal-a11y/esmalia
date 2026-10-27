@@ -505,7 +505,7 @@ function CajasPage() {
                   <AtendidasSinCobroPanel
                     atendidas={resumen.atendidasSinCobro}
                     currency={currency}
-                    puedeCobrar={hasPermission(access.role, "patients:manage")}
+                    puedeCobrar={hasPermission(access, "patients:manage")}
                   />
                 )}
                 {resumen?.comisiones && (

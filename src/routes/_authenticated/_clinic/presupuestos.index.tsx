@@ -102,9 +102,9 @@ function PresupuestosPage() {
   const estado = search.estado ?? FILTRO_POR_DEFECTO;
   const termino = search.q ?? "";
   const profesional = search.prof ?? "todos";
-  const puedeAbrirFichas = hasPermission(access.role, "patients:view");
-  const puedeSeguir = hasPermission(access.role, "patients:manage");
-  const puedeConfigurar = hasPermission(access.role, "settings:manage");
+  const puedeAbrirFichas = hasPermission(access, "patients:view");
+  const puedeSeguir = hasPermission(access, "patients:manage");
+  const puedeConfigurar = hasPermission(access, "settings:manage");
   const queryClient = useQueryClient();
 
   const fetchLista = useServerFn(listPresupuestosDeClinica);

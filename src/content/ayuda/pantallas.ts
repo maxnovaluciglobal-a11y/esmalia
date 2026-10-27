@@ -618,6 +618,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     tenEnCuenta: [
       "Las reglas tienen «rige desde»: cambiar una regla no toca lo ya liquidado.",
       "Para ver «Mi desempeño», tu usuario tiene que estar vinculado a tu ficha de profesional.",
+      "Ver las comisiones de todo el equipo es un permiso aparte de ver tus finanzas: el propietario puede darlo o quitarlo a una persona en Equipo → Permisos.",
     ],
     palabras: ["comision", "liquidacion", "porcentaje", "desempeno", "sueldo"],
     video: {
@@ -646,6 +647,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     tenEnCuenta: [
       "Ningún ajuste abre la historia clínica a recepción, contabilidad, coordinación o técnico/a, ni los pagos a un asistente.",
+      "Finanzas, caja y comisiones también se dan o se quitan por persona: «Ver finanzas», «Abrir y cerrar caja», «Reversar pagos» y «Ver las comisiones de todo el equipo». Lo que traes por rol sigue igual hasta que lo cambies.",
       "Solo propietario y administración gestionan el equipo.",
     ],
     palabras: ["usuarios", "roles", "invitar", "permisos", "acceso", "integrante"],

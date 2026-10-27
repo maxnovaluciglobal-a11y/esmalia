@@ -421,14 +421,40 @@ describe("menú final por grupos (Ola 12, NAV-01)", () => {
     };
     expect(pestanasDe("accounting")).not.toContain("/agenda");
     expect(pestanasDe(contabilidadConAgenda)).toContain("/agenda");
-    // Un ajuste que la base no admite no cambia nada (caja se define por rol).
-    const intentoSinCaja = {
+    // Finanzas, caja y comisiones también se ajustan por persona (Bloque 5, ítem 11).
+    const recepcionSinCaja = {
       role: "reception" as const,
       permissions: permisosEfectivos("reception", [
         { permission: "cash:manage", effect: "revoke" },
       ]),
     };
-    expect(pestanasDe(intentoSinCaja)).toContain("/cajas");
+    expect(pestanasDe("reception")).toContain("/cajas");
+    expect(pestanasDe(recepcionSinCaja)).not.toContain("/cajas");
+    const recepcionConFinanzas = {
+      role: "reception" as const,
+      permissions: permisosEfectivos("reception", [
+        { permission: "finance:view", effect: "grant" },
+      ]),
+    };
+    expect(pestanasDe("reception")).not.toContain("/gastos");
+    expect(pestanasDe(recepcionConFinanzas)).toContain("/gastos");
+    // Un ajuste que la base no admite no cambia nada (técnico/a sin finanzas).
+    const tecnicoConFinanzas = {
+      role: "lab_technician" as const,
+      permissions: permisosEfectivos("lab_technician", [
+        { permission: "finance:view", effect: "grant" },
+      ]),
+    };
+    expect(pestanasDe(tecnicoConFinanzas)).not.toContain("/gastos");
+    // Las comisiones de todos se dan sin abrir el resto de las finanzas.
+    const doctorConComisiones = {
+      role: "dentist" as const,
+      permissions: permisosEfectivos("dentist", [
+        { permission: "commission:view-all", effect: "grant" },
+      ]),
+    };
+    expect(pestanasDe(doctorConComisiones)).toContain("/comisiones");
+    expect(pestanasDe(doctorConComisiones)).not.toContain("/gastos");
     // Admin sin gestionar el equipo (lista de permisos efectivos a mano):
     // sin Permisos ni WhatsApp, con Equipo.
     const adminSinEquipo = {

@@ -247,7 +247,7 @@ export const DESTINOS: readonly Destino[] = [
   // ─── Gestión ───────────────────────────────────────────────────────────
   {
     // Lo que cuesta y lo que deja la clínica. Comisiones va acá porque es
-    // una liquidación (plata que se paga); un profesional sin finance:view
+    // una liquidación (plata que se paga); un profesional sin commission:view-all
     // la ve igual porque su ruta admite commission:view-own (solo la suya).
     id: "finanzas",
     label: "Finanzas",
@@ -271,7 +271,7 @@ export const DESTINOS: readonly Destino[] = [
       {
         to: "/comisiones",
         label: "Comisiones",
-        permisos: ["finance:view", "commission:view-own"],
+        permisos: ["commission:view-all", "commission:view-own"],
         sinonimos: ["liquidación", "liquidaciones"],
       },
     ],
@@ -303,7 +303,7 @@ export const DESTINOS: readonly Destino[] = [
       {
         to: "/mi-desempeno",
         label: "Mi desempeño",
-        permisos: ["finance:view", "commission:view-own"],
+        permisos: ["commission:view-all", "commission:view-own"],
         sinonimos: ["desempeño", "mi comisión", "mis liquidaciones", "producción"],
       },
       {

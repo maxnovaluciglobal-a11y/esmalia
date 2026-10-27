@@ -24,6 +24,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   "team:manage": "Gestionar equipo",
   "settings:manage": "Configurar la clínica",
   "commission:view-own": "Ver su propia comisión",
+  "commission:view-all": "Ver las comisiones de todo el equipo",
 };
 
 export function etiquetaPermiso(permiso: Permission): string {

@@ -25,7 +25,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { hasPermission, type ClinicRole } from "@/lib/access/access";
+import { hasPermission, rolDeSujeto, type SujetoDePermisos } from "@/lib/access/access";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { ROLES_AFILIACION, describirDescuento } from "@/lib/finance/empresas-convenio";
 import {
@@ -55,13 +55,15 @@ interface Props {
   patientId: string;
   patientName: string;
   timezone: string;
-  rol: ClinicRole | null | undefined;
+  /** El acceso del usuario (con sus ajustes por persona) o un rol suelto. */
+  rol: SujetoDePermisos;
 }
 
 const TARJETA = "min-w-0 rounded-[14px] border border-hairline bg-card p-4";
 
 export function EmpresaYMembresiaFicha(props: Props) {
-  if (!props.rol || !ROLES_AFILIACION.includes(props.rol)) return null;
+  const rolReal = rolDeSujeto(props.rol);
+  if (!rolReal || !ROLES_AFILIACION.includes(rolReal)) return null;
   return (
     <div className="mb-[18px] grid gap-3 md:grid-cols-2">
       <BloqueEmpresa {...props} />

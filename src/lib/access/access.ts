@@ -67,6 +67,10 @@ export const PERMISSIONS = [
    * ux-3 de la auditoría 360 v2: un dentist no tiene `finance:view`, pero
    * debe poder ver su propia comisión en /comisiones. */
   "commission:view-own",
+  /** Ver las comisiones de todo el equipo (reglas y liquidaciones). Antes iba
+   * atado a `finance:view`; separado para que se pueda dar o quitar por
+   * persona sin abrir o cerrar el resto de las finanzas. */
+  "commission:view-all",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -85,6 +89,7 @@ const ROLE_PERMISSIONS: Record<ClinicRole, Permission[]> = {
     "finance:view",
     "cash:manage",
     "payments:reverse",
+    "commission:view-all",
     "inventory:view",
     "team:view",
   ],
@@ -127,6 +132,7 @@ const ROLE_PERMISSIONS: Record<ClinicRole, Permission[]> = {
     "team:view",
     "cash:manage",
     "payments:reverse",
+    "commission:view-all",
   ],
   lab_technician: [
     "dashboard:view",
@@ -177,7 +183,10 @@ export function rolDeSujeto(sujeto: SujetoDePermisos): ClinicRole | null {
 // - los pagos nunca quedan en manos de asistente dental;
 // - un ajuste no abre lo que la base no le deja al rol: se puede DAR solo lo
 //   que las políticas ya permiten a ese rol (la pantalla solo lo muestra) y se
-//   puede QUITAR solo lo que una política restrictiva hace cumplir.
+//   puede QUITAR solo lo que una política restrictiva hace cumplir. Excepción
+//   acotada (finanzas, caja y comisiones, migración 20261114300000): para esos
+//   permisos la base trae políticas de LECTURA/caja propias que solo se
+//   activan con un "dar" vigente y admitido (`permiso_otorgado`).
 // `tests/permisos-por-persona.test.ts` y `tests/permisos-por-persona-db.test.ts`
 // comparan este catálogo con el de la base, combinación por combinación.
 
@@ -197,14 +206,13 @@ export const PERMISOS_DE_PAGOS: readonly Permission[] = [
   "finance:view",
   "cash:manage",
   "payments:reverse",
+  "commission:view-all",
 ];
 
 type ReglaDeAjuste =
   { otorgable: readonly ClinicRole[]; revocable: readonly ClinicRole[] } | { motivo: string };
 
 const MOTIVO_BASE = "Es la base del rol: sin esto la persona no puede trabajar en Esmalia.";
-const MOTIVO_FINANZAS =
-  "Por ahora se define solo por el rol: los ajustes de finanzas, caja y comisiones llegan con esas pantallas.";
 const MOTIVO_GESTION =
   "Solo propietario y administración. Para darlo, cambia el rol a Administrador.";
 
@@ -226,9 +234,23 @@ export const AJUSTES_POR_PERMISO: Record<Permission, ReglaDeAjuste> = {
   "clinical:view": { otorgable: ["assistant"], revocable: ["admin", "dentist"] },
   "clinical:write": { otorgable: ["assistant"], revocable: ["admin", "dentist"] },
   "treatments:view": { motivo: MOTIVO_BASE },
-  "finance:view": { motivo: MOTIVO_FINANZAS },
-  "cash:manage": { motivo: MOTIVO_FINANZAS },
-  "payments:reverse": { motivo: MOTIVO_FINANZAS },
+  // Finanzas, caja y comisiones (cierre, Bloque 5 · 11). Se puede QUITAR a quien
+  // lo trae por rol; se puede DAR solo a roles que ya leen esas tablas en la
+  // base (recepción y profesionales). Asistente dental y técnico/a nunca
+  // (regla 2). La recepción puede reversar pagos y los profesionales cobrar
+  // en caja si el propietario lo decide; el resto se define por el rol.
+  "finance:view": {
+    otorgable: ["reception", "dentist"],
+    revocable: ["admin", "coordinator", "accounting"],
+  },
+  "cash:manage": {
+    otorgable: ["dentist"],
+    revocable: ["admin", "coordinator", "reception", "accounting"],
+  },
+  "payments:reverse": {
+    otorgable: ["reception"],
+    revocable: ["admin", "coordinator", "accounting"],
+  },
   "inventory:view": { otorgable: [], revocable: [] },
   "inventory:manage": {
     motivo: "Crear y editar insumos queda para propietario y administración.",
@@ -236,7 +258,14 @@ export const AJUSTES_POR_PERMISO: Record<Permission, ReglaDeAjuste> = {
   "team:view": { otorgable: ["assistant", "lab_technician"], revocable: [] },
   "team:manage": { motivo: MOTIVO_GESTION },
   "settings:manage": { motivo: MOTIVO_GESTION },
-  "commission:view-own": { motivo: MOTIVO_FINANZAS },
+  "commission:view-own": {
+    otorgable: ["reception", "accounting", "coordinator"],
+    revocable: ["admin", "dentist"],
+  },
+  "commission:view-all": {
+    otorgable: ["reception", "dentist"],
+    revocable: ["admin", "coordinator", "accounting"],
+  },
 };
 
 /**

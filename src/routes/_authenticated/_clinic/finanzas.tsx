@@ -209,7 +209,7 @@ function FinanzasPage() {
                   hasta={search.hasta}
                   currency={currency}
                   timezone={clinicTz ?? "America/Santiago"}
-                  rol={access.role}
+                  rol={access}
                 />
               )}
 
@@ -305,7 +305,7 @@ function FinanzasPage() {
                   hasta={search.hasta}
                   currency={currency}
                   timezone={clinicTz ?? "America/Santiago"}
-                  rol={access.role}
+                  rol={access}
                 />
               )}
             </>

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { tienePermisoEnClinica } from "@/lib/access/permisos-en-clinica";
 import { informesBloqueados } from "@/lib/billing";
 import { mapSubscription, SUBSCRIPTION_SELECT } from "@/lib/billing.functions";
 import type { Database } from "@/integrations/supabase/types";
@@ -46,16 +46,11 @@ export async function requireFinanceViewRole(
   clinicId: string,
   userId: string,
 ) {
-  const { data: membership } = await supabase
-    .from("clinic_members")
-    .select("role")
-    .eq("clinic_id", clinicId)
-    .eq("user_id", userId)
-    .maybeSingle();
-  const canView = membership?.role
-    ? permissionsForRole(membership.role as ClinicRole).includes("finance:view")
-    : false;
-  if (!canView) throw new Error(SIN_PERMISOS_FINANZAS);
+  // Rol + ajustes por persona (EQU-01): un `finance:view` quitado o dado se
+  // respeta acá, que es el par en el servidor de todas las pantallas de dinero.
+  if (!(await tienePermisoEnClinica(supabase, clinicId, userId, "finance:view"))) {
+    throw new Error(SIN_PERMISOS_FINANZAS);
+  }
 }
 
 /**

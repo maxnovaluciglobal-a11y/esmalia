@@ -4,7 +4,7 @@ import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import type { ClinicRole } from "@/lib/access/access";
+import type { SujetoDePermisos } from "@/lib/access/access";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { descargarCsv, nombreArchivoCsv } from "@/lib/csv-export";
 import {
@@ -20,7 +20,7 @@ import { mensajeDeError } from "@/lib/mensaje-error";
 
 interface Props<T> {
   clinicId: string;
-  rol: ClinicRole | null | undefined;
+  rol: SujetoDePermisos;
   lista: ListaCsv;
   /** Lo que la lista muestra con los filtros aplicados (sin paginar). */
   filas: readonly T[];

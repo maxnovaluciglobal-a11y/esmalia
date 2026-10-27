@@ -4,8 +4,9 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
-import { permissionsForRole, type Permission } from "@/lib/access/access";
+import { type Permission } from "@/lib/access/access";
 import { rolEnClinica } from "@/lib/access/clinic-guards.server";
+import { permisosEfectivosEnClinica } from "@/lib/access/permisos-en-clinica";
 import { isUndefinedColumnError, mensajeDb } from "@/lib/db-errors";
 import {
   PAYMENT_METHOD_LABELS,
@@ -43,8 +44,7 @@ async function requireAlgunPermiso(
   permisos: readonly Permission[],
   mensaje = "No tienes permisos para ver este presupuesto.",
 ) {
-  const rol = await rolEnClinica(supabase, clinicId, userId);
-  const tiene = rol ? permissionsForRole(rol) : [];
+  const tiene = await permisosEfectivosEnClinica(supabase, clinicId, userId);
   if (!permisos.some((p) => tiene.includes(p))) throw new Error(mensaje);
 }
 

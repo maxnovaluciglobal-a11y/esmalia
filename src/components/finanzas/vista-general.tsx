@@ -38,7 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { hasPermission, type ClinicRole } from "@/lib/access/access";
+import { hasPermission, type SujetoDePermisos } from "@/lib/access/access";
 import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { formatMoney } from "@/lib/finance/finance";
@@ -73,7 +73,8 @@ interface Props {
   hasta: string;
   currency: string;
   timezone: string;
-  rol: ClinicRole | null | undefined;
+  /** El acceso del usuario (con sus ajustes por persona) o un rol suelto. */
+  rol: SujetoDePermisos;
 }
 
 const ENLACE =
@@ -343,7 +344,8 @@ function ExportarPlanilla({
   desde: string;
   hasta: string;
   timezone: string;
-  rol: ClinicRole | null | undefined;
+  /** El acceso del usuario (con sus ajustes por persona) o un rol suelto. */
+  rol: SujetoDePermisos;
 }) {
   const fn = useServerFn(listMovimientosDelPeriodo);
   const { data: movimientos = [] } = useQuery({

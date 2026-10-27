@@ -2,7 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { type ClinicRole } from "@/lib/access/access";
+import { permisosEfectivosEnClinica } from "@/lib/access/permisos-en-clinica";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
 import { mensajeDb } from "@/lib/db-errors";
@@ -720,17 +721,23 @@ function etiquetaCongelada(s: FilaLiquidacion, currency: string): string {
   );
 }
 
-/** Lo que pide la pantalla: o todo el equipo (finance:view) o solo el propio. */
+/** Lo que pide la pantalla: o todo el equipo (`commission:view-all`) o solo el propio. */
 async function profesionalAlcanzable(
   supabase: SupabaseClient<Database>,
   clinicId: string,
   userId: string,
   pedido: string | undefined,
 ): Promise<{ veTodo: boolean; professionalId: string | undefined; sinVinculo: boolean }> {
-  const rol = await rolEnLaClinica(supabase, clinicId, userId);
-  const veTodo = rol ? permissionsForRole(rol).includes("finance:view") : false;
+  // Rol + ajustes por persona (EQU-01): ver todo el equipo y ver lo propio se
+  // pueden dar o quitar por separado. La base repite el límite (políticas
+  // restrictivas `ajuste_quita_*` sobre las tablas de comisiones).
+  const permisos = await permisosEfectivosEnClinica(supabase, clinicId, userId);
+  const veTodo = permisos.includes("commission:view-all");
   if (veTodo) return { veTodo, professionalId: pedido, sinVinculo: false };
-  // Sin `finance:view`, el alcance se acota por la fuerza al profesional
+  if (!permisos.includes("commission:view-own")) {
+    throw new Error("No tienes permisos para ver las comisiones.");
+  }
+  // Sin `commission:view-all`, el alcance se acota por la fuerza al profesional
   // vinculado a la cuenta, pida lo que pida el cliente (regla 15):
   // `treatment_items` y `payments` dejan leer filas de otros profesionales.
   const { data: own } = await supabase
