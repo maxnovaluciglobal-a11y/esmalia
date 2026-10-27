@@ -156,7 +156,7 @@ async function cargarVersiones(
   return versiones;
 }
 
-interface DatosDelPeriodo {
+export interface DatosDelPeriodo {
   timeZone: string;
   currency: string;
   hoy: string;
@@ -171,7 +171,7 @@ interface DatosDelPeriodo {
  * Producción y cobros del período [from, to] (fechas civiles de la clínica,
  * regla 7) listos para `liquidar`. Lee de a páginas: PostgREST corta en 1000.
  */
-async function cargarPeriodo(
+export async function cargarPeriodo(
   supabase: SupabaseClient<Database>,
   clinicId: string,
   from: string,

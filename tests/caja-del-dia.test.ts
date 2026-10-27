@@ -141,8 +141,59 @@ describe("caja del día · resumen", () => {
     ],
     saldos: new Map([["pac-3", 25000]]),
     comisiones: {
-      produccion: new Map([["pro-2", { cents: 100000, cantidad: 2 }]]),
-      reglas: new Map([["pro-2", { kind: "percent" as const, percentBps: 4000, fixedCents: 0 }]]),
+      fecha: "2026-10-26",
+      currency: "CLP",
+      versiones: [
+        {
+          id: "v1",
+          professionalId: "pro-2",
+          scope: "general" as const,
+          procedureId: null,
+          procedureName: null,
+          kind: "percent" as const,
+          percentBps: 4000,
+          fixedCents: 0,
+          base: "realizado" as const,
+          effectiveFrom: "2000-01-01",
+        },
+      ],
+      realizados: [
+        {
+          id: "i1",
+          professionalId: "pro-2",
+          procedureId: null,
+          fecha: "2026-10-26",
+          cents: 60000,
+          concepto: "Endodoncia",
+        },
+        {
+          id: "i2",
+          professionalId: "pro-2",
+          procedureId: null,
+          fecha: "2026-10-26",
+          cents: 40000,
+          concepto: "Corona",
+        },
+      ],
+      cobrados: [
+        {
+          id: "p2",
+          professionalId: "pro-2",
+          procedureId: null,
+          fecha: "2026-10-26",
+          cents: 30000,
+          concepto: "Cobro",
+        },
+        {
+          id: "p3",
+          professionalId: "pro-2",
+          procedureId: null,
+          fecha: "2026-10-26",
+          cents: 20000,
+          concepto: "Cobro",
+        },
+      ],
+      sinAtribuirCents: 25000,
     },
     abiertaPor: "Javiera",
     sucursal: "Providencia",
@@ -204,25 +255,40 @@ describe("caja del día · resumen", () => {
     expect(sin[0].paciente).toBe("Paciente");
   });
 
-  it("comisiones del día: regla sobre la producción y lo cobrado al lado; sin regla es null", () => {
+  it("comisiones del día: la regla vigente sobre lo realizado, con lo cobrado atribuido al lado", () => {
     expect(resumen.comisiones).toEqual([
       expect.objectContaining({
         professionalId: "pro-2",
         comisionCents: 40000,
         cobradoCents: 50000,
-        regla: "40 %",
-      }),
-      expect.objectContaining({
-        professionalId: "pro-1",
-        comisionCents: null,
-        cobradoCents: 25000,
-        regla: "Sin regla",
+        produccionCents: 100000,
+        regla: "40 % sobre lo realizado",
+        base: "realizado",
+        rigeDesde: null,
       }),
     ]);
-    // Quien no cobró ni produjo hoy no aparece.
+    // Quien no cobró ni produjo hoy no aparece, tenga o no regla.
     expect(resumen.comisiones!.some((c) => c.professionalId === "pro-3")).toBe(false);
-    expect(
-      comisionesDelDia([{ id: "x", nombre: "X", color: null }], [], new Map(), new Map()),
-    ).toEqual([]);
+    // Lo cobrado sin prestación ni plan no es de nadie.
+    expect(resumen.cobradoSinProfesionalCents).toBe(25000);
+  });
+
+  it("sin permiso de finanzas no hay comisiones (null, no cero)", () => {
+    const sin = armarResumen({
+      fecha: "2026-10-26",
+      timeZone: TZ,
+      pagos,
+      citas,
+      pacientes: new Map(),
+      items: new Map(),
+      profesionales: [],
+      saldos: null,
+      comisiones: null,
+      abiertaPor: null,
+      sucursal: null,
+      truncado: false,
+    });
+    expect(sin.comisiones).toBeNull();
+    expect(sin.cobradoSinProfesionalCents).toBeNull();
   });
 });

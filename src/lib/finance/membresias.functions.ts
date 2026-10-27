@@ -7,6 +7,8 @@ import type { Database } from "@/integrations/supabase/types";
 import { requireClinicPermission, requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { mensajeDb } from "@/lib/db-errors";
 import { ROLES_AFILIACION } from "@/lib/finance/empresas-convenio";
+import { netAfterRetention, type PaymentMethod } from "@/lib/finance/finance";
+import { metodoDelMedio } from "@/lib/finance/medios-de-pago";
 import { mesDe, sumarMeses } from "@/lib/finance/gastos-fijos";
 import {
   PERIODOS_MEMBRESIA,
@@ -26,8 +28,9 @@ import { requireEscritura } from "@/lib/solo-lectura.middleware";
  * - Inscribir, pausar o cancelar: el equipo que atiende y cobra (mismo público
  *   que la RLS: owner, admin, dentist, reception, accounting).
  * - Generar las cuotas del mes: `finance:view` (acción masiva con vista previa).
- * - Cobrar una cuota: `cash:manage` (quien cobra en caja). Anularla:
- *   `payments:reverse` (el mismo criterio que reversar un pago).
+ * - Cobrar una cuota: `cash:manage` (quien cobra en caja). Crea un pago real
+ *   en `payments`, así entra a la caja y al arqueo. Anularla: `payments:reverse`
+ *   (el mismo criterio que reversar un pago); si estaba cobrada, reversa su pago.
  */
 
 type Supabase = SupabaseClient<Database>;
@@ -486,7 +489,16 @@ export const generarCuotasMembresia = createServerFn({ method: "POST" })
     return { creadas: (filas ?? []).length };
   });
 
-/** Registra que una persona cobró la cuota (no crea un pago de tratamiento). */
+/**
+ * Cobra una cuota: crea el pago real en `payments` (con su medio, en la caja
+ * de quien cobra) y la marca cobrada, todo en una sola operación de la base
+ * (`cobrar_cuota_de_membresia`). Es idempotente: cobrar de nuevo una cuota ya
+ * cobrada no crea otro pago y devuelve `yaCobrada: true`.
+ *
+ * El medio de pago es obligatorio: sin él no se sabe si el dinero entró al
+ * cajón, y el arqueo no cuadraría. El monto sale de la cuota, nunca del
+ * cliente. La moneda la fija la base desde la clínica (regla 14).
+ */
 export const cobrarCuotaMembresia = createServerFn({ method: "POST" })
   .middleware([requireEscritura])
   .validator((input: unknown) =>
@@ -494,12 +506,12 @@ export const cobrarCuotaMembresia = createServerFn({ method: "POST" })
       .object({
         clinicId: z.string().uuid(),
         id: z.string().uuid(),
-        paymentMethodId: z.string().uuid().nullable(),
+        paymentMethodId: z.string().uuid("Elige con qué medio se pagó la cuota."),
         reference: z.string().trim().max(120).nullable(),
       })
       .parse(input),
   )
-  .handler(async ({ data, context }) => {
+  .handler(async ({ data, context }): Promise<{ ok: true; yaCobrada: boolean }> => {
     const { supabase, userId } = context;
     await requireClinicPermission(
       supabase,
@@ -508,34 +520,35 @@ export const cobrarCuotaMembresia = createServerFn({ method: "POST" })
       "cash:manage",
       "No tienes permisos para cobrar.",
     );
-    let medio: string | null = null;
-    if (data.paymentMethodId) {
-      const { data: pm } = await supabase
+    const [{ data: cuota }, { data: pm }] = await Promise.all([
+      supabase
+        .from("membership_charges")
+        .select("amount_cents")
+        .eq("id", data.id)
+        .eq("clinic_id", data.clinicId)
+        .maybeSingle(),
+      supabase
         .from("payment_methods")
-        .select("name")
+        .select("kind, legacy_key, retention_pct")
         .eq("id", data.paymentMethodId)
         .eq("clinic_id", data.clinicId)
-        .maybeSingle();
-      if (!pm) throw new Error("Ese medio de pago no existe en esta clínica.");
-      medio = pm.name;
-    }
-    const { data: fila, error } = await supabase
-      .from("membership_charges")
-      .update({
-        status: "paid",
-        paid_at: new Date().toISOString(),
-        payment_method_id: data.paymentMethodId,
-        method_name_snapshot: medio,
-        reference: data.reference || null,
-      })
-      .eq("id", data.id)
-      .eq("clinic_id", data.clinicId)
-      .eq("status", "pending")
-      .select("id")
-      .maybeSingle();
+        .maybeSingle(),
+    ]);
+    if (!cuota) throw new Error("Esa cuota no existe en esta clínica.");
+    if (!pm) throw new Error("Ese medio de pago no existe en esta clínica.");
+    // Lo que se guarda en `payments.method` lo decide el medio (FIN-07), igual
+    // que en un cobro de tratamientos; la retención congela el neto.
+    const method = metodoDelMedio(pm.kind, pm.legacy_key as PaymentMethod | null);
+    const net = netAfterRetention(cuota.amount_cents, Number(pm.retention_pct) || 0);
+    const { data: filas, error } = await supabase.rpc("cobrar_cuota_de_membresia", {
+      p_charge_id: data.id,
+      p_payment_method_id: data.paymentMethodId,
+      p_method: method,
+      p_net_cents: net,
+      p_reference: data.reference ?? undefined,
+    });
     if (error) throw new Error(mensajeDb(error, "No pudimos registrar el cobro."));
-    if (!fila) throw new Error("Esa cuota ya no está por cobrar: recarga la lista.");
-    return { ok: true };
+    return { ok: true, yaCobrada: filas?.[0]?.ya_cobrada ?? false };
   });
 
 export const anularCuotaMembresia = createServerFn({ method: "POST" })
