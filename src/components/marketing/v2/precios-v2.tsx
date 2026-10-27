@@ -46,7 +46,7 @@ const INCLUYE = [
   "Caja diaria con arqueo y comisiones",
   "Portal del paciente",
   "Importación CSV y exportación completa",
-  "Espacio para radiografías, fotos y escaneos: 25 GB en Solo y 75 GB en Clínica",
+  "Espacio para radiografías, fotos y escaneos: 15 GB en Solo y 45 GB en Clínica",
   "Funciona sin internet y sincroniza al volver",
 ] as const;
 

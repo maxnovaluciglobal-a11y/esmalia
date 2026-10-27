@@ -27,7 +27,7 @@ export const MB = 1024 * 1024;
 const TIPOS_PESADOS: readonly TipoExamen[] = ["cbct_dicom", "escaneo_intraoral"];
 
 /** Máximo por archivo, en bytes. */
-export const LIMITE_PESADO = 200 * MB;
+export const LIMITE_PESADO = 50 * MB;
 export const LIMITE_LIVIANO = 20 * MB;
 
 export function limitePorArchivo(tipo: TipoExamen): number {

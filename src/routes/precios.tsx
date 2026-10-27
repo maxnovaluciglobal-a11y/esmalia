@@ -45,7 +45,7 @@ const preguntas: { q: string; a: string }[] = [
   },
   {
     q: "¿Cuánto espacio tengo para radiografías y fotos?",
-    a: "Plan Solo: 25 GB. Plan Clínica: 75 GB. Alcanza para años de radiografías, fotos y escaneos de una clínica normal. Te avisamos al llegar al 80 % y, si se llena, puedes pedir ampliarlo.",
+    a: "Plan Solo: 15 GB. Plan Clínica: 45 GB. Alcanza para más de un año de radiografías y fotos de una clínica normal. Te avisamos al llegar al 80 % y, si se llena, puedes pedir ampliarlo. Cada archivo puede pesar hasta 50 MB (los estudios de CBCT muy grandes se suben como una serie reducida).",
   },
   {
     q: "¿Puedo probar Esmalia sin dejar mi sistema actual?",

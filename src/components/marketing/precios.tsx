@@ -46,7 +46,7 @@ const PLANES: readonly Plan[] = [
       "Recordatorios por WhatsApp",
       "Caja y presupuestos",
       "Importación de pacientes por planilla",
-      "25 GB para radiografías, fotos y escaneos",
+      "15 GB para radiografías, fotos y escaneos",
       "Soporte directo con el equipo que lo construye",
     ],
   },
@@ -60,7 +60,7 @@ const PLANES: readonly Plan[] = [
       "Todo lo de Solo",
       "Comisiones y roles",
       "Portal de pacientes",
-      "75 GB para radiografías, fotos y escaneos",
+      "45 GB para radiografías, fotos y escaneos",
     ],
   },
   {
