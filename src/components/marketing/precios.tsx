@@ -162,7 +162,7 @@ export function PreciosPlanes({
                   <span className="ml-1 font-body text-base text-muted-foreground">/mes</span>
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  ${etiquetaUsd(Math.round(p.usd * 100))} al mes
+                  {etiquetaUsd(Math.round(p.usd * 100))} al mes
                   {moneda !== "USD" && " · referencial, el cobro es en USD"}
                 </p>
               </>
