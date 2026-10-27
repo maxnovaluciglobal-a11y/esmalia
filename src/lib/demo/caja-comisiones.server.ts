@@ -103,6 +103,16 @@ async function sembrarCajas(admin: Admin, clinicId: string, zona: string) {
     if (error) throw new Error(error.message);
     recepcion = nueva;
 
+    // Los cobros de hoy con tarjeta o transferencia también quedan en una
+    // caja (la de quien cobró), como pasa con un cobro real desde la Ola 10.
+    await admin
+      .from("payments")
+      .update({ cash_register_id: mia.id })
+      .eq("clinic_id", clinicId)
+      .is("cash_register_id", null)
+      .like("notes", "Demo · %")
+      .gte("paid_at", wallTimeInTzToUtc(`${hoy}T00:00:00`, zona).toISOString());
+
     // Dos cobros en efectivo de hoy pasan a la caja de recepción.
     const { data: cobros } = await admin
       .from("payments")
