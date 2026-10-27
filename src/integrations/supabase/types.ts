@@ -384,6 +384,7 @@ export type Database = {
           appointment_type_id: string | null;
           appointment_type_name: string | null;
           arrived_at: string | null;
+          booking_source: string | null;
           branch_id: string;
           clinic_id: string;
           confirmed_at: string | null;
@@ -401,6 +402,7 @@ export type Database = {
           notes: string | null;
           operatory_id: string | null;
           operatory_name: string | null;
+          patient_cancelled_at: string | null;
           patient_confirmed_at: string | null;
           patient_confirmed_via: string | null;
           patient_id: string;
@@ -419,6 +421,7 @@ export type Database = {
           appointment_type_id?: string | null;
           appointment_type_name?: string | null;
           arrived_at?: string | null;
+          booking_source?: string | null;
           branch_id: string;
           clinic_id: string;
           confirmed_at?: string | null;
@@ -436,6 +439,7 @@ export type Database = {
           notes?: string | null;
           operatory_id?: string | null;
           operatory_name?: string | null;
+          patient_cancelled_at?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id: string;
@@ -454,6 +458,7 @@ export type Database = {
           appointment_type_id?: string | null;
           appointment_type_name?: string | null;
           arrived_at?: string | null;
+          booking_source?: string | null;
           branch_id?: string;
           clinic_id?: string;
           confirmed_at?: string | null;
@@ -471,6 +476,7 @@ export type Database = {
           notes?: string | null;
           operatory_id?: string | null;
           operatory_name?: string | null;
+          patient_cancelled_at?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id?: string;
@@ -3217,6 +3223,116 @@ export type Database = {
           },
         ];
       };
+      online_booking_settings: {
+        Row: {
+          bookable_appointment_type_ids: string[];
+          bookable_procedure_ids: string[];
+          clinic_id: string;
+          created_at: string;
+          enabled: boolean;
+          max_days_ahead: number;
+          min_notice_hours: number;
+          slug: string;
+          updated_at: string;
+          updated_by: string | null;
+          welcome_note: string | null;
+        };
+        Insert: {
+          bookable_appointment_type_ids?: string[];
+          bookable_procedure_ids?: string[];
+          clinic_id: string;
+          created_at?: string;
+          enabled?: boolean;
+          max_days_ahead?: number;
+          min_notice_hours?: number;
+          slug: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          welcome_note?: string | null;
+        };
+        Update: {
+          bookable_appointment_type_ids?: string[];
+          bookable_procedure_ids?: string[];
+          clinic_id?: string;
+          created_at?: string;
+          enabled?: boolean;
+          max_days_ahead?: number;
+          min_notice_hours?: number;
+          slug?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          welcome_note?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_booking_settings_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: true;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      online_booking_verifications: {
+        Row: {
+          appointment_id: string | null;
+          attempts: number;
+          clinic_id: string;
+          code_hash: string;
+          created_at: string;
+          email_hash: string;
+          expires_at: string;
+          id: string;
+          ip_hint: string | null;
+          phone_hash: string | null;
+          request_hash: string;
+          used_at: string | null;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          attempts?: number;
+          clinic_id: string;
+          code_hash: string;
+          created_at?: string;
+          email_hash: string;
+          expires_at: string;
+          id?: string;
+          ip_hint?: string | null;
+          phone_hash?: string | null;
+          request_hash: string;
+          used_at?: string | null;
+        };
+        Update: {
+          appointment_id?: string | null;
+          attempts?: number;
+          clinic_id?: string;
+          code_hash?: string;
+          created_at?: string;
+          email_hash?: string;
+          expires_at?: string;
+          id?: string;
+          ip_hint?: string | null;
+          phone_hash?: string | null;
+          request_hash?: string;
+          used_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_booking_verifications_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "online_booking_verifications_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       operatories: {
         Row: {
           branch_id: string;
@@ -3491,6 +3607,82 @@ export type Database = {
           },
         ];
       };
+      patient_email_dispatches: {
+        Row: {
+          appointment_id: string;
+          attempts: number;
+          clinic_id: string;
+          created_at: string;
+          id: string;
+          kind: string;
+          patient_id: string;
+          provider_id: string | null;
+          reason: string | null;
+          recipient: string | null;
+          recipient_role: string | null;
+          redirected_to: string | null;
+          slot: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          appointment_id: string;
+          attempts?: number;
+          clinic_id: string;
+          created_at?: string;
+          id?: string;
+          kind: string;
+          patient_id: string;
+          provider_id?: string | null;
+          reason?: string | null;
+          recipient?: string | null;
+          recipient_role?: string | null;
+          redirected_to?: string | null;
+          slot?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          appointment_id?: string;
+          attempts?: number;
+          clinic_id?: string;
+          created_at?: string;
+          id?: string;
+          kind?: string;
+          patient_id?: string;
+          provider_id?: string | null;
+          reason?: string | null;
+          recipient?: string | null;
+          recipient_role?: string | null;
+          redirected_to?: string | null;
+          slot?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_email_dispatches_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_email_dispatches_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_email_dispatches_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       patient_guardians: {
         Row: {
           archived_at: string | null;
@@ -3601,6 +3793,91 @@ export type Database = {
           },
           {
             foreignKeyName: "patient_guardians_audit_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_intake_forms: {
+        Row: {
+          appointment_id: string | null;
+          clinic_id: string;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          opened_at: string | null;
+          patient_id: string;
+          reviewed_at: string | null;
+          reviewed_by: string | null;
+          sent_at: string;
+          status: string;
+          submitted_allergies: string[] | null;
+          submitted_at: string | null;
+          submitted_comment: string | null;
+          submitted_contact: Json | null;
+          submitted_medications: string[] | null;
+          submitted_questionnaire: Json | null;
+          token_hash: string;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          opened_at?: string | null;
+          patient_id: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          sent_at?: string;
+          status?: string;
+          submitted_allergies?: string[] | null;
+          submitted_at?: string | null;
+          submitted_comment?: string | null;
+          submitted_contact?: Json | null;
+          submitted_medications?: string[] | null;
+          submitted_questionnaire?: Json | null;
+          token_hash: string;
+        };
+        Update: {
+          appointment_id?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          opened_at?: string | null;
+          patient_id?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
+          sent_at?: string;
+          status?: string;
+          submitted_allergies?: string[] | null;
+          submitted_at?: string | null;
+          submitted_comment?: string | null;
+          submitted_contact?: Json | null;
+          submitted_medications?: string[] | null;
+          submitted_questionnaire?: Json | null;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_intake_forms_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: true;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_intake_forms_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_intake_forms_patient_id_fkey";
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
@@ -3721,6 +3998,142 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_notification_settings: {
+        Row: {
+          clinic_id: string;
+          confirmation_enabled: boolean;
+          confirmation_enabled_at: string | null;
+          created_at: string;
+          google_review_url: string | null;
+          intake_form_mode: string;
+          nps_enabled: boolean;
+          nps_enabled_at: string | null;
+          nps_hours_after: number;
+          reminder_enabled: boolean;
+          reminder_hours: number[];
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          clinic_id: string;
+          confirmation_enabled?: boolean;
+          confirmation_enabled_at?: string | null;
+          created_at?: string;
+          google_review_url?: string | null;
+          intake_form_mode?: string;
+          nps_enabled?: boolean;
+          nps_enabled_at?: string | null;
+          nps_hours_after?: number;
+          reminder_enabled?: boolean;
+          reminder_hours?: number[];
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          clinic_id?: string;
+          confirmation_enabled?: boolean;
+          confirmation_enabled_at?: string | null;
+          created_at?: string;
+          google_review_url?: string | null;
+          intake_form_mode?: string;
+          nps_enabled?: boolean;
+          nps_enabled_at?: string | null;
+          nps_hours_after?: number;
+          reminder_enabled?: boolean;
+          reminder_hours?: number[];
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_notification_settings_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: true;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_nps_responses: {
+        Row: {
+          appointment_id: string | null;
+          clinic_id: string;
+          comment: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          opened_at: string | null;
+          patient_id: string;
+          professional_id: string | null;
+          responded_at: string | null;
+          review_link_shown: boolean;
+          score: number | null;
+          sent_at: string;
+          token_hash: string;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          clinic_id: string;
+          comment?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          opened_at?: string | null;
+          patient_id: string;
+          professional_id?: string | null;
+          responded_at?: string | null;
+          review_link_shown?: boolean;
+          score?: number | null;
+          sent_at?: string;
+          token_hash: string;
+        };
+        Update: {
+          appointment_id?: string | null;
+          clinic_id?: string;
+          comment?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          opened_at?: string | null;
+          patient_id?: string;
+          professional_id?: string | null;
+          responded_at?: string | null;
+          review_link_shown?: boolean;
+          score?: number | null;
+          sent_at?: string;
+          token_hash?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_nps_responses_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: true;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_nps_responses_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_nps_responses_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_nps_responses_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
             referencedColumns: ["id"];
           },
         ];
@@ -5328,6 +5741,7 @@ export type Database = {
       };
       professionals: {
         Row: {
+          attends_patients: boolean | null;
           branch_id: string | null;
           clinic_id: string;
           color: string;
@@ -5348,6 +5762,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          attends_patients?: boolean | null;
           branch_id?: string | null;
           clinic_id: string;
           color?: string;
@@ -5368,6 +5783,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          attends_patients?: boolean | null;
           branch_id?: string | null;
           clinic_id?: string;
           color?: string;
@@ -6701,6 +7117,27 @@ export type Database = {
         Args: { p_document_id: string };
         Returns: { documento_enc: string; documento_hash: string }[];
       };
+      cita_gestion_cancelar: {
+        Args: { p_appointment_id: string; p_clinic_id: string; p_motivo: string };
+        Returns: Json;
+      };
+      cita_gestion_confirmar: {
+        Args: { p_appointment_id: string; p_clinic_id: string };
+        Returns: Json;
+      };
+      cita_gestion_reagendar: {
+        Args: {
+          p_appointment_id: string;
+          p_clinic_id: string;
+          p_operatory_id: string | null;
+          p_starts_at: string;
+        };
+        Returns: Json;
+      };
+      cita_gestion_ver: {
+        Args: { p_appointment_id: string; p_clinic_id: string };
+        Returns: Json;
+      };
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
@@ -6737,6 +7174,11 @@ export type Database = {
           p_professional_id: string;
           p_template_version_id: string;
         };
+        Returns: Json;
+      };
+      encuesta_nps_abrir: { Args: { p_token_hash: string }; Returns: Json };
+      encuesta_nps_responder: {
+        Args: { p_comment: string; p_score: number; p_token_hash: string };
         Returns: Json;
       };
       extender_prueba_de_la_clinica: {
@@ -6799,6 +7241,22 @@ export type Database = {
           p_user_agent: string;
         };
         Returns: Json;
+      };
+      formulario_previo_abrir: { Args: { p_token_hash: string }; Returns: Json };
+      formulario_previo_enviar: {
+        Args: {
+          p_alergias: string[];
+          p_comentario: string;
+          p_contacto: Json;
+          p_cuestionario: Json;
+          p_medicacion: string[];
+          p_token_hash: string;
+        };
+        Returns: Json;
+      };
+      formulario_previo_revisar: {
+        Args: { p_form_id: string; p_resultado: string };
+        Returns: undefined;
       };
       guardar_nota_clinica: {
         Args: {
@@ -7008,6 +7466,27 @@ export type Database = {
       registrar_mis_datos_de_firma: {
         Args: { p_clinic_id: string; p_nombre: string; p_registro: string };
         Returns: undefined;
+      };
+      reserva_en_linea_confirmar: {
+        Args: {
+          p_code_hash: string;
+          p_request_hash: string;
+          p_reserva: Json;
+          p_verification_id: string;
+        };
+        Returns: Json;
+      };
+      reserva_en_linea_contexto: { Args: { p_slug: string }; Returns: Json };
+      reserva_en_linea_preparar_codigo: {
+        Args: {
+          p_clinic_id: string;
+          p_code_hash: string;
+          p_email_hash: string;
+          p_ip: string;
+          p_phone_hash: string;
+          p_request_hash: string;
+        };
+        Returns: Json;
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       rut_es_valido: { Args: { p_rut: string }; Returns: boolean };

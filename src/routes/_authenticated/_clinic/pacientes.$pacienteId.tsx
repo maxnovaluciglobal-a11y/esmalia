@@ -21,6 +21,7 @@ import { requirePermission } from "@/lib/access/route-guards";
 import { PacienteTimeline } from "@/components/paciente-timeline";
 import { NotasClinicas } from "@/components/notas-clinicas";
 import { MedicalHistoryCard } from "@/components/medical-history-card";
+import { FormularioPrevioPendiente } from "@/components/notificaciones/formulario-previo-pendiente";
 import { VitalSignsCard } from "@/components/vital-signs-card";
 import { PatientGuardiansCard } from "@/components/patient-guardians-card";
 import { useGuardians } from "@/hooks/use-guardians";
@@ -761,6 +762,12 @@ function PacienteDetalle() {
               <div className="min-w-0 space-y-[18px]">
                 {puedeVerClinico && clinicId ? (
                   <>
+                    <FormularioPrevioPendiente
+                      clinicId={clinicId}
+                      patientId={paciente.id}
+                      puedeRevisar={puedeEscribirClinico}
+                      timezone={timezone ?? "America/Santiago"}
+                    />
                     <div id="anamnesis" className="scroll-mt-48">
                       <MedicalHistoryCard
                         clinicId={clinicId}

@@ -98,6 +98,7 @@ Detalle de Meta en `docs/WHATSAPP_META.md`; historia de cada fase en la memoria 
 - **Baja:** `wa_opt_out_at` corta todo envío en el servidor. Palabras de baja en `baja-whatsapp.ts` ("CANCELAR" no es baja desde el 19-oct).
 - **El webhook no confirma citas** (`confirmada` = lo aceptó el profesional). Si se quiere confirmación del paciente, va en un eje aparte. Orden del webhook: baja → confirmación → agenda → genérico (`tests/agenda-precedencia-webhook.test.ts`).
 - **Resumen diario** (`/api/daily-digest`) y **correos de ciclo de vida** (`/api/lifecycle-emails`): disparo horario por Vercel Cron (minutos 37 y 47) y, de respaldo, GitHub Actions (minutos 7 y 17), los dos con `CRON_SECRET`; son idempotentes, así que el doble disparo no duplica nada. El resumen diario actúa entre 8:00 y 11:59 hora de la clínica y los correos de ciclo de vida entre 8:00 y 20:59 (la ventana ancha viene de cuando el único disparo era GitHub, que no es fiable; ver `docs/CORREOS.md`). Ninguno le escribe a pacientes.
+- **Correos automáticos al paciente** (`/api/patient-emails`, Ola 7): confirmación, recordatorio, encuesta NPS y link del formulario, solo por correo. Minuto 27 (Vercel) y 57 (GitHub), interruptor `PATIENT_EMAILS_ENABLED`, todo apagado por clínica hasta que la enciende en `/notificaciones-a-pacientes`; respeta sandbox, baja y tutor. Ver `docs/CORREOS.md`.
 - El interruptor de avisos en la app se respeta en la base (trigger `notifications_respetar_preferencia`).
 
 ## Contenido editorial (SEO/GEO)

@@ -20,6 +20,10 @@
     {
       "path": "/api/lifecycle-emails",
       "schedule": "47 * * * *"
+    },
+    {
+      "path": "/api/patient-emails",
+      "schedule": "27 * * * *"
     }
   ],
   "headers": [
@@ -67,7 +71,7 @@
       ]
     },
     {
-      "source": "/(agenda|ajustes|aranceles|cajas|caja|comisiones|compliance|consentimientos|convenios|conversaciones|dashboard|dominio-email|efectividad|equipo|estados-de-cita|finanzas|fusionar-fichas|gastos|inventario|laboratorios|medios-de-pago|mensajes|mi-agenda|morosidad|ortodoncia|pacientes|permisos|preferencias|profesionales|pruebas-email|recordatorios|reportes|sandbox-email|sucursales|suscripcion|tratamientos|whatsapp|admin|onboarding|sin-acceso|portal|portal-laboratorio|correos)(/.*)?",
+      "source": "/(agenda|ajustes|aranceles|cajas|caja|comisiones|compliance|consentimientos|convenios|conversaciones|dashboard|dominio-email|efectividad|equipo|estados-de-cita|finanzas|fusionar-fichas|gastos|inventario|laboratorios|medios-de-pago|mensajes|mi-agenda|morosidad|ortodoncia|pacientes|permisos|preferencias|profesionales|pruebas-email|recordatorios|reportes|sandbox-email|sucursales|suscripcion|tratamientos|whatsapp|admin|onboarding|sin-acceso|portal|portal-laboratorio|correos|formulario|encuesta|notificaciones-a-pacientes)(/.*)?",
       "headers": [
         {
           "key": "X-Robots-Tag",
