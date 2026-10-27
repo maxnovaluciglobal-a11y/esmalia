@@ -497,7 +497,7 @@ function OrtodonciaPage() {
               {requierenAccion.slice(0, 6).map(({ caso, texto }) => (
                 <li
                   key={caso.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-2.5 border-b border-night-line pb-2.5 text-sm"
+                  className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-baseline sm:gap-2.5 border-b border-night-line pb-2.5 text-sm"
                 >
                   <span className="min-w-0">
                     <span className="block truncate">{caso.patientName}</span>
@@ -506,7 +506,7 @@ function OrtodonciaPage() {
                       {caso.stage ? ` · ${ORTHO_STAGE_LABELS[caso.stage]}` : ""}
                     </span>
                   </span>
-                  <span className="inline-flex items-center gap-1 text-right text-xs font-semibold text-brand-on-night">
+                  <span className="inline-flex items-center gap-1 text-xs sm:justify-end sm:text-right font-semibold text-brand-on-night">
                     <AlertTriangle className="size-3.5 shrink-0" aria-hidden />
                     {texto}
                   </span>

@@ -61,7 +61,7 @@ export function CamposTecnicosOrden({
             value={valor.shade}
             disabled={!valor.shadeGuide}
             onChange={(e) => onChange({ ...valor, shade: e.target.value })}
-            className={`${claseInput} cifra disabled:opacity-50`}
+            className={`${claseInput} disabled:opacity-50`}
           >
             <option value="">{valor.shadeGuide ? "Elige el color" : "Elige la guía"}</option>
             {colores.map((c) => (

@@ -268,7 +268,7 @@ export function CatalogoLaboratorio({
             <li
               key={i.id}
               className={cn(
-                "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 py-3",
+                "grid gap-x-4 gap-y-1.5 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center",
                 !i.isActive && "opacity-60",
               )}
             >

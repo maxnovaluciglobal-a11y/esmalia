@@ -35,7 +35,7 @@ function Plazo({ orden, hoy }: { orden: LabPortalOrder; hoy: string | null }) {
     return (
       <span className="inline-flex items-center gap-1 font-semibold text-destructive">
         <TriangleAlert className="size-3.5" aria-hidden />
-        Comprometido {fechaCorta(orden.dueOn)} · {orden.diasAtraso}{" "}
+        Comprometido <span className="cifra">{fechaCorta(orden.dueOn)}</span> · {orden.diasAtraso}{" "}
         {orden.diasAtraso === 1 ? "día" : "días"} tarde
       </span>
     );
@@ -155,7 +155,11 @@ function LabPortalInicio() {
                   {LAB_ORDER_STATUS_LABELS[o.status]}
                 </span>
               </div>
-              <ChipsDetalleOrden detalle={o} catalogName={o.catalogName} className="mt-2.5" />
+              <ChipsDetalleOrden
+                detalle={o}
+                catalogName={o.catalogName !== o.description ? o.catalogName : null}
+                className="mt-2.5"
+              />
               <p className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1 text-sm">
                 <span className="text-muted-foreground">
                   Enviado <span className="cifra">{fechaCorta(o.sentOn)}</span>
@@ -194,7 +198,11 @@ function LabPortalInicio() {
                 {o.patientName} · {LAB_ORDER_STATUS_LABELS[o.status]}
                 {o.receivedOn ? ` el ${fechaCorta(o.receivedOn)}` : ""}
               </p>
-              <ChipsDetalleOrden detalle={o} catalogName={o.catalogName} className="mt-2" />
+              <ChipsDetalleOrden
+                detalle={o}
+                catalogName={o.catalogName !== o.description ? o.catalogName : null}
+                className="mt-2"
+              />
             </div>
           ))}
         </section>
