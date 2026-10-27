@@ -2656,6 +2656,8 @@ export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
     "Avisos internos de la app para cada usuario; cada persona ve solo los suyos y no son datos de la clínica.",
   patient_document_bidx:
     "Huella del documento de cada paciente para buscar sin descifrar; el documento sale en pacientes.csv.",
+  saved_reports:
+    "Informes guardados del constructor (qué métrica, corte y período mirar): son preferencias de cada persona, no guardan cifras ni datos de pacientes y se recalculan al abrirlos.",
   stripe_events: "Eventos del cobro de la suscripción a Esmalia (Stripe).",
   subscriptions: "Suscripción de la clínica a Esmalia; se consulta en el portal de facturación.",
   trial_extensions: "Extensiones del período de prueba que otorga el equipo de Esmalia.",

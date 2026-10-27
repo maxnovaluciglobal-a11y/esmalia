@@ -7863,6 +7863,47 @@ export type Database = {
         };
         Relationships: [];
       };
+      saved_reports: {
+        Row: {
+          clinic_id: string;
+          config: Json;
+          created_at: string;
+          created_by: string;
+          id: string;
+          name: string;
+          shared: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          config: Json;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          name: string;
+          shared?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          config?: Json;
+          created_at?: string;
+          created_by?: string;
+          id?: string;
+          name?: string;
+          shared?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "saved_reports_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       security_incident_updates: {
         Row: {
           affected_subjects_estimate: number | null;
@@ -8911,6 +8952,102 @@ export type Database = {
           _roles: Database["public"]["Enums"]["app_role"][];
         };
         Returns: boolean;
+      };
+      informe_detalle: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clave?: string | null;
+          p_clave2?: string | null;
+          p_clinic_id: string;
+          p_corte?: string;
+          p_corte2?: string;
+          p_desde: string;
+          p_hasta: string;
+          p_limite?: number;
+          p_metrica: string;
+          p_professional_id?: string | null;
+        };
+        Returns: {
+          branch_id: string | null;
+          estado: string | null;
+          fecha: string;
+          momento: string | null;
+          operatory_id: string | null;
+          patient_id: string | null;
+          professional_id: string | null;
+          ref_id: string;
+          total: number;
+          valor: number;
+        }[];
+      };
+      informe_embudo: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clinic_id: string;
+          p_desde: string;
+          p_hasta: string;
+        };
+        Returns: {
+          aceptados: number;
+          atendidos: number;
+          canal: string;
+          con_cita: number;
+          con_presupuesto: number;
+          contactos: number;
+          pagados: number | null;
+        }[];
+      };
+      informe_metrica: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clinic_id: string;
+          p_corte?: string;
+          p_corte2?: string;
+          p_desde: string;
+          p_hasta: string;
+          p_metrica: string;
+          p_professional_id?: string | null;
+        };
+        Returns: {
+          clave: string | null;
+          clave2: string | null;
+          n: number;
+          pacientes: number;
+          valor: number;
+        }[];
+      };
+      informe_ocupacion: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clinic_id: string;
+          p_desde: string;
+          p_hasta: string;
+          p_professional_id?: string | null;
+        };
+        Returns: {
+          citas: number;
+          dia_semana: number;
+          dias: number;
+          hora: number;
+          minutos_disponibles: number;
+          minutos_ocupados: number;
+        }[];
+      };
+      informe_uso_box: {
+        Args: {
+          p_branch_id?: string | null;
+          p_clinic_id: string;
+          p_desde: string;
+          p_hasta: string;
+        };
+        Returns: {
+          atenciones: number;
+          branch_id: string | null;
+          citas: number;
+          minutos_abiertos: number | null;
+          minutos_ocupados: number;
+          operatory_id: string | null;
+        }[];
       };
       is_clinic_member: { Args: { _clinic_id: string }; Returns: boolean };
       is_clinic_member_of: {

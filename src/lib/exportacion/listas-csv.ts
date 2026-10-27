@@ -39,6 +39,9 @@ export const LISTAS_CSV = {
   gastos_fijos: { titulo: "Gastos fijos", permiso: "finance:view" },
   empresas_convenio: { titulo: "Empresas con convenio", permiso: "finance:view" },
   membresias: { titulo: "Cuotas de membresía", permiso: "cash:manage" },
+  // Ola 11 · frente A (INF-11): tablas y detalle de los informes. Los montos
+  // salen solo con finanzas, como en el resto (columnas `dinero: true`).
+  informes: { titulo: "Informe", permiso: "dashboard:view" },
 } as const satisfies Record<string, { titulo: string; permiso: Permission }>;
 
 export type ListaCsv = keyof typeof LISTAS_CSV;

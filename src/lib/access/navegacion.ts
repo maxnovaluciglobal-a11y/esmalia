@@ -203,6 +203,24 @@ export const DESTINOS: readonly Destino[] = [
         sinonimos: ["desempeño", "mi comisión", "mis liquidaciones", "producción"],
       },
       { to: "/efectividad", label: "Efectividad", permisos: ["dashboard:view"] },
+      // Ola 11 · frente A: informes por pregunta (INF-02 a INF-12).
+      {
+        to: "/informes",
+        label: "Informes",
+        permisos: ["dashboard:view"],
+        sinonimos: [
+          "informe",
+          "estadísticas",
+          "comparar períodos",
+          "ocupación",
+          "mapa de calor",
+          "box",
+          "embudo",
+          "ausentismo",
+          "sucursales",
+          "constructor de informes",
+        ],
+      },
       {
         to: "/resultados-del-piloto",
         label: "Resultados del piloto",
