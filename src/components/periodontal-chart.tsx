@@ -1,7 +1,7 @@
 import { useId, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Activity, History, Loader2, Plus } from "lucide-react";
+import { Activity, GitCompareArrows, History, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,11 +33,17 @@ import {
   type PeriodontalChart as PeriodontalChartData,
   type PeriodontalPoint,
 } from "@/lib/clinical/periodontal";
+import {
+  ETIQUETA_SEVERIDAD_NIC,
+  nicDePieza,
+  resumenNic,
+  type SeveridadNic,
+} from "@/lib/clinical/periodontal-nic";
+import { ComparacionPeriodontal } from "@/components/periodontal-comparacion";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
-import { TituloSeccion } from "@/components/titulo-seccion";
 
 type Props = {
   clinicId: string;
@@ -50,7 +56,16 @@ function formatoFechaHora(iso: string, zona?: string): string {
   return fechaHora(iso, zona);
 }
 
-function PocketCell({ mm, bleeding }: { mm: number | null; bleeding: boolean | null }) {
+function PocketCell({
+  mm,
+  bleeding,
+  nic,
+}: {
+  mm: number | null;
+  bleeding: boolean | null;
+  /** PER-02: nivel de inserción clínica del sitio; `null` si falta la recesión. */
+  nic: number | null;
+}) {
   const severity = pocketSeverity(mm);
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -60,6 +75,15 @@ function PocketCell({ mm, bleeding }: { mm: number | null; bleeding: boolean | n
       >
         {mm ?? "—"}
       </span>
+      {mm !== null && (
+        <span
+          className="cifra text-[10.5px] leading-none text-muted-foreground"
+          title={nic === null ? "Sin recesión registrada: no se calcula el NIC" : undefined}
+        >
+          <span aria-hidden>{nic ?? "·"}</span>
+          <span className="sr-only">{nic === null ? "NIC sin dato" : `NIC ${nic} mm`}</span>
+        </span>
+      )}
       {bleeding && (
         <>
           <span aria-hidden className="size-1.5 rounded-full bg-destructive" title="Sangrado" />
@@ -92,6 +116,7 @@ function ChartTable({ chart }: { chart: PeriodontalChartData }) {
         <tbody>
           {chart.teeth.map((tooth) => {
             const byPoint = new Map(tooth.points.map((p) => [p.point, p]));
+            const nic = nicDePieza(tooth);
             return (
               <tr key={tooth.toothNumber} className="border-b border-hairline/60">
                 <td className="py-1.5 pr-3 font-medium">{tooth.toothNumber}</td>
@@ -99,7 +124,11 @@ function ChartTable({ chart }: { chart: PeriodontalChartData }) {
                   const m = byPoint.get(p);
                   return (
                     <td key={p} className="px-1.5 py-1.5">
-                      <PocketCell mm={m?.pocketDepthMm ?? null} bleeding={m?.bleeding ?? null} />
+                      <PocketCell
+                        mm={m?.pocketDepthMm ?? null}
+                        bleeding={m?.bleeding ?? null}
+                        nic={nic[p]}
+                      />
                     </td>
                   );
                 })}
@@ -115,11 +144,86 @@ function ChartTable({ chart }: { chart: PeriodontalChartData }) {
         </tbody>
       </table>
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Profundidad de sondaje en mm por punto (mv, v, dv, ml, l, dl) · el punto rojo indica
-        sangrado al sondeo · color según severidad (verde ≤3mm, ámbar 4-5mm, naranja 6mm, rojo
-        &gt;6mm).
+        Profundidad de sondaje en mm por punto (mv, v, dv, ml, l, dl) y, debajo, el nivel de
+        inserción clínica (NIC = profundidad + recesión; «·» si falta la recesión) · el punto rojo
+        indica sangrado al sondeo · color según severidad (verde ≤3mm, ámbar 4-5mm, naranja 6mm,
+        rojo &gt;6mm).
       </p>
     </div>
+  );
+}
+
+const ORDEN_SEVERIDAD: SeveridadNic[] = ["sin_perdida", "leve", "moderada", "severa"];
+
+/**
+ * Resumen del NIC del sondaje (Ola 9, PER-02): promedio, máximo con su sitio
+ * y cuántos sitios caen en cada rango de pérdida de inserción. Orientativo:
+ * el estadio periodontal lo decide el profesional con el resto del examen.
+ */
+function ResumenNic({ chart }: { chart: PeriodontalChartData }) {
+  const r = resumenNic(chart);
+  return (
+    <section
+      aria-labelledby="perio-nic-titulo"
+      className="rounded-xl border border-border bg-background p-4"
+    >
+      <h4
+        id="perio-nic-titulo"
+        className="font-display text-[22px] leading-none font-medium tracking-[-0.01em]"
+      >
+        Nivel de <em className="text-brand-600">inserción clínica</em>
+      </h4>
+      {r.sitiosConNic === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {r.sitiosSinRecesion > 0
+            ? "Este sondaje no tiene recesiones cargadas, así que no se puede calcular el NIC. Carga la recesión de cada sitio (0 si el margen está en el límite amelocementario)."
+            : "Sin sitios medidos."}
+        </p>
+      ) : (
+        <>
+          <dl className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-lg border border-border bg-card px-3 py-2">
+              <dt className="text-xs text-muted-foreground">NIC medio</dt>
+              <dd className="cifra mt-0.5 text-[15px] font-semibold">{r.promedio} mm</dd>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-3 py-2">
+              <dt className="text-xs text-muted-foreground">NIC máximo</dt>
+              <dd className="cifra mt-0.5 text-[15px] font-semibold">
+                {r.maximo} mm
+                {r.sitioMaximo && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    · {r.sitioMaximo.toothNumber} {r.sitioMaximo.point.toUpperCase()}
+                  </span>
+                )}
+              </dd>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-3 py-2">
+              <dt className="text-xs text-muted-foreground">Sitios con NIC</dt>
+              <dd className="cifra mt-0.5 text-[15px] font-semibold">{r.sitiosConNic}</dd>
+            </div>
+            <div className="rounded-lg border border-border bg-card px-3 py-2">
+              <dt className="text-xs text-muted-foreground">Sin recesión (sin NIC)</dt>
+              <dd className="cifra mt-0.5 text-[15px] font-semibold">{r.sitiosSinRecesion}</dd>
+            </div>
+          </dl>
+          <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Sitios por pérdida de inserción">
+            {ORDEN_SEVERIDAD.map((sev) => (
+              <li
+                key={sev}
+                className="inline-flex h-7 items-center gap-1.5 rounded-full border border-border px-2.5 text-xs"
+              >
+                {ETIQUETA_SEVERIDAD_NIC[sev]}
+                <span className="cifra font-semibold">{r.porSeveridad[sev]}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11.5px] text-muted-foreground">
+            Rangos de la clasificación AAP/EFP 2017, como orientación: el estadio se decide con la
+            radiografía y el resto del examen.
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
@@ -425,6 +529,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
   const byIdFn = useServerFn(getPeriodontalChartById);
   const [viewChartId, setViewChartId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [comparar, setComparar] = useState(false);
 
   const { data: latest, isLoading } = useQuery({
     queryKey: ["periodontal-latest", clinicId, patientId],
@@ -434,7 +539,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
   const { data: history = [] } = useQuery({
     queryKey: ["periodontal-history", clinicId, patientId],
     queryFn: () => historyFn({ data: { clinicId, patientId } }),
-    enabled: showHistory,
+    enabled: showHistory || comparar,
   });
 
   const { data: viewedChart } = useQuery({
@@ -446,16 +551,36 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
   const chartToShow = viewChartId ? viewedChart : latest;
 
   return (
-    <div className="card-clinical p-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+    <section
+      aria-labelledby="periodontograma-titulo"
+      className="rounded-panel border border-border bg-card px-5 pt-5 pb-4"
+    >
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <TituloSeccion>Periodontograma</TituloSeccion>
-          <p className="text-xs text-muted-foreground">
+          <h3
+            id="periodontograma-titulo"
+            className="font-display text-[30px] leading-none font-medium tracking-[-0.01em]"
+          >
+            Periodonto<em className="text-brand-600">grama</em>
+          </h3>
+          <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-muted-foreground">
             Sondaje de 6 puntos por pieza (AAP): profundidad, sangrado y recesión, más movilidad y
-            furca por diente.
+            furca por diente. El nivel de inserción se calcula solo.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setComparar((v) => !v)}
+            aria-pressed={comparar}
+            className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium pointer-coarse:min-h-11 ${
+              comparar
+                ? "border-foreground bg-foreground text-background"
+                : "border-hairline hover:bg-secondary/60"
+            }`}
+          >
+            <GitCompareArrows className="size-3" /> Comparar exámenes
+          </button>
           <button
             onClick={() => {
               setShowHistory((v) => !v);
@@ -511,9 +636,19 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
             {chartToShow.recordedByName ?? "Usuario"}
             {chartToShow.notes ? ` · ${chartToShow.notes}` : ""}
           </p>
+          <ResumenNic chart={chartToShow} />
           <ChartTable chart={chartToShow} />
         </div>
       )}
-    </div>
+
+      {comparar &&
+        (history.length >= 2 ? (
+          <ComparacionPeriodontal clinicId={clinicId} examenes={history} />
+        ) : (
+          <p className="mt-5 rounded-xl border border-border bg-background p-4 text-sm text-muted-foreground">
+            Para comparar hacen falta al menos dos sondajes registrados.
+          </p>
+        ))}
+    </section>
   );
 }
