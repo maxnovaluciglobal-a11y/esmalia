@@ -26,6 +26,7 @@ import { requireEscritura } from "@/lib/solo-lectura.middleware";
 import {
   afectadas,
   explicarBloqueo,
+  cerrarSiYaPaso,
   filaOriginal,
   MAX_FILAS_POR_LOTE,
   normalizarNombrePersona,
@@ -367,6 +368,13 @@ async function planificarCitas(supa: Supa, e: Entrada): Promise<PlanCitas> {
       inicioIso = inicio.toISOString();
       const finIso = new Date(inicio.getTime() + c.duracionMin * 60_000).toISOString();
       if (inicio.getTime() > ahora && c.estadoCita !== "cancelada") citasFuturas += 1;
+      // Ya empezó: queda como historial de solo lectura, así que no puede
+      // entrar abierta (aparecería en "citas pasadas sin cerrar" sin poder
+      // cerrarse). La base aplica la misma regla al insertar.
+      const estadoCita = cerrarSiYaPaso(c.estadoCita, inicio.getTime() <= ahora);
+      if (estadoCita !== c.estadoCita) {
+        mensajes.push("Ya pasó y no traía un estado cerrado: se importa como atendida.");
+      }
       paraLaBase.set(c.fila, {
         fila: c.fila,
         patient_id: pacienteId,
@@ -374,7 +382,7 @@ async function planificarCitas(supa: Supa, e: Entrada): Promise<PlanCitas> {
         branch_id: sucursal.id,
         inicio: inicioIso,
         fin: finIso,
-        estado: c.estadoCita,
+        estado: estadoCita,
         motivo: c.motivo,
         notas: c.notas,
         externo: c.externo,

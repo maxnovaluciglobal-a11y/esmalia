@@ -33,7 +33,10 @@
 --      excepciones: el cambio de paciente de una fusión de fichas
 --      (merge_patients) y la reversa del propio lote. Las fichas de paciente
 --      importadas sí se completan y editan normalmente, y las citas futuras
---      importadas se pueden mover o cancelar.
+--      importadas se pueden mover o cancelar. Una cita importada que ya
+--      empezó entra siempre con un estado cerrado (finalizada, ausente o
+--      cancelada): si venía sin estado o abierta, como finalizada. Así nunca
+--      aparece en "citas pasadas sin cerrar" ni en su cierre en lote (PAN-05).
 --
 -- Compatible con el código en producción (RUNBOOK regla 3): tablas nuevas,
 -- columnas nullable (o con default) y triggers que solo actúan sobre filas
@@ -323,6 +326,14 @@ begin
   new.import_source := v_lote.source;
   if tg_table_name = 'appointments' then
     new := jsonb_populate_record(new, jsonb_build_object('reminders_muted', not v_lote.include_in_reminders));
+    -- Una cita que ya empezó al importarla es historial de solo lectura
+    -- (proteger_historial_importado): no puede quedar abierta, porque
+    -- entonces aparecería en "citas pasadas sin cerrar" (PAN-05) y nadie
+    -- podría cerrarla. Sin estado o con uno abierto, entra como atendida.
+    if (v_nuevo->>'starts_at')::timestamptz < now()
+       and v_nuevo->>'status' in ('tentativa', 'confirmada', 'en-sala') then
+      new := jsonb_populate_record(new, jsonb_build_object('status', 'finalizada'));
+    end if;
   end if;
   return new;
 end;

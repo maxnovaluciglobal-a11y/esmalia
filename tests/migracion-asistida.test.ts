@@ -4,6 +4,7 @@ import { aplicarMapeo, autoDetectMapping } from "@/lib/csv/column-mapping";
 import { filasDeMatriz, indiceDeColumna } from "@/lib/migracion/leer-archivo";
 import {
   afectadas,
+  cerrarSiYaPaso,
   explicarBloqueo,
   filaOriginal,
   leerEstadoCita,
@@ -82,6 +83,14 @@ describe("lectura de valores", () => {
     expect(leerEstadoCita("Confirmado")).toBe("confirmada");
     expect(leerEstadoCita("No confirmado")).toBe("tentativa");
     expect(leerEstadoCita("")).toBe("tentativa");
+    expect(leerEstadoCita("Reagendada")).toBe("cancelada");
+  });
+
+  it("una cita que ya pasó no entra abierta", () => {
+    expect(cerrarSiYaPaso("tentativa", true)).toBe("finalizada");
+    expect(cerrarSiYaPaso("confirmada", true)).toBe("finalizada");
+    expect(cerrarSiYaPaso("ausente", true)).toBe("ausente");
+    expect(cerrarSiYaPaso("tentativa", false)).toBe("tentativa");
   });
 
   it("nombre normalizado igual que la función SQL", () => {

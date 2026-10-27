@@ -552,6 +552,67 @@ describe("migración asistida por lotes en la base", () => {
     expect(cita.rows[0].patient_id).toBe(destino);
   });
 
+  it("PAN-05: una cita importada ya pasada nunca queda abierta, y el cierre en lote no choca con ella", async () => {
+    const pacienteId = (
+      await client.query<{ id: string }>(
+        `INSERT INTO public.patients (clinic_id, full_name, created_by) VALUES ($1, 'Ana Pérez', $2) RETURNING id`,
+        [clinicId, usuarios.owner],
+      )
+    ).rows[0].id;
+    // Sin estado, en sala y ausente (pasadas); tentativa futura. (Con
+    // "confirmada" pasa lo mismo, pero su trigger estampa confirmed_by con un
+    // usuario de auth que esta base de prueba no tiene.)
+    const { res } = await loteCitas(pacienteId, [
+      { inicio: "2025-05-10T13:00:00Z", fin: "2025-05-10T13:30:00Z", estado: "" },
+      { inicio: "2025-05-11T13:00:00Z", fin: "2025-05-11T13:30:00Z", estado: "en-sala" },
+      { inicio: "2025-05-12T13:00:00Z", fin: "2025-05-12T13:30:00Z", estado: "ausente" },
+      { inicio: "2099-05-10T13:00:00Z", fin: "2099-05-10T13:30:00Z", estado: "tentativa" },
+    ]);
+    const estados = await client.query<{ status: string }>(
+      `SELECT status::text FROM public.appointments WHERE id = ANY($1) ORDER BY starts_at`,
+      [res.map((r) => r.id)],
+    );
+    expect(estados.rows.map((r) => r.status)).toEqual([
+      "finalizada",
+      "finalizada",
+      "ausente",
+      "tentativa",
+    ]);
+
+    // Una cita propia pasada y abierta, para que el cierre tenga qué cerrar.
+    const propia = (
+      await client.query<{ id: string }>(
+        `INSERT INTO public.appointments (clinic_id, branch_id, patient_id, professional_id, starts_at, ends_at, created_by)
+         VALUES ($1, $2, $3, $4, now() - interval '2 day', now() - interval '2 day' + interval '30 min', $5)
+         RETURNING id`,
+        [clinicId, branchId, pacienteId, professionalId, usuarios.owner],
+      )
+    ).rows[0].id;
+
+    // Misma consulta que el aviso (listCitasPasadasSinCerrar): solo la propia.
+    const aviso = await como<{ id: string }>(
+      usuarios.reception,
+      `SELECT id FROM public.appointments
+        WHERE clinic_id = $1 AND status IN ('tentativa', 'confirmada', 'en-sala') AND ends_at < now()`,
+      [clinicId],
+    );
+    expect(aviso.error).toBe("");
+    expect(aviso.filas.map((f) => f.id)).toEqual([propia]);
+
+    // Mismo UPDATE que el cierre en lote (cerrarCitasPasadas), pidiendo
+    // también las importadas: no falla y cierra solo la propia.
+    const cierre = await como<{ id: string }>(
+      usuarios.reception,
+      `UPDATE public.appointments SET status = 'finalizada'
+        WHERE clinic_id = $1 AND id = ANY($2)
+          AND status IN ('tentativa', 'confirmada', 'en-sala') AND ends_at < now()
+        RETURNING id`,
+      [clinicId, [propia, ...res.map((r) => r.id)]],
+    );
+    expect(cierre.error).toBe("");
+    expect(cierre.filas.map((f) => f.id)).toEqual([propia]);
+  });
+
   it("REC-06: las citas importadas no entran en recordatorios hasta activarlas, y activar no bloquea la reversa", async () => {
     const pacienteId = (
       await client.query<{ id: string }>(

@@ -163,11 +163,23 @@ export function leerEstadoCita(
   valor: string | null | undefined,
 ): "tentativa" | "confirmada" | "ausente" | "finalizada" | "cancelada" {
   const t = normalizarNombrePersona(valor) ?? "";
-  if (/anulad|cancelad|suspendid|eliminad/.test(t)) return "cancelada";
+  if (/anulad|cancelad|suspendid|eliminad|reagend|cambio de fecha/.test(t)) return "cancelada";
   if (/no asist|inasist|ausent|no se present|falt/.test(t)) return "ausente";
   if (/atendid|finalizad|realizad|completad|asisti/.test(t)) return "finalizada";
   if (/^confirmad|confirmo/.test(t)) return "confirmada";
   return "tentativa";
+}
+
+/**
+ * Una cita importada que ya empezó es historial de solo lectura: si viene sin
+ * estado o con uno abierto, entra como atendida. Par del trigger
+ * `validar_marca_de_importacion` (migración 20261027100000).
+ */
+export function cerrarSiYaPaso(
+  estado: ReturnType<typeof leerEstadoCita>,
+  yaEmpezo: boolean,
+): ReturnType<typeof leerEstadoCita> {
+  return yaEmpezo && (estado === "tentativa" || estado === "confirmada") ? "finalizada" : estado;
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
