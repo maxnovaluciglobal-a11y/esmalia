@@ -18,6 +18,7 @@ import { INPUT } from "@/components/finanzas/piezas";
 import {
   BarraFina,
   Chips,
+  colorDeSerie,
   Destacado,
   FILA,
   PANEL,
@@ -278,7 +279,7 @@ function VentaReal({
                 i === 0
                   ? "var(--color-muted-foreground)"
                   : i === 1
-                    ? "var(--color-cobalt)"
+                    ? colorDeSerie(0, "papel")
                     : "var(--color-success)"
               }
             />
