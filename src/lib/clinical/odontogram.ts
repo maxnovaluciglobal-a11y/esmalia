@@ -20,8 +20,9 @@ export const SURFACE_LABELS: Record<ToothSurface, string> = {
 
 /**
  * Condiciones del odontograma. El orden es el del enum `tooth_condition` en
- * Postgres: las diez primeras son las originales (ago-2026) y las demás se
- * agregaron en la migración 20261019170000 (auditoría 360, CLI-03). Un valor
+ * Postgres: las diez primeras son las originales (ago-2026), las siguientes se
+ * agregaron en la migración 20261019170000 (auditoría 360, CLI-03) y
+ * `observacion` en la 20261030100000 (Ola 9, ODO-08). Un valor
  * nuevo va SIEMPRE al final: `ALTER TYPE ... ADD VALUE` agrega al final.
  */
 export const TOOTH_CONDITIONS = [
@@ -54,6 +55,7 @@ export const TOOTH_CONDITIONS = [
   "hipoplasia",
   "mancha_blanca",
   "fosas_fisuras_profundas",
+  "observacion",
 ] as const;
 export type ToothCondition = (typeof TOOTH_CONDITIONS)[number];
 
@@ -319,7 +321,46 @@ export const CONDITION_CATALOG: Record<ToothCondition, DefinicionCondicion> = {
     categoria: "hallazgo",
     superficies: ["oclusal"],
   },
+  // ODO-08: nota libre de la pieza. No es una condición clínica: no se pinta,
+  // no se ofrece en la grilla de condiciones y solo la reemplaza otra
+  // observación de la misma pieza (ver `marcasQueReemplaza`).
+  observacion: {
+    label: "Observación",
+    sigla: "OBS",
+    alcance: "pieza",
+    grupo: "observacion",
+    categoria: "hallazgo",
+  },
 };
+
+/** La observación por pieza (ODO-08) viaja como marca pero no es una condición. */
+export const OBSERVACION: ToothCondition = "observacion";
+
+export function esObservacion(m: { condition: ToothCondition }): boolean {
+  return m.condition === OBSERVACION;
+}
+
+/**
+ * Separa las observaciones (ODO-08) del resto de las marcas vigentes: el
+ * dibujo, la tabla, los resúmenes y las reglas de color trabajan solo con
+ * las condiciones clínicas. Por pieza queda la observación vigente con texto;
+ * una observación vacía es la forma de borrarla sin editar nada (regla 9).
+ */
+export function separarObservaciones<
+  M extends Pick<OdontogramMark, "condition" | "toothNumber" | "notes" | "supersededAt">,
+>(marcas: readonly M[]): { clinicas: M[]; observaciones: Map<number, M> } {
+  const clinicas: M[] = [];
+  const observaciones = new Map<number, M>();
+  for (const m of marcas) {
+    if (!esObservacion(m)) {
+      clinicas.push(m);
+      continue;
+    }
+    if (m.supersededAt || !m.notes?.trim()) continue;
+    observaciones.set(m.toothNumber, m);
+  }
+  return { clinicas, observaciones };
+}
 
 export const CONDITION_LABELS = Object.fromEntries(
   TOOTH_CONDITIONS.map((c) => [c, CONDITION_CATALOG[c].label]),

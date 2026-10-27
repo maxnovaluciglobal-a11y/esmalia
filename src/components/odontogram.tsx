@@ -1,9 +1,21 @@
 import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { History, Info, List, LayoutGrid, Loader2, Receipt, RotateCcw, X } from "lucide-react";
+import {
+  History,
+  Info,
+  List,
+  LayoutGrid,
+  ListChecks,
+  Loader2,
+  Receipt,
+  RotateCcw,
+  Stethoscope,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
+import { useConnectivity } from "@/hooks/use-connectivity";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMovimiento } from "@/hooks/use-movimiento";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
@@ -20,11 +32,11 @@ import {
   FDI_UPPER_LEFT_PRIMARY,
   FDI_UPPER_RIGHT,
   FDI_UPPER_RIGHT_PRIMARY,
-  MARK_CONSERVATION_LABELS,
   MARK_STATUS_LABELS,
   SURFACE_LABELS,
   TOOTH_SURFACES,
   marksByTooth,
+  separarObservaciones,
   toothCommonName,
   type MarkConservation,
   type MarkStatus,
@@ -46,6 +58,19 @@ import {
   marcasQueReemplaza,
   type Denticion,
 } from "@/lib/clinical/odontograma-reglas";
+import {
+  piezasDelSextante,
+  resumenPorSextante,
+  type Sextante,
+} from "@/lib/clinical/odontograma-sextantes";
+import {
+  seleccionConClic,
+  type MarcaDelLote,
+  type Modificadores,
+} from "@/lib/clinical/odontograma-seleccion";
+import { hallazgosPorTratar, presupuestoPorPieza } from "@/lib/clinical/odontograma-presupuesto";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
+import { mensajeDeError } from "@/lib/mensaje-error";
 // Foco de teclado consistente con el patrón usado en app-shell.tsx
 // (focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring).
 const FOCUS_RING_CLASS =
@@ -54,6 +79,7 @@ import {
   listOdontogramHistory,
   listOdontogramMarks,
   setOdontogramMark,
+  setOdontogramMarks,
 } from "@/lib/clinical/odontogram.functions";
 import { piezasConHallazgos } from "@/components/odontograma-hallazgos";
 import {
@@ -62,7 +88,14 @@ import {
 } from "@/components/odontograma-sugerencia-presupuesto";
 import { listProcedures, listQuotes } from "@/lib/finance/finance.functions";
 import { debeSugerir, marcasYaPresupuestadas } from "@/lib/finance/sugerencia-presupuesto";
-import { DienteAnatomico } from "@/components/diente-anatomico";
+import { DienteAnatomico, type ModificadoresDeClic } from "@/components/diente-anatomico";
+import { Muestra } from "@/components/odontograma-muestra";
+import { describirMarca } from "@/lib/clinical/odontograma-texto";
+import { ResumenSextantes } from "@/components/odontograma-sextantes";
+import { EditorVariasPiezas } from "@/components/odontograma-varias";
+import { ObservacionDePieza } from "@/components/odontograma-observacion";
+import { VistaPresupuesto } from "@/components/odontograma-vista-presupuesto";
+import { HallazgosPorTratar } from "@/components/odontograma-por-tratar";
 import { cn } from "@/lib/utils";
 import { useZonaClinica } from "@/hooks/use-zona-clinica";
 import { fechaHora } from "@/lib/formato-fecha";
@@ -81,34 +114,13 @@ const TOOTH_GAP = 4;
 // el layout del diagrama FDI; solo el área que capta el click/tap se agranda.
 const OCLUSAL_HIT_MIN = 24;
 
-type ToothClick = { tooth: number; surface: ToothSurface };
+type ToothClick = { tooth: number; surface: ToothSurface; mods?: Modificadores };
 
-/** Una marca en texto: "Obturación · por realizar", "Corona · mal estado". */
-function describirMarca(m: Pick<OdontogramMark, "condition" | "status" | "conservation">): string {
-  const partes = [CONDITION_LABELS[m.condition]];
-  if (m.status === "planificado") partes.push(MARK_STATUS_LABELS.planificado.toLowerCase());
-  else if (m.conservation) partes.push(MARK_CONSERVATION_LABELS[m.conservation].toLowerCase());
-  return partes.join(" · ");
-}
-
-/** Muestra de color de una marca (cuadradito de la leyenda, la tabla y la historia). */
-function Muestra({
-  marca,
-  className,
-}: {
-  marca: Pick<OdontogramMark, "condition" | "status" | "conservation">;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-hidden
-      className={cn("size-3 shrink-0 rounded-sm border border-hairline", className)}
-      style={{
-        backgroundColor: hexDeMarca(marca),
-        opacity: marca.status === "planificado" ? OPACIDAD_PLANIFICADO : 1,
-      }}
-    />
-  );
+/** Ctrl/Cmd alterna la pieza en la selección múltiple; Shift suma un rango (ODO-05). */
+function modificadores(e?: ModificadoresDeClic): Modificadores | undefined {
+  if (!e) return undefined;
+  const mods = { alternar: e.ctrlKey || e.metaKey, rango: e.shiftKey };
+  return mods.alternar || mods.rango ? mods : undefined;
 }
 
 /** Condiciones de pieza que tapan el esquema de cinco superficies. */
@@ -134,11 +146,14 @@ function ToothCell({
   marcas,
   inferior,
   seleccionado,
+  conObservacion = false,
   onClick,
   pop = false,
 }: {
   tooth: number;
   marcas: ToothState;
+  /** La pieza tiene una observación vigente (ODO-08): se avisa con "OBS". */
+  conObservacion?: boolean;
   /** Arcada inferior: el dibujo va debajo del esquema, espejado. */
   inferior: boolean;
   seleccionado: boolean;
@@ -159,20 +174,23 @@ function ToothCell({
 
   // Activa la misma acción que el click: usada tanto por onClick (mouse/touch)
   // como por onKeyDown (Enter/Space) de cada superficie enfocable.
-  function activate(click: ToothClick) {
-    onClick(click);
+  function activate(click: ToothClick, e?: ModificadoresDeClic) {
+    onClick({ ...click, mods: modificadores(e) });
   }
 
   function handleKeyDown(e: KeyboardEvent<SVGElement>, click: ToothClick) {
     if (e.key === "Enter" || e.key === " " || e.key === "Spacebar") {
       e.preventDefault();
       e.stopPropagation();
-      activate(click);
+      activate(click, e);
     }
   }
 
   const nombreComun = toothCommonName(tooth);
-  const piezaLabel = nombreComun ? `Diente ${tooth} (${nombreComun})` : `Diente ${tooth}`;
+  const piezaLabel =
+    (nombreComun ? `Diente ${tooth} (${nombreComun})` : `Diente ${tooth}`) +
+    (seleccionado ? ", seleccionado" : "") +
+    (conObservacion ? ", con observación" : "");
 
   function enSuperficie(surface: ToothSurface) {
     return marcas.filter((m) => m.surface === surface);
@@ -256,6 +274,9 @@ function ToothCell({
             {sigla}
           </span>
         ))}
+        {conObservacion && (
+          <span className="text-muted-foreground">{CONDITION_CATALOG.observacion.sigla}</span>
+        )}
       </span>
     </span>
   );
@@ -265,7 +286,7 @@ function ToothCell({
       marcas={marcas}
       inferior={inferior}
       seleccionado={seleccionado}
-      onClick={(surface) => activate({ tooth, surface })}
+      onClick={(surface, e) => activate({ tooth, surface }, e)}
     />
   );
 
@@ -299,7 +320,7 @@ function ToothCell({
             role="button"
             aria-label={wholeLabel}
             className={FOCUS_RING_CLASS}
-            onClick={() => activate({ tooth, surface: "whole" })}
+            onClick={(e) => activate({ tooth, surface: "whole" }, e)}
             onKeyDown={(e) => handleKeyDown(e, { tooth, surface: "whole" })}
           />
         )}
@@ -319,7 +340,7 @@ function ToothCell({
                 className={FOCUS_RING_CLASS}
                 onClick={(e) => {
                   e.stopPropagation();
-                  activate({ tooth, surface: z.surface });
+                  activate({ tooth, surface: z.surface }, e);
                 }}
                 onKeyDown={(e) => handleKeyDown(e, { tooth, surface: z.surface })}
               />
@@ -354,7 +375,7 @@ function ToothCell({
             className={FOCUS_RING_CLASS}
             onClick={(e) => {
               e.stopPropagation();
-              activate({ tooth, surface: "oclusal" });
+              activate({ tooth, surface: "oclusal" }, e);
             }}
             onKeyDown={(e) => handleKeyDown(e, { tooth, surface: "oclusal" })}
           />
@@ -374,7 +395,7 @@ function ToothCell({
             role="button"
             aria-label={wholeLabel}
             className={FOCUS_RING_CLASS}
-            onClick={() => activate({ tooth, surface: "whole" })}
+            onClick={(e) => activate({ tooth, surface: "whole" }, e)}
             onKeyDown={(e) => handleKeyDown(e, { tooth, surface: "whole" })}
           />
         )}
@@ -398,9 +419,11 @@ function ordenSuperficie(surface: ToothSurface): number {
 function TablaOdontograma({
   teeth,
   byTooth,
+  observaciones,
 }: {
   teeth: readonly number[];
   byTooth: Map<number, ToothState>;
+  observaciones: Map<number, OdontogramMark>;
 }) {
   const filas = teeth
     .map((tooth) => {
@@ -408,9 +431,9 @@ function TablaOdontograma({
         .filter((m) => m.condition !== "sano")
         // La pieza completa primero, después las superficies en orden M-D-O-V-L.
         .sort((x, y) => ordenSuperficie(x.surface) - ordenSuperficie(y.surface));
-      return { tooth, marcas };
+      return { tooth, marcas, observacion: observaciones.get(tooth) ?? null };
     })
-    .filter((f) => f.marcas.length > 0);
+    .filter((f) => f.marcas.length > 0 || f.observacion);
 
   if (filas.length === 0) {
     return (
@@ -441,7 +464,7 @@ function TablaOdontograma({
           </tr>
         </thead>
         <tbody className="divide-y divide-hairline">
-          {filas.map(({ tooth, marcas }) => (
+          {filas.map(({ tooth, marcas, observacion }) => (
             <tr key={tooth}>
               <th scope="row" className="py-2 pr-3 cifra font-medium">
                 {tooth}
@@ -459,6 +482,12 @@ function TablaOdontograma({
                       {m.notes && <span className="text-muted-foreground">({m.notes})</span>}
                     </li>
                   ))}
+                  {observacion && (
+                    <li className="inline-flex items-center gap-1">
+                      <span className="text-muted-foreground">Observación:</span>{" "}
+                      <span>{observacion.notes}</span>
+                    </li>
+                  )}
                 </ul>
               </td>
             </tr>
@@ -473,7 +502,8 @@ function ToothRow({
   teeth,
   byTooth,
   inferior = false,
-  seleccionada,
+  seleccionadas,
+  observaciones,
   onClick,
   animar = false,
   entrada = false,
@@ -482,7 +512,9 @@ function ToothRow({
   teeth: readonly number[];
   byTooth: Map<number, ToothState>;
   inferior?: boolean;
-  seleccionada: number | null;
+  /** Pieza abierta o piezas de la selección múltiple. */
+  seleccionadas: ReadonlySet<number>;
+  observaciones: ReadonlyMap<number, unknown>;
   onClick: (click: ToothClick) => void;
   /** Movimiento permitido (reduced-motion y "Pausar movimiento"). */
   animar?: boolean;
@@ -512,7 +544,8 @@ function ToothRow({
             tooth={t}
             marcas={byTooth.get(t) ?? []}
             inferior={inferior}
-            seleccionado={seleccionada === t}
+            seleccionado={seleccionadas.has(t)}
+            conObservacion={observaciones.has(t)}
             onClick={onClick}
             pop={animar && recienMarcada?.tooth === t}
           />
@@ -602,11 +635,20 @@ export function Odontogram({
   const fetchMarks = useServerFn(listOdontogramMarks);
   const fetchHistory = useServerFn(listOdontogramHistory);
   const saveFn = useServerFn(setOdontogramMark);
+  const saveLoteFn = useServerFn(setOdontogramMarks);
+  const { online } = useConnectivity();
 
   const [selection, setSelection] = useState<ToothClick | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [denticion, setDenticion] = useState<Denticion>(() => denticionPorEdad(edad));
   const [vista, setVista] = useState<"grafico" | "tabla">("grafico");
+  // ODO-06: modo del odontograma. "presupuesto" muestra lo presupuestado sobre las piezas.
+  const [modo, setModo] = useState<"clinico" | "presupuesto">("clinico");
+  // ODO-05: selección múltiple. `modoVarias` es el interruptor táctil
+  // ("Seleccionar varias"); con mouse alcanza Ctrl/Cmd o Shift + clic.
+  const [varias, setVarias] = useState<Set<number>>(() => new Set());
+  const [modoVarias, setModoVarias] = useState(false);
+  const [ancla, setAncla] = useState<number | null>(null);
   // Opciones del popover: se conservan entre piezas para registrar varias
   // seguidas con el mismo criterio (ej. un plan entero "por realizar").
   const [estado, setEstado] = useState<MarkStatus>("existente");
@@ -634,8 +676,14 @@ export function Odontogram({
     queryFn: () => fetchHistory({ data: { clinicId, patientId } }),
   });
 
-  const byTooth = useMemo(() => marksByTooth(marks), [marks]);
-  const piezas = useMemo(() => piezasConHallazgos(marks), [marks]);
+  // ODO-08: las observaciones viajan como marcas, pero el dibujo, la tabla y
+  // los resúmenes trabajan solo con las condiciones clínicas.
+  const { clinicas, observaciones } = useMemo(() => separarObservaciones(marks), [marks]);
+  const byTooth = useMemo(() => marksByTooth(clinicas), [clinicas]);
+  const piezas = useMemo(() => piezasConHallazgos(clinicas), [clinicas]);
+  const filas = FILAS_POR_DENTICION[denticion];
+  const visibles = useMemo(() => filas.flatMap((f) => f.teeth), [filas]);
+  const sextantes = useMemo(() => resumenPorSextante(clinicas, visibles), [clinicas, visibles]);
   // A+: con espacio, la pieza elegida se trabaja en un panel al costado (como
   // en el prototipo) en vez de un popover. Con menos ancho, el popover de siempre.
   const panelLateral = useMediaQuery("(min-width: 1400px)");
@@ -653,6 +701,16 @@ export function Odontogram({
     enabled: conSugerencia,
   });
   const yaPresupuestadas = useMemo(() => marcasYaPresupuestadas(quotes), [quotes]);
+  // ODO-06/07: lo presupuestado por pieza y lo que falta presupuestar.
+  const presupuesto = useMemo(() => presupuestoPorPieza(quotes, hoyISO(zona)), [quotes, zona]);
+  const porTratar = useMemo(
+    () => (conSugerencia ? hallazgosPorTratar(clinicas, presupuesto) : []),
+    [conSugerencia, clinicas, presupuesto],
+  );
+  const piezasPorTratar = useMemo(
+    () => new Set(porTratar.map((h) => h.marca.toothNumber)),
+    [porTratar],
+  );
 
   const save = useOfflineMutation<Record<string, unknown>>({
     kind: "marcar-odontograma",
@@ -705,6 +763,61 @@ export function Odontogram({
     },
   });
 
+  // ODO-08: la observación usa la misma escritura (y la misma cola offline)
+  // que una marca: condición "observacion" en la pieza completa.
+  const guardarObservacion = useOfflineMutation<Record<string, unknown>>({
+    kind: "marcar-odontograma",
+    userId,
+    ejecutar: (payload) => saveFn({ data: payload as never }),
+    invalidar: [marksKey, historyKey],
+    resumen: (payload) => `Pieza ${(payload as { toothNumber: number }).toothNumber} · Observación`,
+    identidad: (payload) =>
+      `${patientId}:${(payload as { toothNumber: number }).toothNumber}:whole:observacion:existente`,
+    esConflicto: (r) =>
+      Boolean(r && typeof r === "object" && (r as { conflict?: boolean }).conflict),
+    onExito: () => toast.success("Observación guardada"),
+  });
+
+  function guardarObs(tooth: number, texto: string | null) {
+    const nueva = {
+      id: crypto.randomUUID(),
+      toothNumber: tooth,
+      surface: "whole" as const,
+      condition: "observacion" as const,
+      status: "existente" as const,
+    };
+    guardarObservacion.mutar({
+      ...nueva,
+      clinicId,
+      patientId,
+      conservation: null,
+      notes: texto ?? undefined,
+      baseMarkIds: marcasQueReemplaza(
+        marks.filter((m) => m.toothNumber === tooth),
+        nueva,
+      ),
+    });
+  }
+
+  // ODO-05: varias piezas en una sola escritura (todas o ninguna).
+  const lote = useMutation({
+    mutationFn: (marcas: MarcaDelLote[]) => saveLoteFn({ data: { clinicId, patientId, marcas } }),
+    onSuccess: (r) => {
+      void queryClient.invalidateQueries({ queryKey: marksKey });
+      void queryClient.invalidateQueries({ queryKey: historyKey });
+      if (r.conflict) {
+        toast.error(
+          `La pieza ${r.piezas.join(", ")} cambió mientras tanto. Revisa el odontograma y vuelve a confirmar.`,
+        );
+        return;
+      }
+      toast.success(
+        r.ids.length === 1 ? "Registrado en 1 pieza" : `Registrado en ${r.ids.length} piezas`,
+      );
+    },
+    onError: (e: Error) => toast.error(mensajeDeError(e, "No pudimos guardar las marcas.")),
+  });
+
   function marcar(condition: ToothCondition) {
     if (!selection) return;
     const nueva = {
@@ -747,8 +860,74 @@ export function Odontogram({
 
   function elegirPieza(click: ToothClick) {
     setSugerencia(null);
+    if (modoVarias || click.mods) {
+      // Con Ctrl/Cmd o Shift sobre una pieza ya abierta, la abierta entra a la selección.
+      const base = varias.size === 0 && selection ? new Set([selection.tooth]) : varias;
+      const ancloDe = ancla ?? selection?.tooth ?? null;
+      setVarias(
+        seleccionConClic({
+          seleccion: base,
+          tooth: click.tooth,
+          mods: click.mods ?? { alternar: true },
+          ancla: ancloDe,
+          filas: filas.map((f) => f.teeth),
+        }),
+      );
+      setAncla(click.tooth);
+      setSelection(null);
+      return;
+    }
+    setVarias(new Set());
+    setAncla(click.tooth);
     setSelection(click);
   }
+
+  function terminarVarias() {
+    setVarias(new Set());
+    setModoVarias(false);
+  }
+
+  function elegirSextante(sextante: Sextante) {
+    setSelection(null);
+    setSugerencia(null);
+    setModoVarias(true);
+    setVarias(new Set(piezasDelSextante(sextante, visibles)));
+  }
+
+  // ODO-07: "Sumar al presupuesto" abre la sugerencia del PR 11 sobre esa marca.
+  function sugerirDesdeLista(m: OdontogramMark) {
+    terminarVarias();
+    setSelection({ tooth: m.toothNumber, surface: m.surface });
+    setSugerencia({ id: m.id, tooth: m.toothNumber, surface: m.surface, condition: m.condition });
+  }
+
+  const enVarias = modoVarias || varias.size > 0;
+  const seleccionadas = useMemo(
+    () => (enVarias ? varias : new Set(selection ? [selection.tooth] : [])),
+    [enVarias, varias, selection],
+  );
+  const bloqueoLote = soloLectura
+    ? "Modo solo lectura: no se pueden registrar marcas."
+    : !online
+      ? "Sin conexión: marcar varias piezas a la vez necesita internet. Puedes marcarlas una por una."
+      : null;
+
+  const editorVarias = (
+    <EditorVariasPiezas
+      piezas={[...varias]}
+      vigentesPorPieza={byTooth}
+      puedeEditar={puedeEditar}
+      enCurso={lote.isPending}
+      bloqueo={bloqueoLote}
+      onQuitar={(t) => {
+        const nueva = new Set(varias);
+        nueva.delete(t);
+        setVarias(nueva);
+      }}
+      onLimpiar={terminarVarias}
+      onAplicar={(m) => lote.mutate(m)}
+    />
+  );
 
   const availableConditions = selection ? condicionesDisponibles(selection.surface, estado) : [];
   const marcasDeLaZona = selection
@@ -920,6 +1099,15 @@ export function Odontogram({
               )}
             </div>
           )}
+          <ObservacionDePieza
+            key={`${selection.tooth}-${observaciones.get(selection.tooth)?.id ?? "sin"}`}
+            tooth={selection.tooth}
+            actual={observaciones.get(selection.tooth) ?? null}
+            puedeEditar={puedeEditar && !soloLectura}
+            enCurso={guardarObservacion.enCurso}
+            zona={zona}
+            onGuardar={(texto) => guardarObs(selection.tooth, texto)}
+          />
         </>
       )}
     </>
@@ -1026,38 +1214,110 @@ export function Odontogram({
           >
             <History className="size-3" /> {showHistory ? "Ocultar historia" : "Ver historia"}
           </button>
+          {puedeEditar && modo === "clinico" && vista === "grafico" && (
+            <button
+              type="button"
+              onClick={() => {
+                if (enVarias) terminarVarias();
+                else {
+                  setModoVarias(true);
+                  setVarias(new Set(selection ? [selection.tooth] : []));
+                  setSelection(null);
+                  setSugerencia(null);
+                }
+              }}
+              aria-pressed={enVarias}
+              title="También con Ctrl o Cmd + clic (alternar) y Shift + clic (rango)"
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium pointer-coarse:min-h-11",
+                enVarias
+                  ? "border-foreground bg-foreground text-background"
+                  : "border-hairline hover:bg-secondary/60",
+              )}
+            >
+              <ListChecks className="size-3" /> Seleccionar varias
+            </button>
+          )}
         </div>
+        {conSugerencia && (
+          <div
+            className="flex rounded-lg border border-hairline p-0.5 text-xs"
+            role="group"
+            aria-label="Qué muestra el odontograma"
+          >
+            <button
+              type="button"
+              onClick={() => setModo("clinico")}
+              aria-pressed={modo === "clinico"}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11",
+                modo === "clinico"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Stethoscope className="size-3" /> Clínico
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setModo("presupuesto");
+                terminarVarias();
+                cerrarPopover();
+              }}
+              aria-pressed={modo === "presupuesto"}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-md px-2.5 py-1 font-medium pointer-coarse:min-h-11",
+                modo === "presupuesto"
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Receipt className="size-3" /> Presupuesto
+            </button>
+          </div>
+        )}
       </div>
 
       <div
         className={cn(
-          panelLateral && "grid grid-cols-[minmax(0,1fr)_320px] items-start gap-[18px]",
+          panelLateral &&
+            modo === "clinico" &&
+            "grid grid-cols-[minmax(0,1fr)_320px] items-start gap-[18px]",
         )}
       >
         <div className="min-w-0">
           {isLoading && <p className="text-xs text-muted-foreground">Cargando odontograma…</p>}
 
-          {!isLoading && vista === "tabla" && (
-            <TablaOdontograma
-              teeth={FILAS_POR_DENTICION[denticion].flatMap((f) => f.teeth)}
-              byTooth={byTooth}
+          {!isLoading && modo === "presupuesto" && sugerenciaPresupuesto && (
+            <VistaPresupuesto
+              filas={filas}
+              presupuesto={presupuesto}
+              porPresupuestar={piezasPorTratar}
+              currency={sugerenciaPresupuesto.currency}
+              onVerPresupuesto={sugerenciaPresupuesto.onVerPresupuesto}
             />
           )}
 
-          {!isLoading && vista === "grafico" && (
+          {!isLoading && modo === "clinico" && vista === "tabla" && (
+            <TablaOdontograma teeth={visibles} byTooth={byTooth} observaciones={observaciones} />
+          )}
+
+          {!isLoading && modo === "clinico" && vista === "grafico" && (
             <div className="space-y-4 overflow-x-auto">
               {/* `w-max mx-auto` y no `items-center` en el contenedor con scroll:
               centrar con flex deja lo que desborda por la izquierda fuera de
               alcance (en el celular no se podía llegar a las piezas 18 o 55). */}
               <div className="mx-auto flex w-max flex-col items-center gap-3">
-                {FILAS_POR_DENTICION[denticion].map((fila) => (
+                {filas.map((fila) => (
                   <ToothRow
                     // Con la dentición en la clave, cambiarla vuelve a entrar las arcadas.
                     key={`${denticion}-${fila.teeth[0]}`}
                     teeth={fila.teeth}
                     byTooth={byTooth}
                     inferior={fila.inferior}
-                    seleccionada={selection?.tooth ?? null}
+                    seleccionadas={seleccionadas}
+                    observaciones={observaciones}
                     onClick={elegirPieza}
                     animar={animar}
                     entrada={entrada}
@@ -1074,12 +1334,40 @@ export function Odontogram({
 
               {/* La leyenda de colores (CLI-02) va arriba, junto al título. */}
               <p className="text-xs text-muted-foreground">
-                Siglas bajo el número: lo registrado en la pieza completa (TC, CO, IMP…).
+                Siglas bajo el número: lo registrado en la pieza completa (TC, CO, IMP…). OBS: la
+                pieza tiene una observación.
               </p>
             </div>
           )}
 
-          {selection && !panelLateral && (
+          {/* Sin panel lateral, la selección múltiple se trabaja debajo del diagrama. */}
+          {!isLoading && modo === "clinico" && enVarias && !panelLateral && (
+            <div className="mt-4 rounded-xl border border-border bg-background p-4">
+              {editorVarias}
+            </div>
+          )}
+
+          {!isLoading && modo === "clinico" && (
+            <ResumenSextantes
+              resumen={sextantes}
+              visibles={visibles}
+              seleccionables={puedeEditar && vista === "grafico"}
+              onElegir={elegirSextante}
+            />
+          )}
+
+          {!isLoading && conSugerencia && (
+            <HallazgosPorTratar
+              hallazgos={porTratar}
+              puedePresupuestar={Boolean(onPresupuestarPieza) && !soloLectura}
+              onSugerir={sugerirDesdeLista}
+              onPresupuestar={(m) =>
+                onPresupuestarPieza?.({ tooth: m.toothNumber, surface: m.surface })
+              }
+            />
+          )}
+
+          {selection && !panelLateral && modo === "clinico" && (
             <Popover open onOpenChange={(o) => !o && cerrarPopover()}>
               <PopoverTrigger asChild>
                 <span className="sr-only">Selección abierta</span>
@@ -1137,6 +1425,11 @@ export function Odontogram({
                     )}
                     <span className="text-muted-foreground">{SURFACE_LABELS[h.surface]}</span>
                     <span className="font-medium">{describirMarca(h)}</span>
+                    {h.condition === "observacion" && (
+                      <span className="text-muted-foreground">
+                        {h.notes ? `«${h.notes}»` : "(quitada)"}
+                      </span>
+                    )}
                     {h.supersededAt && (
                       <span className="text-[11px] uppercase tracking-wide text-muted-foreground">
                         · archivada
@@ -1152,12 +1445,14 @@ export function Odontogram({
           )}
         </div>
 
-        {panelLateral && (
+        {panelLateral && modo === "clinico" && (
           <aside
-            aria-label="Pieza seleccionada"
+            aria-label={enVarias ? "Piezas seleccionadas" : "Pieza seleccionada"}
             className="sticky top-32 rounded-xl border border-border bg-background p-4"
           >
-            {selection ? (
+            {enVarias ? (
+              editorVarias
+            ) : selection ? (
               <>
                 <div className="flex items-start justify-between gap-2" aria-live="polite">
                   <div className="min-w-0">
