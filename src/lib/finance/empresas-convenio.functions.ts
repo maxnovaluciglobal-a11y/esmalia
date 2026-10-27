@@ -2,10 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { ClinicRole } from "@/lib/access/access";
 import { requireClinicPermission, requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { mensajeDb } from "@/lib/db-errors";
 import {
+  ROLES_AFILIACION,
   validarEmpresa,
   TIPOS_DESCUENTO,
   type EmpresaConvenio,
@@ -30,14 +30,6 @@ import { requireEscritura } from "@/lib/solo-lectura.middleware";
 
 const DIA = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const SIN_PERMISO = "No tienes permisos para administrar empresas con convenio.";
-/** Mismo público que la RLS de `partner_company_patients`. */
-export const ROLES_AFILIACION: readonly ClinicRole[] = [
-  "owner",
-  "admin",
-  "dentist",
-  "reception",
-  "accounting",
-];
 
 const COLUMNAS =
   "id, name, tax_id, contact_name, contact_email, contact_phone, discount_kind, discount_percent, discount_cents, currency, payroll_deduction, notes, active";

@@ -171,7 +171,10 @@ function GastosFijosPage() {
             <TintaCargando texto="Cargando los gastos fijos…" />
           ) : (
             <>
-              <section aria-label="Resumen del mes" className={cn(TINTA, "grid gap-6 md:grid-cols-2")}>
+              <section
+                aria-label="Resumen del mes"
+                className={cn(TINTA, "grid gap-6 md:grid-cols-2")}
+              >
                 <div className="min-w-0">
                   <EtiquetaTinta>Gastos fijos del mes</EtiquetaTinta>
                   <MontoEnTinta cents={resumen.totalCents} currency={currency} />
@@ -235,7 +238,9 @@ function GastosFijosPage() {
                         className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5"
                       >
                         <div className="min-w-0">
-                          <p className="truncate text-[15px] font-semibold">{g.gasto.description}</p>
+                          <p className="truncate text-[15px] font-semibold">
+                            {g.gasto.description}
+                          </p>
                           <p className="text-[13px] text-muted-foreground">
                             {g.gasto.category} · vence el {fecha(g.fecha)}
                             {g.gasto.supplier ? ` · ${g.gasto.supplier}` : ""}
@@ -366,7 +371,12 @@ function FilaPlantilla({
   return (
     <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
       <div className="min-w-0">
-        <p className={cn("truncate text-[15px] font-semibold", !gasto.active && "text-muted-foreground")}>
+        <p
+          className={cn(
+            "truncate text-[15px] font-semibold",
+            !gasto.active && "text-muted-foreground",
+          )}
+        >
           {gasto.description}
         </p>
         <p className="text-[13px] text-muted-foreground">
@@ -377,7 +387,12 @@ function FilaPlantilla({
       </div>
       <div className="flex items-center gap-1">
         <span className="cifra mr-2 text-[15px]">{formatMoney(gasto.amountCents, currency)}</span>
-        <Button variant="ghost" size="sm" onClick={onEditar} aria-label={`Editar ${gasto.description}`}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onEditar}
+          aria-label={`Editar ${gasto.description}`}
+        >
           <Pencil className="size-3.5" />
         </Button>
         <Button
@@ -385,7 +400,9 @@ function FilaPlantilla({
           size="sm"
           onClick={() => activar.mutate()}
           disabled={activar.isPending}
-          aria-label={gasto.active ? `Pausar ${gasto.description}` : `Reanudar ${gasto.description}`}
+          aria-label={
+            gasto.active ? `Pausar ${gasto.description}` : `Reanudar ${gasto.description}`
+          }
         >
           {gasto.active ? <Pause className="size-3.5" /> : <Play className="size-3.5" />}
         </Button>

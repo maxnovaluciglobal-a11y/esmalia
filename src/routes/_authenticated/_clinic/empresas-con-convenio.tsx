@@ -331,8 +331,16 @@ function EstadoDeCuenta({
         <DatosEnTinta
           columnas={3}
           datos={[
-            { label: "Afiliados", valor: numero(r.afiliados), nota: `${numero(r.conMovimiento)} con movimiento` },
-            { label: "Realizado en el período", valor: dinero(r.realizadoCents), nota: "parte del paciente" },
+            {
+              label: "Afiliados",
+              valor: numero(r.afiliados),
+              nota: `${numero(r.conMovimiento)} con movimiento`,
+            },
+            {
+              label: "Realizado en el período",
+              valor: dinero(r.realizadoCents),
+              nota: "parte del paciente",
+            },
             { label: "Pagado en el período", valor: dinero(r.pagadoCents) },
           ]}
         />
@@ -523,7 +531,9 @@ function DialogoEmpresa({
                   step={0.5}
                   value={d.discountPercent ?? ""}
                   onChange={(e) =>
-                    patch({ discountPercent: e.target.value === "" ? null : Number(e.target.value) })
+                    patch({
+                      discountPercent: e.target.value === "" ? null : Number(e.target.value),
+                    })
                   }
                   className={INPUT}
                 />

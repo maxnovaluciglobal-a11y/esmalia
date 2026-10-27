@@ -2,16 +2,7 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  Ban,
-  CheckCircle2,
-  Loader2,
-  Pause,
-  Pencil,
-  Play,
-  Plus,
-  Sparkles,
-} from "lucide-react";
+import { Ban, CheckCircle2, Loader2, Pause, Pencil, Play, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -188,7 +179,10 @@ function MembresiasPage() {
           <TintaCargando texto="Cargando las cuotas…" />
         ) : (
           <>
-            <section aria-label="Resumen de cuotas" className={cn(TINTA, "grid gap-6 md:grid-cols-2")}>
+            <section
+              aria-label="Resumen de cuotas"
+              className={cn(TINTA, "grid gap-6 md:grid-cols-2")}
+            >
               <div className="min-w-0">
                 <EtiquetaTinta>Por cobrar</EtiquetaTinta>
                 <MontoEnTinta cents={resumen.porCobrarCents} currency={currency} />
@@ -290,7 +284,9 @@ function MembresiasPage() {
                         <p className="text-[13px] text-muted-foreground">
                           {c.planName} · {etiquetaPeriodoCuota(c.periodStart, c.periodEnd)}
                           {c.periodStart < mes && c.status === "pending" && " · atrasada"}
-                          {c.status === "paid" && c.paidAt && ` · cobrada el ${fecha(c.paidAt, tz)}`}
+                          {c.status === "paid" &&
+                            c.paidAt &&
+                            ` · cobrada el ${fecha(c.paidAt, tz)}`}
                           {c.methodName && ` · ${c.methodName}`}
                           {c.status === "void" && c.voidReason && ` · ${c.voidReason}`}
                         </p>
@@ -438,7 +434,9 @@ function TarjetaPlan({
           <p className={cn("text-[15px] font-semibold", !plan.active && "text-muted-foreground")}>
             {plan.name}
           </p>
-          <p className="cifra text-sm">{etiquetaCuota(plan.feeCents, plan.billingPeriod, plan.currency)}</p>
+          <p className="cifra text-sm">
+            {etiquetaCuota(plan.feeCents, plan.billingPeriod, plan.currency)}
+          </p>
         </div>
         {editable && (
           <div className="flex">

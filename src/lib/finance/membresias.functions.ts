@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
 import { requireClinicPermission, requireClinicRole } from "@/lib/access/clinic-guards.server";
 import { mensajeDb } from "@/lib/db-errors";
-import { ROLES_AFILIACION } from "@/lib/finance/empresas-convenio.functions";
+import { ROLES_AFILIACION } from "@/lib/finance/empresas-convenio";
 import { mesDe, sumarMeses } from "@/lib/finance/gastos-fijos";
 import {
   PERIODOS_MEMBRESIA,

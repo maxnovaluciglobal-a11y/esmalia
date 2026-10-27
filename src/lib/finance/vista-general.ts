@@ -240,7 +240,8 @@ export interface Movimiento {
 export function ordenarMovimientos(movs: readonly Movimiento[]): Movimiento[] {
   const orden: Record<TipoMovimiento, number> = { ingreso: 0, cuota: 1, gasto: 2 };
   return [...movs].sort(
-    (a, b) => a.fecha.localeCompare(b.fecha) || orden[a.tipo] - orden[b.tipo] || a.id.localeCompare(b.id),
+    (a, b) =>
+      a.fecha.localeCompare(b.fecha) || orden[a.tipo] - orden[b.tipo] || a.id.localeCompare(b.id),
   );
 }
 

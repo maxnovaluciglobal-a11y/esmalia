@@ -35,7 +35,10 @@ export function SelectorMes({
       >
         <ChevronLeft className="size-4" aria-hidden />
       </button>
-      <span className="min-w-[9.5rem] text-center text-sm font-semibold capitalize" aria-live="polite">
+      <span
+        className="min-w-[9.5rem] text-center text-sm font-semibold capitalize"
+        aria-live="polite"
+      >
         {mesAnio(mes)}
       </span>
       <button

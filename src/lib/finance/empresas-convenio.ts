@@ -9,7 +9,21 @@
 //
 // Lógica pura: sin red ni base.
 
+import type { ClinicRole } from "@/lib/access/access";
 import { formatMoney } from "@/lib/finance/finance";
+
+/**
+ * Quién ve y edita la empresa y la membresía de un paciente: el equipo que
+ * atiende y cobra. Mismo público que la RLS de `partner_company_patients`,
+ * `patient_memberships` y `membership_charges` (assistant no: regla 2).
+ */
+export const ROLES_AFILIACION: readonly ClinicRole[] = [
+  "owner",
+  "admin",
+  "dentist",
+  "reception",
+  "accounting",
+];
 
 export const TIPOS_DESCUENTO = ["percent", "amount", "none"] as const;
 export type TipoDescuento = (typeof TIPOS_DESCUENTO)[number];

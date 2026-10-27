@@ -432,7 +432,9 @@ export const listMovimientosDelPeriodo = createServerFn({ method: "GET" })
     }>((a, b) =>
       supabase
         .from("membership_charges")
-        .select("id, paid_at, amount_cents, currency, patient_id, method_name_snapshot, period_start")
+        .select(
+          "id, paid_at, amount_cents, currency, patient_id, method_name_snapshot, period_start",
+        )
         .eq("clinic_id", data.clinicId)
         .eq("status", "paid")
         .gte("paid_at", ini)
@@ -500,36 +502,32 @@ export const listMovimientosDelPeriodo = createServerFn({ method: "GET" })
           folio: f?.folio ?? null,
         };
       }),
-      ...cuotas.map(
-        (c): Movimiento => ({
-          id: c.id,
-          tipo: "cuota",
-          fecha: c.dia,
-          detalle: "Cuota de membresía",
-          paciente: pacientes.get(c.patient_id) ?? null,
-          medio: c.method_name_snapshot,
-          sucursal: null,
-          montoCents: c.amount_cents,
-          currency: c.currency,
-          documento: null,
-          folio: null,
-        }),
-      ),
-      ...gastos.map(
-        (g): Movimiento => ({
-          id: g.id,
-          tipo: "gasto",
-          fecha: g.incurred_on,
-          detalle: `${g.category} · ${g.description}${g.supplier ? ` (${g.supplier})` : ""}`,
-          paciente: null,
-          medio: g.method_name_snapshot,
-          sucursal: g.branch_id ? (sucursal.get(g.branch_id) ?? null) : null,
-          montoCents: g.amount_cents,
-          currency: g.currency,
-          documento: null,
-          folio: null,
-        }),
-      ),
+      ...cuotas.map((c): Movimiento => ({
+        id: c.id,
+        tipo: "cuota",
+        fecha: c.dia,
+        detalle: "Cuota de membresía",
+        paciente: pacientes.get(c.patient_id) ?? null,
+        medio: c.method_name_snapshot,
+        sucursal: null,
+        montoCents: c.amount_cents,
+        currency: c.currency,
+        documento: null,
+        folio: null,
+      })),
+      ...gastos.map((g): Movimiento => ({
+        id: g.id,
+        tipo: "gasto",
+        fecha: g.incurred_on,
+        detalle: `${g.category} · ${g.description}${g.supplier ? ` (${g.supplier})` : ""}`,
+        paciente: null,
+        medio: g.method_name_snapshot,
+        sucursal: g.branch_id ? (sucursal.get(g.branch_id) ?? null) : null,
+        montoCents: g.amount_cents,
+        currency: g.currency,
+        documento: null,
+        folio: null,
+      })),
     ];
     return ordenarMovimientos(movimientos);
   });

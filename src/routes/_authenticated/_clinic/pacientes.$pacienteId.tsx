@@ -45,6 +45,7 @@ import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-dist
 import { Odontogram } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
 import { FinanceSection, type PiezaSeed } from "@/components/finance-section";
+import { EmpresaYMembresiaFicha } from "@/components/finanzas/empresa-y-membresia-ficha";
 import { MessagesHistory } from "@/components/messages-history";
 import { WhatsAppOptInToggle } from "@/components/whatsapp-opt-in-toggle";
 import { PortalLinkButton, RevokePortalAccessButton } from "@/components/portal-link-button";
@@ -779,6 +780,15 @@ function PacienteDetalle() {
           )}
 
           <TabsContent value="finanzas">
+            {clinicId && (
+              <EmpresaYMembresiaFicha
+                clinicId={clinicId}
+                patientId={paciente.id}
+                patientName={paciente.nombre}
+                timezone={access.clinic?.timezone ?? "America/Santiago"}
+                rol={access.role}
+              />
+            )}
             {clinicId && access.clinic && (
               <FinanceSection
                 clinicId={clinicId}

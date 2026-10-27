@@ -66,9 +66,7 @@ export function DialogoCobrar({
     <Dialog open onOpenChange={(o) => !o && onCerrar()}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            Cobrar {formatMoney(cuota.amountCents, cuota.currency)}
-          </DialogTitle>
+          <DialogTitle>Cobrar {formatMoney(cuota.amountCents, cuota.currency)}</DialogTitle>
           <DialogDescription>
             Cuota de {cuota.planName}, {etiquetaPeriodoCuota(cuota.periodStart, cuota.periodEnd)}
             {cuota.patientName ? `, de ${cuota.patientName}` : ""}. Registra el cobro que ya
@@ -117,4 +115,3 @@ export function DialogoCobrar({
     </Dialog>
   );
 }
-
