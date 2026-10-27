@@ -392,6 +392,11 @@ export type Database = {
           created_by: string;
           ends_at: string;
           id: string;
+          import_batch_id: string | null;
+          import_external_id: string | null;
+          import_original: Json | null;
+          import_source: string | null;
+          imported_at: string | null;
           is_priority: boolean;
           notes: string | null;
           operatory_id: string | null;
@@ -401,6 +406,7 @@ export type Database = {
           patient_id: string;
           procedure_id: string | null;
           professional_id: string;
+          reminders_muted: boolean;
           started_at: string | null;
           starts_at: string;
           status: Database["public"]["Enums"]["appointment_status"];
@@ -421,6 +427,11 @@ export type Database = {
           created_by?: string;
           ends_at: string;
           id?: string;
+          import_batch_id?: string | null;
+          import_external_id?: string | null;
+          import_original?: Json | null;
+          import_source?: string | null;
+          imported_at?: string | null;
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
@@ -430,6 +441,7 @@ export type Database = {
           patient_id: string;
           procedure_id?: string | null;
           professional_id: string;
+          reminders_muted?: boolean;
           started_at?: string | null;
           starts_at: string;
           status?: Database["public"]["Enums"]["appointment_status"];
@@ -450,6 +462,11 @@ export type Database = {
           created_by?: string;
           ends_at?: string;
           id?: string;
+          import_batch_id?: string | null;
+          import_external_id?: string | null;
+          import_original?: Json | null;
+          import_source?: string | null;
+          imported_at?: string | null;
           is_priority?: boolean;
           notes?: string | null;
           operatory_id?: string | null;
@@ -459,6 +476,7 @@ export type Database = {
           patient_id?: string;
           procedure_id?: string | null;
           professional_id?: string;
+          reminders_muted?: boolean;
           started_at?: string | null;
           starts_at?: string;
           status?: Database["public"]["Enums"]["appointment_status"];
@@ -487,6 +505,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "appointments_import_batch_id_fkey";
+            columns: ["import_batch_id"];
+            isOneToOne: false;
+            referencedRelation: "import_batches";
             referencedColumns: ["id"];
           },
           {
@@ -1856,6 +1881,122 @@ export type Database = {
             columns: ["payment_method_id"];
             isOneToOne: false;
             referencedRelation: "payment_methods";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      import_batch_changes: {
+        Row: {
+          batch_id: string;
+          campos: Json;
+          clinic_id: string;
+          created_at: string;
+          id: number;
+          patient_id: string;
+        };
+        Insert: {
+          batch_id: string;
+          campos: Json;
+          clinic_id: string;
+          created_at?: string;
+          id?: never;
+          patient_id: string;
+        };
+        Update: {
+          batch_id?: string;
+          campos?: Json;
+          clinic_id?: string;
+          created_at?: string;
+          id?: never;
+          patient_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "import_batch_changes_batch_id_clinic_id_fkey";
+            columns: ["batch_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "import_batches";
+            referencedColumns: ["id", "clinic_id"];
+          },
+          {
+            foreignKeyName: "import_batch_changes_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      import_batches: {
+        Row: {
+          clinic_id: string;
+          completed_at: string | null;
+          created_at: string;
+          created_by: string;
+          duplicate_policy: string | null;
+          file_name: string | null;
+          id: string;
+          include_in_reminders: boolean;
+          kind: string;
+          reminders_enabled_at: string | null;
+          reverted_at: string | null;
+          reverted_by: string | null;
+          rows_created: number;
+          rows_failed: number;
+          rows_skipped: number;
+          rows_total: number;
+          rows_updated: number;
+          source: string;
+          status: string;
+        };
+        Insert: {
+          clinic_id: string;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string;
+          duplicate_policy?: string | null;
+          file_name?: string | null;
+          id?: string;
+          include_in_reminders?: boolean;
+          kind: string;
+          reminders_enabled_at?: string | null;
+          reverted_at?: string | null;
+          reverted_by?: string | null;
+          rows_created?: number;
+          rows_failed?: number;
+          rows_skipped?: number;
+          rows_total?: number;
+          rows_updated?: number;
+          source: string;
+          status?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          completed_at?: string | null;
+          created_at?: string;
+          created_by?: string;
+          duplicate_policy?: string | null;
+          file_name?: string | null;
+          id?: string;
+          include_in_reminders?: boolean;
+          kind?: string;
+          reminders_enabled_at?: string | null;
+          reverted_at?: string | null;
+          reverted_by?: string | null;
+          rows_created?: number;
+          rows_failed?: number;
+          rows_skipped?: number;
+          rows_total?: number;
+          rows_updated?: number;
+          source?: string;
+          status?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "import_batches_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
         ];
@@ -4090,6 +4231,11 @@ export type Database = {
           health_plan_institution: string | null;
           health_plan_tier: string | null;
           id: string;
+          import_batch_id: string | null;
+          import_external_id: string | null;
+          import_original: Json | null;
+          import_source: string | null;
+          imported_at: string | null;
           merged_at: string | null;
           merged_into: string | null;
           no_show_risk: number | null;
@@ -4139,6 +4285,11 @@ export type Database = {
           health_plan_institution?: string | null;
           health_plan_tier?: string | null;
           id?: string;
+          import_batch_id?: string | null;
+          import_external_id?: string | null;
+          import_original?: Json | null;
+          import_source?: string | null;
+          imported_at?: string | null;
           merged_at?: string | null;
           merged_into?: string | null;
           no_show_risk?: number | null;
@@ -4188,6 +4339,11 @@ export type Database = {
           health_plan_institution?: string | null;
           health_plan_tier?: string | null;
           id?: string;
+          import_batch_id?: string | null;
+          import_external_id?: string | null;
+          import_original?: Json | null;
+          import_source?: string | null;
+          imported_at?: string | null;
           merged_at?: string | null;
           merged_into?: string | null;
           no_show_risk?: number | null;
@@ -4225,6 +4381,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patients_import_batch_id_fkey";
+            columns: ["import_batch_id"];
+            isOneToOne: false;
+            referencedRelation: "import_batches";
             referencedColumns: ["id"];
           },
           {
@@ -6710,6 +6873,21 @@ export type Database = {
         Returns: Json;
       };
       mi_estado_mfa: { Args: never; Returns: Json };
+      migracion_activar_recordatorios: {
+        Args: { p_batch_id: string };
+        Returns: number;
+      };
+      migracion_bloqueos_de_lote: {
+        Args: { p_batch_id: string };
+        Returns: { cantidad: number; tabla: string; usada_por: string }[];
+      };
+      migracion_buscar_pacientes: {
+        Args: { p_clinic_id: string; p_fuente?: string; p_por_nombre?: boolean; p_refs: Json };
+        Returns: { i: number; patient_id: string; via: string }[];
+      };
+      migracion_deshacer_lote: { Args: { p_batch_id: string }; Returns: Json };
+      migracion_exigir_gestion: { Args: { p_clinic_id: string }; Returns: undefined };
+      migracion_importar_bloque: { Args: { p_batch_id: string; p_filas: Json }; Returns: Json };
       mis_datos_de_firma: {
         Args: { p_clinic_id: string };
         Returns: { nombre: string; origen: string; registro: string }[];
@@ -6727,6 +6905,7 @@ export type Database = {
         Returns: number;
       };
       normalizar_busqueda: { Args: { p_texto: string }; Returns: string };
+      normalizar_nombre_persona: { Args: { p_nombre: string }; Returns: string };
       normalizar_documento: { Args: { p_documento: string }; Returns: string };
       outreach_patient_visits: {
         Args: { p_clinic_id: string };

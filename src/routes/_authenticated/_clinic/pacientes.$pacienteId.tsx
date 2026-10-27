@@ -15,6 +15,7 @@ import {
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { SelloImportado } from "@/components/migracion/sello-importado";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -601,6 +602,14 @@ function PacienteDetalle() {
               Ficha archivada el {formatoFecha(paciente.archivadaEl.slice(0, 10))}. No aparece en
               los listados ni en la búsqueda; su historia clínica se conserva completa.
             </p>
+          )}
+
+          {clinicId && (
+            <SelloImportado
+              clinicId={clinicId}
+              patientId={paciente.id}
+              zona={access.clinic?.timezone}
+            />
           )}
 
           <CompletitudDeLaFicha

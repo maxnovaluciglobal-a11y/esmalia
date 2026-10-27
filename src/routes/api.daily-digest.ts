@@ -142,6 +142,8 @@ async function contarPendientes(
       .select("id")
       .eq("clinic_id", clinicId)
       .neq("status", "cancelada")
+      // REC-06: las citas importadas sin la casilla no piden recordatorio.
+      .eq("reminders_muted", false)
       .gte("starts_at", ahora.toISOString())
       .lte("starts_at", hasta),
     supabaseAdmin
