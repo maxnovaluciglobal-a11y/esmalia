@@ -80,9 +80,14 @@ export function primerNombreDe(nombre: string | null | undefined): string {
   return (nombre ?? "").trim().split(/\s+/)[0] ?? "";
 }
 
+/** Largo bajo el cual una línea que perdió un dato es solo su rótulo ("Reserva aquí:"). */
+const LARGO_DE_ROTULO = 40;
+
 /**
  * Reemplaza las variables. Una variable sin valor (la clínica sin teléfono,
- * la reserva apagada) queda vacía y su línea, si quedó en blanco, se quita.
+ * la reserva apagada) queda vacía: si su línea era corta (solo el rótulo del
+ * dato, como "Llámanos al {{clinica.telefono}}") la línea entera se quita; en
+ * una línea larga se quita solo el dato y la puntuación que quedó colgando.
  */
 export function renderMensaje(cuerpo: string, valores: ValoresDeMensaje): string {
   const lineas = cuerpo.replace(/\r\n?/g, "\n").split("\n");
@@ -98,8 +103,18 @@ export function renderMensaje(cuerpo: string, valores: ValoresDeMensaje): string
       }
       return v;
     });
-    if (tuvoVariableVacia && nueva.replace(/[\s:·,.-]/g, "") === "") continue;
-    salida.push(tuvoVariableVacia ? nueva.replace(/\s{2,}/g, " ").trimEnd() : nueva);
+    if (!tuvoVariableVacia) {
+      salida.push(nueva);
+      continue;
+    }
+    if (nueva.replace(/[\s:·,.-]/g, "").length <= LARGO_DE_ROTULO) continue;
+    salida.push(
+      nueva
+        .replace(/\s{2,}/g, " ")
+        .replace(/\s+([.,;:])/g, "$1")
+        .replace(/:\s*([.,;]?)\s*$/, "$1")
+        .trimEnd(),
+    );
   }
   return salida
     .join("\n")
@@ -144,7 +159,7 @@ export const PLANTILLAS_SUGERIDAS: readonly PlantillaSugerida[] = [
     canal: "whatsapp",
     asunto: null,
     cuerpo:
-      "Hola, {{paciente.primer_nombre}}. Te escribimos de {{clinica.nombre}}: hace un tiempo que no te vemos y queremos saber cómo estás. Si quieres agendar un control, responde este mensaje o reserva aquí: {{reserva.link}}",
+      "Hola, {{paciente.primer_nombre}}. Te escribimos de {{clinica.nombre}}: hace un tiempo que no te vemos y queremos saber cómo estás. Si quieres agendar un control, responde este mensaje.\n\nO elige tu hora aquí: {{reserva.link}}",
   },
   {
     nombre: "Control anual (correo)",
