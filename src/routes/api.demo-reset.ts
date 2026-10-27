@@ -88,6 +88,16 @@ export const Route = createFileRoute("/api/demo-reset")({
 
         await crearEncuestasDeLaDemo(supabaseAdmin);
 
+        // Ola 9: periodontograma con NIC y comparación, laboratorio con
+        // catálogo, ortodoncia con alineadores y etapas, y ficha clínica
+        // (protocolos, interconsultas, implantes, antecedentes). Cada paso es
+        // idempotente y nunca lanza.
+        const ola9 = await import("@/lib/demo/ola9.server");
+        await ola9.sembrarPeriodontogramaDeLaDemo(supabaseAdmin);
+        await ola9.sembrarLaboratorioDeLaDemo(supabaseAdmin);
+        await ola9.sembrarOrtodonciaDeLaDemo(supabaseAdmin);
+        await ola9.sembrarFichaClinicaDeLaDemo(supabaseAdmin);
+
         return new Response("ok", { status: 200 });
       },
     },
