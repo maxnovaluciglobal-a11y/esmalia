@@ -509,7 +509,11 @@ function CajasPage() {
                   />
                 )}
                 {resumen?.comisiones && (
-                  <ComisionesDelDiaPanel comisiones={resumen.comisiones} currency={currency} />
+                  <ComisionesDelDiaPanel
+                    comisiones={resumen.comisiones}
+                    sinProfesionalCents={resumen.cobradoSinProfesionalCents}
+                    currency={currency}
+                  />
                 )}
               </div>
             </div>

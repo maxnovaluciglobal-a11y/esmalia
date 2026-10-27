@@ -711,7 +711,10 @@ function DialogoAnular({
     mutationFn: () => fn({ data: { clinicId, id: cuota.id, reason: motivo.trim() } }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["membresias-cuotas", clinicId] });
-      toast.success("Cuota anulada");
+      void qc.invalidateQueries({ queryKey: ["payments", clinicId] });
+      void qc.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
+      void qc.invalidateQueries({ queryKey: ["cash-register-breakdown"] });
+      toast.success(cuota.status === "paid" ? "Cuota anulada y pago reversado" : "Cuota anulada");
       onCerrar();
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -726,7 +729,8 @@ function DialogoAnular({
             {formatMoney(cuota.amountCents, cuota.currency)} ·{" "}
             {etiquetaPeriodoCuota(cuota.periodStart, cuota.periodEnd)}. Una cuota anulada no se
             puede reactivar.
-            {cuota.status === "paid" && " Si ya la cobraste, devuelve el dinero por fuera."}
+            {cuota.status === "paid" &&
+              " El pago de esta cuota se reversa y sale de la caja y del arqueo; devuelve el dinero por fuera."}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <div className="space-y-1.5">

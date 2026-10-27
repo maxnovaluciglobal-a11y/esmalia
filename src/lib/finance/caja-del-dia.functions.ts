@@ -12,9 +12,10 @@ import {
   type ItemCobrado,
   type PagoDelDia,
   type ProfesionalDelDia,
+  type ReglasDelDia,
   type ResumenCajaDelDia,
 } from "@/lib/finance/caja-del-dia";
-import type { CommissionKind, CommissionRuleAmounts } from "@/lib/finance/commissions";
+import { cargarPeriodo } from "@/lib/finance/commissions.functions";
 import { enBloques, leerTodasLasPaginas } from "@/lib/paginacion";
 import { fetchPatientBalances } from "@/lib/patients/patients.functions";
 
@@ -36,6 +37,9 @@ function diaSiguiente(fecha: string): string {
  * - Saldos de pacientes y comisiones de todos los profesionales solo con
  *   `finance:view` (recepción opera la caja pero no ve reportes financieros,
  *   mismo criterio que `getAppointmentPatientBalances` y `getCommissionReport`).
+ *   Las comisiones del día se calculan con el mismo motor que el reporte y el
+ *   cierre (`cargarPeriodo` + `liquidar`): "rige desde", base cobrado o
+ *   realizado y la regla propia de cada prestación.
  *
  * El día es el de la clínica (`clinics.timezone`, regla 7). Todas las
  * lecturas van de a páginas: PostgREST corta en 1000 filas sin avisar.
@@ -78,7 +82,7 @@ export const getCajaDelDia = createServerFn({ method: "GET" })
         supabase
           .from("payments")
           .select(
-            "id, amount_cents, method, method_name_snapshot, paid_at, patient_id, treatment_item_id, receivable_id, payment_group_id, notes",
+            "id, amount_cents, method, method_name_snapshot, paid_at, patient_id, treatment_item_id, receivable_id, payment_group_id, notes, membership_charge_id",
           )
           .eq("clinic_id", data.clinicId)
           .is("reversed_at", null)
@@ -133,6 +137,7 @@ export const getCajaDelDia = createServerFn({ method: "GET" })
       receivableId: p.receivable_id,
       paymentGroupId: p.payment_group_id,
       notes: p.notes,
+      membershipChargeId: p.membership_charge_id,
     }));
     const citas: CitaDelDia[] = citasRes.filas.map((c) => ({
       id: c.id,
@@ -193,56 +198,26 @@ export const getCajaDelDia = createServerFn({ method: "GET" })
     }
 
     let saldos: Map<string, number> | null = null;
-    let comisiones: {
-      produccion: Map<string, { cents: number; cantidad: number }>;
-      reglas: Map<string, CommissionRuleAmounts>;
-    } | null = null;
+    let comisiones: ReglasDelDia | null = null;
     let truncado = false;
     if (veFinanzas) {
       const atendidos = [
         ...new Set(citas.filter((c) => c.status === "finalizada").map((c) => c.patientId)),
       ];
-      const [balances, produccionRes, reglasRes] = await Promise.all([
+      const [balances, periodo] = await Promise.all([
         fetchPatientBalances(supabase, data.clinicId, atendidos),
-        leerTodasLasPaginas((a, b) =>
-          supabase
-            .from("treatment_items")
-            .select("id, professional_id, price_cents")
-            .eq("clinic_id", data.clinicId)
-            .eq("status", "completed")
-            .gte("completed_at", desde)
-            .lt("completed_at", hasta)
-            .order("id", { ascending: true })
-            .range(a, b),
-        ),
-        supabase
-          .from("commission_rules")
-          .select("professional_id, kind, percent_bps, fixed_cents")
-          .eq("clinic_id", data.clinicId),
+        cargarPeriodo(supabase, data.clinicId, fecha, fecha),
       ]);
       saldos = new Map([...balances].map(([id, b]) => [id, b.billedCents - b.paidCents]));
-      if (produccionRes.error) {
-        throw new Error(mensajeDb(produccionRes.error, "No pudimos cargar la producción de hoy."));
-      }
-      if (reglasRes.error) {
-        throw new Error(mensajeDb(reglasRes.error, "No pudimos cargar las reglas de comisión."));
-      }
-      const produccion = new Map<string, { cents: number; cantidad: number }>();
-      for (const it of produccionRes.filas) {
-        if (!it.professional_id) continue;
-        const acc = produccion.get(it.professional_id) ?? { cents: 0, cantidad: 0 };
-        acc.cents += it.price_cents ?? 0;
-        acc.cantidad += 1;
-        produccion.set(it.professional_id, acc);
-      }
-      const reglas = new Map<string, CommissionRuleAmounts>(
-        (reglasRes.data ?? []).map((r) => [
-          r.professional_id,
-          { kind: r.kind as CommissionKind, percentBps: r.percent_bps, fixedCents: r.fixed_cents },
-        ]),
-      );
-      comisiones = { produccion, reglas };
-      truncado = produccionRes.truncado;
+      comisiones = {
+        fecha,
+        currency: periodo.currency,
+        versiones: periodo.versiones,
+        realizados: periodo.realizados,
+        cobrados: periodo.cobrados,
+        sinAtribuirCents: periodo.sinAtribuirCents,
+      };
+      truncado = periodo.truncado;
     }
 
     // "Abierta por": el nombre de quien abrió. Si la policy de `profiles` no

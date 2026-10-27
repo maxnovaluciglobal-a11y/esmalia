@@ -6931,6 +6931,7 @@ export type Database = {
           created_by: string;
           currency: string;
           id: string;
+          membership_charge_id: string | null;
           method: Database["public"]["Enums"]["payment_method"];
           method_name_snapshot: string | null;
           net_cents: number | null;
@@ -6964,6 +6965,7 @@ export type Database = {
           created_by?: string;
           currency?: string;
           id?: string;
+          membership_charge_id?: string | null;
           method?: Database["public"]["Enums"]["payment_method"];
           method_name_snapshot?: string | null;
           net_cents?: number | null;
@@ -6997,6 +6999,7 @@ export type Database = {
           created_by?: string;
           currency?: string;
           id?: string;
+          membership_charge_id?: string | null;
           method?: Database["public"]["Enums"]["payment_method"];
           method_name_snapshot?: string | null;
           net_cents?: number | null;
@@ -7029,6 +7032,13 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_membership_charge_id_fkey";
+            columns: ["membership_charge_id"];
+            isOneToOne: false;
+            referencedRelation: "membership_charges";
             referencedColumns: ["id"];
           },
           {
@@ -8009,6 +8019,11 @@ export type Database = {
           accepted_signature_path: string | null;
           accepted_total_cents: number | null;
           accepted_user_agent: string | null;
+          affiliation_discount_amount_cents: number | null;
+          affiliation_discount_name_snapshot: string | null;
+          affiliation_discount_percent: number | null;
+          affiliation_discount_rule_snapshot: string | null;
+          affiliation_discount_source: string | null;
           agreement_id: string | null;
           agreement_name_snapshot: string | null;
           clinic_id: string;
@@ -8022,10 +8037,12 @@ export type Database = {
           id: string;
           last_contact_at: string | null;
           last_contact_note: string | null;
+          membership_plan_id: string | null;
           next_action: string | null;
           next_action_on: string | null;
           notes: string | null;
           number: string;
+          partner_company_id: string | null;
           patient_id: string;
           professional_id: string | null;
           rejected_at: string | null;
@@ -8044,6 +8061,11 @@ export type Database = {
           accepted_signature_path?: string | null;
           accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
+          affiliation_discount_amount_cents?: number | null;
+          affiliation_discount_name_snapshot?: string | null;
+          affiliation_discount_percent?: number | null;
+          affiliation_discount_rule_snapshot?: string | null;
+          affiliation_discount_source?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
           clinic_id: string;
@@ -8057,10 +8079,12 @@ export type Database = {
           id?: string;
           last_contact_at?: string | null;
           last_contact_note?: string | null;
+          membership_plan_id?: string | null;
           next_action?: string | null;
           next_action_on?: string | null;
           notes?: string | null;
           number: string;
+          partner_company_id?: string | null;
           patient_id: string;
           professional_id?: string | null;
           rejected_at?: string | null;
@@ -8079,6 +8103,11 @@ export type Database = {
           accepted_signature_path?: string | null;
           accepted_total_cents?: number | null;
           accepted_user_agent?: string | null;
+          affiliation_discount_amount_cents?: number | null;
+          affiliation_discount_name_snapshot?: string | null;
+          affiliation_discount_percent?: number | null;
+          affiliation_discount_rule_snapshot?: string | null;
+          affiliation_discount_source?: string | null;
           agreement_id?: string | null;
           agreement_name_snapshot?: string | null;
           clinic_id?: string;
@@ -8092,10 +8121,12 @@ export type Database = {
           id?: string;
           last_contact_at?: string | null;
           last_contact_note?: string | null;
+          membership_plan_id?: string | null;
           next_action?: string | null;
           next_action_on?: string | null;
           notes?: string | null;
           number?: string;
+          partner_company_id?: string | null;
           patient_id?: string;
           professional_id?: string | null;
           rejected_at?: string | null;
@@ -8120,6 +8151,20 @@ export type Database = {
             columns: ["clinic_id"];
             isOneToOne: false;
             referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quotes_membership_plan_id_fkey";
+            columns: ["membership_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "membership_plans";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quotes_partner_company_id_fkey";
+            columns: ["partner_company_id"];
+            isOneToOne: false;
+            referencedRelation: "partner_companies";
             referencedColumns: ["id"];
           },
           {
@@ -9588,6 +9633,19 @@ export type Database = {
           preview: string;
           title: string;
           version: number;
+        }[];
+      };
+      cobrar_cuota_de_membresia: {
+        Args: {
+          p_charge_id: string;
+          p_method?: Database["public"]["Enums"]["payment_method"];
+          p_net_cents?: number;
+          p_payment_method_id?: string;
+          p_reference?: string;
+        };
+        Returns: {
+          payment_id: string;
+          ya_cobrada: boolean;
         }[];
       };
       confirmar_gastos_fijos: {
