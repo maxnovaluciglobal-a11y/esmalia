@@ -21,6 +21,11 @@ import {
   type VerifiedLabToken,
 } from "@/lib/clinic-operations/lab-portal-token.server";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import {
+  detalleDesdeFila,
+  hoyEnZona,
+  type DetalleTecnico,
+} from "@/lib/clinic-operations/lab-orden-detalle";
 
 /**
  * Portal externo de laboratorio (gap de la auditoría comparativa vs.
@@ -167,10 +172,7 @@ export const openLabPortalSession = createServerFn({ method: "POST" })
     return { ok: true, labId: payload.labId };
   });
 
-const LAB_PORTAL_ORDER_COLUMNS =
-  "id, patient_id, description, tooth_numbers, status, sent_on, due_on, received_on, notes";
-
-export interface LabPortalOrder {
+export interface LabPortalOrder extends DetalleTecnico {
   id: string;
   patientName: string;
   description: string;
@@ -180,43 +182,44 @@ export interface LabPortalOrder {
   dueOn: string | null;
   receivedOn: string | null;
   notes: string | null;
+  /** LAB-07: trabajo del catálogo con que se pidió (nombre de entonces). */
+  catalogName: string | null;
+  /** LAB-06: días de atraso según el hoy de la clínica; `null` = no atrasada. */
+  diasAtraso: number | null;
 }
 
-/** Órdenes del laboratorio autenticado — todas, no solo las pendientes: el
- * laboratorio también necesita ver su propio historial de entregadas. */
+/**
+ * Órdenes del laboratorio autenticado — todas, no solo las pendientes: el
+ * laboratorio también necesita ver su propio historial de entregadas.
+ *
+ * Ola 9: pasa por `portal_laboratorio_ordenes` (solo service_role), que
+ * filtra por laboratorio y clínica en la base, no devuelve el costo y
+ * calcula el atraso con `clinics.timezone`.
+ */
 export const getMyLabPortalOrders = createServerFn({ method: "GET" }).handler(
-  async (): Promise<{ labName: string; clinicName: string; orders: LabPortalOrder[] }> => {
+  async (): Promise<{
+    labName: string;
+    clinicName: string;
+    hoy: string | null;
+    orders: LabPortalOrder[];
+  }> => {
     const { labId, clinicId } = await requireLabPortalSession();
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     const [{ data: lab }, { data: clinic }, { data: rows, error }] = await Promise.all([
       supabaseAdmin.from("labs").select("name").eq("id", labId).maybeSingle(),
       supabaseAdmin.from("clinics").select("name").eq("id", clinicId).maybeSingle(),
-      supabaseAdmin
-        .from("lab_orders")
-        .select(LAB_PORTAL_ORDER_COLUMNS)
-        .eq("clinic_id", clinicId)
-        .eq("lab_id", labId)
-        .order("sent_on", { ascending: false }),
+      supabaseAdmin.rpc("portal_laboratorio_ordenes", { p_clinic_id: clinicId, p_lab_id: labId }),
     ]);
     if (error) throw new Error(mensajeDb(error, "No pudimos cargar las órdenes."));
-
-    const patientIds = [...new Set((rows ?? []).map((r) => r.patient_id))];
-    const nombres = new Map<string, string>();
-    if (patientIds.length) {
-      const { data: pacientes } = await supabaseAdmin
-        .from("patients")
-        .select("id, full_name")
-        .in("id", patientIds);
-      for (const p of pacientes ?? []) nombres.set(p.id, p.full_name);
-    }
 
     return {
       labName: lab?.name ?? "Tu laboratorio",
       clinicName: clinic?.name ?? "la clínica",
+      hoy: rows?.[0]?.hoy_clinica ?? null,
       orders: (rows ?? []).map((r) => ({
         id: r.id,
-        patientName: nombres.get(r.patient_id) ?? "Paciente",
+        patientName: r.patient_name ?? "Paciente",
         description: r.description,
         toothNumbers: r.tooth_numbers,
         status: r.status,
@@ -224,6 +227,9 @@ export const getMyLabPortalOrders = createServerFn({ method: "GET" }).handler(
         dueOn: r.due_on,
         receivedOn: r.received_on,
         notes: r.notes,
+        catalogName: r.catalog_name,
+        diasAtraso: r.dias_atraso,
+        ...detalleDesdeFila(r),
       })),
     };
   },
@@ -265,7 +271,7 @@ export const updateLabOrderStatusFromPortal = createServerFn({ method: "POST" })
     // service_role no pasa por `block_demo_writes`: la demo se frena acá.
     const { data: clinica } = await supabaseAdmin
       .from("clinics")
-      .select("is_demo")
+      .select("is_demo, timezone")
       .eq("id", clinicId)
       .maybeSingle();
     if (!clinica || clinica.is_demo) throw new Error(PORTAL_LAB_SIN_ACCESO);
@@ -274,7 +280,8 @@ export const updateLabOrderStatusFromPortal = createServerFn({ method: "POST" })
       .from("lab_orders")
       .update({
         status: data.status,
-        received_on: data.status === "recibido" ? new Date().toISOString().slice(0, 10) : null,
+        // Día de la clínica (regla 7), no el del reloj UTC del servidor.
+        received_on: data.status === "recibido" ? hoyEnZona(clinica.timezone) : null,
       })
       .eq("id", data.orderId);
     if (error) throw new Error(mensajeDb(error, "No pudimos actualizar el estado."));

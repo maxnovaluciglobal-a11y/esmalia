@@ -51,6 +51,7 @@ import { ReferralCodeCard } from "@/components/referral-code-card";
 import { EncabezadoPaciente } from "@/components/ficha/encabezado-paciente";
 import { NotaSoapReciente } from "@/components/ficha/nota-soap-reciente";
 import { PresupuestoPorFases } from "@/components/ficha/presupuesto-por-fases";
+import { OrtodonciaEnLaFicha } from "@/components/ortodoncia/seguimiento-ortodoncia";
 import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
 import { CompletitudDeLaFicha, ContactoDeEmergencia } from "@/components/ficha-ola1";
 import { ContadoresDeCitasFicha } from "@/components/ficha-contadores-citas";
@@ -702,6 +703,14 @@ function PacienteDetalle() {
                   />
                 )}
               </div>
+            )}
+            {puedeVerClinico && clinicId && (
+              <OrtodonciaEnLaFicha
+                clinicId={clinicId}
+                patientId={paciente.id}
+                hoy={hoyISO(timezone ?? undefined)}
+                puedeEditar={puedeEscribirClinico}
+              />
             )}
             {!puedeVerClinico && (
               <section

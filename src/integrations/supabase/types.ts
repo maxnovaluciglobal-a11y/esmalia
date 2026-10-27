@@ -2464,8 +2464,73 @@ export type Database = {
           },
         ];
       };
+      lab_catalog_items: {
+        Row: {
+          clinic_id: string;
+          cost_cents: number | null;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          id: string;
+          is_active: boolean;
+          lab_id: string;
+          material: string | null;
+          name: string;
+          notes: string | null;
+          typical_days: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          cost_cents?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          is_active?: boolean;
+          lab_id: string;
+          material?: string | null;
+          name: string;
+          notes?: string | null;
+          typical_days?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          cost_cents?: number | null;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          is_active?: boolean;
+          lab_id?: string;
+          material?: string | null;
+          name?: string;
+          notes?: string | null;
+          typical_days?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lab_catalog_items_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lab_catalog_items_lab_fk";
+            columns: ["lab_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "labs";
+            referencedColumns: ["id", "clinic_id"];
+          },
+        ];
+      };
       lab_orders: {
         Row: {
+          catalog_item_id: string | null;
+          catalog_name_snapshot: string | null;
           clinic_id: string;
           cost_cents: number | null;
           created_at: string;
@@ -2476,17 +2541,23 @@ export type Database = {
           id: string;
           lab_id: string | null;
           lab_name_snapshot: string | null;
+          margin_type: string | null;
+          material: string | null;
           notes: string | null;
           patient_id: string;
           professional_id: string | null;
           received_on: string | null;
           sent_on: string;
+          shade: string | null;
+          shade_guide: string | null;
           status: Database["public"]["Enums"]["lab_order_status"];
           tooth_numbers: number[] | null;
           treatment_item_id: string | null;
           updated_at: string;
         };
         Insert: {
+          catalog_item_id?: string | null;
+          catalog_name_snapshot?: string | null;
           clinic_id: string;
           cost_cents?: number | null;
           created_at?: string;
@@ -2497,17 +2568,23 @@ export type Database = {
           id?: string;
           lab_id?: string | null;
           lab_name_snapshot?: string | null;
+          margin_type?: string | null;
+          material?: string | null;
           notes?: string | null;
           patient_id: string;
           professional_id?: string | null;
           received_on?: string | null;
           sent_on?: string;
+          shade?: string | null;
+          shade_guide?: string | null;
           status?: Database["public"]["Enums"]["lab_order_status"];
           tooth_numbers?: number[] | null;
           treatment_item_id?: string | null;
           updated_at?: string;
         };
         Update: {
+          catalog_item_id?: string | null;
+          catalog_name_snapshot?: string | null;
           clinic_id?: string;
           cost_cents?: number | null;
           created_at?: string;
@@ -2518,17 +2595,28 @@ export type Database = {
           id?: string;
           lab_id?: string | null;
           lab_name_snapshot?: string | null;
+          margin_type?: string | null;
+          material?: string | null;
           notes?: string | null;
           patient_id?: string;
           professional_id?: string | null;
           received_on?: string | null;
           sent_on?: string;
+          shade?: string | null;
+          shade_guide?: string | null;
           status?: Database["public"]["Enums"]["lab_order_status"];
           tooth_numbers?: number[] | null;
           treatment_item_id?: string | null;
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "lab_orders_catalog_item_id_fkey";
+            columns: ["catalog_item_id"];
+            isOneToOne: false;
+            referencedRelation: "lab_catalog_items";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "lab_orders_clinic_id_fkey";
             columns: ["clinic_id"];
@@ -4780,6 +4868,11 @@ export type Database = {
       };
       ortho_cases: {
         Row: {
+          aligner_change_days: number | null;
+          aligner_changed_on: string | null;
+          aligner_current: number | null;
+          aligner_total: number | null;
+          appliance_system: string | null;
           clinic_id: string;
           created_at: string;
           created_by: string;
@@ -4797,6 +4890,11 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          aligner_change_days?: number | null;
+          aligner_changed_on?: string | null;
+          aligner_current?: number | null;
+          aligner_total?: number | null;
+          appliance_system?: string | null;
           clinic_id: string;
           created_at?: string;
           created_by?: string;
@@ -4814,6 +4912,11 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          aligner_change_days?: number | null;
+          aligner_changed_on?: string | null;
+          aligner_current?: number | null;
+          aligner_total?: number | null;
+          appliance_system?: string | null;
           clinic_id?: string;
           created_at?: string;
           created_by?: string;
@@ -4915,6 +5018,54 @@ export type Database = {
             columns: ["payment_id"];
             isOneToOne: false;
             referencedRelation: "payments";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ortho_stage_events: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          notes: string | null;
+          ortho_case_id: string;
+          stage: string;
+          started_on: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          ortho_case_id: string;
+          stage: string;
+          started_on: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          ortho_case_id?: string;
+          stage?: string;
+          started_on?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ortho_stage_events_case_fk";
+            columns: ["ortho_case_id", "clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "ortho_cases";
+            referencedColumns: ["id", "clinic_id"];
+          },
+          {
+            foreignKeyName: "ortho_stage_events_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
             referencedColumns: ["id"];
           },
         ];
@@ -7714,6 +7865,27 @@ export type Database = {
           quotes_issued: number;
           quotes_issued_cents: number;
           reminders_sent: number;
+        }[];
+      };
+      portal_laboratorio_ordenes: {
+        Args: { p_ahora?: string; p_clinic_id: string; p_lab_id: string };
+        Returns: {
+          catalog_name: string | null;
+          description: string;
+          dias_atraso: number | null;
+          due_on: string | null;
+          hoy_clinica: string;
+          id: string;
+          margin_type: string | null;
+          material: string | null;
+          notes: string | null;
+          patient_name: string | null;
+          received_on: string | null;
+          sent_on: string;
+          shade: string | null;
+          shade_guide: string | null;
+          status: Database["public"]["Enums"]["lab_order_status"];
+          tooth_numbers: number[] | null;
         }[];
       };
       procedimientos_frecuentes: {
