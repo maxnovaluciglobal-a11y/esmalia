@@ -41,6 +41,8 @@ export const TABLES = [
   "document_templates",
   "email_sandbox_config",
   "expenses",
+  "import_batch_changes",
+  "import_batches",
   "inventory_counts",
   "inventory_items",
   "inventory_movements",
