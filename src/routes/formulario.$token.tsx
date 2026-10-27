@@ -193,6 +193,7 @@ function Cuestionario({
           comentario: comentario.trim() || undefined,
         },
       });
+      window.scrollTo({ top: 0 });
       onTerminado(r.estado);
     } catch (e) {
       setError(mensajeDeError(e));

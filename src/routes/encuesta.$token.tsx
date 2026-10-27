@@ -179,11 +179,11 @@ function Pregunta({
     setEnviando(true);
     setError(null);
     try {
-      onRespuesta(
-        await responder({
-          data: { token, nota, comentario: comentario.trim() || undefined },
-        }),
-      );
+      const r = await responder({
+        data: { token, nota, comentario: comentario.trim() || undefined },
+      });
+      window.scrollTo({ top: 0 });
+      onRespuesta(r);
     } catch (e) {
       setError(mensajeDeError(e));
     } finally {
