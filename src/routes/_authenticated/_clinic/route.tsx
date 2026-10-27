@@ -8,7 +8,12 @@ import {
 } from "@tanstack/react-router";
 
 import { getMyAccess } from "@/lib/access/access.functions";
-import { ACCESS_QUERY_KEY, type ClinicAccess } from "@/lib/access/access";
+import {
+  ACCESS_QUERY_KEY,
+  permisosEfectivos,
+  permissionsForRole,
+  type ClinicAccess,
+} from "@/lib/access/access";
 import { leerRolSimulado, puedeSimular } from "@/lib/access/role-simulation";
 import { ensureOfflineCacheHydrated } from "@/lib/offline/offline-cache";
 import { AppShell } from "@/components/app-shell";
@@ -88,6 +93,10 @@ export const Route = createFileRoute("/_authenticated/_clinic")({
         realRole: access.role,
         simulatedRole: simulado,
         role: simulado ?? access.role,
+        // EQU-01: la simulación muestra el rol puro, sin ajustes por persona.
+        permissions: simulado
+          ? permissionsForRole(simulado)
+          : (access.permissions ?? permisosEfectivos(access.role, access.ajustes)),
       },
     };
   },

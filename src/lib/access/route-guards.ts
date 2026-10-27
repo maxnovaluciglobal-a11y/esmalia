@@ -9,7 +9,7 @@ import { hasPermission, type ClinicAccess, type Permission } from "@/lib/access/
  */
 export function requirePermission(permission: Permission) {
   return ({ context }: { context: { access: ClinicAccess } }) => {
-    if (!hasPermission(context.access.role, permission)) {
+    if (!hasPermission(context.access, permission)) {
       throw redirect({ to: "/sin-acceso" });
     }
   };
@@ -23,7 +23,7 @@ export function requirePermission(permission: Permission) {
  */
 export function requireAnyPermission(...permissions: Permission[]) {
   return ({ context }: { context: { access: ClinicAccess } }) => {
-    if (!permissions.some((p) => hasPermission(context.access.role, p))) {
+    if (!permissions.some((p) => hasPermission(context.access, p))) {
       throw redirect({ to: "/sin-acceso" });
     }
   };

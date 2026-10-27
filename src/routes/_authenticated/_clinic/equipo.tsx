@@ -157,7 +157,7 @@ function EquipoPage() {
   const kickMember = useServerFn(removeMember);
 
   const clinicId = access.clinic!.id;
-  const puedeGestionar = hasPermission(access.role, "team:manage");
+  const puedeGestionar = hasPermission(access, "team:manage");
 
   const membersQuery = useQuery({
     queryKey: ["clinic-members", clinicId],

@@ -30,7 +30,7 @@ function idDeGrupo(titulo: string) {
 function AjustesPage() {
   const { access } = Route.useRouteContext();
   const [termino, setTermino] = useState("");
-  const grupos = filtrarAjustes(ajustesVisibles(access.role), termino);
+  const grupos = filtrarAjustes(ajustesVisibles(access), termino);
   const filtrando = termino.trim().length > 0;
 
   return (

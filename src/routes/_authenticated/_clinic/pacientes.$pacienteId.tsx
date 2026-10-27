@@ -329,10 +329,10 @@ function PacienteDetalle() {
   const { access } = Route.useRouteContext();
   const { paciente } = Route.useLoaderData() as { paciente: Paciente };
   const currency = access.clinic?.currency ?? "CLP";
-  const puedeVerClinico = hasPermission(access.role, "clinical:view");
-  const puedeEscribirClinico = hasPermission(access.role, "clinical:write");
+  const puedeVerClinico = hasPermission(access, "clinical:view");
+  const puedeEscribirClinico = hasPermission(access, "clinical:write");
   const clinicId = access.clinic?.id;
-  const puedeFacturar = hasPermission(access.role, "patients:manage");
+  const puedeFacturar = hasPermission(access, "patients:manage");
   // La pestaña activa vive en la URL (`?pestana=`): recargar, volver atrás o
   // compartir el link abre la misma pestaña. `replace` para no llenar el
   // historial con un paso por pestaña, y sin resetear el scroll.
@@ -443,7 +443,7 @@ function PacienteDetalle() {
   // falla (`vigente: null`), el botón se muestra igual: cortar un link
   // filtrado nunca depende de esta consulta.
   const queryClient = useQueryClient();
-  const puedeGestionarPortal = hasPermission(access.role, "patients:manage");
+  const puedeGestionarPortal = hasPermission(access, "patients:manage");
   const fetchPortalState = useServerFn(getPortalAccessState);
   const portalQuery = useQuery({
     queryKey: ["portal-access", clinicId, paciente.id],
@@ -514,7 +514,7 @@ function PacienteDetalle() {
     setNotaPedida(destino ? { ...destino, nonce: Date.now() } : null);
     setPestana("notas");
   };
-  const puedeVerFinanzas = hasPermission(access.role, "finance:view");
+  const puedeVerFinanzas = hasPermission(access, "finance:view");
 
   // Alerta crítica en la barra de pestañas fija: se sigue viendo al bajar.
   const alertaFija = puedeVerClinico ? alertasCriticas : [];
@@ -786,7 +786,7 @@ function PacienteDetalle() {
                 currency={currency}
                 patientId={paciente.id}
                 puedeEditar={puedeFacturar}
-                puedeReversarPagos={hasPermission(access.role, "payments:reverse")}
+                puedeReversarPagos={hasPermission(access, "payments:reverse")}
                 userId={access.userId}
                 piezaSeed={piezaSeed}
                 onPiezaSeedConsumido={() => setPiezaSeed(null)}
@@ -835,7 +835,7 @@ function PacienteDetalle() {
                     clinicId={clinicId}
                     patientId={paciente.id}
                     esMenor={esMenor}
-                    puedeEditar={hasPermission(access.role, "patients:manage")}
+                    puedeEditar={hasPermission(access, "patients:manage")}
                   />
                 )}
                 <section
@@ -928,7 +928,7 @@ function PacienteDetalle() {
                       (access.role === "owner" ||
                         access.role === "admin" ||
                         access.role === "dentist")
-                    : hasPermission(access.role, "patients:manage")
+                    : hasPermission(access, "patients:manage")
                 }
               />
               <PatientDocumentsCard
@@ -944,7 +944,7 @@ function PacienteDetalle() {
                 timezone={timezone}
                 myProfessionalId={access.myProfessionalId ?? null}
                 puedeEditar={puedeEscribirClinico}
-                puedeGestionar={hasPermission(access.role, "patients:manage")}
+                puedeGestionar={hasPermission(access, "patients:manage")}
               />
               <PatientPrescriptionsCard
                 clinicId={clinicId}

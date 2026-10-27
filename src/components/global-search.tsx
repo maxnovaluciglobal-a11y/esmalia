@@ -131,14 +131,14 @@ export function GlobalSearch({
   }, [abierto]);
 
   const paginas = useMemo((): PaginaBuscable[] => {
-    const desdeDestinos = destinosVisibles(access.role).flatMap((d) =>
+    const desdeDestinos = destinosVisibles(access).flatMap((d) =>
       d.pestanas.map((p) => ({
         to: p.to,
         label: p.label === d.label ? d.label : `${d.label} · ${p.label}`,
         sinonimos: [p.label, ...(p.sinonimos ?? [])],
       })),
     );
-    const desdeAjustes = ajustesVisibles(access.role).flatMap((g) =>
+    const desdeAjustes = ajustesVisibles(access).flatMap((g) =>
       g.items.map((i) => ({
         to: i.to,
         label: `Ajustes · ${i.label}`,
@@ -149,7 +149,7 @@ export function GlobalSearch({
     return [...desdeDestinos, ...desdeAjustes].filter((p) =>
       vistas.has(p.to) ? false : (vistas.add(p.to), true),
     );
-  }, [access.role]);
+  }, [access]);
 
   // NAV-04: lo escrito y lo que significa ("abono" → Registrar pago, "hora"
   // → Nueva cita, "configuración" → Ajustes). Se busca con cada término y se
@@ -166,7 +166,7 @@ export function GlobalSearch({
   const acciones =
     !soloLectura && !cobrando
       ? unirSinRepetir(
-          terminos.map((t) => accionesRapidas(access.role, t)),
+          terminos.map((t) => accionesRapidas(access, t)),
           (a) => a.id,
         )
       : [];
@@ -174,11 +174,11 @@ export function GlobalSearch({
   const atajos = cobrando
     ? []
     : atajosQueCoinciden(terminos, (permiso) =>
-        hasPermission(access.role, permiso as Parameters<typeof hasPermission>[1]),
+        hasPermission(access, permiso as Parameters<typeof hasPermission>[1]),
       );
 
   const clinicId = access.clinic?.id;
-  const puedeBuscarPacientes = hasPermission(access.role, "patients:view") && Boolean(clinicId);
+  const puedeBuscarPacientes = hasPermission(access, "patients:view") && Boolean(clinicId);
   const buscar = useServerFn(buscarPacientes);
   const buscandoPacientes = puedeBuscarPacientes && q.trim().length >= 2;
   const { data: pacientes = [], isFetching } = useQuery({

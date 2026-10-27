@@ -284,8 +284,8 @@ function Dashboard() {
   const currency = access.clinic?.currency ?? "CLP";
   const hoy = hoyISO(clinicTz);
 
-  const veFinanzas = hasPermission(access.role, "finance:view");
-  const gestionaAgenda = hasPermission(access.role, "agenda:manage");
+  const veFinanzas = hasPermission(access, "finance:view");
+  const gestionaAgenda = hasPermission(access, "agenda:manage");
 
   const fetchPatients = useServerFn(listPatients);
   const fetchAppointments = useServerFn(listAppointments);
@@ -677,7 +677,7 @@ function Dashboard() {
             </h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            {hasPermission(access.role, "patients:manage") && (
+            {hasPermission(access, "patients:manage") && (
               <Link
                 to="/pacientes"
                 search={{

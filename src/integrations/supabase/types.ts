@@ -8173,6 +8173,10 @@ export type Database = {
         Args: { p_cuotas: Json; p_receivable_id: string };
         Returns: undefined;
       };
+      definir_profesion_de_integrante: {
+        Args: { p_member_id: string; p_profession: string };
+        Returns: undefined;
+      };
       emitir_receta: {
         Args: {
           p_allergy_alerts: Json;
