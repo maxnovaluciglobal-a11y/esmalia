@@ -205,6 +205,21 @@ export function detalleDesdeFila(r: {
   };
 }
 
+/** Lo que edita el formulario de la orden (selects: "" = sin elegir). */
+export interface ValorTecnico {
+  shadeGuide: GuiaColor | "";
+  shade: string;
+  material: Material | "";
+  marginType: Margen | "";
+}
+
+export const TECNICO_VACIO: ValorTecnico = {
+  shadeGuide: "",
+  shade: "",
+  material: "",
+  marginType: "",
+};
+
 /** Igual que `detalleDesdeFila`, desde una orden ya mapeada (camelCase). */
 export function detalleDeOrden(o: {
   shadeGuide?: string | null;

@@ -102,19 +102,17 @@ import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
 import { CatalogoLaboratorio } from "@/components/laboratorio/catalogo-laboratorio";
-import {
-  CamposTecnicosOrden,
-  TECNICO_VACIO,
-  type ValorTecnico,
-} from "@/components/laboratorio/campos-tecnicos-orden";
+import { CamposTecnicosOrden } from "@/components/laboratorio/campos-tecnicos-orden";
 import { ChipsDetalleOrden } from "@/components/laboratorio/detalle-orden";
 import { listLabCatalog } from "@/lib/clinic-operations/lab-catalog.functions";
 import {
   GUIA_COLOR_LABELS,
   MARGEN_LABELS,
   MATERIAL_LABELS,
+  TECNICO_VACIO,
   detalleDeOrden,
   precargaDesdeCatalogo,
+  type ValorTecnico,
 } from "@/lib/clinic-operations/lab-orden-detalle";
 
 interface LabSearch {

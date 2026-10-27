@@ -10,21 +10,8 @@ import {
   type GuiaColor,
   type Margen,
   type Material,
+  type ValorTecnico,
 } from "@/lib/clinic-operations/lab-orden-detalle";
-
-export interface ValorTecnico {
-  shadeGuide: GuiaColor | "";
-  shade: string;
-  material: Material | "";
-  marginType: Margen | "";
-}
-
-export const TECNICO_VACIO: ValorTecnico = {
-  shadeGuide: "",
-  shade: "",
-  material: "",
-  marginType: "",
-};
 
 /**
  * Ola 9 · LAB-03/04/05: guía y color VITA, material y margen de la orden.
