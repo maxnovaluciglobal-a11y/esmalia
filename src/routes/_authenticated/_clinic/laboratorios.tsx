@@ -101,6 +101,21 @@ import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { AccionDeshabilitada } from "@/components/accion-deshabilitada";
+import { CatalogoLaboratorio } from "@/components/laboratorio/catalogo-laboratorio";
+import {
+  CamposTecnicosOrden,
+  TECNICO_VACIO,
+  type ValorTecnico,
+} from "@/components/laboratorio/campos-tecnicos-orden";
+import { ChipsDetalleOrden } from "@/components/laboratorio/detalle-orden";
+import { listLabCatalog } from "@/lib/clinic-operations/lab-catalog.functions";
+import {
+  GUIA_COLOR_LABELS,
+  MARGEN_LABELS,
+  MATERIAL_LABELS,
+  detalleDeOrden,
+  precargaDesdeCatalogo,
+} from "@/lib/clinic-operations/lab-orden-detalle";
 
 interface LabSearch {
   estado: string;
@@ -223,16 +238,37 @@ function NuevaOrdenDialog({
   const [sentOn, setSentOn] = useState(hoyISO(timezone));
   const [dueOn, setDueOn] = useState("");
   const [cost, setCost] = useState<number | null>(null);
+  const [catalogItemId, setCatalogItemId] = useState("");
+  const [tecnico, setTecnico] = useState<ValorTecnico>(TECNICO_VACIO);
   const queryClient = useQueryClient();
   const createFn = useServerFn(createLabOrder);
   const fetchLabs = useServerFn(listLabs);
   const fetchPatients = useServerFn(listPatients);
+  const fetchCatalog = useServerFn(listLabCatalog);
 
   const { data: labs = [] } = useQuery({
     queryKey: ["labs", clinicId],
     enabled: open,
     queryFn: () => fetchLabs({ data: { clinicId } }),
   });
+  // LAB-07: catálogo del laboratorio elegido (solo activos).
+  const { data: catalogo = [] } = useQuery({
+    queryKey: ["lab-catalog", clinicId, "activos"],
+    enabled: open,
+    queryFn: () => fetchCatalog({ data: { clinicId } }),
+  });
+  const trabajosDelLab = catalogo.filter((i) => i.labId === labId);
+
+  const elegirTrabajo = (id: string) => {
+    setCatalogItemId(id);
+    const item = trabajosDelLab.find((i) => i.id === id);
+    if (!item) return;
+    const p = precargaDesdeCatalogo(item, sentOn);
+    setDescription(p.descripcion);
+    if (p.costoCents !== null) setCost(p.costoCents);
+    if (p.material) setTecnico((t) => ({ ...t, material: p.material ?? "" }));
+    if (p.comprometido) setDueOn(p.comprometido);
+  };
   const { data: pacientesRes } = useQuery({
     queryKey: ["patients", clinicId],
     enabled: open,
@@ -257,6 +293,11 @@ function NuevaOrdenDialog({
           sentOn,
           dueOn: dueOn || null,
           costCents: cost,
+          catalogItemId: catalogItemId || null,
+          shadeGuide: tecnico.shadeGuide || null,
+          shade: tecnico.shade || null,
+          material: tecnico.material || null,
+          marginType: tecnico.marginType || null,
         },
       }),
     onSuccess: () => {
@@ -268,6 +309,8 @@ function NuevaOrdenDialog({
       setPiezas("");
       setDueOn("");
       setCost(null);
+      setCatalogItemId("");
+      setTecnico(TECNICO_VACIO);
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
@@ -281,7 +324,7 @@ function NuevaOrdenDialog({
           <Plus className="size-4" /> Nueva orden
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-h-[92dvh] max-w-lg overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Nueva orden de laboratorio</DialogTitle>
           <DialogDescription>
@@ -309,7 +352,10 @@ function NuevaOrdenDialog({
               <select
                 id="o-lab"
                 value={labId}
-                onChange={(e) => setLabId(e.target.value)}
+                onChange={(e) => {
+                  setLabId(e.target.value);
+                  setCatalogItemId("");
+                }}
                 className={INPUT}
               >
                 <option value="">Sin especificar</option>
@@ -332,6 +378,30 @@ function NuevaOrdenDialog({
             </div>
           </div>
 
+          {trabajosDelLab.length > 0 && (
+            <div className="space-y-1.5">
+              <Label htmlFor={`${fid}-catalogo`}>Del catálogo del laboratorio</Label>
+              <select
+                id={`${fid}-catalogo`}
+                value={catalogItemId}
+                onChange={(e) => elegirTrabajo(e.target.value)}
+                className={INPUT}
+              >
+                <option value="">Escribirlo a mano</option>
+                {trabajosDelLab.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.name}
+                    {i.typicalDays !== null ? ` · ${i.typicalDays} días` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Completa el trabajo, el costo, el material y la fecha comprometida (envío + plazo
+                típico). Puedes cambiarlos.
+              </p>
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label htmlFor="o-desc">Trabajo</Label>
             <input
@@ -343,7 +413,7 @@ function NuevaOrdenDialog({
             />
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label htmlFor="o-sent">Enviado</Label>
               <input
@@ -364,7 +434,7 @@ function NuevaOrdenDialog({
                 className={INPUT}
               />
             </div>
-            <div className="space-y-1.5">
+            <div className="col-span-2 space-y-1.5 sm:col-span-1">
               <Label htmlFor="o-cost">Costo</Label>
               <MoneyInput
                 id="o-cost"
@@ -376,6 +446,13 @@ function NuevaOrdenDialog({
               />
             </div>
           </div>
+
+          <CamposTecnicosOrden
+            idBase={fid}
+            valor={tecnico}
+            onChange={setTecnico}
+            claseInput={INPUT}
+          />
         </div>
 
         <DialogFooter>
@@ -578,6 +655,27 @@ function LaboratoriosPage() {
     { header: "Laboratorio", value: (o) => o.labNameSnapshot },
     { header: "Trabajo", value: (o) => o.description },
     { header: "Piezas", value: (o) => o.toothNumbers?.join(" ") ?? null },
+    {
+      header: "Color",
+      value: (o) => {
+        const d = detalleDeOrden(o);
+        return d.shade && d.shadeGuide ? `${d.shade} (${GUIA_COLOR_LABELS[d.shadeGuide]})` : null;
+      },
+    },
+    {
+      header: "Material",
+      value: (o) => {
+        const m = detalleDeOrden(o).material;
+        return m ? MATERIAL_LABELS[m] : null;
+      },
+    },
+    {
+      header: "Margen",
+      value: (o) => {
+        const m = detalleDeOrden(o).marginType;
+        return m ? MARGEN_LABELS[m] : null;
+      },
+    },
     { header: "Estado", value: (o) => LAB_ORDER_STATUS_LABELS[o.status] },
     { header: "Comprometido", value: (o) => fechaPlanilla(o.dueOn, timezone) },
     { header: "Recibido", value: (o) => fechaPlanilla(o.receivedOn, timezone) },
@@ -822,6 +920,15 @@ function LaboratoriosPage() {
                             · {o.labNameSnapshot ?? "Sin laboratorio"}
                           </span>
                         </span>
+                        <ChipsDetalleOrden
+                          detalle={detalleDeOrden(o)}
+                          catalogName={
+                            o.catalogNameSnapshot && o.catalogNameSnapshot !== o.description
+                              ? o.catalogNameSnapshot
+                              : null
+                          }
+                          className="mt-1.5"
+                        />
                       </td>
                       <td className={celda(1, 6, "hidden text-muted-foreground lg:table-cell")}>
                         {o.labNameSnapshot ?? "—"}
@@ -909,6 +1016,8 @@ function LaboratoriosPage() {
               </TablaAPlus>
             )}
           </section>
+
+          <CatalogoLaboratorio clinicId={clinicId!} currency={currency} role={access.role} />
 
           <LabPortalSection clinicId={clinicId!} role={access.role} />
         </div>
