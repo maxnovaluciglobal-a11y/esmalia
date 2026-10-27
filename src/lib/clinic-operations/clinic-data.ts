@@ -1,3 +1,4 @@
+import type { InfoGrupal } from "@/lib/clinic-operations/citas-grupales";
 import { fecha, fechaLarga } from "@/lib/formato-fecha";
 
 export type EstadoCita = "confirmada" | "en-sala" | "ausente" | "finalizada" | "tentativa";
@@ -40,6 +41,12 @@ export interface Cita {
   boxId?: string | null;
   /** Nombre del box al agendarse (snapshot, regla 10). */
   box?: string | null;
+  /**
+   * AGE-22: cita grupal (varios pacientes, un solo profesional y box). En una
+   * grupal `paciente` es el nombre de la actividad y `pacienteId` el titular
+   * (primer inscrito vigente); los inscritos están en `pacienteIds`.
+   */
+  grupal?: InfoGrupal;
 }
 
 export interface Profesional {

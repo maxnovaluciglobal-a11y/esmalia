@@ -1,10 +1,11 @@
 import type { CSSProperties } from "react";
-import { CalendarX2, CloudOff, Flag, UserCheck } from "lucide-react";
+import { CalendarX2, CloudOff, Flag, UserCheck, Users } from "lucide-react";
 
 import { ASPECTO_ESTADO } from "@/components/agenda-estado";
 import { horaDeMinutos } from "@/components/agenda-hueco";
 import { AllergyAlertIcon } from "@/components/medical-history-card";
 import type { Cita } from "@/lib/clinic-operations/clinic-data";
+import { etiquetaCupo } from "@/lib/clinic-operations/citas-grupales";
 import { colorProfesional } from "@/lib/clinic-operations/color-profesional";
 import { cn } from "@/lib/utils";
 
@@ -72,6 +73,7 @@ export function ContenidoBloque({
       {choque && <CalendarX2 aria-hidden className="size-3 shrink-0 text-warning" />}
       {enCola && <CloudOff aria-hidden className="size-3 shrink-0" />}
       {c.prioridad && <Flag aria-hidden className="size-3 shrink-0 text-warning" />}
+      {c.grupal && <Users aria-hidden className="size-3 shrink-0" strokeWidth={2.4} />}
       {c.pacienteConfirmo && (
         <UserCheck aria-hidden className="size-3 shrink-0 text-success" strokeWidth={2.4} />
       )}
@@ -96,7 +98,7 @@ export function ContenidoBloque({
       </span>
       <span className="flex min-w-0 items-center gap-1 font-semibold @[5.5rem]:mt-px @[5.5rem]:text-[13px]">
         <span className={cn("truncate", a.tachado && "line-through")}>
-          <span className="@[5.5rem]:hidden">{apellidoDe(c.paciente)}</span>
+          <span className="@[5.5rem]:hidden">{c.grupal ? c.paciente : apellidoDe(c.paciente)}</span>
           <span className="hidden @[5.5rem]:inline">{c.paciente}</span>
         </span>
         <span className="hidden @[5.5rem]:inline-flex">
@@ -122,7 +124,10 @@ export function ContenidoBloque({
             c.estado === "en-sala" && "size-2 fill-current",
           )}
         />
-        <span className="truncate">{c.tratamiento}</span>
+        <span className="truncate">
+          {c.grupal && <span className="cifra">{etiquetaCupo(c.grupal, true)} · </span>}
+          {c.tratamiento}
+        </span>
       </span>
       <span className="mt-0.5 flex gap-0.5 @[5.5rem]:hidden">
         <AllergyAlertIcon allergies={allergies} />

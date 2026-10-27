@@ -31,8 +31,13 @@ export function claseEstadoBadge(estado: EstadoCita) {
  * acciones: "Cita de Ana Pérez a las 09:30, confirmada". La hora es de pared
  * (minutos desde HORA_INICIO, igual que el resto de la grilla).
  */
-export function etiquetaBloqueCita(cita: Pick<Cita, "paciente" | "inicio" | "estado">): string {
-  return `Cita de ${cita.paciente} a las ${horaDeMinutos(cita.inicio)}, ${etiquetaEstado[
+export function etiquetaBloqueCita(
+  cita: Pick<Cita, "paciente" | "inicio" | "estado"> & Partial<Pick<Cita, "grupal">>,
+): string {
+  const quien = cita.grupal
+    ? `grupal «${cita.paciente}» (${cita.grupal.inscritos} de ${cita.grupal.cupo} inscritos)`
+    : `de ${cita.paciente}`;
+  return `Cita ${quien} a las ${horaDeMinutos(cita.inicio)}, ${etiquetaEstado[
     cita.estado
   ].toLowerCase()}`;
 }
