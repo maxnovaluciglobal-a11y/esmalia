@@ -1889,6 +1889,8 @@ export type Database = {
           method_name_snapshot: string | null;
           notes: string | null;
           payment_method_id: string | null;
+          recurring_expense_id: string | null;
+          recurring_period: string | null;
           supplier: string | null;
           updated_at: string;
         };
@@ -1906,6 +1908,8 @@ export type Database = {
           method_name_snapshot?: string | null;
           notes?: string | null;
           payment_method_id?: string | null;
+          recurring_expense_id?: string | null;
+          recurring_period?: string | null;
           supplier?: string | null;
           updated_at?: string;
         };
@@ -1923,6 +1927,8 @@ export type Database = {
           method_name_snapshot?: string | null;
           notes?: string | null;
           payment_method_id?: string | null;
+          recurring_expense_id?: string | null;
+          recurring_period?: string | null;
           supplier?: string | null;
           updated_at?: string;
         };
@@ -2960,6 +2966,123 @@ export type Database = {
         };
         Relationships: [];
       };
+      membership_charges: {
+        Row: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          currency: string;
+          id: string;
+          membership_id: string;
+          method_name_snapshot: string | null;
+          paid_at: string | null;
+          paid_by: string | null;
+          patient_id: string;
+          payment_method_id: string | null;
+          period_end: string;
+          period_start: string;
+          reference: string | null;
+          status: string;
+          updated_at: string;
+          void_reason: string | null;
+          voided_at: string | null;
+          voided_by: string | null;
+        };
+        Insert: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          membership_id: string;
+          method_name_snapshot?: string | null;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          patient_id: string;
+          payment_method_id?: string | null;
+          period_end: string;
+          period_start: string;
+          reference?: string | null;
+          status?: string;
+          updated_at?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Update: {
+          amount_cents?: number;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          currency?: string;
+          id?: string;
+          membership_id?: string;
+          method_name_snapshot?: string | null;
+          paid_at?: string | null;
+          paid_by?: string | null;
+          patient_id?: string;
+          payment_method_id?: string | null;
+          period_end?: string;
+          period_start?: string;
+          reference?: string | null;
+          status?: string;
+          updated_at?: string;
+          void_reason?: string | null;
+          voided_at?: string | null;
+          voided_by?: string | null;
+        };
+        Relationships: [];
+      };
+      membership_plans: {
+        Row: {
+          active: boolean;
+          benefits: string[];
+          billing_period: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          description: string | null;
+          fee_cents: number;
+          id: string;
+          name: string;
+          treatment_discount_percent: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          benefits?: string[];
+          billing_period?: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          fee_cents: number;
+          id?: string;
+          name: string;
+          treatment_discount_percent?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          benefits?: string[];
+          billing_period?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          description?: string | null;
+          fee_cents?: number;
+          id?: string;
+          name?: string;
+          treatment_discount_percent?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       message_templates: {
         Row: {
           body: string;
@@ -3818,6 +3941,102 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      partner_companies: {
+        Row: {
+          active: boolean;
+          clinic_id: string;
+          contact_email: string | null;
+          contact_name: string | null;
+          contact_phone: string | null;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          discount_cents: number | null;
+          discount_kind: string;
+          discount_percent: number | null;
+          id: string;
+          name: string;
+          notes: string | null;
+          payroll_deduction: boolean;
+          tax_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          clinic_id: string;
+          contact_email?: string | null;
+          contact_name?: string | null;
+          contact_phone?: string | null;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          discount_cents?: number | null;
+          discount_kind?: string;
+          discount_percent?: number | null;
+          id?: string;
+          name: string;
+          notes?: string | null;
+          payroll_deduction?: boolean;
+          tax_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          clinic_id?: string;
+          contact_email?: string | null;
+          contact_name?: string | null;
+          contact_phone?: string | null;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          discount_cents?: number | null;
+          discount_kind?: string;
+          discount_percent?: number | null;
+          id?: string;
+          name?: string;
+          notes?: string | null;
+          payroll_deduction?: boolean;
+          tax_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      partner_company_patients: {
+        Row: {
+          clinic_id: string;
+          company_id: string;
+          created_at: string;
+          created_by: string;
+          employee_code: string | null;
+          id: string;
+          patient_id: string;
+          since: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          company_id: string;
+          created_at?: string;
+          created_by?: string;
+          employee_code?: string | null;
+          id?: string;
+          patient_id: string;
+          since?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          company_id?: string;
+          created_at?: string;
+          created_by?: string;
+          employee_code?: string | null;
+          id?: string;
+          patient_id?: string;
+          since?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       patient_consents: {
         Row: {
@@ -4748,6 +4967,66 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      patient_memberships: {
+        Row: {
+          billing_period: string;
+          cancelled_at: string | null;
+          cancelled_by: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          ends_on: string | null;
+          fee_cents: number;
+          id: string;
+          notes: string | null;
+          patient_id: string;
+          plan_id: string | null;
+          plan_name_snapshot: string;
+          starts_on: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          billing_period?: string;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          ends_on?: string | null;
+          fee_cents?: number;
+          id?: string;
+          notes?: string | null;
+          patient_id: string;
+          plan_id?: string | null;
+          plan_name_snapshot?: string;
+          starts_on: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          billing_period?: string;
+          cancelled_at?: string | null;
+          cancelled_by?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          ends_on?: string | null;
+          fee_cents?: number;
+          id?: string;
+          notes?: string | null;
+          patient_id?: string;
+          plan_id?: string | null;
+          plan_name_snapshot?: string;
+          starts_on?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       patient_notification_settings: {
         Row: {
@@ -5907,6 +6186,48 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      payment_receipts: {
+        Row: {
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          doc_type: string;
+          folio: string;
+          id: string;
+          issued_on: string;
+          issuer: string;
+          notes: string | null;
+          payment_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          doc_type: string;
+          folio: string;
+          id?: string;
+          issued_on: string;
+          issuer?: string;
+          notes?: string | null;
+          payment_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          doc_type?: string;
+          folio?: string;
+          id?: string;
+          issued_on?: string;
+          issuer?: string;
+          notes?: string | null;
+          payment_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       payments: {
         Row: {
@@ -7261,6 +7582,66 @@ export type Database = {
           },
         ];
       };
+      recurring_expenses: {
+        Row: {
+          active: boolean;
+          amount_cents: number;
+          branch_id: string | null;
+          category: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          day_of_month: number;
+          description: string;
+          ends_on: string | null;
+          id: string;
+          notes: string | null;
+          payment_method_id: string | null;
+          starts_on: string;
+          supplier: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          amount_cents: number;
+          branch_id?: string | null;
+          category: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          day_of_month?: number;
+          description: string;
+          ends_on?: string | null;
+          id?: string;
+          notes?: string | null;
+          payment_method_id?: string | null;
+          starts_on: string;
+          supplier?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          amount_cents?: number;
+          branch_id?: string | null;
+          category?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          day_of_month?: number;
+          description?: string;
+          ends_on?: string | null;
+          id?: string;
+          notes?: string | null;
+          payment_method_id?: string | null;
+          starts_on?: string;
+          supplier?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       security_incident_updates: {
         Row: {
           affected_subjects_estimate: number | null;
@@ -8111,6 +8492,10 @@ export type Database = {
           version: number;
         }[];
       };
+      confirmar_gastos_fijos: {
+        Args: { p_clinic_id: string; p_items: Json; p_periodo: string };
+        Returns: number;
+      };
       contar_notas_restringidas_ocultas: {
         Args: { p_clinic_id: string; p_patient_refs: string[] };
         Returns: number;
@@ -8139,6 +8524,17 @@ export type Database = {
         Args: { p_comment: string; p_score: number; p_token_hash: string };
         Returns: Json;
       };
+      estado_cuenta_empresa: {
+        Args: { p_clinic_id: string; p_company_id: string; p_desde: string; p_hasta: string };
+        Returns: {
+          employee_code: string | null;
+          full_name: string;
+          pagado_cents: number;
+          patient_id: string;
+          realizado_cents: number;
+          saldo_cents: number;
+        }[];
+      };
       extender_prueba_de_la_clinica: {
         Args: {
           p_actor_email: string;
@@ -8148,6 +8544,40 @@ export type Database = {
           p_motivo?: string;
         };
         Returns: string;
+      };
+      finanzas_por_cobrar: {
+        Args: { p_clinic_id: string };
+        Returns: {
+          cuotas_pendientes: number;
+          cuotas_pendientes_cents: number;
+          pacientes_con_saldo: number;
+          saldo_pacientes_cents: number;
+        }[];
+      };
+      finanzas_por_sucursal: {
+        Args: { p_clinic_id: string; p_desde: string; p_hasta: string };
+        Returns: {
+          branch_id: string | null;
+          cobrado_cents: number;
+          cuotas_cobradas: number;
+          cuotas_cobradas_cents: number;
+          gastos: number;
+          gastos_cents: number;
+          pagos: number;
+          realizado_cents: number;
+        }[];
+      };
+      finanzas_venta_real: {
+        Args: { p_clinic_id: string; p_desde: string; p_hasta: string };
+        Returns: {
+          cobrado_cents: number;
+          presupuestado_cents: number;
+          presupuestos: number;
+          professional_id: string | null;
+          realizado_cents: number;
+          realizado_items: number;
+          realizado_paciente_cents: number;
+        }[];
       };
       firma_es_de_mi_profesional: { Args: { _name: string }; Returns: boolean };
       firma_remota_abrir: {
@@ -8215,6 +8645,16 @@ export type Database = {
       formulario_previo_revisar: {
         Args: { p_form_id: string; p_resultado: string };
         Returns: undefined;
+      };
+      generar_cuotas_de_membresia: {
+        Args: { p_clinic_id: string; p_confirmar?: boolean; p_periodo: string };
+        Returns: {
+          amount_cents: number;
+          membership_id: string;
+          patient_id: string;
+          period_end: string;
+          period_start: string;
+        }[];
       };
       guardar_nota_clinica: {
         Args: {
