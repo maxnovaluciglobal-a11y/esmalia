@@ -117,6 +117,9 @@ export const Route = createFileRoute("/api/demo-reset")({
         ).sembrarCajaYComisionesDeLaDemo(supabaseAdmin);
         // Ola 11 · A: informes guardados de ejemplo en el constructor (nunca lanza).
         await (await import("@/lib/demo/informes.server")).sembrarInformesDeLaDemo(supabaseAdmin);
+        // Ola 11 · B: una reserva en línea por aceptar y el aviso de stock bajo
+        // (REC-10) pasando por el trigger real (nunca lanza).
+        await (await import("@/lib/demo/panel.server")).sembrarPanelDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },

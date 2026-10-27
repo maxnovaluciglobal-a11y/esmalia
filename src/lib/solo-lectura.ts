@@ -110,6 +110,7 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
 
   // Estado personal del usuario, no datos de la clínica.
   markNotificationsRead: "Marca avisos como leídos: estado personal del usuario.",
+  markNotificationUnread: "Vuelve un aviso a no leído (NAV-11): estado personal del usuario.",
   updateMyNotificationPreferences: "Preferencias personales de avisos.",
   enviarCodigoPorCorreo:
     "Seguridad de la cuenta (SEG-01): el código del segundo paso; sin él no se entra ni a ver.",

@@ -9129,6 +9129,7 @@ export type Database = {
         Args: { p_clinic_id: string };
         Returns: { has_future: boolean; last_visit_at: string; patient_id: string }[];
       };
+      panel_de_hoy: { Args: { p_clinic_id: string }; Returns: Json };
       patient_appointment_counters: {
         Args: { p_clinic_id: string; p_patient_id: string };
         Returns: {

@@ -112,6 +112,7 @@ import { Route as AuthenticatedClinicMiAgendaRouteImport } from './routes/_authe
 import { Route as AuthenticatedClinicMiDesempenoRouteImport } from './routes/_authenticated/_clinic/mi-desempeno'
 import { Route as AuthenticatedClinicMigracionRouteImport } from './routes/_authenticated/_clinic/migracion'
 import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_authenticated/_clinic/morosidad'
+import { Route as AuthenticatedClinicNotificacionesRouteImport } from './routes/_authenticated/_clinic/notificaciones'
 import { Route as AuthenticatedClinicNotificacionesAPacientesRouteImport } from './routes/_authenticated/_clinic/notificaciones-a-pacientes'
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
@@ -697,6 +698,12 @@ const AuthenticatedClinicMorosidadRoute =
     path: '/morosidad',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicNotificacionesRoute =
+  AuthenticatedClinicNotificacionesRouteImport.update({
+    id: '/notificaciones',
+    path: '/notificaciones',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicNotificacionesAPacientesRoute =
   AuthenticatedClinicNotificacionesAPacientesRouteImport.update({
     id: '/notificaciones-a-pacientes',
@@ -981,6 +988,7 @@ export interface FileRoutesByFullPath {
   '/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/notificaciones': typeof AuthenticatedClinicNotificacionesRoute
   '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
@@ -1113,6 +1121,7 @@ export interface FileRoutesByTo {
   '/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/notificaciones': typeof AuthenticatedClinicNotificacionesRoute
   '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
@@ -1250,6 +1259,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/_authenticated/_clinic/migracion': typeof AuthenticatedClinicMigracionRoute
   '/_authenticated/_clinic/morosidad': typeof AuthenticatedClinicMorosidadRoute
+  '/_authenticated/_clinic/notificaciones': typeof AuthenticatedClinicNotificacionesRoute
   '/_authenticated/_clinic/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
@@ -1386,6 +1396,7 @@ export interface FileRouteTypes {
     | '/mi-desempeno'
     | '/migracion'
     | '/morosidad'
+    | '/notificaciones'
     | '/notificaciones-a-pacientes'
     | '/ortodoncia'
     | '/permisos'
@@ -1518,6 +1529,7 @@ export interface FileRouteTypes {
     | '/mi-desempeno'
     | '/migracion'
     | '/morosidad'
+    | '/notificaciones'
     | '/notificaciones-a-pacientes'
     | '/ortodoncia'
     | '/permisos'
@@ -1654,6 +1666,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/mi-desempeno'
     | '/_authenticated/_clinic/migracion'
     | '/_authenticated/_clinic/morosidad'
+    | '/_authenticated/_clinic/notificaciones'
     | '/_authenticated/_clinic/notificaciones-a-pacientes'
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
@@ -2468,6 +2481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicMorosidadRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/notificaciones': {
+      id: '/_authenticated/_clinic/notificaciones'
+      path: '/notificaciones'
+      fullPath: '/notificaciones'
+      preLoaderRoute: typeof AuthenticatedClinicNotificacionesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/notificaciones-a-pacientes': {
       id: '/_authenticated/_clinic/notificaciones-a-pacientes'
       path: '/notificaciones-a-pacientes'
@@ -2725,6 +2745,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicMiDesempenoRoute: typeof AuthenticatedClinicMiDesempenoRoute
   AuthenticatedClinicMigracionRoute: typeof AuthenticatedClinicMigracionRoute
   AuthenticatedClinicMorosidadRoute: typeof AuthenticatedClinicMorosidadRoute
+  AuthenticatedClinicNotificacionesRoute: typeof AuthenticatedClinicNotificacionesRoute
   AuthenticatedClinicNotificacionesAPacientesRoute: typeof AuthenticatedClinicNotificacionesAPacientesRoute
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
@@ -2800,6 +2821,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicMiDesempenoRoute: AuthenticatedClinicMiDesempenoRoute,
     AuthenticatedClinicMigracionRoute: AuthenticatedClinicMigracionRoute,
     AuthenticatedClinicMorosidadRoute: AuthenticatedClinicMorosidadRoute,
+    AuthenticatedClinicNotificacionesRoute:
+      AuthenticatedClinicNotificacionesRoute,
     AuthenticatedClinicNotificacionesAPacientesRoute:
       AuthenticatedClinicNotificacionesAPacientesRoute,
     AuthenticatedClinicOrtodonciaRoute: AuthenticatedClinicOrtodonciaRoute,
