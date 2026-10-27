@@ -113,7 +113,10 @@ describe("link firmado de la cita (contrato enlaceGestionCita)", () => {
       JSON.stringify({ v: 1, p: "mi-cita", a: CITA, c: CITA, e: 9_999_999_999 }),
     ).toString("base64url");
     expect(verificarTokenGestionCita(`${otro}.${firma}`).ok).toBe(false);
-    expect(verificarTokenGestionCita(`${cuerpo}.${firma.slice(0, -1)}A`).ok).toBe(false);
+    // Se cambia el PRIMER carácter: el último de un base64url de 32 bytes lleva
+    // bits de relleno y cambiarlo puede no alterar la firma (test intermitente).
+    const adulterada = `${firma[0] === "A" ? "B" : "A"}${firma.slice(1)}`;
+    expect(verificarTokenGestionCita(`${cuerpo}.${adulterada}`).ok).toBe(false);
     const vencido = tokenGestionCita({
       appointmentId: CITA,
       clinicId: CLINICA,
