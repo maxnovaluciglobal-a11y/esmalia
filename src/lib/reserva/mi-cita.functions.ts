@@ -24,7 +24,7 @@ import { mensajeDeReserva } from "@/lib/reserva/reserva";
  * esto pone `status = 'confirmada'`. Reagendar deja la cita `tentativa`.
  */
 
-const TokenSchema = z.string().min(20).max(500);
+const TokenSchema = z.string().min(20, "Link inválido.").max(500, "Link inválido.");
 
 async function admin() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
