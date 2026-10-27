@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { Check, CircleSlash, Minus } from "lucide-react";
 
 import {
@@ -52,10 +53,18 @@ export function PermissionsMatrix() {
     <div className="space-y-10">
       <section className="space-y-4">
         <div>
-          <h2 className="font-display text-xl font-semibold">Acceso por módulo</h2>
+          <h2 className="font-display text-2xl font-medium">Acceso por módulo</h2>
           <p className="text-sm text-muted-foreground">
             Qué secciones de Esmalia puede abrir cada rol. Las reglas se aplican también en el
             servidor. En el celular, desliza la tabla hacia los lados para ver todos los roles.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            A una persona puntual se le puede dar o quitar un permiso desde{" "}
+            <Link to="/equipo" className="font-semibold text-foreground underline">
+              Equipo
+            </Link>
+            . La historia clínica nunca se abre a recepción, contabilidad, coordinación ni
+            laboratorio, y los pagos nunca a asistentes.
           </p>
         </div>
 
@@ -63,8 +72,8 @@ export function PermissionsMatrix() {
             `position: absolute` y, sin un ancestro posicionado DENTRO del
             contenedor con scroll, se salían de él y ensanchaban la página
             entera en el celular (UX-06). */}
-        <div className="card-clinical relative max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+        <div className="relative max-w-full rounded-[14px] border border-hairline bg-card overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[860px] border-collapse text-sm">
             <caption className="sr-only">Permisos de módulos por rol de clínica</caption>
             <thead>
               <tr className="border-b border-hairline">
@@ -109,7 +118,7 @@ export function PermissionsMatrix() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="font-display text-xl font-semibold">Notas clínicas por estado</h2>
+          <h2 className="font-display text-2xl font-medium">Notas clínicas por estado</h2>
           <p className="text-sm text-muted-foreground">
             Reglas que aplica la base de datos según el estado de la nota. “Condicional” significa
             que depende de la relación con la nota (autor, revisor o solicitante).
@@ -135,8 +144,8 @@ export function PermissionsMatrix() {
           ))}
         </div>
 
-        <div className="card-clinical relative max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+        <div className="relative max-w-full rounded-[14px] border border-hairline bg-card overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-[860px] border-collapse text-sm">
             <caption className="sr-only">
               Acciones permitidas sobre una nota en estado {NOTE_STATE_LABELS[estado]}
             </caption>
