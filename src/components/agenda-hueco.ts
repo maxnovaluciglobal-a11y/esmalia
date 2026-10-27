@@ -113,6 +113,50 @@ export function huecosLibres(
   return libres;
 }
 
+/** Un hueco más corto que esto no se marca: no entra una atención real. */
+export const HUECO_SIGNIFICATIVO_MIN = 30;
+
+/**
+ * Huecos "significativos" de un carril (A+): el tiempo atendido del día
+ * (horario declarado + aperturas) que no tiene cita, no cae en un bloqueo ni
+ * con la sucursal cerrada, y dura al menos `minimo`. Sin horario declarado no
+ * hay huecos: no se puede saber qué está libre (regla 11, no inventar).
+ *
+ * `desdeMin` recorta lo que ya pasó (hoy): un hueco a las 9:00 visto a las
+ * 11:40 no sirve para nada.
+ */
+export function huecosSignificativos({
+  atendido,
+  citas,
+  noAgendables = [],
+  desdeMin,
+  minimo = HUECO_SIGNIFICATIVO_MIN,
+}: {
+  atendido: readonly { inicio: number; fin: number }[];
+  citas: readonly { inicio: number; duracion: number }[];
+  noAgendables?: readonly { inicio: number; fin: number }[];
+  desdeMin?: number | null;
+  minimo?: number;
+}): { inicio: number; fin: number }[] {
+  const ocupado = [
+    ...citas.map((c) => ({ inicio: c.inicio, fin: c.inicio + c.duracion })),
+    ...noAgendables,
+    ...(desdeMin != null ? [{ inicio: -24 * 60, fin: desdeMin }] : []),
+  ].sort((a, b) => a.inicio - b.inicio);
+  const libres: { inicio: number; fin: number }[] = [];
+  for (const t of [...atendido].sort((a, b) => a.inicio - b.inicio)) {
+    let cursor = t.inicio;
+    for (const o of ocupado) {
+      if (o.fin <= cursor || o.inicio >= t.fin) continue;
+      if (o.inicio > cursor) libres.push({ inicio: cursor, fin: Math.min(o.inicio, t.fin) });
+      cursor = Math.max(cursor, o.fin);
+      if (cursor >= t.fin) break;
+    }
+    if (cursor < t.fin) libres.push({ inicio: cursor, fin: t.fin });
+  }
+  return libres.filter((l) => l.fin - l.inicio >= minimo);
+}
+
 export function etiquetaHueco(nombreProfesional: string, minutos: number): string {
   return `Agendar con ${nombreProfesional} a las ${horaDeMinutos(minutos)}`;
 }

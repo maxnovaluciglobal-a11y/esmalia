@@ -126,7 +126,8 @@ export const HORA_INICIO = 8;
 /** Jornada base de la grilla (08:00 a 20:00). Si una cita termina más tarde,
  * la grilla se alarga hasta cubrirla (`horasDeGrilla` en agenda-hueco.ts). */
 export const HORAS_VISIBLES = 12;
-export const PIXELES_POR_MINUTO = 1.35;
+/** 76 px por hora: la "calma de recepción" del rediseño A+ (prototipo del 19-oct). */
+export const PIXELES_POR_MINUTO = 76 / 60;
 
 export const etiquetaEstado: Record<EstadoCita, string> = {
   confirmada: "Confirmada",
