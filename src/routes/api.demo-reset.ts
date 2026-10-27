@@ -98,6 +98,11 @@ export const Route = createFileRoute("/api/demo-reset")({
         await ola9.sembrarOrtodonciaDeLaDemo(supabaseAdmin);
         await ola9.sembrarFichaClinicaDeLaDemo(supabaseAdmin);
 
+        // Ola 8 · frente B: controles, tareas, plantillas y una campaña en borrador.
+        await (
+          await import("@/lib/demo/seguimiento.server")
+        ).sembrarSeguimientoDeLaDemo(supabaseAdmin);
+
         return new Response("ok", { status: 200 });
       },
     },
