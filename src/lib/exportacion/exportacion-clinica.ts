@@ -2652,6 +2652,8 @@ export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
   clinic_counters:
     "Contadores internos de los correlativos; los números ya salen en cada presupuesto, receta o documento.",
   email_sandbox_config: "Configuración técnica del envío de correos de prueba de Esmalia.",
+  feedback_reports:
+    "Problemas y sugerencias que el equipo le mandó a Esmalia desde la app; son mensajes para Esmalia, la clínica no los lee y pueden traer capturas de pantalla.",
   lifecycle_emails: "Correos que Esmalia le manda al equipo de la clínica (bienvenida, avisos).",
   online_booking_verifications:
     "Códigos de verificación de la reserva en línea (solo su huella) y conteos antiabuso; duran 10 minutos y no son datos clínicos.",

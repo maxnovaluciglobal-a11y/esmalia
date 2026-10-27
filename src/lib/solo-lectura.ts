@@ -112,6 +112,10 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   markNotificationsRead: "Marca avisos como leídos: estado personal del usuario.",
   markNotificationUnread: "Vuelve un aviso a no leído (NAV-11): estado personal del usuario.",
   updateMyNotificationPreferences: "Preferencias personales de avisos.",
+  marcarProgresoDeAyuda:
+    "Recorridos, lecciones y novedades vistas (Ola 12): estado personal, no datos de la clínica.",
+  enviarReporte:
+    "Escribirle al equipo de Esmalia (ONB-09): pedir ayuda tiene que funcionar también con el pago atrasado.",
   enviarCodigoPorCorreo:
     "Seguridad de la cuenta (SEG-01): el código del segundo paso; sin él no se entra ni a ver.",
   verificarCodigoPorCorreo:
@@ -127,6 +131,8 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   completeClinicSetup: "Alta de una clínica nueva (todavía no tiene suscripción).",
   marcarLlamadaHecha: "Herramienta del staff de Esmalia (/admin), no del equipo de la clínica.",
   extenderPrueba: "Herramienta del staff de Esmalia (/admin), no del equipo de la clínica.",
+  cambiarEstadoReporteStaff:
+    "Herramienta del staff de Esmalia (/admin/reportes), no del equipo de la clínica.",
 
   // Sin sesión del equipo: los usa alguien de afuera de la clínica.
   openPortalSession: "Portal del paciente (sin login): abrir la sesión.",

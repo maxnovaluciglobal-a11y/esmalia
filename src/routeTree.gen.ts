@@ -134,16 +134,21 @@ import { Route as AuthenticatedClinicTratamientosRouteImport } from './routes/_a
 import { Route as AuthenticatedClinicWhatsappRouteImport } from './routes/_authenticated/_clinic/whatsapp'
 import { Route as AuthenticatedAdminClinicasRouteImport } from './routes/_authenticated/admin.clinicas'
 import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authenticated/admin.leads'
+import { Route as AuthenticatedAdminReportesRouteImport } from './routes/_authenticated/admin.reportes'
 import { Route as ApiCorreosBajaRouteImport } from './routes/api.correos.baja'
 import { Route as ApiRecursoSlugRouteImport } from './routes/api.recurso.$slug'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe.webhook'
 import { Route as ReservarSlugProfesionalRouteImport } from './routes/reservar.$slug_.$profesional'
+import { Route as AuthenticatedClinicAyudaIndexRouteImport } from './routes/_authenticated/_clinic/ayuda.index'
+import { Route as AuthenticatedClinicAyudaAcademiaRouteImport } from './routes/_authenticated/_clinic/ayuda.academia'
+import { Route as AuthenticatedClinicAyudaNovedadesRouteImport } from './routes/_authenticated/_clinic/ayuda.novedades'
 import { Route as AuthenticatedClinicDocumentosDocumentoIdRouteImport } from './routes/_authenticated/_clinic/documentos.$documentoId'
 import { Route as AuthenticatedClinicPacientesIndexRouteImport } from './routes/_authenticated/_clinic/pacientes.index'
 import { Route as AuthenticatedClinicPacientesPacienteIdRouteImport } from './routes/_authenticated/_clinic/pacientes.$pacienteId'
 import { Route as AuthenticatedClinicPresupuestosIndexRouteImport } from './routes/_authenticated/_clinic/presupuestos.index'
 import { Route as AuthenticatedClinicPresupuestosPresupuestoIdRouteImport } from './routes/_authenticated/_clinic/presupuestos.$presupuestoId'
 import { Route as AuthenticatedClinicPresupuestosPaquetesRouteImport } from './routes/_authenticated/_clinic/presupuestos.paquetes'
+import { Route as AuthenticatedClinicAyudaPantallaPantallaRouteImport } from './routes/_authenticated/_clinic/ayuda.pantalla.$pantalla'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -829,6 +834,12 @@ const AuthenticatedAdminLeadsRoute = AuthenticatedAdminLeadsRouteImport.update({
   path: '/admin/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminReportesRoute =
+  AuthenticatedAdminReportesRouteImport.update({
+    id: '/admin/reportes',
+    path: '/admin/reportes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiCorreosBajaRoute = ApiCorreosBajaRouteImport.update({
   id: '/api/correos/baja',
   path: '/api/correos/baja',
@@ -849,6 +860,24 @@ const ReservarSlugProfesionalRoute = ReservarSlugProfesionalRouteImport.update({
   path: '/reservar/$slug/$profesional',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedClinicAyudaIndexRoute =
+  AuthenticatedClinicAyudaIndexRouteImport.update({
+    id: '/ayuda/',
+    path: '/ayuda/',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicAyudaAcademiaRoute =
+  AuthenticatedClinicAyudaAcademiaRouteImport.update({
+    id: '/ayuda/academia',
+    path: '/ayuda/academia',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicAyudaNovedadesRoute =
+  AuthenticatedClinicAyudaNovedadesRouteImport.update({
+    id: '/ayuda/novedades',
+    path: '/ayuda/novedades',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicDocumentosDocumentoIdRoute =
   AuthenticatedClinicDocumentosDocumentoIdRouteImport.update({
     id: '/documentos/$documentoId',
@@ -883,6 +912,12 @@ const AuthenticatedClinicPresupuestosPaquetesRoute =
   AuthenticatedClinicPresupuestosPaquetesRouteImport.update({
     id: '/presupuestos/paquetes',
     path: '/presupuestos/paquetes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicAyudaPantallaPantallaRoute =
+  AuthenticatedClinicAyudaPantallaPantallaRouteImport.update({
+    id: '/ayuda/pantalla/$pantalla',
+    path: '/ayuda/pantalla/$pantalla',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
 
@@ -1010,16 +1045,21 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof AuthenticatedClinicWhatsappRoute
   '/admin/clinicas': typeof AuthenticatedAdminClinicasRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/reportes': typeof AuthenticatedAdminReportesRoute
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/reservar/$slug/$profesional': typeof ReservarSlugProfesionalRoute
+  '/ayuda/academia': typeof AuthenticatedClinicAyudaAcademiaRoute
+  '/ayuda/novedades': typeof AuthenticatedClinicAyudaNovedadesRoute
   '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
+  '/ayuda/': typeof AuthenticatedClinicAyudaIndexRoute
   '/pacientes/': typeof AuthenticatedClinicPacientesIndexRoute
   '/presupuestos/': typeof AuthenticatedClinicPresupuestosIndexRoute
+  '/ayuda/pantalla/$pantalla': typeof AuthenticatedClinicAyudaPantallaPantallaRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -1143,16 +1183,21 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof AuthenticatedClinicWhatsappRoute
   '/admin/clinicas': typeof AuthenticatedAdminClinicasRoute
   '/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/admin/reportes': typeof AuthenticatedAdminReportesRoute
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/reservar/$slug/$profesional': typeof ReservarSlugProfesionalRoute
+  '/ayuda/academia': typeof AuthenticatedClinicAyudaAcademiaRoute
+  '/ayuda/novedades': typeof AuthenticatedClinicAyudaNovedadesRoute
   '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
+  '/ayuda': typeof AuthenticatedClinicAyudaIndexRoute
   '/pacientes': typeof AuthenticatedClinicPacientesIndexRoute
   '/presupuestos': typeof AuthenticatedClinicPresupuestosIndexRoute
+  '/ayuda/pantalla/$pantalla': typeof AuthenticatedClinicAyudaPantallaPantallaRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -1281,16 +1326,21 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/whatsapp': typeof AuthenticatedClinicWhatsappRoute
   '/_authenticated/admin/clinicas': typeof AuthenticatedAdminClinicasRoute
   '/_authenticated/admin/leads': typeof AuthenticatedAdminLeadsRoute
+  '/_authenticated/admin/reportes': typeof AuthenticatedAdminReportesRoute
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
   '/reservar/$slug_/$profesional': typeof ReservarSlugProfesionalRoute
+  '/_authenticated/_clinic/ayuda/academia': typeof AuthenticatedClinicAyudaAcademiaRoute
+  '/_authenticated/_clinic/ayuda/novedades': typeof AuthenticatedClinicAyudaNovedadesRoute
   '/_authenticated/_clinic/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/_authenticated/_clinic/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/_authenticated/_clinic/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   '/_authenticated/_clinic/presupuestos/paquetes': typeof AuthenticatedClinicPresupuestosPaquetesRoute
+  '/_authenticated/_clinic/ayuda/': typeof AuthenticatedClinicAyudaIndexRoute
   '/_authenticated/_clinic/pacientes/': typeof AuthenticatedClinicPacientesIndexRoute
   '/_authenticated/_clinic/presupuestos/': typeof AuthenticatedClinicPresupuestosIndexRoute
+  '/_authenticated/_clinic/ayuda/pantalla/$pantalla': typeof AuthenticatedClinicAyudaPantallaPantallaRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1418,16 +1468,21 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/admin/clinicas'
     | '/admin/leads'
+    | '/admin/reportes'
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/reservar/$slug/$profesional'
+    | '/ayuda/academia'
+    | '/ayuda/novedades'
     | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
     | '/presupuestos/paquetes'
+    | '/ayuda/'
     | '/pacientes/'
     | '/presupuestos/'
+    | '/ayuda/pantalla/$pantalla'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1551,16 +1606,21 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/admin/clinicas'
     | '/admin/leads'
+    | '/admin/reportes'
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/reservar/$slug/$profesional'
+    | '/ayuda/academia'
+    | '/ayuda/novedades'
     | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
     | '/presupuestos/paquetes'
+    | '/ayuda'
     | '/pacientes'
     | '/presupuestos'
+    | '/ayuda/pantalla/$pantalla'
   id:
     | '__root__'
     | '/'
@@ -1688,16 +1748,21 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/whatsapp'
     | '/_authenticated/admin/clinicas'
     | '/_authenticated/admin/leads'
+    | '/_authenticated/admin/reportes'
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
     | '/reservar/$slug_/$profesional'
+    | '/_authenticated/_clinic/ayuda/academia'
+    | '/_authenticated/_clinic/ayuda/novedades'
     | '/_authenticated/_clinic/documentos/$documentoId'
     | '/_authenticated/_clinic/pacientes/$pacienteId'
     | '/_authenticated/_clinic/presupuestos/$presupuestoId'
     | '/_authenticated/_clinic/presupuestos/paquetes'
+    | '/_authenticated/_clinic/ayuda/'
     | '/_authenticated/_clinic/pacientes/'
     | '/_authenticated/_clinic/presupuestos/'
+    | '/_authenticated/_clinic/ayuda/pantalla/$pantalla'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -2635,6 +2700,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/reportes': {
+      id: '/_authenticated/admin/reportes'
+      path: '/admin/reportes'
+      fullPath: '/admin/reportes'
+      preLoaderRoute: typeof AuthenticatedAdminReportesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/correos/baja': {
       id: '/api/correos/baja'
       path: '/api/correos/baja'
@@ -2662,6 +2734,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/reservar/$slug/$profesional'
       preLoaderRoute: typeof ReservarSlugProfesionalRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/_clinic/ayuda/': {
+      id: '/_authenticated/_clinic/ayuda/'
+      path: '/ayuda'
+      fullPath: '/ayuda/'
+      preLoaderRoute: typeof AuthenticatedClinicAyudaIndexRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/ayuda/academia': {
+      id: '/_authenticated/_clinic/ayuda/academia'
+      path: '/ayuda/academia'
+      fullPath: '/ayuda/academia'
+      preLoaderRoute: typeof AuthenticatedClinicAyudaAcademiaRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/ayuda/novedades': {
+      id: '/_authenticated/_clinic/ayuda/novedades'
+      path: '/ayuda/novedades'
+      fullPath: '/ayuda/novedades'
+      preLoaderRoute: typeof AuthenticatedClinicAyudaNovedadesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
     }
     '/_authenticated/_clinic/documentos/$documentoId': {
       id: '/_authenticated/_clinic/documentos/$documentoId'
@@ -2703,6 +2796,13 @@ declare module '@tanstack/react-router' {
       path: '/presupuestos/paquetes'
       fullPath: '/presupuestos/paquetes'
       preLoaderRoute: typeof AuthenticatedClinicPresupuestosPaquetesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/ayuda/pantalla/$pantalla': {
+      id: '/_authenticated/_clinic/ayuda/pantalla/$pantalla'
+      path: '/ayuda/pantalla/$pantalla'
+      fullPath: '/ayuda/pantalla/$pantalla'
+      preLoaderRoute: typeof AuthenticatedClinicAyudaPantallaPantallaRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
   }
@@ -2765,12 +2865,16 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicSuscripcionRoute: typeof AuthenticatedClinicSuscripcionRoute
   AuthenticatedClinicTratamientosRoute: typeof AuthenticatedClinicTratamientosRoute
   AuthenticatedClinicWhatsappRoute: typeof AuthenticatedClinicWhatsappRoute
+  AuthenticatedClinicAyudaAcademiaRoute: typeof AuthenticatedClinicAyudaAcademiaRoute
+  AuthenticatedClinicAyudaNovedadesRoute: typeof AuthenticatedClinicAyudaNovedadesRoute
   AuthenticatedClinicDocumentosDocumentoIdRoute: typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   AuthenticatedClinicPacientesPacienteIdRoute: typeof AuthenticatedClinicPacientesPacienteIdRoute
   AuthenticatedClinicPresupuestosPresupuestoIdRoute: typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
   AuthenticatedClinicPresupuestosPaquetesRoute: typeof AuthenticatedClinicPresupuestosPaquetesRoute
+  AuthenticatedClinicAyudaIndexRoute: typeof AuthenticatedClinicAyudaIndexRoute
   AuthenticatedClinicPacientesIndexRoute: typeof AuthenticatedClinicPacientesIndexRoute
   AuthenticatedClinicPresupuestosIndexRoute: typeof AuthenticatedClinicPresupuestosIndexRoute
+  AuthenticatedClinicAyudaPantallaPantallaRoute: typeof AuthenticatedClinicAyudaPantallaPantallaRoute
 }
 
 const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildren =
@@ -2850,6 +2954,10 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicSuscripcionRoute: AuthenticatedClinicSuscripcionRoute,
     AuthenticatedClinicTratamientosRoute: AuthenticatedClinicTratamientosRoute,
     AuthenticatedClinicWhatsappRoute: AuthenticatedClinicWhatsappRoute,
+    AuthenticatedClinicAyudaAcademiaRoute:
+      AuthenticatedClinicAyudaAcademiaRoute,
+    AuthenticatedClinicAyudaNovedadesRoute:
+      AuthenticatedClinicAyudaNovedadesRoute,
     AuthenticatedClinicDocumentosDocumentoIdRoute:
       AuthenticatedClinicDocumentosDocumentoIdRoute,
     AuthenticatedClinicPacientesPacienteIdRoute:
@@ -2858,10 +2966,13 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
       AuthenticatedClinicPresupuestosPresupuestoIdRoute,
     AuthenticatedClinicPresupuestosPaquetesRoute:
       AuthenticatedClinicPresupuestosPaquetesRoute,
+    AuthenticatedClinicAyudaIndexRoute: AuthenticatedClinicAyudaIndexRoute,
     AuthenticatedClinicPacientesIndexRoute:
       AuthenticatedClinicPacientesIndexRoute,
     AuthenticatedClinicPresupuestosIndexRoute:
       AuthenticatedClinicPresupuestosIndexRoute,
+    AuthenticatedClinicAyudaPantallaPantallaRoute:
+      AuthenticatedClinicAyudaPantallaPantallaRoute,
   }
 
 const AuthenticatedClinicRouteRouteWithChildren =
@@ -2875,6 +2986,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSinAccesoRoute: typeof AuthenticatedSinAccesoRoute
   AuthenticatedAdminClinicasRoute: typeof AuthenticatedAdminClinicasRoute
   AuthenticatedAdminLeadsRoute: typeof AuthenticatedAdminLeadsRoute
+  AuthenticatedAdminReportesRoute: typeof AuthenticatedAdminReportesRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -2883,6 +2995,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSinAccesoRoute: AuthenticatedSinAccesoRoute,
   AuthenticatedAdminClinicasRoute: AuthenticatedAdminClinicasRoute,
   AuthenticatedAdminLeadsRoute: AuthenticatedAdminLeadsRoute,
+  AuthenticatedAdminReportesRoute: AuthenticatedAdminReportesRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Check } from "lucide-react";
 import { toast } from "sonner";
 
+import { VideoDelPaso } from "@/components/ayuda/video-del-paso";
 import type { ClinicAccess } from "@/lib/access/access";
 import { enlacePuestaEnMarcha } from "@/lib/marketing/puesta-en-marcha";
 import {
@@ -123,6 +124,8 @@ export function AvancePuestaEnMarcha({ access }: { access: ClinicAccess }) {
                   )}
                 </span>
               </span>
+              {/* ONB-01: video del paso (o "Video pendiente"). */}
+              {!paso.hecho && <VideoDelPaso id={paso.id} />}
               {!paso.hecho && to && (
                 <Link
                   to={to}

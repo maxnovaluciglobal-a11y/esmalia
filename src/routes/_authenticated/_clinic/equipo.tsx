@@ -12,6 +12,7 @@ import {
   EncabezadoEditorial,
   PANEL_LISTA,
 } from "@/components/a-plus/lista";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { AjustesDePermisosDialog } from "@/components/equipo/ajustes-de-permisos";
 import { Button } from "@/components/ui/button";
 import {
@@ -207,6 +208,11 @@ function EquipoPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [ajustando, setAjustando] = useState<ClinicMember | null>(null);
+  // ONB-07: cambiar el rol y quitar a alguien se confirman con su efecto.
+  const [cambioDeRol, setCambioDeRol] = useState<{ m: ClinicMember; role: ClinicRole } | null>(
+    null,
+  );
+  const [aQuitar, setAQuitar] = useState<ClinicMember | null>(null);
 
   const fetchMembers = useServerFn(listClinicMembers);
   const changeRole = useServerFn(updateMemberRole);
@@ -230,7 +236,10 @@ function EquipoPage() {
 
   const roleMutation = useMutation({
     mutationFn: (vars: { memberId: string; role: ClinicRole }) => changeRole({ data: vars }),
-    onSuccess: invalidar,
+    onSuccess: () => {
+      setCambioDeRol(null);
+      invalidar();
+    },
     onError: (e: Error) => setError(mensajeDeError(e)),
   });
 
@@ -246,8 +255,14 @@ function EquipoPage() {
 
   const removeMutation = useMutation({
     mutationFn: (memberId: string) => kickMember({ data: { memberId } }),
-    onSuccess: invalidar,
-    onError: (e: Error) => setError(mensajeDeError(e)),
+    onSuccess: () => {
+      setAQuitar(null);
+      invalidar();
+    },
+    onError: (e: Error) => {
+      setAQuitar(null);
+      setError(mensajeDeError(e));
+    },
   });
 
   const members: ClinicMember[] = membersQuery.data ?? [];
@@ -377,9 +392,7 @@ function EquipoPage() {
                       value={m.role}
                       disabled={bloqueado || roleMutation.isPending}
                       title={motivoBloqueo ?? undefined}
-                      onChange={(e) =>
-                        roleMutation.mutate({ memberId: m.id, role: e.target.value as ClinicRole })
-                      }
+                      onChange={(e) => setCambioDeRol({ m, role: e.target.value as ClinicRole })}
                       className={CAMPO}
                       aria-label={`Rol de ${nombreDe(m)}`}
                     >
@@ -427,11 +440,7 @@ function EquipoPage() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm(`¿Quitar a ${nombreDe(m)} del equipo?`)) {
-                          removeMutation.mutate(m.id);
-                        }
-                      }}
+                      onClick={() => setAQuitar(m)}
                       disabled={bloqueado || removeMutation.isPending}
                       title={motivoBloqueo ?? undefined}
                       aria-label={`Quitar a ${nombreDe(m)} del equipo`}
@@ -497,6 +506,47 @@ function EquipoPage() {
         }
         onClose={() => setAjustando(null)}
         onGuardado={invalidar}
+      />
+      <ConfirmarAccion
+        abierto={cambioDeRol !== null}
+        onAbiertoChange={(abierto) => {
+          if (!abierto) setCambioDeRol(null);
+          roleMutation.reset();
+        }}
+        titulo={
+          cambioDeRol
+            ? `¿Cambiar a ${nombreDe(cambioDeRol.m)} a ${ROLE_LABELS[cambioDeRol.role]}?`
+            : ""
+        }
+        consecuencias={
+          cambioDeRol
+            ? [
+                `Desde ahora ve y hace lo que permite ${ROLE_LABELS[cambioDeRol.role]}: ${ROLE_DESCRIPTIONS[cambioDeRol.role]}`,
+                ...(cambioDeRol.m.ajustes.length > 0
+                  ? ["Los ajustes de permisos que no correspondan al rol nuevo dejan de aplicar."]
+                  : []),
+              ]
+            : []
+        }
+        etiquetaAccion="Cambiar el rol"
+        pendiente={roleMutation.isPending}
+        onConfirmar={() =>
+          cambioDeRol && roleMutation.mutate({ memberId: cambioDeRol.m.id, role: cambioDeRol.role })
+        }
+      />
+      <ConfirmarAccion
+        abierto={aQuitar !== null}
+        onAbiertoChange={(abierto) => !abierto && setAQuitar(null)}
+        titulo={aQuitar ? `¿Quitar a ${nombreDe(aQuitar)} del equipo?` : ""}
+        consecuencias={[
+          "Pierde el acceso a esta clínica: ya no puede entrar ni ver sus datos.",
+          "Lo que registró (citas, notas, cobros) se queda en la clínica tal como está.",
+          "Para que vuelva, hay que invitarlo de nuevo.",
+        ]}
+        etiquetaAccion="Quitar del equipo"
+        destructiva
+        pendiente={removeMutation.isPending}
+        onConfirmar={() => aQuitar && removeMutation.mutate(aQuitar.id)}
       />
     </AppShell>
   );

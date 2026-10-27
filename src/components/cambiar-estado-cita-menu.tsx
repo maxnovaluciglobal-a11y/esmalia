@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, Loader2 } from "lucide-react";
 
@@ -8,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { buttonVariants } from "@/components/ui/button";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { useOfflineMutation } from "@/hooks/use-offline-mutation";
 import { setAppointmentStatus } from "@/lib/clinic-operations/appointments.functions";
 import { etiquetaEstado, type EstadoCita } from "@/lib/clinic-operations/clinic-data";
@@ -71,54 +73,77 @@ export function CambiarEstadoMenu({
     // conexión, solo importa el último valor, no acumular una entrada por click.
     identidad: (p) => String(p.appointmentId),
   });
+  // ONB-07: cancelar saca la cita de la agenda; se avisa antes.
+  const [confirmarCancelar, setConfirmarCancelar] = useState(false);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        {variante === "boton" ? (
-          <button
-            type="button"
-            disabled={cambiar.enCurso}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-between")}
-          >
-            {cambiar.enCurso ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              "Cambiar estado"
-            )}
-            <ChevronDown className="size-3.5" aria-hidden />
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled={cambiar.enCurso}
-            className={cn(
-              "inline-flex items-center gap-0.5 transition-opacity hover:opacity-80 disabled:opacity-50",
-              claseEstadoBadge(estadoActual),
-            )}
-          >
-            {cambiar.enCurso ? (
-              <Loader2 className="size-2.5 animate-spin" />
-            ) : (
-              etiquetaEstado[estadoActual]
-            )}
-            <ChevronDown className="size-2.5" />
-          </button>
-        )}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {opcionesEstadoCita
-          .filter((o) => o.value !== estadoActual)
-          .filter((o) => o.value !== "confirmada" || puedeConfirmar)
-          .map((o) => (
-            <DropdownMenuItem
-              key={o.value}
-              onSelect={() => cambiar.mutar({ appointmentId, estado: o.value })}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          {variante === "boton" ? (
+            <button
+              type="button"
+              disabled={cambiar.enCurso}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "justify-between")}
             >
-              {o.label}
-            </DropdownMenuItem>
-          ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+              {cambiar.enCurso ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                "Cambiar estado"
+              )}
+              <ChevronDown className="size-3.5" aria-hidden />
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={cambiar.enCurso}
+              className={cn(
+                "inline-flex items-center gap-0.5 transition-opacity hover:opacity-80 disabled:opacity-50",
+                claseEstadoBadge(estadoActual),
+              )}
+            >
+              {cambiar.enCurso ? (
+                <Loader2 className="size-2.5 animate-spin" />
+              ) : (
+                etiquetaEstado[estadoActual]
+              )}
+              <ChevronDown className="size-2.5" />
+            </button>
+          )}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {opcionesEstadoCita
+            .filter((o) => o.value !== estadoActual)
+            .filter((o) => o.value !== "confirmada" || puedeConfirmar)
+            .map((o) => (
+              <DropdownMenuItem
+                key={o.value}
+                onSelect={() =>
+                  o.value === "cancelada"
+                    ? setConfirmarCancelar(true)
+                    : cambiar.mutar({ appointmentId, estado: o.value })
+                }
+              >
+                {o.label}
+              </DropdownMenuItem>
+            ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmarAccion
+        abierto={confirmarCancelar}
+        onAbiertoChange={setConfirmarCancelar}
+        titulo="¿Cancelar esta cita?"
+        consecuencias={[
+          "La cita sale de la agenda y su horario queda libre para otro paciente.",
+          "Al paciente no se le avisa solo: si hace falta, escríbele tú.",
+        ]}
+        etiquetaAccion="Cancelar la cita"
+        destructiva
+        onConfirmar={() => {
+          setConfirmarCancelar(false);
+          cambiar.mutar({ appointmentId, estado: "cancelada" });
+        }}
+      />
+    </>
   );
 }

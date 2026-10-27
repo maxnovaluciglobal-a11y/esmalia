@@ -12,6 +12,7 @@ import { History, Loader2, Lock, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Destacado, PANEL, Pastilla, TITULO_PANEL } from "@/components/reportes/aplus";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { MoneyInput } from "@/components/money-input";
 import { Button } from "@/components/ui/button";
@@ -81,11 +82,14 @@ export function ReglasDeComisionPanel({ clinicId }: { clinicId: string }) {
   });
   const [editando, setEditando] = useState<string | null>(null);
   const [historial, setHistorial] = useState<string | null>(null);
+  // ONB-07: borrar una regla recalcula lo que no está liquidado.
+  const [aBorrar, setABorrar] = useState<VersionReglaVista | null>(null);
 
   const borrarFn = useServerFn(deleteCommissionRuleVersion);
   const borrar = useMutation({
     mutationFn: (id: string) => borrarFn({ data: { clinicId, id } }),
     onSuccess: () => {
+      setABorrar(null);
       toast.success("Regla borrada.");
       queryClient.invalidateQueries({ queryKey: ["commission-rule-versions", clinicId] });
       queryClient.invalidateQueries({ queryKey: ["commission-report"] });
@@ -231,7 +235,7 @@ export function ReglasDeComisionPanel({ clinicId }: { clinicId: string }) {
                       variant="ghost"
                       className="rounded-full"
                       disabled={borrar.isPending}
-                      onClick={() => borrar.mutate(v.id)}
+                      onClick={() => setABorrar(v)}
                       aria-label={`Borrar la regla que rige desde el ${fecha(v.effectiveFrom)}`}
                     >
                       <Trash2 aria-hidden />
@@ -242,6 +246,23 @@ export function ReglasDeComisionPanel({ clinicId }: { clinicId: string }) {
           </ul>
         </DialogContent>
       </Dialog>
+      <ConfirmarAccion
+        abierto={aBorrar !== null}
+        onAbiertoChange={(abierto) => !abierto && setABorrar(null)}
+        titulo="¿Borrar esta regla de comisión?"
+        consecuencias={
+          aBorrar
+            ? [
+                `${aBorrar.scope === "prestacion" ? `${aBorrar.procedureName ?? "Prestación"}: ` : ""}${aBorrar.regla} · ${aBorrar.effectiveFrom <= "2000-01-01" ? "regla inicial" : `rige desde el ${fecha(aBorrar.effectiveFrom)}`}.`,
+                "En los períodos que no están liquidados, las comisiones se recalculan sin esta regla. Las liquidaciones cerradas no cambian.",
+              ]
+            : []
+        }
+        etiquetaAccion="Borrar la regla"
+        destructiva
+        pendiente={borrar.isPending}
+        onConfirmar={() => aBorrar && borrar.mutate(aBorrar.id)}
+      />
     </section>
   );
 }

@@ -572,6 +572,12 @@ export const RUTAS_FUERA_DEL_MENU: Readonly<Record<string, string>> = {
   "/presupuestos/$presupuestoId": "Detalle de un presupuesto: se abre desde la lista o la ficha.",
   "/presupuestos/paquetes": "Paquetes de prestaciones: se abre desde Presupuestos.",
   "/documentos/$documentoId": "Documento emitido: se abre desde la ficha del paciente.",
+  // Ola 12 · frente A: la ayuda se abre desde el botón de ayuda (barra
+  // superior) y desde Ayuda al pie del menú, no es un destino del día a día.
+  "/ayuda": "Centro de ayuda (ONB-10): botón de ayuda y Ayuda al pie del menú.",
+  "/ayuda/academia": "Academia por rol (ONB-04): botón de ayuda y Ayuda al pie del menú.",
+  "/ayuda/novedades": "Novedades (NAV-10): botón de ayuda y Ayuda al pie del menú.",
+  "/ayuda/pantalla/$pantalla": "Ayuda de una pantalla (ONB-02): se abre desde el botón de ayuda.",
 };
 
 /** Herramientas internas de email: solo el propietario (UI y servidor). */
