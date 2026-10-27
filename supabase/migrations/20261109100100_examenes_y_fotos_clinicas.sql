@@ -84,7 +84,11 @@ create table if not exists public.clinical_photo_sessions (
   constraint clinical_photo_sessions_notes_check check (notes is null or char_length(notes) <= 1000),
   constraint clinical_photo_sessions_archivo_check check (
     (archived_at is null and archive_reason is null)
-    or (archived_at is not null and char_length(btrim(archive_reason)) between 3 and 500)
+    or (
+      archived_at is not null
+      and archive_reason is not null
+      and char_length(btrim(archive_reason)) between 3 and 500
+    )
   )
 );
 
@@ -138,7 +142,11 @@ create table if not exists public.patient_exams (
   ),
   constraint patient_exams_archivo_check check (
     (archived_at is null and archive_reason is null)
-    or (archived_at is not null and char_length(btrim(archive_reason)) between 3 and 500)
+    or (
+      archived_at is not null
+      and archive_reason is not null
+      and char_length(btrim(archive_reason)) between 3 and 500
+    )
   )
 );
 
