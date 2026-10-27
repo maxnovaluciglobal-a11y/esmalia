@@ -68,7 +68,7 @@ function PocketCell({
 }) {
   const severity = pocketSeverity(mm);
   return (
-    <div className="flex flex-col items-center gap-0.5">
+    <div className="relative flex flex-col items-center gap-0.5">
       <span
         className="text-xs font-medium"
         style={severity ? { color: SEVERITY_COLORS[severity] } : undefined}
@@ -561,7 +561,7 @@ export function PeriodontalChart({ clinicId, patientId, puedeEditar }: Props) {
             id="periodontograma-titulo"
             className="font-display text-[30px] leading-none font-medium tracking-[-0.01em]"
           >
-            Periodonto<em className="text-brand-600">grama</em>
+            Periodontograma <em className="font-normal text-brand-600">de seis puntos</em>
           </h3>
           <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-muted-foreground">
             Sondaje de 6 puntos por pieza (AAP): profundidad, sangrado y recesión, más movilidad y
