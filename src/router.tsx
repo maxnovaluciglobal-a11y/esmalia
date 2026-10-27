@@ -69,6 +69,8 @@ function buildCsp(nonce: string, pathname = "/"): string {
     `img-src 'self' data: ${supabase.https} https://*.facebook.com https://*.fbcdn.net`,
     `connect-src 'self' ${supabase.https} ${supabase.wss} https://*.sentry.io https://*.facebook.com https://graph.facebook.com`,
     "frame-src 'self' https://*.facebook.com",
+    // Videos de ayuda y Academia: bucket público `videos-ayuda` de Supabase.
+    `media-src 'self' ${supabase.https}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",

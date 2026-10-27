@@ -7,9 +7,10 @@ import { cn } from "@/lib/utils";
  * Espacio de video de la ayuda (ONB-01, ONB-02, ONB-04). Los videos los graba
  * o aprueba Walter: mientras no existan, el espacio queda vacío y marcado
  * "Video pendiente" (nunca un video de relleno ni un enlace inventado).
- * Cuando el video exista, `estado: "listo"` con su URL y acá aparece el
- * botón para verlo en otra pestaña (no se incrusta: la CSP no abre
- * `frame-src` a terceros).
+ * Cuando el video exista, `estado: "listo"` con su URL: se reproduce acá
+ * mismo (`<video>` del bucket público `videos-ayuda`, permitido en la CSP con
+ * `media-src`) y, en la versión compacta, queda como botón que lo abre en
+ * otra pestaña.
  */
 export function EspacioVideo({
   video,
@@ -23,6 +24,26 @@ export function EspacioVideo({
   compacto?: boolean;
   className?: string;
 }) {
+  if (video.estado === "listo" && !compacto) {
+    return (
+      <figure
+        className={cn("w-full overflow-hidden rounded-[12px] border border-border", className)}
+      >
+        <video
+          controls
+          preload="metadata"
+          playsInline
+          src={video.url}
+          aria-label={titulo}
+          className="aspect-video w-full bg-foreground"
+        />
+        <figcaption className="px-3 py-2 text-[13px] text-muted-foreground">
+          Video · <span className="cifra">{video.duracion}</span> · con subtítulos
+        </figcaption>
+      </figure>
+    );
+  }
+
   if (video.estado === "listo") {
     return (
       <a

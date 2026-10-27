@@ -19,8 +19,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "hoy",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-primer-dia.mp4",
+      duracion: "43 s",
       guion:
         "Entrar a la demo, recorrer el menú, mostrar Hoy con sus alertas y abrir el botón de ayuda en dos pantallas.",
     },
@@ -36,8 +37,9 @@ export const LECCIONES: readonly Leccion[] = [
       "Los atajos de una sola tecla no se activan mientras escribes en un campo.",
     ],
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-buscar-y-atajos.mp4",
+      duracion: "34 s",
       guion:
         "Usar ⌘K para encontrar un paciente y para Registrar pago, abrir la hoja de atajos con ? y crear una cita con N.",
     },
@@ -52,8 +54,9 @@ export const LECCIONES: readonly Leccion[] = [
       "La captura es opcional. Antes de enviarla puedes tapar lo que quieras: no mandes datos de pacientes que no hagan falta.",
     ],
     video: {
-      estado: "pendiente",
-      duracion: "1 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-ayuda-y-reportar.mp4",
+      duracion: "31 s",
       guion: "Abrir Reportar un problema, tomar la captura, tapar una zona y enviar.",
     },
   },
@@ -71,8 +74,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "equipo",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-equipo.mp4",
+      duracion: "37 s",
       guion:
         "Invitar a una recepcionista, quitarle un permiso puntual y comprobarlo con Ver como otro rol.",
     },
@@ -89,8 +93,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "ajustes",
     video: {
-      estado: "pendiente",
-      duracion: "4 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-puesta-en-marcha.mp4",
+      duracion: "33 s",
       guion:
         "Crear una sucursal con su box y horario, cargar tres prestaciones del arancel e importar un CSV de pacientes con vista previa.",
     },
@@ -107,8 +112,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "informes",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-numeros.mp4",
+      duracion: "34 s",
       guion:
         "Recorrer Finanzas del mes, abrir Informes → Cómo vamos y tocar una cifra, y cerrar el período de comisiones.",
     },
@@ -125,8 +131,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "campanas",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-pacientes-vuelvan.mp4",
+      duracion: "31 s",
       guion:
         "Crear un segmento de pacientes sin visita en 12 meses, lanzarle una campaña por correo y encender la reserva en línea.",
     },
@@ -144,8 +151,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "mi-agenda",
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-profesional-dia.mp4",
+      duracion: "31 s",
       guion: "Aceptar una reserva en línea desde Mi agenda y abrir la primera cita del día.",
     },
   },
@@ -161,8 +169,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "ficha",
     video: {
-      estado: "pendiente",
-      duracion: "4 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-profesional-ficha.mp4",
+      duracion: "34 s",
       guion:
         "Marcar caries en tres piezas con Seleccionar varias, pasar los hallazgos al presupuesto y firmar una nota con adenda.",
     },
@@ -179,8 +188,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "ficha",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-profesional-documentos.mp4",
+      duracion: "36 s",
       guion:
         "Emitir una receta con alerta de alergia y mandar un consentimiento a firmar a distancia.",
     },
@@ -196,8 +206,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "comisiones",
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-profesional-desempeno.mp4",
+      duracion: "31 s",
       guion: "Abrir Mi desempeño, cambiar el período y ver una liquidación cerrada.",
     },
   },
@@ -215,8 +226,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "agenda",
     video: {
-      estado: "pendiente",
-      duracion: "4 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-agenda.mp4",
+      duracion: "33 s",
       guion:
         "Agendar una cita con choque y resolverla, pasar un paciente a sala y agendar una solicitud del portal.",
     },
@@ -233,8 +245,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "recordatorios",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-confirmar.mp4",
+      duracion: "31 s",
       guion:
         "Enviar los recordatorios de 48 h con la cola guiada y anotar que un paciente confirmó por teléfono.",
     },
@@ -251,8 +264,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "caja",
     video: {
-      estado: "pendiente",
-      duracion: "4 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-cobrar.mp4",
+      duracion: "38 s",
       guion:
         "Abrir caja, cobrar un pago con dos medios desde la ficha, registrar un retiro y cerrar con arqueo.",
     },
@@ -269,8 +283,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "pacientes",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-pacientes.mp4",
+      duracion: "31 s",
       guion: "Crear un paciente con RUT, completar su previsión y etiquetar fichas incompletas.",
     },
   },
@@ -287,8 +302,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "agenda",
     video: {
-      estado: "pendiente",
-      duracion: "2 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-asistente-dia.mp4",
+      duracion: "31 s",
       guion: "Revisar la agenda del día por box y abrir la ficha del primer paciente.",
     },
   },
@@ -303,8 +319,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "inventario",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-asistente-inventario.mp4",
+      duracion: "31 s",
       guion:
         "Registrar una salida de insumo, revisar los lotes por vencer y seguir una orden de laboratorio.",
     },
@@ -323,8 +340,9 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     pantalla: "laboratorios",
     video: {
-      estado: "pendiente",
-      duracion: "3 min",
+      estado: "listo",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-tecnico-ordenes.mp4",
+      duracion: "31 s",
       guion: "Abrir una orden, revisar color y margen y seguir su estado hasta recibido.",
     },
   },
