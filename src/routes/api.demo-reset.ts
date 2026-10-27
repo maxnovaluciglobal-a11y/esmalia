@@ -107,6 +107,9 @@ export const Route = createFileRoute("/api/demo-reset")({
           await import("@/lib/demo/ola8-pacientes.server")
         ).sembrarEtiquetasYSegmentosDeLaDemo(supabaseAdmin);
 
+        // Ola 10 · A: gastos fijos, empresa con convenio, membresías y folios (nunca lanza).
+        await (await import("@/lib/demo/finanzas.server")).sembrarFinanzasDeLaDemo(supabaseAdmin);
+
         return new Response("ok", { status: 200 });
       },
     },
