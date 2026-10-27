@@ -14,6 +14,9 @@ import {
   type CifraChica,
   type CifraProtagonista,
 } from "@/components/hoy-tarjeta-del-dia";
+import { AlertasDeHoy } from "@/components/hoy-alertas";
+import { PanelDelRol } from "@/components/hoy-panel-del-rol";
+import { ocupacionDelDia } from "@/components/agenda-ocupacion";
 import { PanelDesempeno } from "@/components/panel-desempeno";
 import { PattyCara } from "@/components/patty-cara";
 import { buttonVariants } from "@/components/ui/button";
@@ -25,6 +28,15 @@ import { accesoPorSuscripcion, requiereLlamadaOSuscripcion } from "@/lib/billing
 import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
 import { formatoFecha, hoyISO, type Cita } from "@/lib/clinic-operations/clinic-data";
 import { listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
+import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
+import { getPanelDeHoy } from "@/lib/panel/panel.functions";
+import {
+  alertasVisibles,
+  bloqueMuestraDinero,
+  bloquesDelPanel,
+  perfilDePanel,
+  type TipoAlerta,
+} from "@/lib/panel/panel-por-rol";
 import {
   getAppointmentPatientBalances,
   listAppointments,
@@ -157,48 +169,6 @@ function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
   );
 }
 
-type Tarea = { n: number; titulo: string; detalle: string; cta: string; to: string };
-
-function ColaAccionable({ tareas }: { tareas: Tarea[] }) {
-  return (
-    <section aria-labelledby="cola" className={cn(PANEL, "overflow-hidden")}>
-      <h2
-        id="cola"
-        className="px-5 pt-[18px] pb-3 font-display text-[26px] font-medium leading-none"
-      >
-        Para resolver <em className="text-brand-600">hoy</em>
-      </h2>
-      {tareas.length === 0 ? (
-        <p className="border-t border-hairline px-5 py-4 text-sm text-muted-foreground">
-          Nada pendiente por ahora. Lo que necesite tu atención va a aparecer acá.
-        </p>
-      ) : (
-        <ul className="divide-y divide-hairline border-t border-hairline">
-          {tareas.map((t) => (
-            <li key={t.titulo}>
-              <Link
-                to={t.to}
-                className="flex min-h-14 items-center gap-3.5 px-5 py-3 outline-none hover:bg-muted/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className="w-9 shrink-0 font-display text-[28px] font-medium leading-none text-brand-600 [font-variant-numeric:lining-nums]">
-                  {t.n > 99 ? "99+" : t.n}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-medium">{t.titulo}</span>
-                  <span className="block truncate text-[13px] text-muted-foreground">
-                    {t.detalle}
-                  </span>
-                </span>
-                <span className="shrink-0 text-sm font-semibold text-brand-700">{t.cta} →</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
 /**
  * Patty en Hoy (prototipo A+): lo que haría con el día. Está en habilitación
  * (docs/IA.md): lo dice y los botones van desactivados, como en el cajón de
@@ -297,6 +267,13 @@ function Dashboard() {
   const fetchReminders = useServerFn(listPendingReminders);
   const fetchOutreachCount = useServerFn(countPendingOutreach);
   const fetchSinResponder = useServerFn(countConversacionesSinResponder);
+  const fetchPanel = useServerFn(getPanelDeHoy);
+  const fetchHorarios = useServerFn(listProfessionalSchedules);
+
+  // Ola 11 · panel por rol: qué bloques y alertas ve este acceso (rol real o
+  // simulado, con ajustes por persona). La base aplica lo mismo con el rol real.
+  const perfil = perfilDePanel(access);
+  const bloques = bloquesDelPanel(access);
 
   // Mismo queryKey que TrialBanner / StatusStrip / informes: comparten caché.
   // Con trial vencido, `getPanelDesempeno` y `getFinanceSummary` rechazan
@@ -384,6 +361,22 @@ function Dashboard() {
     enabled: Boolean(clinicId) && gestionaAgenda,
     queryFn: () => fetchSinResponder({ data: { clinicId: clinicId! } }),
     refetchInterval: 2 * 60_000,
+  });
+  // Alertas y bloques del rol (PAN-03..08, REC-10): una sola llamada.
+  const {
+    data: panel,
+    isLoading: panelCargando,
+    isError: panelConError,
+  } = useQuery({
+    queryKey: ["panel-de-hoy", clinicId],
+    enabled: Boolean(clinicId),
+    queryFn: () => fetchPanel({ data: { clinicId: clinicId! } }),
+    refetchInterval: 5 * 60_000,
+  });
+  const { data: horarios } = useQuery({
+    queryKey: ["professional-schedules", clinicId],
+    enabled: Boolean(clinicId) && bloques.includes("ocupacion"),
+    queryFn: () => fetchHorarios({ data: { clinicId: clinicId! } }),
   });
   // Patty en habilitación (docs/IA.md): misma consulta y clave que el cajón.
   const fetchEstadoIa = useServerFn(getEstadoIa);
@@ -549,45 +542,27 @@ function Dashboard() {
     ? contarFilasDeRecordatorios(recordatorios) + (outreach?.total ?? 0)
     : null;
 
-  const tareas: Tarea[] = [
-    ...(gestionaAgenda
-      ? [
-          {
-            n: sinConfirmar48h,
-            titulo: "Citas sin confirmar",
-            detalle: "Hoy y los próximos 2 días",
-            cta: "Revisar",
-            to: "/recordatorios",
-          },
-          {
-            n: sinResponder,
-            titulo: "Mensajes sin responder",
-            detalle: "Pacientes que escribieron por WhatsApp",
-            cta: "Responder",
-            to: "/conversaciones",
-          },
-          {
-            // Filas por paciente, como las muestra /recordatorios (UX-11).
-            n: avisosPorDespachar ?? 0,
-            titulo: "Avisos para despachar",
-            detalle: "Recordatorios, controles y presupuestos",
-            cta: "Avisar",
-            to: "/recordatorios",
-          },
-        ]
-      : []),
-    ...(veFinanzas
-      ? [
-          {
-            n: conDeuda.length,
-            titulo: "Pacientes de hoy con saldo",
-            detalle: "Cobrar antes de que pasen al box",
-            cta: "Ver",
-            to: "/morosidad",
-          },
-        ]
-      : []),
-  ].filter((t) => t.n > 0);
+  // PAN-03: lo que requiere acción. Lo que trae la base más lo que Hoy ya
+  // tenía (mensajes, avisos y saldos, con sus mismas consultas y claves).
+  const conteos: Partial<Record<TipoAlerta, number | null>> = {
+    ...(panel?.alertas ?? {}),
+    mensajes_sin_responder: gestionaAgenda ? sinResponder : null,
+    avisos_por_despachar: avisosPorDespachar,
+    saldo_pacientes_hoy: veFinanzas && !saldosSinDatos ? conDeuda.length : null,
+  };
+  const alertas = alertasVisibles(access, conteos);
+
+  const ahora = horaActual(new Date(), clinicTz);
+  const ahoraMin = Number(ahora.slice(0, 2)) * 60 + Number(ahora.slice(3, 5)) - 8 * 60;
+  const ocupacion =
+    bloques.includes("ocupacion") && horarios && !citasConError && !isLoading
+      ? ocupacionDelDia({
+          fecha: hoy,
+          citas: citasHoy,
+          profesionalIds: profesionales.map((p) => p.id),
+          horarios,
+        })
+      : null;
 
   const pasosActivacion: PasoActivacion[] = [
     { hecho: true, label: "Crear la clínica" },
@@ -710,6 +685,9 @@ function Dashboard() {
         {clinicId && gestionaAgenda && (
           <AvisoCitasPasadas clinicId={clinicId} timezone={clinicTz} />
         )}
+
+        {/* PAN-03: alertas accionables del rol, arriba de todo. */}
+        <AlertasDeHoy alertas={alertas} cargando={panelCargando} conError={panelConError} />
 
         {/* Celular de recepción: la cola se resume en un aviso de una línea
             que despliega la lista. */}
@@ -917,7 +895,6 @@ function Dashboard() {
                 />
               </div>
             )}
-            <ColaAccionable tareas={tareas} />
             {estadoIa !== undefined && estadoIa.habilitada !== true && <PattyDelDia />}
             {clinicId && (access.clinic?.country ?? "").toUpperCase() === "CL" && (
               <PacientesGes clinicId={clinicId} />
@@ -925,6 +902,34 @@ function Dashboard() {
             {clinicId && mostrarActivacion && <ChecklistActivacion pasos={pasosActivacion} />}
           </div>
         </div>
+
+        {/* PAN-04/06/07/08 y REC-10: bloques del rol. */}
+        {perfil && (
+          <PanelDelRol
+            perfil={perfil}
+            bloques={bloques}
+            muestraDinero={(b) => bloqueMuestraDinero(access, b)}
+            datos={{
+              panel,
+              cargando: panelCargando,
+              conError: panelConError,
+              currency,
+              zonaHoraria: clinicTz,
+              hoy,
+              citasHoy,
+              ahoraMin,
+              myProfessionalId: access.myProfessionalId ?? null,
+              nombreProfesional,
+              cobradoHoy:
+                veFinanzas && cajaHoy && !informesBloqueados
+                  ? formatMoney(cajaHoy.totalCents, currency)
+                  : null,
+              porCobrarHoy:
+                veFinanzas && !saldosSinDatos ? formatMoney(porCobrarHoy, currency) : null,
+              ocupacion,
+            }}
+          />
+        )}
 
         {clinicId && veFinanzas && (
           <section aria-labelledby="desempeno" className="space-y-3 pt-6">

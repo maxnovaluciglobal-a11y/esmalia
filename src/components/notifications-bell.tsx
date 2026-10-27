@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, Check, Loader2 } from "lucide-react";
 import { getSupabase } from "@/integrations/supabase/lazy";
@@ -7,13 +7,18 @@ import {
   listMyNotifications,
   markNotificationsRead,
 } from "@/lib/messaging/notifications.functions";
-import { NOTIFICATION_KIND_LABELS, tiempoRelativo } from "@/lib/messaging/notifications";
+import {
+  destinoDeNotificacion,
+  NOTIFICATION_KIND_LABELS,
+  tiempoRelativo,
+} from "@/lib/messaging/notifications";
 import { esLecturaDePatty } from "@/lib/messaging/aviso-de-agenda";
 import { PattyCara } from "@/components/patty-cara";
 
 /** Campana de notificaciones internas con actualización en tiempo real. */
 export function NotificationsBell({ userId }: { userId?: string | null }) {
   const [abierto, setAbierto] = useState(false);
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const queryKey = ["notifications", userId ?? "anon"];
 
@@ -41,7 +46,11 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
             table: "notifications",
             filter: `recipient_id=eq.${userId}`,
           },
-          () => queryClient.invalidateQueries({ queryKey }),
+          () => {
+            void queryClient.invalidateQueries({ queryKey });
+            // El centro de notificaciones (NAV-11) también se entera.
+            void queryClient.invalidateQueries({ queryKey: ["notification-center"] });
+          },
         )
         .subscribe();
       soltar = () => void supabase.removeChannel(channel);
@@ -60,7 +69,10 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
   const marcar = useMutation({
     mutationFn: (notificationId: string | null) =>
       markNotificationsRead({ data: { notificationId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: ["notification-center"] });
+    },
   });
 
   if (!userId) return null;
@@ -142,6 +154,7 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
                 const clases = `block rounded-lg border p-2.5 text-left ${
                   n.readAt ? "border-hairline" : "border-brand/30 bg-brand/5"
                 }`;
+                const destino = destinoDeNotificacion(n);
                 return n.patientRef ? (
                   <Link
                     key={n.id}
@@ -158,7 +171,14 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
                 ) : (
                   <button
                     key={n.id}
-                    onClick={() => !n.readAt && marcar.mutate(n.id)}
+                    onClick={() => {
+                      if (!n.readAt) marcar.mutate(n.id);
+                      // REC-10 y otros avisos con ruta interna (nunca externa).
+                      if (destino?.tipo === "ruta") {
+                        setAbierto(false);
+                        void navigate({ href: destino.href });
+                      }
+                    }}
                     className={`w-full ${clases}`}
                   >
                     {contenido}
@@ -166,6 +186,15 @@ export function NotificationsBell({ userId }: { userId?: string | null }) {
                 );
               })}
             </div>
+            {/* NAV-11: la bandeja completa, con filtros y "no leída". */}
+            <Link
+              to="/notificaciones"
+              search={{ estado: "todas", tipo: "" }}
+              onClick={() => setAbierto(false)}
+              className="mt-1 flex min-h-10 items-center justify-center rounded-lg border-t border-hairline text-xs font-semibold text-brand-700 hover:bg-secondary/60"
+            >
+              Ver todas las notificaciones →
+            </Link>
           </div>
         </>
       )}

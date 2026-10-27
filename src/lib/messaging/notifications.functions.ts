@@ -2,7 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { AppNotification } from "@/lib/messaging/notifications";
+import {
+  GRUPOS_DE_NOTIFICACION,
+  kindsFueraDe,
+  type AppNotification,
+} from "@/lib/messaging/notifications";
 import type { Database } from "@/integrations/supabase/types";
 
 type SupabaseCtx = SupabaseClient<Database>;
@@ -112,6 +116,35 @@ export async function notifyClinicStaff(
   return insertados?.length ?? 0;
 }
 
+const COLUMNAS_NOTIFICACION =
+  "id, kind, title, body, link, note_id, patient_ref, read_at, created_at" as const;
+
+type FilaNotificacion = {
+  id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  note_id: string | null;
+  patient_ref: string | null;
+  read_at: string | null;
+  created_at: string;
+};
+
+function mapNotificacion(n: FilaNotificacion): AppNotification {
+  return {
+    id: n.id,
+    kind: n.kind,
+    title: n.title,
+    body: n.body,
+    link: n.link,
+    noteId: n.note_id,
+    patientRef: n.patient_ref,
+    readAt: n.read_at,
+    createdAt: n.created_at,
+  };
+}
+
 /** Lista las notificaciones del usuario autenticado, más recientes primero. */
 export const listMyNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -119,29 +152,105 @@ export const listMyNotifications = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const { data, error } = await supabase
       .from("notifications")
-      .select("id, kind, title, body, link, note_id, patient_ref, read_at, created_at")
+      .select(COLUMNAS_NOTIFICACION)
       .eq("recipient_id", userId)
       .order("created_at", { ascending: false })
       .limit(30);
     if (error) throw new Error("No pudimos cargar tus notificaciones.");
-    return (data ?? []).map((n) => ({
-      id: n.id,
-      kind: n.kind,
-      title: n.title,
-      body: n.body,
-      link: n.link,
-      noteId: n.note_id,
-      patientRef: n.patient_ref,
-      readAt: n.read_at,
-      createdAt: n.created_at,
-    }));
+    return ((data ?? []) as FilaNotificacion[]).map(mapNotificacion);
+  });
+
+export const TAMANO_PAGINA_NOTIFICACIONES = 40;
+
+export interface BandejaDeNotificaciones {
+  items: AppNotification[];
+  /** Sin leer en la clínica (todos los tipos), para el encabezado. */
+  sinLeer: number;
+  /** `created_at` de la última fila si puede haber más (para "Ver más"). */
+  siguiente: string | null;
+}
+
+/**
+ * Centro de notificaciones (NAV-11): la bandeja completa de la persona en la
+ * clínica activa, con filtro de leídas y por tipo, paginada por fecha. Solo
+ * lee las propias (RLS `recipient_id = auth.uid()`, y además el filtro).
+ */
+export const listNotificationCenter = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z
+      .object({
+        clinicId: z.string().uuid(),
+        estado: z.enum(["todas", "sin-leer"]).default("todas"),
+        grupo: z.enum(["clinico", "pacientes", "operacion"]).nullable().optional(),
+        antesDe: z.string().datetime({ offset: true }).nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }): Promise<BandejaDeNotificaciones> => {
+    const { supabase, userId } = context;
+    let query = supabase
+      .from("notifications")
+      .select(COLUMNAS_NOTIFICACION)
+      .eq("recipient_id", userId)
+      .eq("clinic_id", data.clinicId)
+      .order("created_at", { ascending: false })
+      .limit(TAMANO_PAGINA_NOTIFICACIONES + 1);
+    if (data.estado === "sin-leer") query = query.is("read_at", null);
+    if (data.antesDe) query = query.lt("created_at", data.antesDe);
+    if (data.grupo === "operacion") {
+      // Lo conocido de los otros grupos queda afuera; lo desconocido, adentro.
+      query = query.not("kind", "in", `(${kindsFueraDe("operacion").join(",")})`);
+    } else if (data.grupo) {
+      const grupo = GRUPOS_DE_NOTIFICACION.find((g) => g.id === data.grupo);
+      query = query.in("kind", [...(grupo?.kinds ?? [])]);
+    }
+    const [{ data: filas, error }, { count, error: errCount }] = await Promise.all([
+      query,
+      supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", userId)
+        .eq("clinic_id", data.clinicId)
+        .is("read_at", null),
+    ]);
+    if (error || errCount) throw new Error("No pudimos cargar tus notificaciones.");
+    const todas = (filas ?? []) as FilaNotificacion[];
+    const hayMas = todas.length > TAMANO_PAGINA_NOTIFICACIONES;
+    const items = todas.slice(0, TAMANO_PAGINA_NOTIFICACIONES).map(mapNotificacion);
+    return {
+      items,
+      sinLeer: count ?? 0,
+      siguiente: hayMas ? (items[items.length - 1]?.createdAt ?? null) : null,
+    };
+  });
+
+/** Vuelve a marcar una notificación como no leída (NAV-11). Solo las propias. */
+export const markNotificationUnread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ notificationId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: null })
+      .eq("recipient_id", userId)
+      .eq("id", data.notificationId);
+    if (error) throw new Error("No pudimos actualizar tus notificaciones.");
+    return { ok: true };
   });
 
 /** Marca una notificación (o todas) como leídas. */
 export const markNotificationsRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({ notificationId: z.string().uuid().nullable().optional() }).parse(input),
+    z
+      .object({
+        notificationId: z.string().uuid().nullable().optional(),
+        /** "Marcar todo" del centro: solo las de la clínica activa. */
+        clinicId: z.string().uuid().nullable().optional(),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -151,6 +260,7 @@ export const markNotificationsRead = createServerFn({ method: "POST" })
       .eq("recipient_id", userId)
       .is("read_at", null);
     if (data.notificationId) query = query.eq("id", data.notificationId);
+    if (data.clinicId) query = query.eq("clinic_id", data.clinicId);
     const { error } = await query;
     if (error) throw new Error("No pudimos actualizar tus notificaciones.");
     return { ok: true };

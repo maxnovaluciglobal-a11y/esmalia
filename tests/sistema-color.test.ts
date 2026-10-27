@@ -41,6 +41,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)caja-del-dia\.tsx$/, // tarjeta en tinta de la caja: barras por hora y por medio
   /(?:^|\/)embudo-presupuestos\.tsx$/, // barras del embudo de presupuestos (A+)
   /(?:^|\/)hoy-dia-por-profesional\.tsx$/, // carriles de Hoy: solo la línea de ahora
+  /(?:^|\/)hoy-panel-del-rol\.tsx$/, // panel por rol de Hoy: barra de ocupación (Ola 11)
   /(?:^|\/)resumen-nps\.tsx$/, // tarjeta en tinta del NPS: mezcla de respuestas (Ola 7)
   /^components\/ortodoncia\/seguimiento-ortodoncia\.tsx$/, // barra y % de progreso del tratamiento (Ola 9)
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
