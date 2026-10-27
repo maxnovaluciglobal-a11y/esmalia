@@ -13,9 +13,9 @@
  *   nombre. Una alergia sin detalle es "sin especificar", nunca "leve".
  * - Pregunta sin responder = clave ausente. No se fabrica un "no" que nadie
  *   confirmó (regla 11 del CLAUDE.md).
- * - El catálogo es el mínimo que pidió Walter. Bifosfonatos, profilaxis
- *   antibiótica, coagulopatías, bruxismo o ASA se suman cuando lo valide un
- *   odontólogo revisor (CLI-22).
+ * - El catálogo se completó en la Ola 9 (FIC-09: antecedentes por grupo,
+ *   ver `GRUPOS_ANTECEDENTES`). Profilaxis antibiótica y ASA siguen
+ *   pendientes de un odontólogo revisor (CLI-22).
  */
 import { z } from "zod";
 
@@ -105,38 +105,250 @@ export function leerDetallesDeAlergias(valor: unknown): AlergiaDetallada[] {
 
 // ── Cuestionario de riesgo ────────────────────────────────────────────────
 
+/**
+ * FIC-09 (Ola 9): antecedentes completos. El cuestionario de riesgo pasa a
+ * cubrir los antecedentes de una ficha odontológica completa, agrupados
+ * como los lee el profesional: mórbidos, quirúrgicos, medicamentos, hábitos,
+ * familiares, gineco-obstétricos y odontológicos. Alergias y medicación
+ * crónica siguen en sus listas propias (columnas `allergies` y
+ * `chronic_medications`), así que la agenda, la receta y la exportación no
+ * cambian.
+ *
+ * Las respuestas se guardan en la misma columna `risk_questionnaire` (un
+ * objeto JSON): sumar preguntas no necesita migración, y una ficha guardada
+ * antes de este cambio se sigue leyendo igual (lo que no respondió queda
+ * "sin responder", regla 11). El formulario antes de la cita (Ola 7) usa
+ * este mismo catálogo, así que el paciente responde lo mismo que ve el
+ * profesional.
+ *
+ * Críticas (alerta roja en la cabecera): solo anticoagulantes y embarazo,
+ * como hasta ahora. Las nuevas (bifosfonatos, trastornos de coagulación,
+ * radioterapia…) salen como precaución hasta que un odontólogo revisor
+ * (CLI-22) decida cuáles suben a críticas.
+ */
+export const GRUPOS_ANTECEDENTES = [
+  { key: "morbidos", label: "Antecedentes mórbidos" },
+  { key: "quirurgicos", label: "Quirúrgicos" },
+  { key: "medicamentos", label: "Medicamentos" },
+  { key: "habitos", label: "Hábitos" },
+  { key: "familiares", label: "Familiares" },
+  { key: "gineco", label: "Embarazo y lactancia" },
+  { key: "odontologicos", label: "Odontológicos" },
+  { key: "otros", label: "Otros" },
+] as const;
+
+export type GrupoAntecedente = (typeof GRUPOS_ANTECEDENTES)[number]["key"];
+
 export const PREGUNTAS_RIESGO = [
+  // Mórbidos
   {
-    key: "anticoagulants",
-    label: "Anticoagulantes o antiagregantes",
-    ayuda: "Warfarina, acenocumarol, apixabán, rivaroxabán, aspirina, clopidogrel…",
-    critica: true,
+    key: "diabetes",
+    grupo: "morbidos",
+    label: "Diabetes",
+    ayuda: "Tipo y si está controlada.",
+    critica: false,
   },
-  { key: "diabetes", label: "Diabetes", ayuda: "Tipo y si está controlada.", critica: false },
-  { key: "hypertension", label: "Hipertensión arterial", ayuda: undefined, critica: false },
+  {
+    key: "hypertension",
+    grupo: "morbidos",
+    label: "Hipertensión arterial",
+    ayuda: undefined,
+    critica: false,
+  },
   {
     key: "heart_disease",
+    grupo: "morbidos",
     label: "Cardiopatía",
     ayuda: "Infarto, arritmia, valvulopatía, marcapasos, endocarditis previa…",
     critica: false,
   },
-  { key: "pregnancy", label: "Embarazo", ayuda: "Semanas de gestación.", critica: true },
-  { key: "breastfeeding", label: "Lactancia", ayuda: undefined, critica: false },
+  {
+    key: "bleeding_disorder",
+    grupo: "morbidos",
+    label: "Trastorno de la coagulación o sangrado prolongado",
+    ayuda: "Hemofilia, Von Willebrand, sangra mucho después de una extracción…",
+    critica: false,
+  },
+  {
+    key: "respiratory_disease",
+    grupo: "morbidos",
+    label: "Enfermedad respiratoria",
+    ayuda: "Asma, EPOC, apnea del sueño…",
+    critica: false,
+  },
+  {
+    key: "kidney_disease",
+    grupo: "morbidos",
+    label: "Enfermedad renal",
+    ayuda: "Insuficiencia renal, diálisis…",
+    critica: false,
+  },
+  {
+    key: "liver_disease",
+    grupo: "morbidos",
+    label: "Enfermedad hepática",
+    ayuda: "Cirrosis, hígado graso…",
+    critica: false,
+  },
+  {
+    key: "thyroid_disease",
+    grupo: "morbidos",
+    label: "Enfermedad de la tiroides",
+    ayuda: "Hipotiroidismo, hipertiroidismo…",
+    critica: false,
+  },
+  {
+    key: "neurological_disease",
+    grupo: "morbidos",
+    label: "Epilepsia u otra enfermedad neurológica",
+    ayuda: "Convulsiones, ACV previo, Parkinson…",
+    critica: false,
+  },
+  {
+    key: "cancer",
+    grupo: "morbidos",
+    label: "Cáncer, radioterapia o quimioterapia",
+    ayuda: "Dónde y cuándo; importa sobre todo la radioterapia de cabeza y cuello.",
+    critica: false,
+  },
   {
     key: "infectious_disease",
+    grupo: "morbidos",
     label: "Enfermedad infecciosa",
     ayuda: "VIH, hepatitis B o C, tuberculosis…",
     critica: false,
   },
-  { key: "tobacco", label: "Tabaco", ayuda: "Cantidad por día.", critica: false },
+  // Quirúrgicos
   {
     key: "surgeries",
+    grupo: "quirurgicos",
     label: "Cirugías u hospitalizaciones previas",
     ayuda: "Cuál y cuándo.",
     critica: false,
   },
-  { key: "other", label: "Otros antecedentes", ayuda: undefined, critica: false },
-] as const;
+  {
+    key: "anesthesia_reaction",
+    grupo: "quirurgicos",
+    label: "Reacción previa a la anestesia",
+    ayuda: "Desmayo, taquicardia, alergia a la anestesia local…",
+    critica: false,
+  },
+  // Medicamentos (la medicación crónica va en su lista)
+  {
+    key: "anticoagulants",
+    grupo: "medicamentos",
+    label: "Anticoagulantes o antiagregantes",
+    ayuda: "Warfarina, acenocumarol, apixabán, rivaroxabán, aspirina, clopidogrel…",
+    critica: true,
+  },
+  {
+    key: "bisphosphonates",
+    grupo: "medicamentos",
+    label: "Bifosfonatos o antirresortivos",
+    ayuda: "Alendronato, ácido zoledrónico, denosumab… Desde cuándo y por qué vía.",
+    critica: false,
+  },
+  {
+    key: "immunosuppressants",
+    grupo: "medicamentos",
+    label: "Corticoides o inmunosupresores",
+    ayuda: "Prednisona, metotrexato, tratamiento por trasplante…",
+    critica: false,
+  },
+  // Hábitos
+  { key: "tobacco", grupo: "habitos", label: "Tabaco", ayuda: "Cantidad por día.", critica: false },
+  { key: "alcohol", grupo: "habitos", label: "Alcohol", ayuda: "Frecuencia.", critica: false },
+  {
+    key: "bruxism",
+    grupo: "habitos",
+    label: "Bruxismo o aprieta los dientes",
+    ayuda: "De día, de noche, usa plano de relajación…",
+    critica: false,
+  },
+  {
+    key: "oral_habits",
+    grupo: "habitos",
+    label: "Se muerde las uñas, labios u objetos",
+    ayuda: undefined,
+    critica: false,
+  },
+  {
+    key: "mouth_breathing",
+    grupo: "habitos",
+    label: "Respira por la boca",
+    ayuda: undefined,
+    critica: false,
+  },
+  // Familiares
+  {
+    key: "family_history",
+    grupo: "familiares",
+    label: "Antecedentes familiares relevantes",
+    ayuda: "Diabetes, cardiopatía, cáncer, enfermedad de las encías… y quién.",
+    critica: false,
+  },
+  // Gineco-obstétricos
+  {
+    key: "pregnancy",
+    grupo: "gineco",
+    label: "Embarazo",
+    ayuda: "Semanas de gestación.",
+    critica: true,
+  },
+  { key: "breastfeeding", grupo: "gineco", label: "Lactancia", ayuda: undefined, critica: false },
+  // Odontológicos
+  {
+    key: "gum_bleeding",
+    grupo: "odontologicos",
+    label: "Le sangran las encías",
+    ayuda: undefined,
+    critica: false,
+  },
+  {
+    key: "tmj_pain",
+    grupo: "odontologicos",
+    label: "Dolor o ruido en la mandíbula",
+    ayuda: "Al abrir, al masticar, en la mañana…",
+    critica: false,
+  },
+  {
+    key: "previous_ortho",
+    grupo: "odontologicos",
+    label: "Tratamiento de ortodoncia previo",
+    ayuda: "Cuándo y cuánto duró.",
+    critica: false,
+  },
+  {
+    key: "dental_anxiety",
+    grupo: "odontologicos",
+    label: "Miedo o ansiedad al dentista",
+    ayuda: undefined,
+    critica: false,
+  },
+  // Otros
+  { key: "other", grupo: "otros", label: "Otros antecedentes", ayuda: undefined, critica: false },
+] as const satisfies readonly {
+  key: string;
+  grupo: GrupoAntecedente;
+  label: string;
+  ayuda: string | undefined;
+  critica: boolean;
+}[];
+
+export type PreguntaRiesgo = (typeof PREGUNTAS_RIESGO)[number];
+
+/** Las preguntas en grupos, en el orden de `GRUPOS_ANTECEDENTES` (sin grupos vacíos). */
+export function preguntasPorGrupo(): {
+  key: GrupoAntecedente;
+  label: string;
+  preguntas: PreguntaRiesgo[];
+}[] {
+  return GRUPOS_ANTECEDENTES.map((g) => ({
+    key: g.key,
+    label: g.label,
+    preguntas: PREGUNTAS_RIESGO.filter((p) => p.grupo === g.key),
+  })).filter((g) => g.preguntas.length > 0);
+}
 
 export type ClavePregunta = (typeof PREGUNTAS_RIESGO)[number]["key"];
 export const CLAVES_PREGUNTA = PREGUNTAS_RIESGO.map((p) => p.key) as [
@@ -249,6 +461,27 @@ const REGLAS_ANTECEDENTES: readonly ReglaAntecedente[] = [
     key: "surgeries",
     terminos: ["cirugia", "operado", "operada", "hospitalizacion", "hospitalizado"],
   },
+  // FIC-09: los antecedentes nuevos.
+  {
+    key: "bleeding_disorder",
+    terminos: ["hemofilia", "von willebrand", "coagulopatia", "trombocitopenia"],
+  },
+  { key: "respiratory_disease", terminos: ["asma", "asmatico", "asmatica", "epoc"] },
+  {
+    key: "kidney_disease",
+    terminos: ["insuficiencia renal", "enfermedad renal", "dialisis", "nefropatia"],
+  },
+  { key: "liver_disease", terminos: ["cirrosis", "higado graso", "hepatopatia"] },
+  {
+    key: "thyroid_disease",
+    terminos: ["hipotiroidismo", "hipertiroidismo", "tiroiditis"],
+  },
+  { key: "neurological_disease", terminos: ["epilepsia", "convulsiones", "parkinson", "acv"] },
+  {
+    key: "cancer",
+    terminos: ["cancer", "radioterapia", "quimioterapia", "linfoma", "leucemia"],
+  },
+  { key: "bruxism", terminos: ["bruxismo", "bruxista"] },
 ];
 
 /** Fármacos anticoagulantes o antiagregantes (nombre genérico o comercial común). */
@@ -271,6 +504,31 @@ const FARMACOS_ANTICOAGULANTES = [
   "prasugrel",
   "aspirina",
   "acido acetilsalicilico",
+] as const;
+
+/** Bifosfonatos y antirresortivos (FIC-09). */
+const FARMACOS_ANTIRRESORTIVOS = [
+  "alendronato",
+  "risedronato",
+  "ibandronato",
+  "acido zoledronico",
+  "zoledronato",
+  "denosumab",
+  "prolia",
+  "fosamax",
+] as const;
+
+/** Corticoides sistémicos e inmunosupresores comunes (FIC-09). */
+const FARMACOS_INMUNOSUPRESORES = [
+  "prednisona",
+  "prednisolona",
+  "metilprednisolona",
+  "dexametasona",
+  "metotrexato",
+  "tacrolimus",
+  "ciclosporina",
+  "micofenolato",
+  "azatioprina",
 ] as const;
 
 type Mencion = "afirmada" | "negada" | "ausente";
@@ -344,6 +602,12 @@ export function riesgosDesdeAntecedentes(datos: {
     const texto = normalizarTexto(origen);
     if (FARMACOS_ANTICOAGULANTES.some((f) => mencion(texto, f) === "afirmada")) {
       sumar("anticoagulants", origen);
+    }
+    if (FARMACOS_ANTIRRESORTIVOS.some((f) => mencion(texto, f) === "afirmada")) {
+      sumar("bisphosphonates", origen);
+    }
+    if (FARMACOS_INMUNOSUPRESORES.some((f) => mencion(texto, f) === "afirmada")) {
+      sumar("immunosuppressants", origen);
     }
   }
   return resultado;
