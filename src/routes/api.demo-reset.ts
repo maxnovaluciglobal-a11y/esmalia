@@ -115,6 +115,9 @@ export const Route = createFileRoute("/api/demo-reset")({
         await (
           await import("@/lib/demo/caja-comisiones.server")
         ).sembrarCajaYComisionesDeLaDemo(supabaseAdmin);
+        // Ola 11 · B: una reserva en línea por aceptar y el aviso de stock bajo
+        // (REC-10) pasando por el trigger real (nunca lanza).
+        await (await import("@/lib/demo/panel.server")).sembrarPanelDeLaDemo(supabaseAdmin);
 
         return new Response("ok", { status: 200 });
       },
