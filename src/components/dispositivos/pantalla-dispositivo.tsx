@@ -14,6 +14,7 @@ import {
   guardarTokenDispositivo,
   leerTokenDispositivo,
 } from "@/lib/dispositivos/token-local";
+import { hora } from "@/lib/formato-fecha";
 import { cn } from "@/lib/utils";
 
 /**
@@ -125,11 +126,6 @@ export function RelojDeSucursal({ zona, className }: { zona: string; className?:
     return () => clearInterval(id);
   }, []);
   if (!ahora) return null;
-  const texto = new Intl.DateTimeFormat("es-CL", {
-    timeZone: zona,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(ahora);
+  const texto = hora(ahora, zona);
   return <span className={cn("cifra tabular-nums", className)}>{texto}</span>;
 }

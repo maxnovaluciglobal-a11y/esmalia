@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarPlus, Check, Delete, Loader2, LogIn, Wallet } from "
 import type { ContextoDispositivo } from "@/components/dispositivos/pantalla-dispositivo";
 import { EsmaliaLogo } from "@/components/esmalia-logo";
 import { formatMoney } from "@/lib/finance/finance";
+import { diaSemana, fechaLarga, hora } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { formatearRut, rutEsValido } from "@/lib/patients/rut";
 import type { DiaDisponible } from "@/lib/reserva/disponibilidad-reserva";
@@ -187,7 +188,7 @@ export function Totem({ token, dispositivo, alInvalidar }: ContextoDispositivo) 
           <Final onListo={volverAlInicio}>
             <Titular antes="Pedimos tu hora," enfasis={paso.nombre} despues="." />
             <p className="cifra mt-8 text-4xl sm:text-5xl">
-              {fechaLarga(paso.inicio, paso.zona)} · {horaDe(paso.inicio, paso.zona)}
+              {fechaLargaDe(paso.inicio, paso.zona)} · {horaDe(paso.inicio, paso.zona)}
             </p>
             <p className="mt-6 max-w-xl text-2xl leading-snug">
               Queda pendiente hasta que la clínica la acepte. Puedes confirmarla en recepción.
@@ -617,25 +618,13 @@ function PasoVerificar({
 // ─── Panel del paciente ───────────────────────────────────────────────────
 
 function horaDe(iso: string, zona: string): string {
-  return new Intl.DateTimeFormat("es-CL", {
-    timeZone: zona,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(iso));
+  return hora(iso, zona);
 }
 
 const conMayuscula = (t: string) => t.charAt(0).toLocaleUpperCase("es") + t.slice(1);
 
-function fechaLarga(iso: string, zona: string): string {
-  return conMayuscula(
-    new Intl.DateTimeFormat("es-CL", {
-      timeZone: zona,
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    }).format(new Date(iso)),
-  );
+function fechaLargaDe(iso: string, zona: string): string {
+  return conMayuscula(fechaLarga(iso, zona));
 }
 
 const ESTADO_CITA: Record<string, string> = {
@@ -817,16 +806,8 @@ function Chip({
   );
 }
 
-function diaCorto(fecha: string): string {
-  const d = new Date(`${fecha}T12:00:00Z`);
-  return conMayuscula(
-    new Intl.DateTimeFormat("es-CL", {
-      timeZone: "UTC",
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-    }).format(d),
-  );
+function diaCorto(f: string): string {
+  return conMayuscula(diaSemana(f));
 }
 
 function Agendar({

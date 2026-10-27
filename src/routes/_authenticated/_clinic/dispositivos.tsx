@@ -32,6 +32,7 @@ import {
   type DatosDispositivos,
   type DispositivoListado,
 } from "@/lib/dispositivos/dispositivos.functions";
+import { hora } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
 
@@ -369,13 +370,7 @@ function FilaDispositivo({ clinicId, d }: { clinicId: string; d: DispositivoList
         <div className="rounded-xl bg-night p-5 text-on-night" role="status">
           <p className="text-sm text-on-night-2">
             Abre <span className="cifra">{ruta}</span> en el dispositivo y escribe este código.
-            Vence a las{" "}
-            {new Intl.DateTimeFormat("es-CL", {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            }).format(new Date(codigo.venceEn))}{" "}
-            y sirve una sola vez. No se vuelve a mostrar.
+            Vence a las {hora(codigo.venceEn)} y sirve una sola vez. No se vuelve a mostrar.
           </p>
           <p className="cifra mt-3 text-4xl tracking-[0.15em] sm:text-5xl">{codigo.codigo}</p>
         </div>

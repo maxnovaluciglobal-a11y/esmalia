@@ -12,6 +12,7 @@ import {
   type CitaEnBox,
   type EstadoBox,
 } from "@/lib/dispositivos/dispositivo-publico.functions";
+import { hora } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { SEGUNDOS_REFRESCO_BOX } from "@/lib/totem/totem";
 
@@ -29,13 +30,8 @@ const ESTADO: Record<string, string> = {
   finalizada: "Atendida",
 };
 
-function hora(iso: string, zona: string) {
-  return new Intl.DateTimeFormat("es-CL", {
-    timeZone: zona,
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(new Date(iso));
+function horaDe(iso: string, zona: string) {
+  return hora(iso, zona);
 }
 
 export function Box({ token, dispositivo, alInvalidar }: ContextoDispositivo) {
@@ -178,7 +174,7 @@ function TarjetaCita({
       {cita ? (
         <>
           <p className="cifra mt-3 text-5xl leading-none">
-            {hora(cita.inicio, zona)}
+            {horaDe(cita.inicio, zona)}
             {cita.turno != null && (
               <span className="ml-4 text-2xl opacity-70">N.º {cita.turno}</span>
             )}
