@@ -59,8 +59,13 @@ export function RecorridoGuiado({
   // Elemento del paso: llevarlo a la vista y medirlo (también al hacer
   // scroll o cambiar el tamaño de la ventana).
   useEffect(() => {
-    const el = paso.selector ? document.querySelector<HTMLElement>(paso.selector) : null;
-    const visible = el && el.getClientRects().length > 0 ? el : null;
+    // El primer elemento VISIBLE que coincida (el buscador, por ejemplo,
+    // está dos veces: barra lateral y barra superior, y una va oculta).
+    const visible = paso.selector
+      ? (Array.from(document.querySelectorAll<HTMLElement>(paso.selector)).find(
+          (n) => n.getClientRects().length > 0,
+        ) ?? null)
+      : null;
     const reducido = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? true;
     if (visible) {
       visible.scrollIntoView({

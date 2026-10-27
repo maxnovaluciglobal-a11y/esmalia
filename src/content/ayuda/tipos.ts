@@ -9,6 +9,8 @@
 // electrónica), se dice. Los videos los graba o aprueba Walter: mientras no
 // existan, quedan `pendiente` con su guion y la app muestra "Video pendiente".
 
+import type { Permission } from "@/lib/access/access";
+
 /** Un video de ayuda. Nunca se inventa un enlace: sin URL real, `pendiente`. */
 export type Video =
   | {
@@ -107,6 +109,7 @@ export type Novedad = {
   fecha: string;
   titulo: string;
   texto: string;
-  /** Dónde verlo en la app, si hay un lugar. */
-  enlace?: { href: string; texto: string };
+  /** Dónde verlo en la app, si hay un lugar. Con `permiso`, el enlace se
+   *  muestra solo a quien puede abrir esa pantalla. */
+  enlace?: { href: string; texto: string; permiso?: Permission };
 };

@@ -26,6 +26,8 @@ import { listClinicMembers } from "@/lib/access/access.functions";
 import { getMySubscription } from "@/lib/billing.functions";
 import { accesoPorSuscripcion, requiereLlamadaOSuscripcion } from "@/lib/billing";
 import { enlacePuestaEnMarcha, MINUTOS_PUESTA_EN_MARCHA } from "@/lib/marketing/puesta-en-marcha";
+import { VideoDelPaso } from "@/components/ayuda/video-del-paso";
+import type { IdPasoPuestaEnMarcha } from "@/content/ayuda/puesta-en-marcha";
 import { formatoFecha, hoyISO, type Cita } from "@/lib/clinic-operations/clinic-data";
 import { listProfessionals } from "@/lib/clinic-operations/clinic-catalog.functions";
 import { listProfessionalSchedules } from "@/lib/clinic-operations/professionals.functions";
@@ -103,6 +105,8 @@ function iniciales(nombre: string) {
 }
 
 type PasoActivacion = {
+  /** ONB-01: id del paso para su video de ayuda. */
+  id: IdPasoPuestaEnMarcha;
   hecho: boolean;
   label: string;
   to?: "/pacientes" | "/agenda" | "/equipo";
@@ -146,6 +150,7 @@ function ChecklistActivacion({ pasos }: { pasos: PasoActivacion[] }) {
                 {paso.label}
                 <span className="sr-only">{paso.hecho ? " (hecho)" : " (pendiente)"}</span>
               </span>
+              {!paso.hecho && <VideoDelPaso id={paso.id} />}
             </span>
             {!paso.hecho && paso.to && (
               <Link to={paso.to} className="shrink-0 text-xs text-brand-700 hover:underline">
@@ -565,14 +570,16 @@ function Dashboard() {
       : null;
 
   const pasosActivacion: PasoActivacion[] = [
-    { hecho: true, label: "Crear la clínica" },
+    { id: "crear-clinica", hecho: true, label: "Crear la clínica" },
     {
+      id: "invitar-equipo",
       hecho: miembros.length > 1,
       label: "Invitar al equipo",
       to: "/equipo",
       cta: "Invitar",
     },
     {
+      id: "cargar-pacientes",
       hecho: Boolean(hayPacientes),
       label: "Importar o cargar pacientes",
       to: "/pacientes",
@@ -580,6 +587,7 @@ function Dashboard() {
     },
     {
       // `citas` mira hoy..+2 días: heurística de checklist, no una métrica.
+      id: "primera-cita",
       hecho: citas.length > 0,
       label: "Agendar la primera cita",
       to: "/agenda",
@@ -590,6 +598,7 @@ function Dashboard() {
       // puesta en marcha (o suscribiéndose). Estar en el checklist evita que
       // la clínica lo descubra al chocar con el candado. Mientras carga la
       // suscripción no se muestra, para que no parpadee.
+      id: "llamada-puesta-en-marcha",
       hecho:
         sub === undefined ||
         !requiereLlamadaOSuscripcion(sub, access.clinic?.onboardingCallAt ?? null),

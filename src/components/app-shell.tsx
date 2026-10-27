@@ -21,6 +21,7 @@ import { countPendingOutreach, listPendingReminders } from "@/lib/messaging/mess
 import { contarFilasDeRecordatorios } from "@/lib/messaging/recordatorios-agrupados";
 import { countConversacionesSinResponder } from "@/lib/messaging/conversations.functions";
 import { AyudaMenu } from "@/components/ayuda-menu";
+import { BotonAyuda } from "@/components/ayuda/boton-ayuda";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   type Destino,
@@ -392,6 +393,7 @@ export function AppShell({
             <div className="sm:w-56 md:w-64 lg:hidden">
               <GlobalSearch access={access} enBarraSuperior />
             </div>
+            <BotonAyuda access={access} />
             <NotificationsBell userId={access.userId} />
             <div className="hidden md:block">
               <ThemeToggle />

@@ -1,5 +1,14 @@
 import { Link } from "@tanstack/react-router";
-import { BookOpen, Keyboard, Mail, MessageCircle } from "lucide-react";
+import {
+  BookOpen,
+  CircleHelp,
+  GraduationCap,
+  Keyboard,
+  Mail,
+  MessageCircle,
+  MessageSquareWarning,
+  Sparkles,
+} from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
@@ -9,6 +18,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EVENTO_ABRIR_ATAJOS } from "@/lib/atajos";
+import { abrirPanelDeAyuda, abrirReporte } from "@/lib/ayuda/eventos";
 import { EMAIL_SOPORTE, enlaceWhatsAppSoporte } from "@/lib/marketing/contacto";
 
 /**
@@ -17,6 +27,10 @@ import { EMAIL_SOPORTE, enlaceWhatsAppSoporte } from "@/lib/marketing/contacto";
  * abre; el público de Esmalia (recepción de clínicas) resuelve todo por
  * WhatsApp. Tres salidas: WhatsApp (con el nombre de la clínica prellenado,
  * solo si el número está cargado), centro de ayuda y correo.
+ *
+ * Ola 12: suma la ayuda dentro de la app (la de la pantalla actual, el
+ * centro de ayuda con buscador, la Academia, las novedades y "Reportar"),
+ * que comparte con el botón de ayuda de la barra superior (NAV-06).
  *
  * El botón lo pone quien lo usa (`children` + `className`) porque la ayuda
  * aparece en tres sitios con tres estilos: barra lateral, hoja "Más" del
@@ -43,10 +57,26 @@ export function AyudaMenu({
             </a>
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onSelect={abrirPanelDeAyuda}>
+          <CircleHelp className="mr-2 size-4" /> Ayuda de esta pantalla
+        </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <Link to="/docs" target="_blank">
+          <Link to="/ayuda" search={{ q: "" }}>
             <BookOpen className="mr-2 size-4" /> Centro de ayuda
           </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/ayuda/academia">
+            <GraduationCap className="mr-2 size-4" /> Academia
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link to="/ayuda/novedades">
+            <Sparkles className="mr-2 size-4" /> Novedades
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={abrirReporte}>
+          <MessageSquareWarning className="mr-2 size-4" /> Reportar un problema
         </DropdownMenuItem>
         {/* Solo con teclado físico: en el celular no hay atajos que mostrar. */}
         <DropdownMenuItem

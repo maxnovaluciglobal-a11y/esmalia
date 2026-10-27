@@ -169,7 +169,9 @@ export function buscarAyuda(
       }
       total += p;
     }
-    if (todas) resultados.push({ articulo, puntaje: total });
+    // A igualdad, primero la ayuda de la pantalla (es lo más directo).
+    if (todas)
+      resultados.push({ articulo, puntaje: total + (articulo.tipo === "pantalla" ? 1 : 0) });
   }
   return resultados
     .sort((a, b) => b.puntaje - a.puntaje || a.articulo.titulo.localeCompare(b.articulo.titulo))
