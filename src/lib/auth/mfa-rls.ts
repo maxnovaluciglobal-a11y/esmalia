@@ -101,6 +101,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   receivable_installments: "cuotas de las cuentas por cobrar de un paciente",
   receivables: "cuentas por cobrar de un paciente",
   recurring_expenses: "gastos fijos de la clínica: arriendo, sueldos y servicios",
+  saved_reports: "informes guardados: qué cifras de la clínica mira cada persona",
   security_incident_updates: "seguimientos de incidentes que pueden describir datos de pacientes",
   security_incidents: "incidentes de seguridad: pueden describir datos de salud de pacientes",
   treatment_items: "ítems de planes de tratamiento (clínico y precio)",

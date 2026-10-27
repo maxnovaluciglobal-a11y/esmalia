@@ -126,6 +126,7 @@ export const TABLES = [
   "receivable_installments",
   "receivables",
   "recurring_expenses",
+  "saved_reports",
   "security_incident_updates",
   "security_incidents",
   "specialties",
