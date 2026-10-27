@@ -146,13 +146,16 @@ export function EditorCaptura({
             const p = punto(e);
             setArrastre({ ...arrastre, x: p.x, y: p.y });
           }}
-          onPointerUp={() => {
+          onPointerUp={(e) => {
             if (!arrastre) return;
+            // El punto final sale del propio evento (puede no haber habido
+            // un pointermove justo antes de soltar).
+            const fin = punto(e);
             const t: Tapa = {
-              x: Math.min(arrastre.x0, arrastre.x),
-              y: Math.min(arrastre.y0, arrastre.y),
-              w: Math.abs(arrastre.x - arrastre.x0),
-              h: Math.abs(arrastre.y - arrastre.y0),
+              x: Math.min(arrastre.x0, fin.x),
+              y: Math.min(arrastre.y0, fin.y),
+              w: Math.abs(fin.x - arrastre.x0),
+              h: Math.abs(fin.y - arrastre.y0),
             };
             setArrastre(null);
             // Un toque sin arrastrar no tapa nada.

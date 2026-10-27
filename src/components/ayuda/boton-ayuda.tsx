@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -331,40 +332,45 @@ export function BotonAyuda({ access }: { access: ClinicAccess }) {
         />
       )}
 
-      {ofrecer && recorrido && ayuda && (
-        <section
-          aria-label="Recorrido disponible"
-          className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-sm rounded-[14px] border border-night-line bg-night p-4 text-on-night shadow-lg md:inset-x-auto md:right-6 md:bottom-6"
-        >
-          <p className="font-display text-[20px] font-medium leading-tight">
-            ¿Primera vez en <em className="text-brand-on-night">{ayuda.nombre}</em>?
-          </p>
-          <p className="mt-1 text-sm text-on-night-2">
-            Te mostramos lo principal en {recorrido.pasos.length} pasos. Lo puedes volver a ver
-            desde la ayuda.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setEnRecorrido(true)}
-              className="inline-flex min-h-11 items-center rounded-full bg-on-night px-4 text-sm font-semibold text-night focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-on-night sm:min-h-9"
-            >
-              Ver el recorrido
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setInvitacionCerrada(recorrido.id);
-                progreso.marcar("tour", [recorrido.id]);
-              }}
-              className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-on-night-2 hover:text-on-night focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-on-night sm:min-h-9"
-            >
-              Ahora no
-            </button>
-          </div>
-        </section>
-      )}
-
+      {/* En un portal: la barra superior tiene backdrop-filter, que vuelve
+          relativo a ella cualquier `fixed` de adentro. */}
+      {ofrecer &&
+        recorrido &&
+        ayuda &&
+        createPortal(
+          <section
+            aria-label="Recorrido disponible"
+            className="fixed inset-x-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 mx-auto max-w-sm rounded-[14px] border border-night-line bg-night p-4 text-on-night shadow-lg md:inset-x-auto md:right-6 md:bottom-6"
+          >
+            <p className="font-display text-[20px] font-medium leading-tight">
+              ¿Primera vez en <em className="text-brand-on-night">{ayuda.nombre}</em>?
+            </p>
+            <p className="mt-1 text-sm text-on-night-2">
+              Te mostramos lo principal en {recorrido.pasos.length} pasos. Lo puedes volver a ver
+              desde la ayuda.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEnRecorrido(true)}
+                className="inline-flex min-h-11 items-center rounded-full bg-on-night px-4 text-sm font-semibold text-night focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-on-night sm:min-h-9"
+              >
+                Ver el recorrido
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setInvitacionCerrada(recorrido.id);
+                  progreso.marcar("tour", [recorrido.id]);
+                }}
+                className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-medium text-on-night-2 hover:text-on-night focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-on-night sm:min-h-9"
+              >
+                Ahora no
+              </button>
+            </div>
+          </section>,
+          document.body,
+        )}
       {enRecorrido && recorrido && ayuda && (
         <RecorridoGuiado
           recorrido={recorrido}

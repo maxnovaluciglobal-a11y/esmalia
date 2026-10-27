@@ -18,7 +18,7 @@ export const RECORRIDOS: readonly Recorrido[] = [
           "Este botón abre la ayuda de la pantalla en que estás, el buscador, la Academia, las novedades y la forma de escribirnos.",
       },
       {
-        selector: "#agenda-hoy",
+        selector: 'section[aria-labelledby="agenda-hoy"]',
         titulo: "La agenda de hoy",
         texto: "Las citas del día con su estado. «Abrir agenda» lleva a la agenda completa.",
       },

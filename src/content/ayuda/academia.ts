@@ -13,7 +13,7 @@ export const LECCIONES: readonly Leccion[] = [
     pistas: "todas",
     minutos: 3,
     cuerpo: [
-      "El menú tiene los destinos del día a día: Hoy, Agenda, Pacientes, Mensajes, Caja, Reportes y Operación. Ajustes y Ayuda están abajo. Cada persona ve solo lo que su rol permite.",
+      "El menú (a la izquierda en el computador, abajo en el celular) junta lo del día a día: agenda, pacientes, mensajes, caja y reportes. Cada persona ve solo lo que su rol permite.",
       "Hoy es tu punto de partida: arriba están las alertas de tu rol, cada una lleva a donde se resuelve.",
       "Si algo no se entiende, el botón de ayuda (arriba, junto a la campana) explica la pantalla en que estás.",
     ],

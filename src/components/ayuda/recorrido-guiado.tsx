@@ -44,7 +44,10 @@ export function RecorridoGuiado({
       onCerrar(completo);
       const destino = focoPrevio.current;
       window.setTimeout(() => {
-        if (destino?.isConnected) destino.focus({ preventScroll: true });
+        // Si quien lo abrió ya no está (la invitación se cierra al empezar),
+        // el foco va al botón de ayuda, desde donde se vuelve a ver.
+        const respaldo = document.querySelector<HTMLElement>("[data-boton-ayuda]");
+        (destino?.isConnected ? destino : respaldo)?.focus({ preventScroll: true });
       }, 0);
     },
     [onCerrar],
@@ -161,7 +164,7 @@ export function RecorridoGuiado({
       {rect ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute rounded-[12px] outline-2 outline-offset-2 outline-brand-600 transition-[top,left,width,height] duration-200 motion-reduce:transition-none"
+          className="pointer-events-none absolute rounded-[12px] outline-2 outline-offset-2 outline-brand-600"
           style={{
             top: rect.top - PAD,
             left: rect.left - PAD,
