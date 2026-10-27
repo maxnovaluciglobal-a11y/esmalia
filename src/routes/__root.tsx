@@ -26,6 +26,7 @@ import { migrarAlmacenamientoLocal } from "@/lib/compat/nombres-anteriores";
 import { captureException, initSentry } from "@/lib/sentry";
 import { attachOfflineCache, resetOfflineCache } from "@/lib/offline/offline-cache";
 import { registerServiceWorker } from "@/lib/offline/register-sw";
+import { recargarSiLaVersionCambio } from "@/lib/recarga-por-version";
 import { Toaster } from "@/components/ui/sonner";
 import { debeDesviarANuevaClave, RUTA_NUEVA_CLAVE } from "@/lib/recuperar-clave";
 import { registrarVistaDePagina } from "@/lib/marketing/eventos";
@@ -41,6 +42,8 @@ if (typeof window !== "undefined" && esRutaDeCargaDiferida(window.location.pathn
 }
 // Idem: no-op en dev y si el navegador no soporta service workers.
 registerServiceWorker();
+// Un chunk viejo tras un deploy recarga la página una vez (ver lib/recarga-por-version.ts).
+recargarSiLaVersionCambio();
 
 // Diferido: arma el AppShell, que no tiene por qué viajar en el chunk de la
 // landing. Solo se pide si quien llegó al 404 tiene sesión.

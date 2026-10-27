@@ -67,6 +67,8 @@ export async function initSentry(): Promise<void> {
   Sentry.init({
     dsn,
     environment: readEnv(),
+    // Versión desplegada (commit de Vercel): permite saber desde qué deploy viene un error.
+    release: (import.meta as unknown as { env?: { VITE_RELEASE?: string } }).env?.VITE_RELEASE,
     tracesSampleRate: readSampleRate(),
     // Sin session replay ni user feedback modal en v1 — se pueden agregar
     // después. Cuidar la cuota gratuita (5k events/mes).

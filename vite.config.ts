@@ -75,6 +75,11 @@ export default defineConfig(async ({ command, mode }) => {
     envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
   }
 
+  // Versión para Sentry (commit de Vercel; vacío en local).
+  envDefine["import.meta.env.VITE_RELEASE"] = JSON.stringify(
+    process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) ?? "",
+  );
+
   return {
     define: envDefine,
     build: {
