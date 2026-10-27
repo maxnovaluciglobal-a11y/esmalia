@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Clock, Loader2, Percent, Plus, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { AppShell } from "@/components/app-shell";
 import { AtiendePacientes } from "@/components/atiende-pacientes";
 import { Button } from "@/components/ui/button";
@@ -399,9 +400,12 @@ function ComisionDialog({
     onError: (e: Error) => toast.error(mensajeDeError(e)),
   });
 
+  // ONB-07: quitar la comisión se confirma (deja al profesional sin regla).
+  const [confirmarQuitar, setConfirmarQuitar] = useState(false);
   const quitar = useMutation({
     mutationFn: () => removeFn({ data: { clinicId, professionalId: professional.id } }),
     onSuccess: () => {
+      setConfirmarQuitar(false);
       invalidate();
       toast.success("Comisión quitada.");
       setOpen(false);
@@ -479,7 +483,11 @@ function ComisionDialog({
         </div>
         <DialogFooter className="sm:justify-between">
           {tieneRegla ? (
-            <Button variant="ghost" onClick={() => quitar.mutate()} disabled={quitar.isPending}>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmarQuitar(true)}
+              disabled={quitar.isPending}
+            >
               Quitar comisión
             </Button>
           ) : (
@@ -490,6 +498,19 @@ function ComisionDialog({
             Guardar
           </Button>
         </DialogFooter>
+        <ConfirmarAccion
+          abierto={confirmarQuitar}
+          onAbiertoChange={setConfirmarQuitar}
+          titulo={`¿Quitar la comisión de ${professional.fullName}?`}
+          consecuencias={[
+            "Desde hoy no comisiona: queda una regla «sin comisión» que rige desde hoy (la ves en el historial de reglas).",
+            "Lo anterior a hoy y las liquidaciones cerradas no cambian.",
+          ]}
+          etiquetaAccion="Quitar comisión"
+          destructiva
+          pendiente={quitar.isPending}
+          onConfirmar={() => quitar.mutate()}
+        />
       </DialogContent>
     </Dialog>
   );

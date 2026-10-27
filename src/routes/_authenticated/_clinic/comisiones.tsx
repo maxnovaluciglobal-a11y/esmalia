@@ -31,16 +31,7 @@ import { ReglasDeComisionPanel } from "@/components/finance/comisiones-reglas";
 import { LiquidacionCerradaDialog } from "@/components/finance/liquidacion-detalle";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { requireAnyPermission } from "@/lib/access/route-guards";
 import { hasPermission } from "@/lib/access/access";
 import { getMySubscription } from "@/lib/billing.functions";
@@ -113,6 +104,10 @@ function ComisionesPage() {
 
   const [confirmarCierre, setConfirmarCierre] = useState(false);
   const [detalle, setDetalle] = useState<string | null>(null);
+  // ONB-07: marcar pagada una liquidación se confirma con el monto.
+  const [aPagar, setAPagar] = useState<{ id: string; nombre: string; cents: number | null } | null>(
+    null,
+  );
 
   const fetchSubscription = useServerFn(getMySubscription);
   const { data: sub } = useQuery({
@@ -177,6 +172,7 @@ function ComisionesPage() {
   const marcarPagado = useMutation({
     mutationFn: (settlementId: string) => markPaid({ data: { clinicId: clinicId!, settlementId } }),
     onSuccess: () => {
+      setAPagar(null);
       toast.success("Liquidación marcada como pagada.");
       queryClient.invalidateQueries({ queryKey: ["commission-report"] });
     },
@@ -195,6 +191,8 @@ function ComisionesPage() {
   const pagadas = lineasVisibles.filter((l) => l.closed && l.paidAt).length;
   const cerradas = lineasVisibles.filter((l) => l.closed && !l.paidAt).length;
   const abiertas = lineasVisibles.filter((l) => !l.closed).length;
+  const porCerrar = lineasVisibles.filter((l) => !l.closed && l.commissionCents !== null);
+  const totalPorCerrar = porCerrar.reduce((acc, l) => acc + (l.commissionCents ?? 0), 0);
   const maxComision = Math.max(
     0,
     ...lineasVisibles.map((l) => l.commissionCents ?? l.productionCents),
@@ -469,7 +467,13 @@ function ComisionesPage() {
                                   variant="outline"
                                   className="rounded-full"
                                   disabled={marcarPagado.isPending}
-                                  onClick={() => marcarPagado.mutate(l.settlementId!)}
+                                  onClick={() =>
+                                    setAPagar({
+                                      id: l.settlementId!,
+                                      nombre: l.professionalName,
+                                      cents: l.commissionCents,
+                                    })
+                                  }
                                 >
                                   {marcarPagado.isPending && (
                                     <Loader2 className="size-3.5 animate-spin" />
@@ -503,32 +507,43 @@ function ComisionesPage() {
         />
       )}
 
-      <AlertDialog open={confirmarCierre} onOpenChange={setConfirmarCierre}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cerrar período de comisiones</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esto congela los montos actuales del {fecha(search.desde)} al {fecha(search.hasta)}{" "}
-              para todos los profesionales con regla en el período, con su detalle línea por línea.
-              Una vez cerrado, la liquidación queda congelada: cambiar una regla ya no la afecta y
-              ninguna regla nueva puede regir desde una fecha liquidada. ¿Confirmas el cierre?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={cerrarPeriodo.isPending}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              disabled={cerrarPeriodo.isPending}
-              onClick={(e) => {
-                e.preventDefault();
-                cerrarPeriodo.mutate();
-              }}
-            >
-              {cerrarPeriodo.isPending && <Loader2 className="size-3.5 animate-spin" />}
-              Cerrar período
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmarAccion
+        abierto={confirmarCierre}
+        onAbiertoChange={setConfirmarCierre}
+        titulo="Cerrar período de comisiones"
+        cifra={
+          porCerrar.length > 0
+            ? {
+                etiqueta: `${porCerrar.length} profesional${porCerrar.length === 1 ? "" : "es"} por liquidar`,
+                valor: formatMoney(totalPorCerrar, currency),
+              }
+            : null
+        }
+        consecuencias={[
+          `Se congelan los montos del ${fecha(search.desde)} al ${fecha(search.hasta)} para cada profesional con regla en el período, con su detalle línea por línea.`,
+          "Una liquidación cerrada no cambia: modificar una regla ya no la afecta y ninguna regla nueva puede regir desde una fecha liquidada.",
+        ]}
+        etiquetaAccion="Cerrar período"
+        pendiente={cerrarPeriodo.isPending}
+        onConfirmar={() => cerrarPeriodo.mutate()}
+      />
+      <ConfirmarAccion
+        abierto={aPagar !== null}
+        onAbiertoChange={(abierto) => !abierto && setAPagar(null)}
+        titulo={aPagar ? `¿Marcar pagada la liquidación de ${aPagar.nombre}?` : ""}
+        cifra={
+          aPagar?.cents != null
+            ? { etiqueta: "Comisión", valor: formatMoney(aPagar.cents, currency) }
+            : null
+        }
+        consecuencias={[
+          "Queda registrado que ya se le pagó, con la fecha de hoy.",
+          "Esmalia no mueve dinero: solo deja la marca. El pago lo haces tú por fuera.",
+        ]}
+        etiquetaAccion="Marcar pagada"
+        pendiente={marcarPagado.isPending}
+        onConfirmar={() => aPagar && marcarPagado.mutate(aPagar.id)}
+      />
     </AppShell>
   );
 }

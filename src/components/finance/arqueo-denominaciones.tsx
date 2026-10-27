@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState } from "react";
 import { Loader2, Minus, Plus } from "lucide-react";
 
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 import { BloqueoEscritura } from "@/components/solo-lectura";
 import { MoneyInput } from "@/components/money-input";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,7 @@ export function ArqueoDenominaciones({
   const [conteo, setConteo] = useState<Conteo>({});
   const [totalManual, setTotalManual] = useState<number | null>(null);
   const [motivo, setMotivo] = useState("");
+  const [confirmando, setConfirmando] = useState(false);
   const soloLectura = useSoloLectura();
   const motivoRef = useRef<HTMLTextAreaElement>(null);
 
@@ -107,12 +109,19 @@ export function ArqueoDenominaciones({
     setConteo((prev) => ({ ...prev, [clave]: cantidad }));
   }
 
-  function cerrar() {
+  // ONB-07: cerrar la caja no tiene vuelta atrás; se confirma con la cifra.
+  function pedirConfirmacion() {
     if (contado === null || diff === null) return;
     if (faltaMotivo) {
       motivoRef.current?.focus();
       return;
     }
+    setConfirmando(true);
+  }
+
+  function cerrar() {
+    if (contado === null || diff === null) return;
+    setConfirmando(false);
     const detalle = modo === "billetes" ? detalleDeConteo(conteo, currency) : null;
     onCerrar({
       declaredClosingCents: contado,
@@ -323,13 +332,31 @@ export function ArqueoDenominaciones({
           // Botón en tinta, como el prototipo: es el cierre del día, no una
           // acción más de la marca.
           className="mt-3 h-12 w-full rounded-full border-foreground bg-foreground text-background hover:bg-foreground/88 active:bg-foreground/80"
-          onClick={cerrar}
+          onClick={pedirConfirmacion}
           disabled={!puedeCerrar}
         >
           {enviando && <Loader2 className="animate-spin" aria-hidden />}
           {diff === null || diff === 0 ? "Cerrar caja" : "Cerrar con diferencia"}
         </Button>
       </BloqueoEscritura>
+      <ConfirmarAccion
+        abierto={confirmando}
+        onAbiertoChange={setConfirmando}
+        titulo="¿Cerrar la caja?"
+        cifra={
+          contado === null
+            ? null
+            : { etiqueta: "Contado en el cajón", valor: formatMoney(contado, currency) }
+        }
+        consecuencias={[
+          diff !== null && diff !== 0
+            ? `Queda registrada una diferencia de ${formatMoney(Math.abs(diff), currency)} (${diff < 0 ? "faltante" : "sobrante"}) con el motivo que escribiste.`
+            : "Lo contado cuadra con lo esperado.",
+          "Una caja cerrada no se vuelve a abrir. Para seguir cobrando con caja, abre una nueva.",
+        ]}
+        etiquetaAccion={diff === null || diff === 0 ? "Cerrar caja" : "Cerrar con diferencia"}
+        onConfirmar={cerrar}
+      />
     </section>
   );
 }

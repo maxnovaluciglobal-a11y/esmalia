@@ -205,6 +205,7 @@ import { EstadoCitaPastilla } from "@/components/estado-cita-pastilla";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { BloqueoEscritura } from "@/components/solo-lectura";
+import { ConfirmarAccion } from "@/components/confirmar-accion";
 
 /**
  * `lista`: solo el listado del día, sin grilla. Es la vista por defecto en el
@@ -1766,11 +1767,16 @@ function AgendaPage() {
   const [solicitudEnAgenda, setSolicitudEnAgenda] = useState<PendingAppointmentRequest | null>(
     null,
   );
+  // ONB-07: rechazar un pedido del portal se confirma (no se puede deshacer).
+  const [solicitudARechazar, setSolicitudARechazar] = useState<PendingAppointmentRequest | null>(
+    null,
+  );
 
   const rechazar = useMutation({
     mutationFn: (requestId: string) => declineFn({ data: { clinicId: clinicId!, requestId } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["appointment-requests", clinicId] });
+      setSolicitudARechazar(null);
       toast.success("Solicitud rechazada");
     },
     onError: (e: Error) => toast.error(mensajeDeError(e)),
@@ -2643,7 +2649,7 @@ function AgendaPage() {
                             variant="ghost"
                             className="text-muted-foreground pointer-coarse:h-11"
                             disabled={rechazar.isPending}
-                            onClick={() => rechazar.mutate(s.id)}
+                            onClick={() => setSolicitudARechazar(s)}
                           >
                             <X className="size-3.5" /> Rechazar
                           </Button>
@@ -2778,6 +2784,20 @@ function AgendaPage() {
           onOpenChange={(open) => !open && setSolicitudEnAgenda(null)}
         />
       )}
+
+      <ConfirmarAccion
+        abierto={solicitudARechazar !== null}
+        onAbiertoChange={(abierto) => !abierto && setSolicitudARechazar(null)}
+        titulo={`¿Rechazar la solicitud de ${solicitudARechazar?.patientName ?? "este paciente"}?`}
+        consecuencias={[
+          "La solicitud sale de la bandeja y no se puede recuperar.",
+          "Al paciente no se le avisa solo: si quieres ofrecerle otra hora, escríbele tú.",
+        ]}
+        etiquetaAccion="Rechazar la solicitud"
+        destructiva
+        pendiente={rechazar.isPending}
+        onConfirmar={() => solicitudARechazar && rechazar.mutate(solicitudARechazar.id)}
+      />
     </AppShell>
   );
 }
