@@ -62,6 +62,7 @@ import {
 import { fecha, fechaHora } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { EXPLICACION_BOTON_SOLO_LECTURA } from "@/lib/solo-lectura";
+import { partirNombre } from "@/lib/patients/encabezado-ficha";
 import { cn } from "@/lib/utils";
 
 const PESTANAS = ["prestaciones", "pagos", "documentos", "historial"] as const;
@@ -175,15 +176,6 @@ function DetallePage() {
   return (
     <AppShell title="Presupuesto" access={access}>
       <div className="space-y-6">
-        {puedeVerLista && (
-          <Link
-            to="/presupuestos"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" aria-hidden /> Presupuestos
-          </Link>
-        )}
-
         {isLoading ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden /> Cargando presupuesto…
@@ -200,6 +192,7 @@ function DetallePage() {
               d={data}
               hoy={hoy}
               tz={tz}
+              puedeVerLista={puedeVerLista}
               acciones={
                 puedeEditar ? (
                   <BarraDeAcciones
@@ -275,46 +268,73 @@ function Encabezado({
   hoy,
   tz,
   acciones,
+  puedeVerLista,
 }: {
   d: DetallePresupuesto;
   hoy: string;
   tz: string;
   acciones: React.ReactNode;
+  puedeVerLista: boolean;
 }) {
   const q = d.quote;
   const estado = estadoDelPlan({ ...q, planStatus: d.plan?.status ?? null }, hoy);
   const pendiente = q.status === "draft" || q.status === "sent";
   const saldo = d.plan ? Math.max(0, d.plan.totalCents - d.pagadoCents) : null;
+  const { primero, resto } = partirNombre(d.patientName ?? "Paciente");
   return (
-    <section className="card-clinical space-y-5 p-5 sm:p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 space-y-1.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="cifra text-lg font-semibold">{q.number}</h2>
-            <ChipEstadoPlan estado={estado} />
-            {pendiente && <AvisoValidez validUntil={q.validUntil} hoy={hoy} />}
-          </div>
-          <p className="text-sm">
+    // Encabezado en tinta, coherente con la ficha (A+): el paciente en
+    // Cormorant con los apellidos en itálica ocre, los datos del presupuesto
+    // en Geist Mono, el estado en pastilla y las cifras grandes a la derecha.
+    <header className="dark tinta-de-pagina relative isolate overflow-hidden rounded-panel bg-night px-5 py-6 text-on-night sm:px-8 sm:py-8">
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -top-20 -right-16 -z-10 size-[340px] rounded-full border border-night-line"
+      />
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-6">
+        <div className="min-w-0">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-medium text-on-night-2">
+            {puedeVerLista ? (
+              <Link
+                to="/presupuestos"
+                className="inline-flex min-h-9 items-center gap-1.5 font-semibold text-on-night hover:underline"
+              >
+                <ArrowLeft className="size-4" aria-hidden /> Presupuestos
+              </Link>
+            ) : (
+              <span className="font-semibold text-on-night">Presupuesto</span>
+            )}
+            <span aria-hidden>·</span>
+            <span className="cifra text-on-night">{q.number}</span>
+          </p>
+          <h2 className="mt-1 font-display text-[40px] leading-[0.95] font-medium tracking-[-0.02em] break-words sm:text-[52px] xl:text-[64px]">
             <Link
               to="/pacientes/$pacienteId"
               params={{ pacienteId: d.patientId }}
               search={{ pestana: "finanzas" }}
-              className="font-medium underline decoration-border underline-offset-4 hover:text-brand-700 hover:decoration-brand"
+              className="rounded-sm outline-none hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              {d.patientName ?? "Paciente"}
+              {primero}
+              {resto && (
+                <>
+                  {" "}
+                  <em className="text-brand">{resto}</em>
+                </>
+              )}
             </Link>
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Creado el {fecha(q.createdAt, tz)}
-            {q.validUntil && ` · Válido hasta el ${fecha(q.validUntil)}`}
-            {` · ${d.professionalName ?? "Sin profesional asignado"}`}
-          </p>
+          </h2>
+          <div className="mt-3.5 flex flex-wrap items-center gap-x-[18px] gap-y-2 text-[13px] text-on-night-2">
+            <ChipEstadoPlan estado={estado} />
+            {pendiente && <AvisoValidez validUntil={q.validUntil} hoy={hoy} />}
+            <span className="cifra">Creado {fecha(q.createdAt, tz)}</span>
+            {q.validUntil && <span className="cifra">Válido hasta {fecha(q.validUntil)}</span>}
+            <span>{d.professionalName ?? "Sin profesional asignado"}</span>
+          </div>
           {q.status === "rejected" && q.rejectionReason && (
-            <p className="text-xs text-muted-foreground">Motivo del rechazo: {q.rejectionReason}</p>
+            <p className="mt-2 text-sm text-on-night-2">Motivo del rechazo: {q.rejectionReason}</p>
           )}
         </div>
-        <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-right sm:grid-cols-4">
-          <Cifra etiqueta="Total" valor={formatMoney(q.totalCents, q.currency)} />
+        <dl className="grid grid-cols-2 gap-x-7 gap-y-4 sm:grid-cols-4">
+          <Cifra etiqueta="Total" valor={formatMoney(q.totalCents, q.currency)} grande />
           <Cifra
             etiqueta="Aceptado"
             valor={
@@ -336,17 +356,31 @@ function Encabezado({
           />
         </dl>
       </div>
-      {acciones}
-    </section>
+      {acciones && <div className="mt-6">{acciones}</div>}
+    </header>
   );
 }
 
-function Cifra({ etiqueta, valor, tenue }: { etiqueta: string; valor: string; tenue?: boolean }) {
+function Cifra({
+  etiqueta,
+  valor,
+  tenue,
+  grande,
+}: {
+  etiqueta: string;
+  valor: string;
+  tenue?: boolean;
+  grande?: boolean;
+}) {
   return (
-    <div>
-      <dt className="text-[11px] uppercase tracking-wider text-muted-foreground">{etiqueta}</dt>
+    <div className="min-w-0">
+      <dt className="text-[12.5px] font-semibold text-on-night-2">{etiqueta}</dt>
       <dd
-        className={cn("cifra text-sm font-semibold", tenue && "font-normal text-muted-foreground")}
+        className={cn(
+          "mt-1 whitespace-nowrap font-display text-[26px] font-medium leading-none [font-variant-numeric:lining-nums]",
+          grande && "text-brand-on-night",
+          tenue && "font-sans text-sm font-normal text-on-night-2",
+        )}
       >
         {valor}
       </dd>
@@ -385,11 +419,11 @@ function BarraDeAcciones({
   return (
     <>
       {soloLectura && (
-        <p className="border-t border-hairline pt-4 text-xs text-muted-foreground">
+        <p className="border-t border-night-line pt-4 text-xs text-on-night-2">
           {EXPLICACION_BOTON_SOLO_LECTURA}
         </p>
       )}
-      <div className="flex flex-wrap items-center gap-2 border-t border-hairline pt-4">
+      <div className="flex flex-wrap items-center gap-2 border-t border-night-line pt-4">
         {acciones.includes("emitir") && (
           <Button
             size="sm"

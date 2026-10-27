@@ -109,6 +109,8 @@ type PatientRow = {
   ai_summary: string | null;
   wa_opt_in: boolean;
   referral_code: string | null;
+  /** Alta de la ficha (para "nuevos del mes" en /pacientes). */
+  created_at?: string | null;
   // Ola 1 · Frente Pacientes (migración 20261022100000).
   document_type?: string | null;
   health_plan?: string | null;
@@ -171,6 +173,7 @@ function mapPatientRow(
     waOptIn: row.wa_opt_in,
     referralCode: row.referral_code,
     archivadaEl: row.archived_at ?? null,
+    creadaEl: row.created_at ?? null,
     documentoTipo: esTipoDocumento(row.document_type) ? row.document_type : null,
     prevision: esPrevision(row.health_plan) ? row.health_plan : null,
     previsionTramo: (TRAMOS_FONASA as readonly string[]).includes(row.health_plan_tier ?? "")
@@ -193,7 +196,7 @@ function mapPatientRow(
 }
 
 const PATIENT_COLUMNS =
-  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, agreement_id, agreement_member_id, archived_at, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
+  "id, full_name, document_id, birth_date, phone, phone_valid, email, branch_id, primary_professional_id, status, tags, avatar_url, balance_cents, no_show_risk, ai_summary, wa_opt_in, referral_code, created_at, agreement_id, agreement_member_id, archived_at, document_type, health_plan, health_plan_tier, health_plan_institution, emergency_contact_name, emergency_contact_relationship, emergency_contact_phone, acquisition_source, acquisition_source_detail, address, commune";
 
 /**
  * Tope de fila del listado — red de seguridad, no la estrategia de paginado

@@ -24,6 +24,7 @@ import {
   mergePatients,
 } from "@/lib/clinic-operations/clinic-operations.functions";
 import { cn } from "@/lib/utils";
+import { EncabezadoEditorial, PANEL_LISTA } from "@/components/a-plus/lista";
 import { mensajeDeError } from "@/lib/mensaje-error";
 
 export const Route = createFileRoute("/_authenticated/_clinic/fusionar-fichas")({
@@ -86,13 +87,26 @@ function FusionarFichasPage() {
 
   return (
     <AppShell title="Fichas duplicadas" access={access}>
-      <div className="space-y-5">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Toda clínica que migra de otro sistema llega con el mismo paciente cargado más de una vez.
-          Elige cuál ficha sobrevive y el resto se fusiona en ella: citas, pagos, presupuestos,
-          odontograma y periodontograma se reasignan; las notas, documentos y consentimientos (que
-          no se reescriben) y la anamnesis de la ficha vieja se muestran en la que queda.
-        </p>
+      <div className="mx-auto max-w-[84rem] space-y-6 text-base">
+        <EncabezadoEditorial
+          contexto={[access.clinic?.name, "Pacientes"]}
+          titulo={
+            isLoading || isError
+              ? "Fichas"
+              : grupos.length === 0
+                ? "Sin fichas"
+                : `${grupos.length} ${grupos.length === 1 ? "grupo" : "grupos"} de fichas`
+          }
+          enfasis="duplicadas"
+        >
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+            Toda clínica que migra de otro sistema llega con el mismo paciente cargado más de una
+            vez. Elige cuál ficha sobrevive y el resto se fusiona en ella: citas, pagos,
+            presupuestos, odontograma y periodontograma se reasignan; las notas, documentos y
+            consentimientos (que no se reescriben) y la anamnesis de la ficha vieja se muestran en
+            la que queda.
+          </p>
+        </EncabezadoEditorial>
 
         {isLoading && <p className="text-sm text-muted-foreground">Buscando duplicados…</p>}
 
@@ -101,8 +115,8 @@ function FusionarFichasPage() {
         )}
 
         {!isLoading && !isError && grupos.length === 0 && (
-          <div className="card-clinical p-8 text-center">
-            <p className="mb-1 font-display text-lg font-semibold">No encontramos duplicados</p>
+          <div className={cn(PANEL_LISTA, "p-8 text-center")}>
+            <p className="mb-1 font-display text-2xl font-medium">No encontramos duplicados</p>
             <p className="mx-auto max-w-md text-sm text-muted-foreground">
               Ninguna ficha comparte documento ni nombre exacto con otra.
             </p>
@@ -113,7 +127,7 @@ function FusionarFichasPage() {
           const elegido = seleccion[g.clave] ?? g.pacientes[0]?.id;
           const fuentes = g.pacientes.filter((p) => p.id !== elegido);
           return (
-            <section key={`${g.motivo}-${g.clave}`} className="card-clinical overflow-hidden">
+            <section key={`${g.motivo}-${g.clave}`} className={cn(PANEL_LISTA, "overflow-hidden")}>
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline bg-secondary/40 px-4 py-2">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   {g.motivo === "documento"

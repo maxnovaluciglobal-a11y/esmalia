@@ -104,6 +104,8 @@ export interface Paciente {
   referralCode: string | null;
   /** Fecha en que se archivó la ficha (LEG-08). null/undefined = activa. Archivar reemplaza a borrar. */
   archivadaEl?: string | null;
+  /** Alta de la ficha (ISO). null/undefined = sin dato (datos de demo o sin conexión). */
+  creadaEl?: string | null;
   // ── Ola 1 · Frente Pacientes (todos null en las fichas anteriores) ──
   /** FIC-01: rut | pasaporte | dni | otro. */
   documentoTipo?: "rut" | "pasaporte" | "dni" | "otro" | null;
