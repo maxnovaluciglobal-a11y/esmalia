@@ -10,7 +10,15 @@
  * clínica (regla 7), nunca en el del navegador ni en UTC.
  */
 import { hora } from "@/lib/formato-fecha";
-import { calcularComision, type CommissionRuleAmounts } from "@/lib/finance/commissions";
+import {
+  DESDE_SIEMPRE,
+  etiquetaRegla,
+  liquidar,
+  type BaseComision,
+  type HechoCobrado,
+  type HechoRealizado,
+  type VersionRegla,
+} from "@/lib/finance/comisiones-vigencia";
 import { esCobroEnEfectivo } from "@/lib/finance/cash-registers";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/finance/finance";
 
@@ -28,6 +36,8 @@ export interface PagoDelDia {
   /** Mismo grupo = un cobro repartido en varios medios (Ola 3). */
   paymentGroupId: string | null;
   notes: string | null;
+  /** Cuota de membresía que cobra el pago (cierre, ítem 1). `null` = pago de tratamientos. */
+  membershipChargeId?: string | null;
 }
 
 export interface CitaDelDia {
@@ -200,10 +210,11 @@ export interface MovimientoDelDia {
  */
 function conceptoDe(
   item: ItemCobrado | undefined,
-  pago: Pick<PagoDelDia, "receivableId" | "notes">,
+  pago: Pick<PagoDelDia, "receivableId" | "notes" | "membershipChargeId">,
   cita: CitaDelDia | undefined,
 ): string {
   if (item) return item.toothNumber ? `${item.name} · ${item.toothNumber}` : item.name;
+  if (pago.membershipChargeId) return pago.notes?.trim() || "Cuota de membresía";
   if (pago.receivableId) return "Cuota de plan de pago";
   const nota = pago.notes?.trim();
   if (nota) return nota;
@@ -371,56 +382,77 @@ export interface ComisionDelDia {
   professionalId: string;
   nombre: string;
   color: string | null;
+  /** Cobros del día atribuidos al profesional (prestación, o reparto del plan). */
   cobradoCents: number;
   produccionCents: number;
   procedimientos: number;
-  /** `null` = sin regla configurada (no es cero: regla 11). */
+  /** `null` = sin regla vigente hoy (no es cero: regla 11). */
   comisionCents: number | null;
-  /** "40 %" o "Fijo por procedimiento"; "Sin regla" si no hay. */
+  /** "40 % sobre lo cobrado", "$25.000 por prestación realizada" o "Sin regla". */
   regla: string;
+  /** Sobre qué se calcula la regla general vigente. `null` = sin regla. */
+  base: BaseComision | null;
+  /** Lo que efectivamente entró al cálculo hoy (realizado o cobrado, según la regla). */
+  baseCents: number;
+  /** Fecha desde la que rige la regla vigente. `null` = sin regla o rige desde siempre. */
+  rigeDesde: string | null;
+  /** Cuántas líneas de hoy se calcularon con una regla propia de la prestación. */
+  lineasConReglaPropia: number;
 }
 
-function etiquetaCortaDeRegla(rule: CommissionRuleAmounts | null): string {
-  if (!rule) return "Sin regla";
-  if (rule.kind === "percent") {
-    const pct = rule.percentBps / 100;
-    return `${Number.isInteger(pct) ? pct : pct.toFixed(1).replace(".", ",")} %`;
-  }
-  return "Fijo por procedimiento";
+/** Lo que `comisionesDelDia` necesita del servidor: las reglas y los hechos de hoy. */
+export interface ReglasDelDia {
+  /** Día de la clínica (YYYY-MM-DD). */
+  fecha: string;
+  currency: string;
+  versiones: readonly VersionRegla[];
+  realizados: readonly HechoRealizado[];
+  cobrados: readonly HechoCobrado[];
+  /** Cobros de hoy sin prestación ni plan: no son de nadie y no generan comisión. */
+  sinAtribuirCents: number;
 }
 
 /**
- * Comisiones del día por profesional: mismo cálculo que el reporte de
- * comisiones (`calcularComision`, sobre la producción realizada hoy) y, al
- * lado, lo cobrado hoy atribuido a cada profesional. Solo aparecen quienes
- * cobraron o produjeron algo hoy; el orden es por comisión y después por
- * cobrado.
+ * Comisiones del día por profesional: el mismo motor que el reporte y el
+ * cierre del período (`liquidar`, con "rige desde", base cobrado o realizado
+ * y la regla propia de cada prestación), aplicado al día de hoy. Lo cobrado se
+ * atribuye como en el reporte (`atribuirCobros`): a la prestación cobrada, o
+ * repartido entre los profesionales del plan. Solo aparecen quienes cobraron
+ * o produjeron algo hoy; el orden es por comisión y después por cobrado.
  */
 export function comisionesDelDia(
   profesionales: readonly ProfesionalDelDia[],
-  movimientos: readonly Pick<MovimientoDelDia, "professionalId" | "totalCents">[],
-  produccion: ReadonlyMap<string, { cents: number; cantidad: number }>,
-  reglas: ReadonlyMap<string, CommissionRuleAmounts>,
+  reglas: ReglasDelDia,
 ): ComisionDelDia[] {
-  const cobrado = new Map<string, number>();
-  for (const m of movimientos) {
-    if (!m.professionalId) continue;
-    cobrado.set(m.professionalId, (cobrado.get(m.professionalId) ?? 0) + m.totalCents);
-  }
+  const porId = new Map(reglas.versiones.map((v) => [v.id, v]));
   return profesionales
     .map((pro) => {
-      const prod = produccion.get(pro.id) ?? { cents: 0, cantidad: 0 };
-      const rule = reglas.get(pro.id) ?? null;
-      const { commissionCents } = calcularComision(rule, prod.cents, prod.cantidad);
+      const liq = liquidar({
+        professionalId: pro.id,
+        desde: reglas.fecha,
+        hasta: reglas.fecha,
+        versiones: reglas.versiones,
+        realizados: reglas.realizados,
+        cobrados: reglas.cobrados,
+        currency: reglas.currency,
+      });
+      const vigente = liq.vigente;
       return {
         professionalId: pro.id,
         nombre: pro.nombre,
         color: pro.color,
-        cobradoCents: cobrado.get(pro.id) ?? 0,
-        produccionCents: prod.cents,
-        procedimientos: prod.cantidad,
-        comisionCents: commissionCents,
-        regla: etiquetaCortaDeRegla(rule),
+        cobradoCents: liq.cobradoCents,
+        produccionCents: liq.productionCents,
+        procedimientos: liq.procedureCount,
+        comisionCents: liq.commissionCents,
+        regla: vigente ? etiquetaRegla(vigente, reglas.currency) : "Sin regla",
+        base: vigente?.base ?? null,
+        baseCents: liq.baseCents,
+        rigeDesde:
+          vigente && vigente.effectiveFrom !== DESDE_SIEMPRE ? vigente.effectiveFrom : null,
+        lineasConReglaPropia: liq.lineas.filter(
+          (l) => l.versionId !== null && porId.get(l.versionId)?.scope === "prestacion",
+        ).length,
       };
     })
     .filter((c) => c.cobradoCents > 0 || c.produccionCents > 0)
@@ -452,6 +484,8 @@ export interface ResumenCajaDelDia {
   porCobrarCents: number | null;
   /** `null` = el rol no ve comisiones de otros (sin `finance:view`). */
   comisiones: ComisionDelDia[] | null;
+  /** Cobros de hoy que no son de ningún profesional. `null` = el rol no ve comisiones. */
+  cobradoSinProfesionalCents: number | null;
   /** Quién abrió la caja abierta, si hay y se puede leer. */
   abiertaPor: string | null;
   /** Sucursal de la caja (o la única de la clínica). */
@@ -470,10 +504,7 @@ export function armarResumen(input: {
   items: ReadonlyMap<string, ItemCobrado>;
   profesionales: readonly ProfesionalDelDia[];
   saldos: ReadonlyMap<string, number> | null;
-  comisiones: {
-    produccion: ReadonlyMap<string, { cents: number; cantidad: number }>;
-    reglas: ReadonlyMap<string, CommissionRuleAmounts>;
-  } | null;
+  comisiones: ReglasDelDia | null;
   abiertaPor: string | null;
   sucursal: string | null;
   truncado: boolean;
@@ -492,7 +523,11 @@ export function armarResumen(input: {
     citasPorPaciente,
     profesionales,
   });
-  const atendidas = atendidasSinCobro(input.citas, new Set(input.pagos.map((p) => p.patientId)), {
+  // Quien pagó solo su cuota de membresía sigue sin haber pagado su atención.
+  const conCobroDeAtencion = new Set(
+    input.pagos.filter((p) => !p.membershipChargeId).map((p) => p.patientId),
+  );
+  const atendidas = atendidasSinCobro(input.citas, conCobroDeAtencion, {
     timeZone: input.timeZone,
     pacientes: input.pacientes,
     profesionales,
@@ -516,14 +551,8 @@ export function armarResumen(input: {
     movimientos,
     atendidasSinCobro: atendidas,
     porCobrarCents: input.saldos ? porCobrarDelDia(atendidas) : null,
-    comisiones: input.comisiones
-      ? comisionesDelDia(
-          input.profesionales,
-          movimientos,
-          input.comisiones.produccion,
-          input.comisiones.reglas,
-        )
-      : null,
+    comisiones: input.comisiones ? comisionesDelDia(input.profesionales, input.comisiones) : null,
+    cobradoSinProfesionalCents: input.comisiones ? input.comisiones.sinAtribuirCents : null,
     abiertaPor: input.abiertaPor,
     sucursal: input.sucursal,
     truncado: input.truncado,

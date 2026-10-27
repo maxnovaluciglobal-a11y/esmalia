@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -16,6 +16,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  OrigenDelDescuento,
+  SelectorDescuentoAfiliacion,
+} from "@/components/finance/descuento-afiliacion-ui";
+import { useDescuentoDeAfiliacion } from "@/components/finance/use-descuento-afiliacion";
 import { captureMessage } from "@/lib/sentry";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import {
@@ -912,6 +917,27 @@ function NuevoPresupuestoDialog({
   const createFn = useServerFn(createQuote);
   const zona = useZonaClinica();
   const datos = useDatosDelPresupuesto(clinicId, open);
+  const totales = calcularTotalesDePresupuesto(
+    items.filter((it) => it.nameSnapshot.trim()).map(draftALinea),
+    descuentoModo === "amount" ? descuento : 0,
+    descuentoModo === "pct" && descuento > 0 ? descuento : null,
+  );
+  const aplicarDescuento = useCallback((modo: "pct" | "amount", valor: number) => {
+    setDescuentoModo(modo);
+    setDescuento(valor);
+  }, []);
+  // Descuento de empresa con convenio o de membresía: se propone al presupuestar
+  // (cierre, ítem 2) y queda a la vista, editable y con su origen guardado.
+  const afiliacion = useDescuentoDeAfiliacion({
+    clinicId,
+    patientId,
+    activo: open,
+    inicial: null,
+    aplicarSolo: true,
+    subtotalCents: totales.subtotal,
+    descuentoCents: totales.discountCents,
+    aplicar: aplicarDescuento,
+  });
 
   // Abrir con la pieza precargada cuando el odontograma manda una. Se compara
   // por `nonce` y no por pieza para que clickear dos veces el mismo diente
@@ -944,6 +970,7 @@ function NuevoPresupuestoDialog({
           validUntil: validUntil || undefined,
           professionalId: professionalId || null,
           ...descuentoGlobalAInput(descuentoModo, descuento),
+          afiliacion: afiliacion.enviar,
           items: draftsToInput(items),
         },
       }),
@@ -1037,6 +1064,16 @@ function NuevoPresupuestoDialog({
             />
           </div>
 
+          <SelectorDescuentoAfiliacion
+            candidatos={afiliacion.candidatos}
+            seleccion={afiliacion.seleccion}
+            onSeleccionar={afiliacion.seleccionar}
+            subtotalCents={totales.subtotal}
+            currency={currency}
+            aviso={afiliacion.aviso}
+            origenPerdido={afiliacion.origenPerdido}
+          />
+
           <TotalesPresupuesto
             items={items}
             modo={descuentoModo}
@@ -1105,6 +1142,29 @@ function EditarPresupuestoDialog({
   const updateFn = useServerFn(updateQuote);
   const zona = useZonaClinica();
   const datos = useDatosDelPresupuesto(clinicId, open);
+  const totales = calcularTotalesDePresupuesto(
+    items.filter((it) => it.nameSnapshot.trim()).map(draftALinea),
+    descuentoModo === "amount" ? descuento : 0,
+    descuentoModo === "pct" && descuento > 0 ? descuento : null,
+  );
+  const aplicarDescuento = useCallback((modo: "pct" | "amount", valor: number) => {
+    setDescuentoModo(modo);
+    setDescuento(valor);
+  }, []);
+  // Si el presupuesto ya tenía origen se conserva; si no, se ofrece sin aplicar.
+  const rastro = quote.affiliationDiscount;
+  const afiliacion = useDescuentoDeAfiliacion({
+    clinicId,
+    patientId,
+    activo: open,
+    inicial: rastro?.sourceId
+      ? { source: rastro.source, sourceId: rastro.sourceId, name: rastro.name }
+      : null,
+    aplicarSolo: false,
+    subtotalCents: totales.subtotal,
+    descuentoCents: totales.discountCents,
+    aplicar: aplicarDescuento,
+  });
 
   function reabrirConValoresActuales(next: boolean) {
     if (next) {
@@ -1128,6 +1188,7 @@ function EditarPresupuestoDialog({
           validUntil: validUntil || undefined,
           professionalId: professionalId || null,
           ...descuentoGlobalAInput(descuentoModo, descuento),
+          afiliacion: afiliacion.enviar,
           items: draftsToInput(items),
         },
       }),
@@ -1187,6 +1248,16 @@ function EditarPresupuestoDialog({
               placeholder="Observaciones o condiciones del presupuesto"
             />
           </div>
+
+          <SelectorDescuentoAfiliacion
+            candidatos={afiliacion.candidatos}
+            seleccion={afiliacion.seleccion}
+            onSeleccionar={afiliacion.seleccionar}
+            subtotalCents={totales.subtotal}
+            currency={quote.currency}
+            aviso={afiliacion.aviso}
+            origenPerdido={afiliacion.origenPerdido}
+          />
 
           <TotalesPresupuesto
             items={items}
@@ -1310,7 +1381,12 @@ export function FinanceSection({
   );
   // Los reversados no cuentan, igual que en `patient_balances` (encabezado):
   // antes esta tarjeta los sumaba y mostraba otro saldo que el de arriba.
-  const totalPaid = payments.reduce((s, p) => s + (p.reversedAt ? 0 : p.amountCents), 0);
+  // Un pago de cuota de membresía no es de tratamientos: no resta de la deuda
+  // (tampoco en `patient_balances`).
+  const totalPaid = payments.reduce(
+    (s, p) => s + (p.reversedAt || p.membershipChargeId ? 0 : p.amountCents),
+    0,
+  );
   const balance = totalBilled - totalPaid;
   // Las filas viejas mandan (se cotizaron en su moneda); si no hay ninguna,
   // la referencia es la clínica y no un "CLP" cableado.
@@ -1765,6 +1841,14 @@ export function FinanceSection({
                             </span>
                           </div>
                         )}
+                        {quote.affiliationDiscount && (
+                          <OrigenDelDescuento
+                            rastro={quote.affiliationDiscount}
+                            subtotalCents={quote.subtotalCents}
+                            discountCents={quote.discountCents}
+                            className="px-4 pb-2 text-right"
+                          />
+                        )}
                         {/* Reparto del convenio. Solo aparece si el
                             presupuesto tiene uno: un particular no necesita
                             ver una fila que dice "cubre $0". */}
@@ -1939,7 +2023,12 @@ export function FinanceSection({
                       <p className="text-xs text-muted-foreground">
                         {medios}
                         {cuenta ? ` · ${cuenta.description}` : plan && ` · ${plan.name}`}
-                        {!cuenta && !plan && pay.treatmentPlanId === null && " · A cuenta"}
+                        {pay.membershipChargeId && " · Cuota de membresía"}
+                        {!cuenta &&
+                          !plan &&
+                          !pay.membershipChargeId &&
+                          pay.treatmentPlanId === null &&
+                          " · A cuenta"}
                         {pay.reference && ` · Ref. ${pay.reference}`}
                         {pay.reversedAt && ` · Reversado: ${pay.reversalReason}`}
                       </p>
@@ -1981,7 +2070,8 @@ export function FinanceSection({
             <AlertDialogDescription>
               El pago no se borra: queda tachado en el historial con el motivo, y deja de contar
               para el saldo del paciente, la caja del turno y los reportes. Si el cobro se hizo con
-              varios medios, se reversa entero. No se puede deshacer.
+              varios medios, se reversa entero. Si es el pago de una cuota de membresía, la cuota
+              queda anulada. No se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="space-y-2">

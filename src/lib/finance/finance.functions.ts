@@ -40,6 +40,8 @@ import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { requireEscritura, requireEscrituraPorFila } from "@/lib/solo-lectura.middleware";
 import { MAX_PARTES_COBRO, validarReparto } from "@/lib/finance/cuentas-por-cobrar";
 import { metodoDelMedio } from "@/lib/finance/medios-de-pago";
+import { elegirMejor, type CandidatoDescuento } from "@/lib/finance/descuento-afiliacion";
+import { cargarDescuentosDeAfiliacion } from "@/lib/finance/descuento-afiliacion.server";
 
 const SURFACE_ENUM = z.enum(TOOTH_SURFACES);
 const TOOTH_NUMBER_OPT = z
@@ -400,6 +402,12 @@ export const QUOTE_COLUMNS_LEGACY =
   "id, number, status, currency, subtotal_cents, discount_cents, commercial_discount_pct, total_cents, agreement_id, agreement_name_snapshot, coverage_total_cents, notes, valid_until, sent_at, accepted_at, rejected_at, accepted_by_name, created_at";
 export const QUOTE_COLUMNS =
   QUOTE_COLUMNS_LEGACY + ", professional_id, accepted_total_cents, rejection_reason";
+/**
+ * Rastro del descuento de afiliación (cierre, ítem 2: migración
+ * 20261112100100). Se pide aparte: en una base sin la migración se lee sin él.
+ */
+export const QUOTE_COLUMNS_AFILIACION =
+  ", affiliation_discount_source, affiliation_discount_name_snapshot, affiliation_discount_rule_snapshot, affiliation_discount_percent, affiliation_discount_amount_cents, partner_company_id, membership_plan_id";
 /** Sin las columnas de la Ola 3 (aceptación parcial y paquetes, 20261024200100). */
 export const QUOTE_ITEM_COLUMNS_SIN_PAQUETES =
   "id, quote_id, procedure_id, name_snapshot, tooth_number, surface, quantity, unit_price_cents, discount_cents, discount_pct, total_cents, coverage_cents, patient_cents, phase_label, phase_position, position, notes, odontogram_mark_id";
@@ -434,6 +442,14 @@ export type QuoteRow = {
   professional_id?: string | null;
   accepted_total_cents?: number | null;
   rejection_reason?: string | null;
+  /** Ausentes antes de aplicar la migración 20261112100100. */
+  affiliation_discount_source?: string | null;
+  affiliation_discount_name_snapshot?: string | null;
+  affiliation_discount_rule_snapshot?: string | null;
+  affiliation_discount_percent?: number | string | null;
+  affiliation_discount_amount_cents?: number | null;
+  partner_company_id?: string | null;
+  membership_plan_id?: string | null;
 };
 export type QuoteItemRow = {
   id: string;
@@ -510,6 +526,24 @@ export function mapQuote(row: QuoteRow, items: QuoteItem[]): Quote {
     rejectionReason: row.rejection_reason ?? null,
     createdAt: row.created_at,
     items,
+    affiliationDiscount:
+      row.affiliation_discount_source === "empresa" ||
+      row.affiliation_discount_source === "membresia"
+        ? {
+            source: row.affiliation_discount_source,
+            sourceId:
+              row.affiliation_discount_source === "empresa"
+                ? (row.partner_company_id ?? null)
+                : (row.membership_plan_id ?? null),
+            name: row.affiliation_discount_name_snapshot ?? "",
+            rule: row.affiliation_discount_rule_snapshot ?? null,
+            percent:
+              row.affiliation_discount_percent == null
+                ? null
+                : Number(row.affiliation_discount_percent),
+            amountCents: row.affiliation_discount_amount_cents ?? null,
+          }
+        : null,
   };
 }
 
@@ -529,7 +563,11 @@ export const listQuotes = createServerFn({ method: "GET" })
         .eq("clinic_id", data.clinicId)
         .eq("patient_id", data.patientId)
         .order("created_at", { ascending: false });
-    let { data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS);
+    let { data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS + QUOTE_COLUMNS_AFILIACION);
+    // Base sin la migración 20261112100100: se lee sin el rastro del descuento.
+    if (error && isUndefinedColumnError(error)) {
+      ({ data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS));
+    }
     // Base sin la migración 20261024200100: se lee sin las columnas nuevas.
     if (error && isUndefinedColumnError(error)) {
       ({ data: quoteRows, error } = await leerQuotes(QUOTE_COLUMNS_LEGACY));
@@ -696,6 +734,70 @@ async function cargarCoberturaDelPaciente(
 }
 
 /**
+ * Origen del descuento comercial que el diálogo dejó puesto (cierre, ítem 2).
+ * El cliente solo dice DE QUÉ afiliación viene (empresa o membresía); la regla
+ * (porcentaje o monto) se vuelve a leer de la base y se guarda como snapshot
+ * (regla 10), junto con el nombre. Si el paciente ya no tiene ese descuento
+ * (se pausó la membresía, se desafilió) se rechaza con un mensaje claro: el
+ * descuento no puede quedar sin su origen ni el origen sin su descuento.
+ */
+const AfiliacionInput = z
+  .object({
+    source: z.enum(["empresa", "membresia"]),
+    sourceId: z.string().uuid(),
+  })
+  .nullish();
+
+type AfiliacionInputT = z.infer<typeof AfiliacionInput>;
+
+async function rolDeQuien(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  userId: string,
+): Promise<ClinicRole | null> {
+  const { data } = await supabase
+    .from("clinic_members")
+    .select("role")
+    .eq("clinic_id", clinicId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return (data?.role as ClinicRole | undefined) ?? null;
+}
+
+/** Columnas del rastro para un candidato (todas null = sin origen). */
+function columnasDelRastro(c: CandidatoDescuento | null) {
+  return {
+    affiliation_discount_source: c ? c.source : null,
+    affiliation_discount_name_snapshot: c ? c.name : null,
+    affiliation_discount_rule_snapshot: c ? c.rule : null,
+    affiliation_discount_percent: c && c.kind === "percent" ? c.percent : null,
+    affiliation_discount_amount_cents: c && c.kind === "amount" ? c.cents : null,
+    partner_company_id: c && c.source === "empresa" ? c.sourceId : null,
+    membership_plan_id: c && c.source === "membresia" ? c.sourceId : null,
+  };
+}
+
+/** Resuelve el origen pedido contra lo que el paciente tiene hoy. */
+async function resolverAfiliacion(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  userId: string,
+  patientId: string,
+  pedida: AfiliacionInputT,
+): Promise<CandidatoDescuento | null> {
+  if (!pedida) return null;
+  const rol = await rolDeQuien(supabase, clinicId, userId);
+  const candidatos = await cargarDescuentosDeAfiliacion(supabase, clinicId, patientId, rol);
+  const c = candidatos.find((x) => x.source === pedida.source && x.sourceId === pedida.sourceId);
+  if (!c) {
+    throw new Error(
+      "El descuento de afiliación ya no corresponde a este paciente. Quítalo o vuelve a abrir el presupuesto.",
+    );
+  }
+  return c;
+}
+
+/**
  * Correlativo atómico via RPC SECURITY DEFINER (regla 8). Reset por año en
  * tz de la clínica (evita que un quote creado a las 22:00 del 31-dic en
  * Chile lleve el año siguiente porque el server está en UTC).
@@ -769,12 +871,21 @@ export const createQuote = createServerFn({ method: "POST" })
         professionalId: z.string().uuid().nullish(),
         globalDiscountCents: z.number().int().min(0).default(0),
         commercialDiscountPct: z.number().min(0).max(100).nullish(),
+        /** De qué afiliación (empresa o membresía) salió el descuento comercial. */
+        afiliacion: AfiliacionInput,
         items: z.array(QuoteItemInput).min(1, "Agrega al menos un ítem."),
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ id: string; number: string }> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
+    const origen = await resolverAfiliacion(
+      supabase,
+      data.clinicId,
+      userId,
+      data.patientId,
+      data.afiliacion,
+    );
 
     const nextNumber = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
     const validUntil =
@@ -805,6 +916,8 @@ export const createQuote = createServerFn({ method: "POST" })
         total_cents: totals.total,
         // Solo si viene: así crear sigue andando en una base sin 20261024200100.
         ...(data.professionalId ? { professional_id: data.professionalId } : {}),
+        // Y el rastro del descuento de afiliación, solo con origen (cierre, ítem 2).
+        ...(origen ? columnasDelRastro(origen) : {}),
       })
       .select("id, number")
       .single();
@@ -849,12 +962,18 @@ export const updateQuote = createServerFn({ method: "POST" })
         professionalId: z.string().uuid().nullish(),
         globalDiscountCents: z.number().int().min(0).default(0),
         commercialDiscountPct: z.number().min(0).max(100).nullish(),
+        /**
+         * De qué afiliación salió el descuento. `undefined` = no se toca el
+         * rastro; `null` = se quitó el origen (el descuento, si queda, es
+         * comercial a secas).
+         */
+        afiliacion: AfiliacionInput,
         items: z.array(QuoteItemInput).min(1, "Agrega al menos un ítem."),
       })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
 
     const { data: quote, error: qErr } = await supabase
       .from("quotes")
@@ -873,6 +992,13 @@ export const updateQuote = createServerFn({ method: "POST" })
     // Se recarga la cobertura en cada edición: si al paciente le cambiaron el
     // convenio desde que se emitió, corregir el presupuesto tiene que reflejarlo.
     const convenio = await cargarCoberturaDelPaciente(supabase, data.clinicId, quote.patient_id);
+    const origen = await resolverAfiliacion(
+      supabase,
+      data.clinicId,
+      userId,
+      quote.patient_id,
+      data.afiliacion,
+    );
     const totals = computeQuoteTotals(
       data.items,
       data.globalDiscountCents,
@@ -905,6 +1031,8 @@ export const updateQuote = createServerFn({ method: "POST" })
         agreement_name_snapshot: convenio.agreementName,
         coverage_total_cents: totals.coverageTotalCents,
         ...(data.professionalId !== undefined ? { professional_id: data.professionalId } : {}),
+        // `undefined` deja el rastro como estaba; `null` lo borra; con origen lo reemplaza.
+        ...(data.afiliacion !== undefined ? columnasDelRastro(origen) : {}),
       })
       .eq("id", data.quoteId)
       .eq("clinic_id", data.clinicId);
@@ -1174,6 +1302,14 @@ export const sumarMarcaAlPresupuesto = createServerFn({ method: "POST" })
     if (!quote) {
       const number = await siguienteNumeroDePresupuesto(supabase, data.clinicId);
       const validUntil = await validezPorDefectoDeLaClinica(supabase, data.clinicId);
+      // Un presupuesto nuevo de un paciente afiliado nace con su descuento
+      // porcentual (el de monto fijo se propone al editar: depende del subtotal
+      // y acá las líneas se suman de a una). Sigue editable y con su origen.
+      const rol = await rolDeQuien(supabase, data.clinicId, userId);
+      const propuestos = (
+        await cargarDescuentosDeAfiliacion(supabase, data.clinicId, data.patientId, rol)
+      ).filter((c) => c.kind === "percent");
+      const afiliacion = elegirMejor(propuestos, 0);
       const { data: nuevo, error: qErr } = await supabase
         .from("quotes")
         .insert({
@@ -1181,6 +1317,12 @@ export const sumarMarcaAlPresupuesto = createServerFn({ method: "POST" })
           patient_id: data.patientId,
           number,
           valid_until: validUntil,
+          ...(afiliacion
+            ? {
+                commercial_discount_pct: afiliacion.percent,
+                ...columnasDelRastro(afiliacion),
+              }
+            : {}),
         })
         .select("id, number, patient_id, commercial_discount_pct, discount_cents")
         .single();
@@ -1753,7 +1895,7 @@ export const setTreatmentItemStatus = createServerFn({ method: "POST" })
 // ─── PAYMENTS ────────────────────────────────────────────────────────────
 
 const PAYMENT_COLUMNS =
-  "id, amount_cents, currency, method, reference, paid_at, notes, treatment_plan_id, treatment_item_id, created_by, reversed_at, reversed_by, reversal_reason, method_name_snapshot, receivable_id, payment_group_id, coverage_group_id, coverage_role, voucher_number";
+  "id, amount_cents, currency, method, reference, paid_at, notes, treatment_plan_id, treatment_item_id, created_by, reversed_at, reversed_by, reversal_reason, method_name_snapshot, receivable_id, payment_group_id, coverage_group_id, coverage_role, voucher_number, membership_charge_id";
 
 type PaymentRow = {
   id: string;
@@ -1775,6 +1917,7 @@ type PaymentRow = {
   coverage_group_id: string | null;
   coverage_role: string | null;
   voucher_number: string | null;
+  membership_charge_id: string | null;
 };
 
 function mapPayment(row: PaymentRow): Payment {
@@ -1799,6 +1942,7 @@ function mapPayment(row: PaymentRow): Payment {
     coverageRole:
       row.coverage_role === "bono" || row.coverage_role === "copago" ? row.coverage_role : null,
     voucherNumber: row.voucher_number,
+    membershipChargeId: row.membership_charge_id,
   };
 }
 

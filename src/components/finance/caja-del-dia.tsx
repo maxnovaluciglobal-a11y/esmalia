@@ -22,6 +22,7 @@ import {
   type ResumenCajaDelDia,
 } from "@/lib/finance/caja-del-dia";
 import { formatMoney } from "@/lib/finance/finance";
+import { fecha } from "@/lib/formato-fecha";
 import { cn } from "@/lib/utils";
 
 /** Panel del prototipo: tarjeta con radio 14 px y borde fino. */
@@ -480,15 +481,19 @@ export function AtendidasSinCobroPanel({
 
 export function ComisionesDelDiaPanel({
   comisiones,
+  sinProfesionalCents,
   currency,
 }: {
   comisiones: ComisionDelDia[];
+  /** Cobros de hoy que no son de ningún profesional (no generan comisión). */
+  sinProfesionalCents: number | null;
   currency: string;
 }) {
   const uid = useId();
   const conRegla = comisiones.some((c) => c.comisionCents !== null);
   const valor = (c: ComisionDelDia) => (conRegla ? (c.comisionCents ?? 0) : c.cobradoCents);
   const max = Math.max(0, ...comisiones.map(valor));
+  const total = comisiones.reduce((s, c) => s + (c.comisionCents ?? 0), 0);
   return (
     <section aria-labelledby={`${uid}-titulo`} className={cn(PANEL, "p-5")}>
       <h2 id={`${uid}-titulo`} className="font-display text-[30px] font-medium leading-none">
@@ -500,6 +505,12 @@ export function ComisionesDelDiaPanel({
         </p>
       ) : (
         <>
+          {conRegla && (
+            <p className="mt-2 text-sm text-muted-foreground">
+              Se les debe hoy{" "}
+              <span className="cifra font-medium">{formatMoney(total, currency)}</span> en total.
+            </p>
+          )}
           <ul className="mt-3.5 grid gap-3.5">
             {comisiones.map((c) => {
               const ancho = max > 0 ? Math.round((valor(c) / max) * 100) : 0;
@@ -518,16 +529,34 @@ export function ComisionesDelDiaPanel({
                     />
                   </div>
                   <div className="mt-1 flex justify-between gap-2.5 text-[12.5px] text-muted-foreground">
-                    <span>Cobrado {formatMoney(c.cobradoCents, currency)}</span>
-                    <span>{c.regla}</span>
+                    <span>
+                      Cobrado {formatMoney(c.cobradoCents, currency)} · Realizado{" "}
+                      {formatMoney(c.produccionCents, currency)}
+                    </span>
+                    <span className="text-right">{c.regla}</span>
                   </div>
+                  {(c.rigeDesde || c.lineasConReglaPropia > 0) && (
+                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                      {c.rigeDesde && `Regla vigente desde el ${fecha(c.rigeDesde)}`}
+                      {c.rigeDesde && c.lineasConReglaPropia > 0 && " · "}
+                      {c.lineasConReglaPropia > 0 &&
+                        `${c.lineasConReglaPropia} ${c.lineasConReglaPropia === 1 ? "línea con regla propia de la prestación" : "líneas con regla propia de la prestación"}`}
+                    </p>
+                  )}
                 </li>
               );
             })}
           </ul>
+          {sinProfesionalCents !== null && sinProfesionalCents > 0 && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Hoy entraron {formatMoney(sinProfesionalCents, currency)} que no son de ningún
+              profesional (abonos sin prestación, cuotas de membresía): no generan comisión.
+            </p>
+          )}
           <p className="mt-4 text-xs text-muted-foreground">
-            La comisión se calcula con la regla de cada profesional sobre lo realizado hoy. El
-            detalle y el cierre del período están en Reportes · Comisiones.
+            Cada comisión usa la regla vigente de cada profesional hoy: sobre lo realizado o sobre
+            lo cobrado, con su regla propia por prestación si la tiene. Es la misma cuenta del
+            reporte y del cierre del período, en Reportes · Comisiones.
           </p>
         </>
       )}
