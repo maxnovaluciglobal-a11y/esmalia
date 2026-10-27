@@ -154,6 +154,7 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
       "signature_storage_path",
       "signature_sha256",
       "signature_updated_at",
+      "attends_patients",
     ],
     orden: ["id"],
   },
@@ -315,6 +316,8 @@ const TABLAS_EXPORTACION_BASE: readonly TablaExportacion[] = [
       "confirmed_by",
       "patient_confirmed_at",
       "patient_confirmed_via",
+      "patient_cancelled_at",
+      "booking_source",
       "arrived_at",
       "started_at",
       "created_at",
@@ -1941,6 +1944,26 @@ const TABLAS_OLAS_1_A_5: readonly TablaExportacion[] = [
     columnas: ["id", "actor_id", "formato", "patient_id", "detalle", "created_at"],
     orden: ["id"],
   },
+  {
+    clave: "reserva_en_linea",
+    tabla: "online_booking_settings",
+    archivo: "reserva-en-linea.csv",
+    descripcion:
+      "Reglas de la reserva en línea de la clínica: encendida, dirección del link (slug), anticipación mínima en horas, días hacia adelante, procedimientos y tipos de cita reservables y nota de bienvenida.",
+    columnas: [
+      "enabled",
+      "slug",
+      "min_notice_hours",
+      "max_days_ahead",
+      "bookable_procedure_ids",
+      "bookable_appointment_type_ids",
+      "welcome_note",
+      "updated_by",
+      "created_at",
+      "updated_at",
+    ],
+    orden: ["clinic_id"],
+  },
 ];
 
 /**
@@ -1956,6 +1979,8 @@ export const TABLAS_EXCLUIDAS_EXPORTACION: Readonly<Record<string, string>> = {
     "Contadores internos de los correlativos; los números ya salen en cada presupuesto, receta o documento.",
   email_sandbox_config: "Configuración técnica del envío de correos de prueba de Esmalia.",
   lifecycle_emails: "Correos que Esmalia le manda al equipo de la clínica (bienvenida, avisos).",
+  online_booking_verifications:
+    "Códigos de verificación de la reserva en línea (solo su huella) y conteos antiabuso; duran 10 minutos y no son datos clínicos.",
   notifications:
     "Avisos internos de la app para cada usuario; cada persona ve solo los suyos y no son datos de la clínica.",
   patient_document_bidx:

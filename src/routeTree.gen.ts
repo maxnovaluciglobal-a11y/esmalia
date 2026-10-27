@@ -62,6 +62,7 @@ import { Route as FirmarTokenRouteImport } from './routes/firmar.$token'
 import { Route as FuncionesIndexRouteImport } from './routes/funciones.index'
 import { Route as FuncionesSlugRouteImport } from './routes/funciones.$slug'
 import { Route as GuiasSlugRouteImport } from './routes/guias.$slug'
+import { Route as MiCitaTokenRouteImport } from './routes/mi-cita.$token'
 import { Route as ParaSlugRouteImport } from './routes/para.$slug'
 import { Route as PlantillasSlugRouteImport } from './routes/plantillas.$slug'
 import { Route as PortalLaboratorioTokenRouteImport } from './routes/portal-laboratorio.$token'
@@ -71,6 +72,7 @@ import { Route as PortalTokenRouteImport } from './routes/portal.$token'
 import { Route as PortalInicioRouteImport } from './routes/portal.inicio'
 import { Route as RecursosIndexRouteImport } from './routes/recursos.index'
 import { Route as RecursosFugasClinicaDentalRouteImport } from './routes/recursos.fugas-clinica-dental'
+import { Route as ReservarSlugRouteImport } from './routes/reservar.$slug'
 import { Route as AuthenticatedClinicAgendaRouteImport } from './routes/_authenticated/_clinic/agenda'
 import { Route as AuthenticatedClinicAjustesRouteImport } from './routes/_authenticated/_clinic/ajustes'
 import { Route as AuthenticatedClinicArancelesRouteImport } from './routes/_authenticated/_clinic/aranceles'
@@ -108,6 +110,7 @@ import { Route as AuthenticatedClinicProfesionalesRouteImport } from './routes/_
 import { Route as AuthenticatedClinicPruebasEmailRouteImport } from './routes/_authenticated/_clinic/pruebas-email'
 import { Route as AuthenticatedClinicRecordatoriosRouteImport } from './routes/_authenticated/_clinic/recordatorios'
 import { Route as AuthenticatedClinicReportesRouteImport } from './routes/_authenticated/_clinic/reportes'
+import { Route as AuthenticatedClinicReservaEnLineaRouteImport } from './routes/_authenticated/_clinic/reserva-en-linea'
 import { Route as AuthenticatedClinicResultadosDelPilotoRouteImport } from './routes/_authenticated/_clinic/resultados-del-piloto'
 import { Route as AuthenticatedClinicSandboxEmailRouteImport } from './routes/_authenticated/_clinic/sandbox-email'
 import { Route as AuthenticatedClinicSucursalesRouteImport } from './routes/_authenticated/_clinic/sucursales'
@@ -119,6 +122,7 @@ import { Route as AuthenticatedAdminLeadsRouteImport } from './routes/_authentic
 import { Route as ApiCorreosBajaRouteImport } from './routes/api.correos.baja'
 import { Route as ApiRecursoSlugRouteImport } from './routes/api.recurso.$slug'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe.webhook'
+import { Route as ReservarSlugProfesionalRouteImport } from './routes/reservar.$slug_.$profesional'
 import { Route as AuthenticatedClinicDocumentosDocumentoIdRouteImport } from './routes/_authenticated/_clinic/documentos.$documentoId'
 import { Route as AuthenticatedClinicPacientesIndexRouteImport } from './routes/_authenticated/_clinic/pacientes.index'
 import { Route as AuthenticatedClinicPacientesPacienteIdRouteImport } from './routes/_authenticated/_clinic/pacientes.$pacienteId'
@@ -392,6 +396,11 @@ const GuiasSlugRoute = GuiasSlugRouteImport.update({
   path: '/guias/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MiCitaTokenRoute = MiCitaTokenRouteImport.update({
+  id: '/mi-cita/$token',
+  path: '/mi-cita/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ParaSlugRoute = ParaSlugRouteImport.update({
   id: '/para/$slug',
   path: '/para/$slug',
@@ -438,6 +447,11 @@ const RecursosFugasClinicaDentalRoute =
     path: '/recursos/fugas-clinica-dental',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ReservarSlugRoute = ReservarSlugRouteImport.update({
+  id: '/reservar/$slug',
+  path: '/reservar/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedClinicAgendaRoute =
   AuthenticatedClinicAgendaRouteImport.update({
     id: '/agenda',
@@ -660,6 +674,12 @@ const AuthenticatedClinicReportesRoute =
     path: '/reportes',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicReservaEnLineaRoute =
+  AuthenticatedClinicReservaEnLineaRouteImport.update({
+    id: '/reserva-en-linea',
+    path: '/reserva-en-linea',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicResultadosDelPilotoRoute =
   AuthenticatedClinicResultadosDelPilotoRouteImport.update({
     id: '/resultados-del-piloto',
@@ -720,6 +740,11 @@ const ApiRecursoSlugRoute = ApiRecursoSlugRouteImport.update({
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   id: '/api/stripe/webhook',
   path: '/api/stripe/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReservarSlugProfesionalRoute = ReservarSlugProfesionalRouteImport.update({
+  id: '/reservar/$slug_/$profesional',
+  path: '/reservar/$slug/$profesional',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedClinicDocumentosDocumentoIdRoute =
@@ -808,6 +833,7 @@ export interface FileRoutesByFullPath {
   '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
+  '/mi-cita/$token': typeof MiCitaTokenRoute
   '/para/$slug': typeof ParaSlugRoute
   '/plantillas/$slug': typeof PlantillasSlugRoute
   '/portal-laboratorio/$token': typeof PortalLaboratorioTokenRoute
@@ -815,6 +841,7 @@ export interface FileRoutesByFullPath {
   '/portal/$token': typeof PortalTokenRoute
   '/portal/inicio': typeof PortalInicioRoute
   '/recursos/fugas-clinica-dental': typeof RecursosFugasClinicaDentalRoute
+  '/reservar/$slug': typeof ReservarSlugRoute
   '/comparar/': typeof CompararIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/funciones/': typeof FuncionesIndexRoute
@@ -857,6 +884,7 @@ export interface FileRoutesByFullPath {
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
   '/reportes': typeof AuthenticatedClinicReportesRoute
+  '/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
   '/sucursales': typeof AuthenticatedClinicSucursalesRoute
@@ -868,6 +896,7 @@ export interface FileRoutesByFullPath {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/reservar/$slug/$profesional': typeof ReservarSlugProfesionalRoute
   '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
@@ -922,6 +951,7 @@ export interface FileRoutesByTo {
   '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
+  '/mi-cita/$token': typeof MiCitaTokenRoute
   '/para/$slug': typeof ParaSlugRoute
   '/plantillas/$slug': typeof PlantillasSlugRoute
   '/portal-laboratorio/$token': typeof PortalLaboratorioTokenRoute
@@ -929,6 +959,7 @@ export interface FileRoutesByTo {
   '/portal/$token': typeof PortalTokenRoute
   '/portal/inicio': typeof PortalInicioRoute
   '/recursos/fugas-clinica-dental': typeof RecursosFugasClinicaDentalRoute
+  '/reservar/$slug': typeof ReservarSlugRoute
   '/comparar': typeof CompararIndexRoute
   '/docs': typeof DocsIndexRoute
   '/funciones': typeof FuncionesIndexRoute
@@ -971,6 +1002,7 @@ export interface FileRoutesByTo {
   '/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
   '/reportes': typeof AuthenticatedClinicReportesRoute
+  '/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
   '/sucursales': typeof AuthenticatedClinicSucursalesRoute
@@ -982,6 +1014,7 @@ export interface FileRoutesByTo {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/reservar/$slug/$profesional': typeof ReservarSlugProfesionalRoute
   '/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
@@ -1041,6 +1074,7 @@ export interface FileRoutesById {
   '/firmar/$token': typeof FirmarTokenRoute
   '/funciones/$slug': typeof FuncionesSlugRoute
   '/guias/$slug': typeof GuiasSlugRoute
+  '/mi-cita/$token': typeof MiCitaTokenRoute
   '/para/$slug': typeof ParaSlugRoute
   '/plantillas/$slug': typeof PlantillasSlugRoute
   '/portal-laboratorio/$token': typeof PortalLaboratorioTokenRoute
@@ -1048,6 +1082,7 @@ export interface FileRoutesById {
   '/portal/$token': typeof PortalTokenRoute
   '/portal/inicio': typeof PortalInicioRoute
   '/recursos/fugas-clinica-dental': typeof RecursosFugasClinicaDentalRoute
+  '/reservar/$slug': typeof ReservarSlugRoute
   '/comparar/': typeof CompararIndexRoute
   '/docs/': typeof DocsIndexRoute
   '/funciones/': typeof FuncionesIndexRoute
@@ -1090,6 +1125,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/pruebas-email': typeof AuthenticatedClinicPruebasEmailRoute
   '/_authenticated/_clinic/recordatorios': typeof AuthenticatedClinicRecordatoriosRoute
   '/_authenticated/_clinic/reportes': typeof AuthenticatedClinicReportesRoute
+  '/_authenticated/_clinic/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/_authenticated/_clinic/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/_authenticated/_clinic/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
   '/_authenticated/_clinic/sucursales': typeof AuthenticatedClinicSucursalesRoute
@@ -1101,6 +1137,7 @@ export interface FileRoutesById {
   '/api/correos/baja': typeof ApiCorreosBajaRoute
   '/api/recurso/$slug': typeof ApiRecursoSlugRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
+  '/reservar/$slug_/$profesional': typeof ReservarSlugProfesionalRoute
   '/_authenticated/_clinic/documentos/$documentoId': typeof AuthenticatedClinicDocumentosDocumentoIdRoute
   '/_authenticated/_clinic/pacientes/$pacienteId': typeof AuthenticatedClinicPacientesPacienteIdRoute
   '/_authenticated/_clinic/presupuestos/$presupuestoId': typeof AuthenticatedClinicPresupuestosPresupuestoIdRoute
@@ -1159,6 +1196,7 @@ export interface FileRouteTypes {
     | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
+    | '/mi-cita/$token'
     | '/para/$slug'
     | '/plantillas/$slug'
     | '/portal-laboratorio/$token'
@@ -1166,6 +1204,7 @@ export interface FileRouteTypes {
     | '/portal/$token'
     | '/portal/inicio'
     | '/recursos/fugas-clinica-dental'
+    | '/reservar/$slug'
     | '/comparar/'
     | '/docs/'
     | '/funciones/'
@@ -1208,6 +1247,7 @@ export interface FileRouteTypes {
     | '/pruebas-email'
     | '/recordatorios'
     | '/reportes'
+    | '/reserva-en-linea'
     | '/resultados-del-piloto'
     | '/sandbox-email'
     | '/sucursales'
@@ -1219,6 +1259,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/reservar/$slug/$profesional'
     | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
@@ -1273,6 +1314,7 @@ export interface FileRouteTypes {
     | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
+    | '/mi-cita/$token'
     | '/para/$slug'
     | '/plantillas/$slug'
     | '/portal-laboratorio/$token'
@@ -1280,6 +1322,7 @@ export interface FileRouteTypes {
     | '/portal/$token'
     | '/portal/inicio'
     | '/recursos/fugas-clinica-dental'
+    | '/reservar/$slug'
     | '/comparar'
     | '/docs'
     | '/funciones'
@@ -1322,6 +1365,7 @@ export interface FileRouteTypes {
     | '/pruebas-email'
     | '/recordatorios'
     | '/reportes'
+    | '/reserva-en-linea'
     | '/resultados-del-piloto'
     | '/sandbox-email'
     | '/sucursales'
@@ -1333,6 +1377,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/reservar/$slug/$profesional'
     | '/documentos/$documentoId'
     | '/pacientes/$pacienteId'
     | '/presupuestos/$presupuestoId'
@@ -1391,6 +1436,7 @@ export interface FileRouteTypes {
     | '/firmar/$token'
     | '/funciones/$slug'
     | '/guias/$slug'
+    | '/mi-cita/$token'
     | '/para/$slug'
     | '/plantillas/$slug'
     | '/portal-laboratorio/$token'
@@ -1398,6 +1444,7 @@ export interface FileRouteTypes {
     | '/portal/$token'
     | '/portal/inicio'
     | '/recursos/fugas-clinica-dental'
+    | '/reservar/$slug'
     | '/comparar/'
     | '/docs/'
     | '/funciones/'
@@ -1440,6 +1487,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/pruebas-email'
     | '/_authenticated/_clinic/recordatorios'
     | '/_authenticated/_clinic/reportes'
+    | '/_authenticated/_clinic/reserva-en-linea'
     | '/_authenticated/_clinic/resultados-del-piloto'
     | '/_authenticated/_clinic/sandbox-email'
     | '/_authenticated/_clinic/sucursales'
@@ -1451,6 +1499,7 @@ export interface FileRouteTypes {
     | '/api/correos/baja'
     | '/api/recurso/$slug'
     | '/api/stripe/webhook'
+    | '/reservar/$slug_/$profesional'
     | '/_authenticated/_clinic/documentos/$documentoId'
     | '/_authenticated/_clinic/pacientes/$pacienteId'
     | '/_authenticated/_clinic/presupuestos/$presupuestoId'
@@ -1500,15 +1549,18 @@ export interface RootRouteChildren {
   FirmarTokenRoute: typeof FirmarTokenRoute
   FuncionesSlugRoute: typeof FuncionesSlugRoute
   GuiasSlugRoute: typeof GuiasSlugRoute
+  MiCitaTokenRoute: typeof MiCitaTokenRoute
   ParaSlugRoute: typeof ParaSlugRoute
   PlantillasSlugRoute: typeof PlantillasSlugRoute
   RecursosFugasClinicaDentalRoute: typeof RecursosFugasClinicaDentalRoute
+  ReservarSlugRoute: typeof ReservarSlugRoute
   CompararIndexRoute: typeof CompararIndexRoute
   FuncionesIndexRoute: typeof FuncionesIndexRoute
   RecursosIndexRoute: typeof RecursosIndexRoute
   ApiCorreosBajaRoute: typeof ApiCorreosBajaRoute
   ApiRecursoSlugRoute: typeof ApiRecursoSlugRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ReservarSlugProfesionalRoute: typeof ReservarSlugProfesionalRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1884,6 +1936,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GuiasSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mi-cita/$token': {
+      id: '/mi-cita/$token'
+      path: '/mi-cita/$token'
+      fullPath: '/mi-cita/$token'
+      preLoaderRoute: typeof MiCitaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/para/$slug': {
       id: '/para/$slug'
       path: '/para/$slug'
@@ -1945,6 +2004,13 @@ declare module '@tanstack/react-router' {
       path: '/recursos/fugas-clinica-dental'
       fullPath: '/recursos/fugas-clinica-dental'
       preLoaderRoute: typeof RecursosFugasClinicaDentalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reservar/$slug': {
+      id: '/reservar/$slug'
+      path: '/reservar/$slug'
+      fullPath: '/reservar/$slug'
+      preLoaderRoute: typeof ReservarSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_clinic/agenda': {
@@ -2206,6 +2272,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicReportesRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/reserva-en-linea': {
+      id: '/_authenticated/_clinic/reserva-en-linea'
+      path: '/reserva-en-linea'
+      fullPath: '/reserva-en-linea'
+      preLoaderRoute: typeof AuthenticatedClinicReservaEnLineaRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/resultados-del-piloto': {
       id: '/_authenticated/_clinic/resultados-del-piloto'
       path: '/resultados-del-piloto'
@@ -2281,6 +2354,13 @@ declare module '@tanstack/react-router' {
       path: '/api/stripe/webhook'
       fullPath: '/api/stripe/webhook'
       preLoaderRoute: typeof ApiStripeWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reservar/$slug_/$profesional': {
+      id: '/reservar/$slug_/$profesional'
+      path: '/reservar/$slug/$profesional'
+      fullPath: '/reservar/$slug/$profesional'
+      preLoaderRoute: typeof ReservarSlugProfesionalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/_clinic/documentos/$documentoId': {
@@ -2366,6 +2446,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicPruebasEmailRoute: typeof AuthenticatedClinicPruebasEmailRoute
   AuthenticatedClinicRecordatoriosRoute: typeof AuthenticatedClinicRecordatoriosRoute
   AuthenticatedClinicReportesRoute: typeof AuthenticatedClinicReportesRoute
+  AuthenticatedClinicReservaEnLineaRoute: typeof AuthenticatedClinicReservaEnLineaRoute
   AuthenticatedClinicResultadosDelPilotoRoute: typeof AuthenticatedClinicResultadosDelPilotoRoute
   AuthenticatedClinicSandboxEmailRoute: typeof AuthenticatedClinicSandboxEmailRoute
   AuthenticatedClinicSucursalesRoute: typeof AuthenticatedClinicSucursalesRoute
@@ -2431,6 +2512,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicRecordatoriosRoute:
       AuthenticatedClinicRecordatoriosRoute,
     AuthenticatedClinicReportesRoute: AuthenticatedClinicReportesRoute,
+    AuthenticatedClinicReservaEnLineaRoute:
+      AuthenticatedClinicReservaEnLineaRoute,
     AuthenticatedClinicResultadosDelPilotoRoute:
       AuthenticatedClinicResultadosDelPilotoRoute,
     AuthenticatedClinicSandboxEmailRoute: AuthenticatedClinicSandboxEmailRoute,
@@ -2569,15 +2652,18 @@ const rootRouteChildren: RootRouteChildren = {
   FirmarTokenRoute: FirmarTokenRoute,
   FuncionesSlugRoute: FuncionesSlugRoute,
   GuiasSlugRoute: GuiasSlugRoute,
+  MiCitaTokenRoute: MiCitaTokenRoute,
   ParaSlugRoute: ParaSlugRoute,
   PlantillasSlugRoute: PlantillasSlugRoute,
   RecursosFugasClinicaDentalRoute: RecursosFugasClinicaDentalRoute,
+  ReservarSlugRoute: ReservarSlugRoute,
   CompararIndexRoute: CompararIndexRoute,
   FuncionesIndexRoute: FuncionesIndexRoute,
   RecursosIndexRoute: RecursosIndexRoute,
   ApiCorreosBajaRoute: ApiCorreosBajaRoute,
   ApiRecursoSlugRoute: ApiRecursoSlugRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ReservarSlugProfesionalRoute: ReservarSlugProfesionalRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

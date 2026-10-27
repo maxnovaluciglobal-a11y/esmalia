@@ -2,7 +2,7 @@ import { createContext, useContext, type ReactNode, type Ref } from "react";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, ArrowUpRight, Check, Circle, Loader2 } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, Circle, Globe, Loader2 } from "lucide-react";
 
 import { AvisoDeChoques } from "@/components/agenda-grid";
 import { ChipEstado } from "@/components/agenda-estado";
@@ -227,6 +227,12 @@ export function CajonCita({
       <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
         <ChipEstado estado={c.estado} />
         {c.pacienteConfirmo && !ctx.puedeGestionar && <PatientConfirmedBadge />}
+        {c.reservaEnLinea && (
+          <span className="inline-flex h-[22px] items-center gap-1.5 whitespace-nowrap rounded-full border border-border px-2 text-xs font-semibold leading-none text-muted-foreground">
+            <Globe aria-hidden strokeWidth={2.4} className="size-3 shrink-0" />
+            Reserva en línea
+          </span>
+        )}
       </div>
 
       <dl className="my-4 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3.5 gap-y-1.5 text-[13.5px]">
