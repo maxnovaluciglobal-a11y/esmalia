@@ -108,6 +108,7 @@ const REFERENCIAS: Record<string, string> = {
   current_version_id: "documentos-plantillas-versiones.csv",
   issued_document_id: "documentos-emitidos.csv",
   lab_id: "laboratorios.csv",
+  catalog_item_id: "laboratorios-catalogo.csv",
   item_id: "inventario.csv",
   warehouse_id: "bodegas.csv",
   movement_id: "inventario-movimientos.csv",

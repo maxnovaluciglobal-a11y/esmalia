@@ -7,6 +7,13 @@ import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
 import { LAB_ORDER_STATUSES, type Lab, type LabOrder, type Warehouse } from "@/lib/finance/finance";
 import { throwIfTrialBlocksInformes } from "@/lib/finance/finance-reports.functions";
 import { requireEscritura } from "@/lib/solo-lectura.middleware";
+import {
+  GUIAS_COLOR,
+  MARGENES,
+  MATERIALES,
+  colorValido,
+  detalleDesdeFila,
+} from "@/lib/clinic-operations/lab-orden-detalle";
 
 /**
  * Operación de clínica mediana (Tanda C): laboratorios, bodegas, estados de
@@ -80,7 +87,7 @@ export const createLab = createServerFn({ method: "POST" })
   });
 
 const LAB_ORDER_COLUMNS =
-  "id, lab_id, lab_name_snapshot, patient_id, treatment_item_id, professional_id, description, tooth_numbers, status, sent_on, due_on, received_on, cost_cents, currency, notes";
+  "id, lab_id, lab_name_snapshot, patient_id, treatment_item_id, professional_id, description, tooth_numbers, status, sent_on, due_on, received_on, cost_cents, currency, notes, catalog_item_id, catalog_name_snapshot, shade_guide, shade, material, margin_type";
 
 export const listLabOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -159,6 +166,9 @@ export const listLabOrders = createServerFn({ method: "GET" })
       costCents: puedeVerCostos ? r.cost_cents : null,
       currency: r.currency,
       notes: r.notes,
+      catalogItemId: r.catalog_item_id,
+      catalogNameSnapshot: r.catalog_name_snapshot,
+      ...detalleDesdeFila(r),
     }));
   });
 
@@ -183,6 +193,15 @@ export const createLabOrder = createServerFn({ method: "POST" })
         // Sin `currency`: la fija el trigger `moneda_desde_la_clinica` desde
         // `clinics.currency`. La moneda no la decide el cliente.
         notes: z.string().trim().max(1000).nullish(),
+        // Ola 9 · LAB-03 a LAB-07.
+        catalogItemId: z.string().uuid().nullish(),
+        shadeGuide: z.enum(GUIAS_COLOR).nullish(),
+        shade: z.string().trim().max(8).nullish(),
+        material: z.enum(MATERIALES).nullish(),
+        marginType: z.enum(MARGENES).nullish(),
+      })
+      .refine((d) => colorValido(d.shadeGuide ?? null, d.shade || null), {
+        message: "Ese color no existe en la guía elegida.",
       })
       .parse(input),
   )
@@ -202,6 +221,23 @@ export const createLabOrder = createServerFn({ method: "POST" })
       labName = lab?.name ?? null;
     }
 
+    // LAB-07: el trabajo del catálogo tiene que ser de ese laboratorio y de
+    // esta clínica. Su nombre queda como snapshot y, si el cliente no mandó
+    // costo (quien no ve finanzas no lo recibe), lo completa el servidor.
+    let catalogo: { name: string; cost_cents: number | null } | null = null;
+    if (data.catalogItemId) {
+      const { data: item } = await supabase
+        .from("lab_catalog_items")
+        .select("name, cost_cents, lab_id")
+        .eq("id", data.catalogItemId)
+        .eq("clinic_id", data.clinicId)
+        .maybeSingle();
+      if (!item || item.lab_id !== data.labId) {
+        throw new Error("Ese trabajo no está en el catálogo del laboratorio elegido.");
+      }
+      catalogo = item;
+    }
+
     const { data: inserted, error } = await supabase
       .from("lab_orders")
       .insert({
@@ -215,8 +251,14 @@ export const createLabOrder = createServerFn({ method: "POST" })
         tooth_numbers: data.toothNumbers ?? null,
         sent_on: data.sentOn,
         due_on: data.dueOn ?? null,
-        cost_cents: data.costCents ?? null,
+        cost_cents: data.costCents ?? catalogo?.cost_cents ?? null,
         notes: data.notes?.trim() || null,
+        catalog_item_id: data.catalogItemId ?? null,
+        catalog_name_snapshot: catalogo?.name ?? null,
+        shade_guide: data.shadeGuide ?? null,
+        shade: data.shadeGuide ? data.shade || null : null,
+        material: data.material ?? null,
+        margin_type: data.marginType ?? null,
       })
       .select("id")
       .single();

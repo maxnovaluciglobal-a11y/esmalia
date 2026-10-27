@@ -42,6 +42,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)embudo-presupuestos\.tsx$/, // barras del embudo de presupuestos (A+)
   /(?:^|\/)hoy-dia-por-profesional\.tsx$/, // carriles de Hoy: solo la línea de ahora
   /(?:^|\/)resumen-nps\.tsx$/, // tarjeta en tinta del NPS: mezcla de respuestas (Ola 7)
+  /^components\/ortodoncia\/seguimiento-ortodoncia\.tsx$/, // barra y % de progreso del tratamiento (Ola 9)
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
   /^components\/reportes\//, // A+ de Reportes y Operación: barras y mezclas de datos
   /^components\/marketing\//,

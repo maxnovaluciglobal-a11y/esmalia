@@ -17,3 +17,7 @@ export const ROLES_EMITEN_LINK_LABORATORIO: readonly ClinicRole[] = [
 /** Revocar el portal es gestión del laboratorio: mismo criterio que
  * `can_manage_clinic` (policy `labs_update_managers`). */
 export const ROLES_REVOCAN_LINK_LABORATORIO: readonly ClinicRole[] = ["owner", "admin"];
+
+/** Configurar el catálogo de trabajos de un laboratorio (LAB-07): mismo
+ * criterio que `can_manage_clinic` (políticas de `lab_catalog_items`). */
+export const ROLES_GESTIONAN_CATALOGO_LABORATORIO: readonly ClinicRole[] = ["owner", "admin"];
