@@ -13,7 +13,7 @@ Runbook para escenarios de falla operacional. Autoridad: Walter (dueño del proy
 **Recuperación:**
 
 1. ✅ **Actualizado 2026-09-05 — esto ya NO describe la situación real.** Desde el 2026-09-01 corre un backup diario propio (`.github/workflows/backup.yml`, 07:15 UTC): exporta todas las tablas de negocio vía API REST de Supabase (`service_role`), cifra con `age` y sube a Backblaze B2 (`b2:<B2_BUCKET>/db/`). La lista de tablas del script (`scripts/backup-data.mjs`) estaba desactualizada desde el 22-ago (excluía 22 tablas nuevas, incluidas `patient_medical_history`/`patient_consents`/`patient_documents`) — corregido hoy mismo. `pitr_enabled` sigue en `false` (Supabase plan actual no lo incluye) — el backup diario es la única cobertura, no hay recuperación a un punto intermedio del día.
-2. Restauración: manual, documentada paso a paso en `docs/BACKUPS.md` (recrear schema con las migraciones + reinsertar cada tabla del JSON descifrado). **Nunca se ejecutó un restore real end-to-end** — ver checklist post-incidente.
+2. Restauración: documentada paso a paso en `docs/BACKUPS.md` (recrear schema con las migraciones, recrear usuarios con su id, reinsertar cada tabla del JSON descifrado y subir los archivos). El camino de datos está **ensayado y automatizado**: ensayo manual del 10-oct-2026 (`scripts/restore-drill.sh`) y, desde el 27-oct-2026, **simulacro mensual** en un Supabase efímero (`.github/workflows/simulacro-restauracion.yml`, ver "Procedimiento: simulacro de restauración" abajo). Lo que sigue sin ensayarse es la parte manual: crear el proyecto Supabase nuevo y repuntar Vercel.
 3. Si el backup del día también fallara (o el bucket B2 no fuera accesible), la única recuperación posible es reconstruir desde las migraciones versionadas en `supabase/migrations/` (ver `CLAUDE.md` regla 5) — esto reconstruye el **schema**, no los **datos**.
 4. Los seeds iniciales se recuperan solos al re-ejecutar las migraciones: el trigger `on_clinic_created` → `handle_new_clinic()` (definido en `20260726145220`, última redefinición en `20260816170100`) siembra automáticamente los `procedures` default y las 14 `message_templates` de WhatsApp en **cualquier clínica nueva** que se cree.
 5. El proyecto huérfano de Lovable Cloud (`9f5bde21-...`) es un snapshot congelado al 2026-08-14 — cada vez más desactualizado, no reemplaza al backup diario.
@@ -132,21 +132,32 @@ Runbook para escenarios de falla operacional. Autoridad: Walter (dueño del proy
 
 Sin SLA firmado con ninguna clínica todavía; estos son los objetivos internos que gobiernan cómo se prioriza este runbook y las decisiones de infraestructura, no una promesa contractual. Se actualizan si la infraestructura cambia (backups, PITR, ensayo de restore) o cuando exista un SLA real.
 
-| Escenario                           | RPO objetivo             | RPO real hoy                   | RTO objetivo | RTO real hoy                                                  |
-| ----------------------------------- | ------------------------ | ------------------------------ | ------------ | ------------------------------------------------------------- |
-| DB corrupta/borrada (#1)            | 24 h                     | 24 h (backup diario 07:15 UTC) | 4 h          | **Sin validar** — nunca se ejecutó un restore real end-to-end |
-| Deploy Vercel roto (#2)             | 0 (sin pérdida de datos) | 0                              | 15 min       | ~15 min (rollback a deploy anterior vía dashboard)            |
-| Credenciales comprometidas (#3)     | 0                        | 0                              | 1 h          | Sin validar                                                   |
-| Vercel caído/cuenta suspendida (#5) | 0                        | 0                              | 4 h          | Sin validar — `esmalia.com` en Cloudflare: repuntar DNS       |
-| Ataque de rate limit/DDoS (#7)      | 0 (sin pérdida de datos) | 0                              | 30 min       | Sin validar — nunca se probó bajo tráfico real de ataque      |
+| Escenario                           | RPO objetivo             | RPO real hoy                   | RTO objetivo | RTO real hoy                                                                                                                                                                                           |
+| ----------------------------------- | ------------------------ | ------------------------------ | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| DB corrupta/borrada (#1)            | 24 h                     | 24 h (backup diario 07:15 UTC) | 4 h          | Datos: **medido por el simulacro mensual** (40 s en modo juguete, 27-oct; el primero con un backup real espera `BACKUP_AGE_KEY`). Total con la configuración manual: ~45-60 min estimados, sin ensayar |
+| Deploy Vercel roto (#2)             | 0 (sin pérdida de datos) | 0                              | 15 min       | ~15 min (rollback a deploy anterior vía dashboard)                                                                                                                                                     |
+| Credenciales comprometidas (#3)     | 0                        | 0                              | 1 h          | Sin validar                                                                                                                                                                                            |
+| Vercel caído/cuenta suspendida (#5) | 0                        | 0                              | 4 h          | Sin validar — `esmalia.com` en Cloudflare: repuntar DNS                                                                                                                                                |
+| Ataque de rate limit/DDoS (#7)      | 0 (sin pérdida de datos) | 0                              | 30 min       | Sin validar — nunca se probó bajo tráfico real de ataque                                                                                                                                               |
 
 Los escenarios #4 (sync con Lovable) y #6 (cierre de Lovable Cloud) quedan fuera de esta tabla a propósito: no son escenarios de pérdida de datos ni de caída del sitio — Lovable hoy es un editor visual secundario desacoplado (`docs/DESACOPLE_LOVABLE.md`), no el runtime de producción, así que no tienen un RTO/RPO comparable al resto.
 
-**Por qué el RTO de DB no está validado:** el backup existe y se verificó por round-trip (descifrar + descomprimir + confirmar filas), pero eso no es lo mismo que reconstruir una base desde cero y confirmar que la app vuelve a andar — ese ensayo nunca se hizo. Hasta que se haga, "4 horas" es una meta, no un número con el que se pueda comprometer una clínica piloto.
+**Qué está validado del RTO de DB y qué no:** el camino de datos (descifrar, levantar el esquema con todas las migraciones, recrear usuarios con su id, cargar tablas, subir archivos y verificar conteos, FKs, usuarios y archivos contra el backup) lo mide el simulacro mensual en un Supabase efímero. Lo que no se puede ensayar en un runner es lo manual: crear el proyecto en Supabase, configurar Google OAuth/SMTP/plantillas y repuntar Vercel; eso está estimado (~45-60 min, tabla en `docs/BACKUPS.md`), no medido. Con eso, la meta de 4 h tiene margen, pero el número comprometible con una clínica piloto sale del primer simulacro con un backup real.
 
-**Próximo paso concreto:** ensayar un restore real contra un proyecto Supabase descartable (no el de producción) usando el backup de hoy + `docs/BACKUPS.md`, cronometrarlo, y reemplazar "Sin validar" por el tiempo real. Recién ahí este RTO deja de ser una suposición.
+**Próximo paso concreto:** cargar `BACKUP_AGE_KEY` (solo Walter, `docs/BACKUPS.md` → "Lo que falta para el modo real") para que el simulacro mensual use el backup real; y una vez, cronometrar el restore completo contra un proyecto Supabase descartable siguiendo "Procedimiento: simulacro de restauración".
 
 ---
+
+## Procedimiento: simulacro de restauración
+
+Para qué: saber, todos los meses y sin depender de que alguien se acuerde, que el último backup se puede restaurar entero y cuánto tarda. Detalle técnico en `docs/BACKUPS.md` → "Simulacro automático".
+
+1. **Automático**: el día 3 de cada mes, 10:00 UTC, GitHub Actions corre "Simulacro de restauración". Baja el último backup de B2, lo restaura en un Supabase efímero dentro del runner (nunca producción) y verifica conteos por tabla, FKs, usuarios de auth y archivos de Storage contra el backup.
+2. **Revisar el resultado**: el resumen del run dice ✅ / 🔴 / ➖ (omitido) y el RTO medido; el artefacto del run guarda `reporte.md` 90 días. Si falla, aparece un Issue `🔴 Simulacro de restauración de Esmalia falló` (etiqueta `simulacro-fallido`).
+3. **Si sale 🔴**: abrir el reporte. `migraciones` → una migración no levanta en una base vacía (arreglarla antes de que haga falta un restore de verdad). `conteos` → nombra la tabla y las dos cifras; revisar si la tabla está en `scripts/backup-tables.mjs` y si el SQL de carga la soporta. `fks` → nombra la FK con huérfanos (backup tomado a mitad de una escritura, o tabla que falta en el backup). `auth`/`storage` → usuarios o archivos que no volvieron. En todos los casos, el backup diario sigue corriendo: lo roto es la capacidad de restaurar, que es lo que este simulacro existe para detectar.
+4. **Si sale ➖ omitido**: falta `BACKUP_AGE_KEY`. Cargarla (solo Walter) o correr el modo `juguete` para al menos probar el circuito.
+5. **A mano** (antes de un cambio grande en backups o migraciones): Actions → "Simulacro de restauración" → Run workflow (modo `real` o `juguete`), o en la Mac `bash scripts/simulacro/simulacro.sh <backup.age> <clave> [storage.age]`.
+6. Anotar en la bitácora de `docs/BACKUPS.md` los resultados que cambien algo (un RTO distinto, una falla y su causa).
 
 ## Contactos y accesos
 
@@ -170,5 +181,5 @@ Ver también `docs/DEPLOY_PRODUCTION.md`.
 1. ✅ Backup diario propio (API REST de Supabase → B2), corrigiendo 2026-09-05.
 2. ✅ Rate-limit en server functions y API pública — con la limitación de memoria-por-instancia documentada arriba.
 3. Monitoreo activo — Sentry **activo** en producción (`VITE_SENTRY_DSN` cargado); falta un healthcheck externo sobre `/api/health` con alerta.
-4. Ejecutar un ensayo de restore desde backup — nunca se ha probado. Sigue siendo el mayor hueco real de este runbook.
+4. ✅ Ensayo de restore desde backup: manual el 10-oct-2026 y automático mensual desde el 27-oct-2026 (SEG-05). Pendiente: `BACKUP_AGE_KEY` para que el automático use el backup real, y un ensayo completo contra un proyecto Supabase real (la parte manual).
 5. Documento formal de RTO/RPO firmado con clientes — la tabla de arriba son objetivos internos, no un SLA firmado; falta eso cuando haya clínicas piloto con contrato.
