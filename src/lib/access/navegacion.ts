@@ -111,6 +111,27 @@ export const DESTINOS: readonly Destino[] = [
         permisos: ["agenda:manage"],
         sinonimos: ["avisos", "control periódico"],
       },
+      // Ola 8 · frente B: seguimiento de pacientes y campañas.
+      {
+        to: "/seguimiento",
+        label: "Seguimiento",
+        permisos: ["agenda:manage"],
+        sinonimos: [
+          "tareas",
+          "pendientes",
+          "llamadas",
+          "controles",
+          "abandono",
+          "tratamientos detenidos",
+          "recall",
+        ],
+      },
+      {
+        to: "/campanas",
+        label: "Campañas",
+        permisos: ["settings:manage"],
+        sinonimos: ["campaña", "difusión", "envío masivo", "reactivar pacientes", "quién volvió"],
+      },
     ],
   },
   {
@@ -374,6 +395,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
           "anamnesis",
           "correo",
         ],
+      },
+      {
+        to: "/plantillas-de-mensajes",
+        label: "Plantillas de mensajes",
+        detalle: "Textos de la clínica para campañas por correo y mensajes, con datos del paciente",
+        permisos: ["settings:manage"],
+        sinonimos: ["plantilla", "texto", "variables", "mensaje de campaña"],
       },
       {
         to: "/whatsapp",

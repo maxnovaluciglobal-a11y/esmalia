@@ -105,6 +105,8 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
   registrarExportacionDeLista:
     "Exportar una lista en CSV (EXP-04) siempre está permitido; solo anota la exportación.",
   setActiveClinic: "Cambia la clínica que se está viendo; no toca datos.",
+  previsualizarCampana:
+    "Vista previa de una campaña (CRM-04): solo calcula a quién le llegaría; no escribe nada. Es POST porque lleva el texto del mensaje.",
 
   // Estado personal del usuario, no datos de la clínica.
   markNotificationsRead: "Marca avisos como leídos: estado personal del usuario.",

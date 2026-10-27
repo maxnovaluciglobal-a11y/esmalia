@@ -45,6 +45,7 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   data_subject_request_events: "bitácora de las solicitudes de derechos de cada paciente",
   data_subject_requests: "solicitudes de derechos del paciente (Ley 21.719): quién pidió qué",
   expenses: "gastos de la clínica",
+  followup_tasks: "tareas de seguimiento: a qué paciente llamar y por qué",
   import_batch_changes: "migración: datos de pacientes que completó un lote importado",
   import_batches: "migración: lotes importados desde otro sistema (archivo y conteos)",
   issued_documents: "documentos emitidos a un paciente: certificados, informes y reembolsos",
@@ -58,7 +59,10 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   ortho_cases: "casos de ortodoncia y su presupuesto",
   ortho_controls: "controles de ortodoncia",
   ortho_stage_events: "etapas del tratamiento de ortodoncia de un paciente",
+  outreach_campaign_recipients:
+    "destinatarios de cada campaña: paciente, correo o teléfono y estado",
   patient_consents: "consentimientos informados",
+  patient_controls: "controles programados de cada paciente y su motivo",
   patient_documents: "documentos clínicos (radiografías, informes)",
   patient_email_dispatches: "correos automáticos a cada paciente: a quién y por qué cita",
   patient_guardians: "tutor o representante legal del paciente menor",
@@ -142,6 +146,9 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   notification_preferences: "preferencias propias del usuario",
   odontogram_condition_catalog: "catálogo de condiciones del odontograma",
   operatories: "estructura de la clínica",
+  outreach_campaigns:
+    "campañas: nombre, texto y filtro del grupo, sin datos de pacientes (los destinatarios van aparte)",
+  outreach_templates: "plantillas de mensajes de la clínica, sin datos de pacientes",
   patient_document_bidx:
     "backend: índice ciego del documento, sin políticas (solo funciones SECURITY DEFINER)",
   patient_notification_settings: "configuración de los correos automáticos, sin datos de pacientes",
