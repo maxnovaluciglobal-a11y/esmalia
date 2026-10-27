@@ -426,6 +426,14 @@ export interface LabOrder {
   costCents: number | null;
   currency: string;
   notes: string | null;
+  /** Ola 9 · LAB-07: trabajo del catálogo que la precargó y su nombre de entonces. */
+  catalogItemId?: string | null;
+  catalogNameSnapshot?: string | null;
+  /** Ola 9 · LAB-03/04/05 (claves de `lab-orden-detalle.ts`). */
+  shadeGuide?: "vita_classical" | "vita_3d_master" | null;
+  shade?: string | null;
+  material?: string | null;
+  marginType?: string | null;
 }
 
 /**
