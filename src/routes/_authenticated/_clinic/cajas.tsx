@@ -19,6 +19,8 @@ import {
   PANEL,
   ResumenEnTinta,
 } from "@/components/finance/caja-del-dia";
+import { MovimientosDeCajaPanel } from "@/components/finance/caja-movimientos";
+import { CajasDelDiaPanel } from "@/components/finance/cajas-del-dia-panel";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -44,8 +46,10 @@ import { formatMoney, PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/fi
 import { getCajaDelDia } from "@/lib/finance/caja-del-dia.functions";
 import {
   CASH_REGISTER_STATUS_LABELS,
-  esperadoEnCaja,
+  esperadoConMovimientos,
+  nombreDeCaja,
   separarCobrosDelTurno,
+  sumarMovimientos,
   type CashRegister,
   type CashRegisterMethodBreakdown,
 } from "@/lib/finance/cash-registers";
@@ -54,6 +58,7 @@ import {
   closeCashRegister,
   getCashRegisterBreakdown,
   getOpenCashRegister,
+  listCashMovements,
   listCashRegisters,
   openCashRegister,
 } from "@/lib/finance/cash-registers.functions";
@@ -104,8 +109,16 @@ function etiquetaDelDia(hoy: string): string {
   return fechaLarga(hoy).split(" de ")[0].toUpperCase();
 }
 
-function notaEsperado(aperturaCents: number, efectivoCents: number, currency: string) {
-  return `Apertura ${formatMoney(aperturaCents, currency)} + efectivo ${formatMoney(efectivoCents, currency)}`;
+function notaEsperado(
+  aperturaCents: number,
+  efectivoCents: number,
+  currency: string,
+  mov: { entradasCents: number; salidasCents: number } = { entradasCents: 0, salidasCents: 0 },
+) {
+  let nota = `Apertura ${formatMoney(aperturaCents, currency)} + efectivo ${formatMoney(efectivoCents, currency)}`;
+  if (mov.entradasCents > 0) nota += ` + recibido ${formatMoney(mov.entradasCents, currency)}`;
+  if (mov.salidasCents > 0) nota += ` − salidas ${formatMoney(mov.salidasCents, currency)}`;
+  return nota;
 }
 
 function CajasPage() {
@@ -133,7 +146,8 @@ function CajasPage() {
     refetch: reintentarOpen,
   } = useQuery({
     queryKey: openQueryKey,
-    queryFn: () => fetchOpen({ data: { clinicId: clinicId!, branchId: null } }),
+    // CAJ-02: la caja de quien entra (o la general de antes, para cerrarla).
+    queryFn: () => fetchOpen({ data: { clinicId: clinicId!, branchId: null, mine: true } }),
     enabled: !!clinicId,
   });
 
@@ -162,6 +176,21 @@ function CajasPage() {
     queryFn: () => fetchBreakdown({ data: { cashRegisterId: openRegister!.id } }),
     enabled: !!openRegister?.id,
   });
+
+  // CAJ-04: traspasos, retiros y depósitos del turno abierto.
+  const fetchMovimientos = useServerFn(listCashMovements);
+  const movimientosQueryKey = ["cash-movements", openRegister?.id] as const;
+  const {
+    data: movimientosTurno,
+    isLoading: loadingMovimientos,
+    isError: movimientosConError,
+  } = useQuery({
+    queryKey: movimientosQueryKey,
+    queryFn: () =>
+      fetchMovimientos({ data: { clinicId: clinicId!, cashRegisterId: openRegister!.id } }),
+    enabled: !!clinicId && !!openRegister?.id,
+  });
+  const esGestor = access.role === "owner" || access.role === "admin";
 
   // Resumen del día (tarjeta en tinta, movimientos, atendidas sin cobro y
   // comisiones). Se pide con la caja abierta para saber quién la abrió.
@@ -208,6 +237,7 @@ function CajasPage() {
       queryClient.invalidateQueries({ queryKey: openQueryKey });
       queryClient.invalidateQueries({ queryKey: historyQueryKey });
       queryClient.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
+      queryClient.invalidateQueries({ queryKey: ["cajas-del-dia", clinicId] });
     },
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
@@ -249,6 +279,7 @@ function CajasPage() {
       queryClient.invalidateQueries({ queryKey: openQueryKey });
       queryClient.invalidateQueries({ queryKey: historyQueryKey });
       queryClient.invalidateQueries({ queryKey: ["caja-del-dia", clinicId] });
+      queryClient.invalidateQueries({ queryKey: ["cajas-del-dia", clinicId] });
     },
     onError: (error: Error) => toast.error(mensajeDeError(error)),
   });
@@ -286,6 +317,14 @@ function CajasPage() {
   // servidor al cerrar).
   const turno = separarCobrosDelTurno(cobrosTurno ?? []);
   const cobradoTurno = turno.efectivoCents;
+  const movTurno = openRegister
+    ? sumarMovimientos(movimientosTurno ?? [], openRegister.id)
+    : { entradasCents: 0, salidasCents: 0 };
+  const esperadoTurno =
+    !openRegister || loadingCobros || cobrosConError || loadingMovimientos || movimientosConError
+      ? null
+      : esperadoConMovimientos(openRegister.openingAmountCents, cobradoTurno, movTurno);
+  const nombreCaja = openRegister ? nombreDeCaja(openRegister, access.userId) : "Mi caja";
   const ultimaCerrada = (history ?? []).find((r) => r.status === "closed");
   const filas = history ?? [];
 
@@ -305,7 +344,7 @@ function CajasPage() {
           <header className="flex flex-wrap items-end justify-between gap-x-7 gap-y-4 pb-2">
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-x-2 text-sm font-medium text-muted-foreground">
-                <b className="font-semibold text-foreground/85">Caja</b>
+                <b className="font-semibold text-foreground/85">{nombreCaja}</b>
                 {sucursal && (
                   <>
                     <span aria-hidden>·</span>
@@ -333,7 +372,7 @@ function CajasPage() {
                   )}
                 >
                   <Clock className="size-3.5" aria-hidden />
-                  {openRegister ? "Caja abierta" : "Caja cerrada"}
+                  {openRegister ? `${nombreCaja} abierta` : "Sin caja abierta"}
                 </span>
                 {exportacion.puede && (
                   <Button
@@ -369,7 +408,7 @@ function CajasPage() {
                     className="h-10 rounded-full px-4"
                     onClick={() => setOpenDialogOpen(true)}
                   >
-                    <LockOpen aria-hidden /> Abrir caja
+                    <LockOpen aria-hidden /> Abrir mi caja
                   </Button>
                 )}
               </div>
@@ -417,23 +456,34 @@ function CajasPage() {
               </div>
 
               <div className="min-w-0 space-y-[18px]">
+                {openRegister && (
+                  <MovimientosDeCajaPanel
+                    clinicId={clinicId}
+                    caja={openRegister}
+                    userId={access.userId}
+                    movimientos={movimientosTurno ?? []}
+                    cargando={loadingMovimientos}
+                    disponibleCents={esperadoTurno}
+                    clinicTz={clinicTz}
+                    onRegistrado={() => {
+                      queryClient.invalidateQueries({ queryKey: movimientosQueryKey });
+                    }}
+                  />
+                )}
                 {openRegister ? (
                   <ArqueoDenominaciones
                     // Cambiar de caja (otro turno) arranca el conteo de cero.
                     key={openRegister.id}
                     currency={openRegister.currency}
-                    expectedCents={
-                      loadingCobros || cobrosConError
-                        ? null
-                        : esperadoEnCaja(openRegister.openingAmountCents, cobradoTurno)
-                    }
+                    expectedCents={esperadoTurno}
                     expectedNota={
-                      cobrosConError
+                      cobrosConError || movimientosConError
                         ? "Sin datos"
                         : notaEsperado(
                             openRegister.openingAmountCents,
                             cobradoTurno,
                             openRegister.currency,
+                            movTurno,
                           )
                     }
                     notaApertura={openRegister.openingNotes}
@@ -466,6 +516,8 @@ function CajasPage() {
           )}
         </div>
 
+        {esGestor && <CajasDelDiaPanel clinicId={clinicId} clinicTz={clinicTz} />}
+
         <section aria-labelledby="caja-historial" className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="caja-historial" className="font-display text-2xl font-semibold">
@@ -482,6 +534,7 @@ function CajasPage() {
                   { header: "Apertura", value: (r) => fechaHoraPlanilla(r.openedAt, clinicTz) },
                   { header: "Cierre", value: (r) => fechaHoraPlanilla(r.closedAt, clinicTz) },
                   { header: "Estado", value: (r) => CASH_REGISTER_STATUS_LABELS[r.status] },
+                  { header: "Caja", value: (r) => nombreDeCaja(r) },
                   {
                     header: "Monto de apertura",
                     value: (r) => montoPlanilla(r.openingAmountCents, r.currency),
@@ -545,6 +598,9 @@ function CajasPage() {
                         className="flex w-full items-start gap-3 py-3 text-left"
                       >
                         <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-medium">
+                            {nombreDeCaja(r, access.userId)}
+                          </span>
                           <span className="block text-sm cifra">
                             {fechaHora(r.openedAt, clinicTz)}
                             {r.closedAt && ` → ${fechaHora(r.closedAt, clinicTz)}`}
@@ -584,6 +640,9 @@ function CajasPage() {
                         Estado
                       </th>
                       <th scope="col" className="py-2.5 pr-3 font-normal">
+                        Caja
+                      </th>
+                      <th scope="col" className="py-2.5 pr-3 font-normal">
                         Apertura
                       </th>
                       <th scope="col" className="py-2.5 pr-3 font-normal">
@@ -617,6 +676,7 @@ function CajasPage() {
                           <td className="py-3 pr-3">
                             <PastillaEstado estado={r.status} />
                           </td>
+                          <td className="py-3 pr-3">{nombreDeCaja(r, access.userId)}</td>
                           <td className="py-3 pr-3 cifra">{fechaHora(r.openedAt, clinicTz)}</td>
                           <td className="py-3 pr-3 cifra text-muted-foreground">
                             {fechaHora(r.closedAt, clinicTz)}
@@ -664,9 +724,10 @@ function CajasPage() {
         <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Abrir caja</DialogTitle>
+              <DialogTitle>Abrir mi caja</DialogTitle>
               <DialogDescription>
-                Registra con cuánto empieza el turno. Los cobros de hoy se van sumando solos.
+                Registra con cuánto empieza tu turno. Lo que cobres queda en tu caja y lo cierras
+                con tu propio arqueo.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -812,7 +873,7 @@ function UltimoCierre({
           <dl className="mt-[18px] grid grid-cols-2 gap-2.5">
             {(
               [
-                ["Esperado", registro.expectedClosingCents, "apertura + efectivo"],
+                ["Esperado", registro.expectedClosingCents, "apertura + efectivo ± movimientos"],
                 ["Contado", registro.declaredClosingCents, "en el cajón"],
               ] as const
             ).map(([titulo, cents, nota]) => (
@@ -839,7 +900,7 @@ function UltimoCierre({
       )}
       {!cargando && (
         <Button size="lg" className="mt-5 h-12 w-full rounded-full" onClick={onAbrir}>
-          <LockOpen aria-hidden /> Abrir caja
+          <LockOpen aria-hidden /> Abrir mi caja
         </Button>
       )}
     </section>

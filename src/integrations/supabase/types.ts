@@ -1469,8 +1469,82 @@ export type Database = {
         };
         Relationships: [];
       };
+      commission_rule_versions: {
+        Row: {
+          base: string;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          effective_from: string;
+          fixed_cents: number;
+          id: string;
+          kind: string;
+          note: string | null;
+          percent_bps: number;
+          procedure_id: string | null;
+          procedure_name_snapshot: string | null;
+          professional_id: string;
+          scope: string;
+        };
+        Insert: {
+          base?: string;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          effective_from: string;
+          fixed_cents?: number;
+          id?: string;
+          kind: string;
+          note?: string | null;
+          percent_bps?: number;
+          procedure_id?: string | null;
+          procedure_name_snapshot?: string | null;
+          professional_id: string;
+          scope?: string;
+        };
+        Update: {
+          base?: string;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          effective_from?: string;
+          fixed_cents?: number;
+          id?: string;
+          kind?: string;
+          note?: string | null;
+          percent_bps?: number;
+          procedure_id?: string | null;
+          procedure_name_snapshot?: string | null;
+          professional_id?: string;
+          scope?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "commission_rule_versions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "commission_rule_versions_procedure_id_fkey";
+            columns: ["procedure_id"];
+            isOneToOne: false;
+            referencedRelation: "procedures";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "commission_rule_versions_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       commission_rules: {
         Row: {
+          base: string;
           clinic_id: string;
           fixed_cents: number;
           kind: string;
@@ -1480,6 +1554,7 @@ export type Database = {
           updated_by: string | null;
         };
         Insert: {
+          base?: string;
           clinic_id: string;
           fixed_cents?: number;
           kind: string;
@@ -1489,6 +1564,7 @@ export type Database = {
           updated_by?: string | null;
         };
         Update: {
+          base?: string;
           clinic_id?: string;
           fixed_cents?: number;
           kind?: string;
@@ -1516,10 +1592,13 @@ export type Database = {
       };
       commission_settlements: {
         Row: {
+          base: string | null;
           clinic_id: string;
           closed_at: string;
           closed_by: string;
+          cobrado_cents: number | null;
           commission_cents: number;
+          detail: Json | null;
           email_error: string | null;
           email_notified_at: string | null;
           id: string;
@@ -1530,15 +1609,19 @@ export type Database = {
           procedure_count: number;
           production_cents: number;
           professional_id: string;
+          rule_effective_from: string | null;
           rule_fixed_cents: number;
           rule_kind: string;
           rule_percent_bps: number;
         };
         Insert: {
+          base?: string | null;
           clinic_id: string;
           closed_at?: string;
           closed_by: string;
+          cobrado_cents?: number | null;
           commission_cents: number;
+          detail?: Json | null;
           email_error?: string | null;
           email_notified_at?: string | null;
           id?: string;
@@ -1549,15 +1632,19 @@ export type Database = {
           procedure_count: number;
           production_cents: number;
           professional_id: string;
+          rule_effective_from?: string | null;
           rule_fixed_cents?: number;
           rule_kind: string;
           rule_percent_bps?: number;
         };
         Update: {
+          base?: string | null;
           clinic_id?: string;
           closed_at?: string;
           closed_by?: string;
+          cobrado_cents?: number | null;
           commission_cents?: number;
+          detail?: Json | null;
           email_error?: string | null;
           email_notified_at?: string | null;
           id?: string;
@@ -1568,6 +1655,7 @@ export type Database = {
           procedure_count?: number;
           production_cents?: number;
           professional_id?: string;
+          rule_effective_from?: string | null;
           rule_fixed_cents?: number;
           rule_kind?: string;
           rule_percent_bps?: number;
@@ -6163,9 +6251,74 @@ export type Database = {
           },
         ];
       };
+      cash_movements: {
+        Row: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at: string;
+          created_by: string;
+          currency: string;
+          from_register_id: string;
+          id: string;
+          kind: string;
+          reason: string;
+          reference: string | null;
+          to_register_id: string | null;
+        };
+        Insert: {
+          amount_cents: number;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          from_register_id: string;
+          id?: string;
+          kind: string;
+          reason: string;
+          reference?: string | null;
+          to_register_id?: string | null;
+        };
+        Update: {
+          amount_cents?: number;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string;
+          currency?: string;
+          from_register_id?: string;
+          id?: string;
+          kind?: string;
+          reason?: string;
+          reference?: string | null;
+          to_register_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "cash_movements_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cash_movements_from_register_id_fkey";
+            columns: ["from_register_id"];
+            isOneToOne: false;
+            referencedRelation: "cash_registers";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "cash_movements_to_register_id_fkey";
+            columns: ["to_register_id"];
+            isOneToOne: false;
+            referencedRelation: "cash_registers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cash_registers: {
         Row: {
           branch_id: string | null;
+          cash_collected_cents: number | null;
           clinic_id: string;
           closed_at: string | null;
           closed_by: string | null;
@@ -6177,15 +6330,20 @@ export type Database = {
           difference_cents: number | null;
           expected_closing_cents: number | null;
           id: string;
+          movements_in_cents: number | null;
+          movements_out_cents: number | null;
           opened_at: string;
           opened_by: string;
           opening_amount_cents: number;
           opening_notes: string | null;
+          operator_id: string | null;
+          operator_name_snapshot: string | null;
           status: Database["public"]["Enums"]["cash_register_status"];
           updated_at: string;
         };
         Insert: {
           branch_id?: string | null;
+          cash_collected_cents?: number | null;
           clinic_id: string;
           closed_at?: string | null;
           closed_by?: string | null;
@@ -6197,15 +6355,20 @@ export type Database = {
           difference_cents?: number | null;
           expected_closing_cents?: number | null;
           id?: string;
+          movements_in_cents?: number | null;
+          movements_out_cents?: number | null;
           opened_at?: string;
           opened_by?: string;
           opening_amount_cents: number;
           opening_notes?: string | null;
+          operator_id?: string | null;
+          operator_name_snapshot?: string | null;
           status?: Database["public"]["Enums"]["cash_register_status"];
           updated_at?: string;
         };
         Update: {
           branch_id?: string | null;
+          cash_collected_cents?: number | null;
           clinic_id?: string;
           closed_at?: string | null;
           closed_by?: string | null;
@@ -6217,10 +6380,14 @@ export type Database = {
           difference_cents?: number | null;
           expected_closing_cents?: number | null;
           id?: string;
+          movements_in_cents?: number | null;
+          movements_out_cents?: number | null;
           opened_at?: string;
           opened_by?: string;
           opening_amount_cents?: number;
           opening_notes?: string | null;
+          operator_id?: string | null;
+          operator_name_snapshot?: string | null;
           status?: Database["public"]["Enums"]["cash_register_status"];
           updated_at?: string;
         };

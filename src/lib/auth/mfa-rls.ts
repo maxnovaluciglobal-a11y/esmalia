@@ -34,6 +34,7 @@ export const MIGRACION_AAL2 = "20261019230000_rls_exige_aal2.sql";
 export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   appointment_requests: "pedidos de hora: paciente y motivo de consulta",
   appointments: "agenda: quién se atiende, cuándo y por qué",
+  cash_movements: "caja: traspasos, retiros y depósitos de efectivo con su motivo",
   cash_registers: "caja: montos de apertura, cierre y diferencias",
   clinic_member_permission_overrides: "permisos dados o quitados a cada integrante",
   clinical_access_log: "quién abrió qué sección de qué ficha",
@@ -130,6 +131,7 @@ export const TABLAS_SIN_AAL2: Readonly<Record<string, string>> = {
   clinical_protocols: "protocolos clínicos de la clínica (pasos e indicaciones), sin pacientes",
   clinic_patient_options: "listas editables de la ficha (isapres, origen): sin datos de pacientes",
   clinics: "estructura de la clínica",
+  commission_rule_versions: "configuración de porcentajes con su fecha de vigencia, no movimientos",
   commission_rules: "configuración de porcentajes, no movimientos",
   consent_templates: "plantillas sin datos de pacientes",
   document_template_versions:

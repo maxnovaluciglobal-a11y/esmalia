@@ -34,6 +34,114 @@ export interface CashRegister {
    * solo el total o si la caja se cerró antes de que existiera el conteo.
    */
   closingDenominations: DetalleDenominaciones | null;
+  /**
+   * CAJ-02: persona dueña de la caja. `null` = caja general (las de antes de
+   * la Ola 10, o la que abra el código viejo): la puede cerrar cualquiera que
+   * opere caja, como siempre.
+   */
+  operatorId: string | null;
+  /** Nombre de la persona al abrir (snapshot). */
+  operatorName: string | null;
+  /** Snapshots del cierre (Ola 10). `null` en cajas abiertas y en cierres anteriores. */
+  cashCollectedCents: number | null;
+  movementsInCents: number | null;
+  movementsOutCents: number | null;
+}
+
+/** Cómo se llama una caja en pantalla: "Caja de Javiera" o "Caja general". */
+export function nombreDeCaja(
+  caja: Pick<CashRegister, "operatorId" | "operatorName">,
+  miUserId?: string | null,
+): string {
+  if (!caja.operatorId) return "Caja general";
+  if (miUserId && caja.operatorId === miUserId) return "Mi caja";
+  const nombre = caja.operatorName?.trim().split(/\s+/)[0];
+  return nombre ? `Caja de ${nombre}` : "Caja de otra persona";
+}
+
+/**
+ * La caja que una persona ve como "la suya" al entrar a /cajas: su caja
+ * abierta; si no tiene, la general abierta (la de antes, para poder
+ * cerrarla); si tampoco, ninguna.
+ */
+export function cajaDeLaPersona<T extends Pick<CashRegister, "operatorId" | "status">>(
+  abiertas: readonly T[],
+  userId: string,
+): T | null {
+  return (
+    abiertas.find((c) => c.status === "open" && c.operatorId === userId) ??
+    abiertas.find((c) => c.status === "open" && c.operatorId === null) ??
+    null
+  );
+}
+
+/** Quién puede cerrar una caja (CAJ-03): su dueña, owner/admin, o cualquiera que opere caja si es general. */
+export function puedeCerrarCaja(
+  caja: Pick<CashRegister, "operatorId">,
+  userId: string,
+  esGestor: boolean,
+): boolean {
+  return caja.operatorId === null || caja.operatorId === userId || esGestor;
+}
+
+// ─── Movimientos entre cajas (CAJ-04) ────────────────────────────────────
+
+export const CASH_MOVEMENT_KINDS = ["traspaso", "retiro", "deposito"] as const;
+export type CashMovementKind = (typeof CASH_MOVEMENT_KINDS)[number];
+
+export const CASH_MOVEMENT_LABELS: Record<CashMovementKind, string> = {
+  traspaso: "Traspaso a otra caja",
+  retiro: "Retiro de efectivo",
+  deposito: "Depósito al banco",
+};
+
+export interface CashMovement {
+  id: string;
+  kind: CashMovementKind;
+  fromRegisterId: string;
+  toRegisterId: string | null;
+  amountCents: number;
+  currency: string;
+  reason: string;
+  reference: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface MovimientosDeCaja {
+  entradasCents: number;
+  salidasCents: number;
+}
+
+/** Suma lo que entró (traspasos recibidos) y lo que salió de una caja. */
+export function sumarMovimientos(
+  movimientos: readonly Pick<CashMovement, "fromRegisterId" | "toRegisterId" | "amountCents">[],
+  cajaId: string,
+): MovimientosDeCaja {
+  let entradasCents = 0;
+  let salidasCents = 0;
+  for (const m of movimientos) {
+    if (m.toRegisterId === cajaId) entradasCents += m.amountCents;
+    if (m.fromRegisterId === cajaId) salidasCents += m.amountCents;
+  }
+  return { entradasCents, salidasCents };
+}
+
+/**
+ * Esperado en el cajón con movimientos (CAJ-04): apertura + efectivo cobrado
+ * + traspasos recibidos − traspasos, retiros y depósitos. Es el mismo cálculo
+ * que `public.efectivo_en_caja` y que la base vuelve a hacer al cerrar.
+ */
+export function esperadoConMovimientos(
+  openingAmountCents: number,
+  cobradoEnEfectivoCents: number,
+  movimientos: MovimientosDeCaja,
+): number {
+  return (
+    esperadoEnCaja(openingAmountCents, cobradoEnEfectivoCents) +
+    movimientos.entradasCents -
+    movimientos.salidasCents
+  );
 }
 
 /** Desglose de lo cobrado durante una sesión de caja, por medio de pago. */

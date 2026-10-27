@@ -96,6 +96,8 @@ const REFERENCIAS: Record<string, string> = {
   payment_method_id: "medios-de-pago.csv",
   payment_id: "pagos.csv",
   cash_register_id: "cajas.csv",
+  from_register_id: "cajas.csv",
+  to_register_id: "cajas.csv",
   receivable_id: "cuentas-por-cobrar.csv",
   note_id: "notas-clinicas.csv",
   addendum_of: "notas-clinicas.csv",
@@ -120,6 +122,7 @@ const REFERENCIAS: Record<string, string> = {
   incident_id: "incidentes-de-seguridad.csv",
   label_id: "etiquetas.csv",
   user_id: "equipo.csv (user_id)",
+  operator_id: "equipo.csv (user_id)",
 };
 
 /** Verbo en pasado de las columnas `<verbo>_by` / `<verbo>_at`. */

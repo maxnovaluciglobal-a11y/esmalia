@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCheck, CircleDashed, Loader2, Lock } from "lucide-react";
+import { CheckCheck, CircleDashed, Eye, Loader2, Lock, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
@@ -27,6 +27,8 @@ import {
   celda,
   type ColumnaTabla,
 } from "@/components/reportes/aplus";
+import { ReglasDeComisionPanel } from "@/components/finance/comisiones-reglas";
+import { LiquidacionCerradaDialog } from "@/components/finance/liquidacion-detalle";
 import { TrialDesbloqueo } from "@/components/trial-desbloqueo";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,6 +112,7 @@ function ComisionesPage() {
   const soloMiProfessionalId = !veTodo ? (access.myProfessionalId ?? undefined) : undefined;
 
   const [confirmarCierre, setConfirmarCierre] = useState(false);
+  const [detalle, setDetalle] = useState<string | null>(null);
 
   const fetchSubscription = useServerFn(getMySubscription);
   const { data: sub } = useQuery({
@@ -207,7 +210,7 @@ function ComisionesPage() {
     { label: "Proced.", derecha: true, className: "hidden md:table-cell" },
     { label: "Producción", derecha: true, className: "hidden sm:table-cell" },
     { label: "Comisión", derecha: true },
-    ...(conAcciones ? [{ label: "", className: "w-0" }] : []),
+    { label: "", className: "w-0" },
   ];
   const n = columnas.length;
 
@@ -252,17 +255,27 @@ function ComisionesPage() {
               }
               conclusion={conclusion}
               acciones={
-                conAcciones ? (
-                  <Button
-                    variant="outline"
-                    className="h-10 rounded-full px-4"
-                    onClick={() => setConfirmarCierre(true)}
-                    disabled={!clinicId || isLoading || lineasVisibles.length === 0}
+                <>
+                  <Link
+                    to="/mi-desempeno"
+                    search={{ desde: search.desde, hasta: search.hasta }}
+                    className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card px-4 text-sm font-semibold hover:border-foreground"
                   >
-                    <Lock aria-hidden />
-                    Cerrar período
-                  </Button>
-                ) : undefined
+                    <UserRound aria-hidden className="size-4" />
+                    {veTodo ? "Desempeño por profesional" : "Mi desempeño"}
+                  </Link>
+                  {conAcciones && (
+                    <Button
+                      variant="outline"
+                      className="h-10 rounded-full px-4"
+                      onClick={() => setConfirmarCierre(true)}
+                      disabled={!clinicId || isLoading || lineasVisibles.length === 0}
+                    >
+                      <Lock aria-hidden />
+                      Cerrar período
+                    </Button>
+                  )}
+                </>
               }
             />
             <SelectorPeriodo
@@ -362,8 +375,8 @@ function ComisionesPage() {
                   </h2>
                   <p className="mt-2 text-sm text-muted-foreground">
                     {veTodo
-                      ? "Según los procedimientos completados en el período, con la regla vigente de cada profesional (se edita en Profesionales). Un período cerrado conserva su monto."
-                      : "Según tus procedimientos completados en el período, con la regla vigente configurada por la clínica."}
+                      ? "Con la regla que regía en cada fecha, sobre lo realizado o lo cobrado según cada profesional. Un período cerrado conserva su monto y su detalle."
+                      : "Con la regla que configuró la clínica para cada fecha, sobre lo realizado o lo cobrado."}
                   </p>
                 </div>
                 {lineasVisibles.length === 0 ? (
@@ -437,9 +450,20 @@ function ComisionesPage() {
                           >
                             {l.commissionCents === null ? "—" : dinero(l.commissionCents)}
                           </td>
-                          {conAcciones && (
-                            <td className={celda(6, n, "text-right")}>
-                              {l.closed && !l.paidAt && l.settlementId && (
+                          <td className={celda(6, n, "text-right whitespace-nowrap")}>
+                            <span className="inline-flex gap-1.5">
+                              {l.closed && l.settlementId && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="rounded-full"
+                                  onClick={() => setDetalle(l.settlementId)}
+                                  aria-label={`Ver la liquidación de ${l.professionalName}`}
+                                >
+                                  <Eye aria-hidden /> Detalle
+                                </Button>
+                              )}
+                              {conAcciones && l.closed && !l.paidAt && l.settlementId && (
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -453,17 +477,30 @@ function ComisionesPage() {
                                   Marcar pagado
                                 </Button>
                               )}
-                            </td>
-                          )}
+                            </span>
+                          </td>
                         </tr>
                       );
                     })}
                   </TablaAPlus>
                 )}
               </section>
+
+              {puedeGestionar && veTodo && clinicId && (
+                <ReglasDeComisionPanel clinicId={clinicId} />
+              )}
             </>
           )}
         </div>
+      )}
+
+      {clinicId && (
+        <LiquidacionCerradaDialog
+          clinicId={clinicId}
+          settlementId={detalle}
+          currency={currency}
+          onCerrar={() => setDetalle(null)}
+        />
       )}
 
       <AlertDialog open={confirmarCierre} onOpenChange={setConfirmarCierre}>
@@ -472,9 +509,9 @@ function ComisionesPage() {
             <AlertDialogTitle>Cerrar período de comisiones</AlertDialogTitle>
             <AlertDialogDescription>
               Esto congela los montos actuales del {fecha(search.desde)} al {fecha(search.hasta)}{" "}
-              para todos los profesionales con producción o regla configurada. Una vez cerrado,
-              editar la regla de comisión de un profesional ya NO afecta lo liquidado en este rango
-              — solo se puede revertir con una migración correctiva manual. ¿Confirmas el cierre?
+              para todos los profesionales con regla en el período, con su detalle línea por línea.
+              Una vez cerrado, la liquidación queda congelada: cambiar una regla ya no la afecta y
+              ninguna regla nueva puede regir desde una fecha liquidada. ¿Confirmas el cierre?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

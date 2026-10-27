@@ -108,6 +108,7 @@ import { Route as AuthenticatedClinicMediosDePagoRouteImport } from './routes/_a
 import { Route as AuthenticatedClinicMembresiasRouteImport } from './routes/_authenticated/_clinic/membresias'
 import { Route as AuthenticatedClinicMensajesRouteImport } from './routes/_authenticated/_clinic/mensajes'
 import { Route as AuthenticatedClinicMiAgendaRouteImport } from './routes/_authenticated/_clinic/mi-agenda'
+import { Route as AuthenticatedClinicMiDesempenoRouteImport } from './routes/_authenticated/_clinic/mi-desempeno'
 import { Route as AuthenticatedClinicMigracionRouteImport } from './routes/_authenticated/_clinic/migracion'
 import { Route as AuthenticatedClinicMorosidadRouteImport } from './routes/_authenticated/_clinic/morosidad'
 import { Route as AuthenticatedClinicNotificacionesAPacientesRouteImport } from './routes/_authenticated/_clinic/notificaciones-a-pacientes'
@@ -671,6 +672,12 @@ const AuthenticatedClinicMiAgendaRoute =
     path: '/mi-agenda',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicMiDesempenoRoute =
+  AuthenticatedClinicMiDesempenoRouteImport.update({
+    id: '/mi-desempeno',
+    path: '/mi-desempeno',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicMigracionRoute =
   AuthenticatedClinicMigracionRouteImport.update({
     id: '/migracion',
@@ -963,6 +970,7 @@ export interface FileRoutesByFullPath {
   '/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
+  '/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
@@ -1093,6 +1101,7 @@ export interface FileRoutesByTo {
   '/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
+  '/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/migracion': typeof AuthenticatedClinicMigracionRoute
   '/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
@@ -1228,6 +1237,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/membresias': typeof AuthenticatedClinicMembresiasRoute
   '/_authenticated/_clinic/mensajes': typeof AuthenticatedClinicMensajesRoute
   '/_authenticated/_clinic/mi-agenda': typeof AuthenticatedClinicMiAgendaRoute
+  '/_authenticated/_clinic/mi-desempeno': typeof AuthenticatedClinicMiDesempenoRoute
   '/_authenticated/_clinic/migracion': typeof AuthenticatedClinicMigracionRoute
   '/_authenticated/_clinic/morosidad': typeof AuthenticatedClinicMorosidadRoute
   '/_authenticated/_clinic/notificaciones-a-pacientes': typeof AuthenticatedClinicNotificacionesAPacientesRoute
@@ -1362,6 +1372,7 @@ export interface FileRouteTypes {
     | '/membresias'
     | '/mensajes'
     | '/mi-agenda'
+    | '/mi-desempeno'
     | '/migracion'
     | '/morosidad'
     | '/notificaciones-a-pacientes'
@@ -1492,6 +1503,7 @@ export interface FileRouteTypes {
     | '/membresias'
     | '/mensajes'
     | '/mi-agenda'
+    | '/mi-desempeno'
     | '/migracion'
     | '/morosidad'
     | '/notificaciones-a-pacientes'
@@ -1626,6 +1638,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/membresias'
     | '/_authenticated/_clinic/mensajes'
     | '/_authenticated/_clinic/mi-agenda'
+    | '/_authenticated/_clinic/mi-desempeno'
     | '/_authenticated/_clinic/migracion'
     | '/_authenticated/_clinic/morosidad'
     | '/_authenticated/_clinic/notificaciones-a-pacientes'
@@ -2414,6 +2427,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicMiAgendaRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/mi-desempeno': {
+      id: '/_authenticated/_clinic/mi-desempeno'
+      path: '/mi-desempeno'
+      fullPath: '/mi-desempeno'
+      preLoaderRoute: typeof AuthenticatedClinicMiDesempenoRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/migracion': {
       id: '/_authenticated/_clinic/migracion'
       path: '/migracion'
@@ -2681,6 +2701,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicMembresiasRoute: typeof AuthenticatedClinicMembresiasRoute
   AuthenticatedClinicMensajesRoute: typeof AuthenticatedClinicMensajesRoute
   AuthenticatedClinicMiAgendaRoute: typeof AuthenticatedClinicMiAgendaRoute
+  AuthenticatedClinicMiDesempenoRoute: typeof AuthenticatedClinicMiDesempenoRoute
   AuthenticatedClinicMigracionRoute: typeof AuthenticatedClinicMigracionRoute
   AuthenticatedClinicMorosidadRoute: typeof AuthenticatedClinicMorosidadRoute
   AuthenticatedClinicNotificacionesAPacientesRoute: typeof AuthenticatedClinicNotificacionesAPacientesRoute
@@ -2754,6 +2775,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicMembresiasRoute: AuthenticatedClinicMembresiasRoute,
     AuthenticatedClinicMensajesRoute: AuthenticatedClinicMensajesRoute,
     AuthenticatedClinicMiAgendaRoute: AuthenticatedClinicMiAgendaRoute,
+    AuthenticatedClinicMiDesempenoRoute: AuthenticatedClinicMiDesempenoRoute,
     AuthenticatedClinicMigracionRoute: AuthenticatedClinicMigracionRoute,
     AuthenticatedClinicMorosidadRoute: AuthenticatedClinicMorosidadRoute,
     AuthenticatedClinicNotificacionesAPacientesRoute:

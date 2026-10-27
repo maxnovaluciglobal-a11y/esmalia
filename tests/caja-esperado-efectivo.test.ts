@@ -76,8 +76,9 @@ describe("esperado en caja: solo efectivo", () => {
     );
     expect(cierre).toMatch(/\.select\("amount_cents, method"\)/);
     expect(cierre).toMatch(/\.filter\(\(p\) => esCobroEnEfectivo\(p\.method\)\)/);
+    // Ola 10 (CAJ-04): apertura + efectivo ± movimientos entre cajas.
     expect(cierre).toMatch(
-      /esperadoEnCaja\(register\.opening_amount_cents, cobradoEnEfectivoCents\)/,
+      /esperadoConMovimientos\(\s*register\.opening_amount_cents,\s*cobradoEnEfectivoCents,\s*movimientos,?\s*\)/,
     );
     // El desglose marca cada fila para que la UI use el mismo criterio.
     expect(fuente).toMatch(/enEfectivo = esCobroEnEfectivo\(row\.method\)/);
