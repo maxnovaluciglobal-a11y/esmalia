@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -610,6 +610,11 @@ interface Props {
   sugerenciaPresupuesto?: { currency: string; onVerPresupuesto?: () => void };
   /** Edad del paciente: elige la dentición con la que abre (CLI-04). `null` = desconocida. */
   edad?: number | null;
+  /**
+   * FIC-17 (Ola 13): contenido extra para la pieza elegida, arriba de sus
+   * condiciones (la ficha pasa el enlace a los exámenes de esa pieza).
+   */
+  extraDePieza?: (pieza: number) => ReactNode;
 }
 
 export function Odontogram({
@@ -620,6 +625,7 @@ export function Odontogram({
   onPresupuestarPieza,
   sugerenciaPresupuesto,
   edad = null,
+  extraDePieza,
 }: Props) {
   const queryClient = useQueryClient();
   const { animar } = useMovimiento();
@@ -963,6 +969,7 @@ export function Odontogram({
         />
       ) : (
         <>
+          {extraDePieza?.(selection.tooth)}
           {onPresupuestarPieza && (
             <button
               onClick={() => {

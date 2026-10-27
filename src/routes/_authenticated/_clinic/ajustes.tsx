@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
 import { ExportarDatosClinica } from "@/components/exportar-datos-clinica";
+import { UsoDeAlmacenamientoCard } from "@/components/examenes/uso-de-almacenamiento";
 import { MostrarPuestaEnMarchaDeNuevo } from "@/components/puesta-en-marcha";
 import { SearchField } from "@/components/filters";
 import { RoleSimulationBar } from "@/components/role-simulation-bar";
@@ -88,6 +89,17 @@ function AjustesPage() {
             </section>
           ))}
         </div>
+        {/* Ola 13: uso del cupo de almacenamiento de archivos clínicos. */}
+        {!filtrando && access.clinic && puedeExportarClinica(access.role) && (
+          <section aria-labelledby="ajustes-almacenamiento">
+            <h2 id="ajustes-almacenamiento" className="kicker">
+              Almacenamiento
+            </h2>
+            <div className="mt-3">
+              <UsoDeAlmacenamientoCard clinicId={access.clinic.id} />
+            </div>
+          </section>
+        )}
         {/* Exportación completa (CS-04/CON-01): lo prometen Términos, DPA y
             la home. El servidor vuelve a verificar owner/admin. */}
         {!filtrando && access.clinic && puedeExportarClinica(access.role) && (

@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import { parPorDefecto } from "../src/lib/examenes/antes-despues";
 import {
   CUPO_POR_PLAN,
   GB,
@@ -152,5 +153,37 @@ describe("tipos de examen", () => {
     expect(formatearBytes(-1)).toBe("Sin datos");
     expect(nombreSeguro("Radiografía pieza 16.jpg")).toBe("Radiografia_pieza_16.jpg");
     expect(nombreSeguro("../../etc")).toBe("etc");
+  });
+});
+
+describe("antes y después: par por defecto", () => {
+  const foto = (id: string, takenOn: string, photoSessionId: string | null = null) => ({
+    id,
+    takenOn,
+    createdAt: `${takenOn}T10:00:00Z`,
+    photoSessionId,
+  });
+
+  it("toma la primera foto de 'antes' y la última de 'después'", () => {
+    const sesiones = [
+      { id: "s1", stage: "antes" as const },
+      { id: "s2", stage: "despues" as const },
+      { id: "s3", stage: "control" as const },
+    ];
+    const fotos = [
+      foto("a", "2026-01-10"),
+      foto("b", "2026-02-01", "s1"),
+      foto("c", "2026-05-01", "s2"),
+      foto("d", "2026-06-01", "s3"),
+    ];
+    expect(parPorDefecto(fotos, sesiones)).toEqual(["b", "c"]);
+  });
+
+  it("sin etapas, la más antigua contra la más nueva; con menos de dos, nada", () => {
+    expect(parPorDefecto([foto("x", "2026-03-01"), foto("y", "2026-01-01")], [])).toEqual([
+      "y",
+      "x",
+    ]);
+    expect(parPorDefecto([foto("x", "2026-03-01")], [])).toBeNull();
   });
 });
