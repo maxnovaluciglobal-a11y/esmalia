@@ -48,6 +48,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
   /^components\/reportes\//, // A+ de Reportes y Operación: barras y mezclas de datos
   /^components\/marketing\//,
+  /^components\/visores\//, // visores de exámenes (Ola 13): medidas en mm y dimensiones
 ];
 
 // Todo lo que pinta dientes. Ninguno puede mencionar el cobalto.
