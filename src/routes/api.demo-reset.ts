@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { Json } from "@/integrations/supabase/types";
 import { cronAutorizado } from "@/lib/cron-auth.server";
 import { esCuentaDemo } from "@/lib/demo-cuenta";
+import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
+import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 
 /**
  * Reset periódico de la clínica demo pública. Disparado por Vercel Cron
@@ -60,6 +62,16 @@ export const Route = createFileRoute("/api/demo-reset")({
           await crearCuentasDeLaDemo(supabaseAdmin);
         } catch (e) {
           console.error("[demo-reset] no se pudieron crear las cuentas por cobrar", e);
+        }
+
+        // Caja A+: la semilla deja casi sin cobros el día del reset (corre a
+        // las 02:05 de Chile), así que "Cobrado hoy" salía en $0. Se siembran
+        // cobros de la mañana de hoy en el huso de la clínica, con medios
+        // variados y el efectivo en la caja abierta. Un error no tumba el reset.
+        try {
+          await crearCobrosDeHoyDeLaDemo(supabaseAdmin);
+        } catch (e) {
+          console.error("[demo-reset] no se pudieron crear los cobros de hoy", e);
         }
 
         // Ola 4: un documento emitido de ejemplo (certificado de atención) en
@@ -298,5 +310,92 @@ async function crearDocumentoDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
     content_html: motor.bloquesAHtml(render.bloques),
     issued_by: DEMO_USER_ID,
   });
+  if (error) throw new Error(error.message);
+}
+
+/**
+ * Cobros de la mañana de hoy (hora de la clínica) para que la caja de la demo
+ * tenga movimientos: diez cobros entre las 09:20 y las 13:20, con efectivo,
+ * débito, crédito y transferencia, de los pacientes con cita hoy (o de los de
+ * la demo si hoy hay pocos). El efectivo queda en la caja abierta.
+ */
+const COBROS_DEMO_HOY = [
+  { hora: "09:20", monto: 35000, medio: "cash", nota: "Control y limpieza" },
+  { hora: "09:55", monto: 120000, medio: "debit_card", nota: "Abono endodoncia" },
+  { hora: "10:30", monto: 45000, medio: "credit_card", nota: "Resina / obturación" },
+  { hora: "10:50", monto: 25000, medio: "cash", nota: "Evaluación" },
+  { hora: "11:15", monto: 90000, medio: "transfer", nota: "Cuota brackets" },
+  { hora: "11:40", monto: 60000, medio: "debit_card", nota: "Blanqueamiento · abono" },
+  { hora: "12:05", monto: 32000, medio: "cash", nota: "Control ortodoncia" },
+  { hora: "12:30", monto: 150000, medio: "credit_card", nota: "Corona · fase 2" },
+  { hora: "12:55", monto: 18000, medio: "cash", nota: "Radiografía" },
+  { hora: "13:20", monto: 48000, medio: "transfer", nota: "Sellantes" },
+] as const;
+
+async function crearCobrosDeHoyDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
+  const { data: clinica } = await supabaseAdmin
+    .from("clinics")
+    .select("id, timezone")
+    .eq("is_demo", true)
+    .limit(1)
+    .maybeSingle();
+  if (!clinica) return;
+  const zona = clinica.timezone || "America/Santiago";
+  const hoy = hoyISO(zona);
+  const desde = wallTimeInTzToUtc(`${hoy}T00:00:00`, zona).toISOString();
+  const hasta = wallTimeInTzToUtc(`${hoy}T23:59:59`, zona).toISOString();
+
+  // Idempotente: si ya hay cobros sembrados hoy, no se duplican.
+  const { count } = await supabaseAdmin
+    .from("payments")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", clinica.id)
+    .like("notes", "Demo · %")
+    .gte("paid_at", desde)
+    .lte("paid_at", hasta);
+  if ((count ?? 0) > 0) return;
+
+  const [{ data: citas }, { data: pacientes }, { data: caja }] = await Promise.all([
+    supabaseAdmin
+      .from("appointments")
+      .select("patient_id")
+      .eq("clinic_id", clinica.id)
+      .neq("status", "cancelada")
+      .gte("starts_at", desde)
+      .lte("starts_at", hasta)
+      .order("starts_at"),
+    supabaseAdmin
+      .from("patients")
+      .select("id")
+      .eq("clinic_id", clinica.id)
+      .is("archived_at", null)
+      .order("created_at")
+      .limit(12),
+    supabaseAdmin
+      .from("cash_registers")
+      .select("id")
+      .eq("clinic_id", clinica.id)
+      .eq("status", "open")
+      .order("opened_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  const ids = [
+    ...new Set([...(citas ?? []).map((c) => c.patient_id), ...(pacientes ?? []).map((p) => p.id)]),
+  ];
+  if (ids.length === 0) return;
+
+  const filas = COBROS_DEMO_HOY.map((c, i) => ({
+    clinic_id: clinica.id,
+    patient_id: ids[i % ids.length],
+    // CLP no tiene decimales (ISO 4217): el monto va en pesos, como la semilla.
+    amount_cents: c.monto,
+    method: c.medio,
+    paid_at: wallTimeInTzToUtc(`${hoy}T${c.hora}:00`, zona).toISOString(),
+    notes: `Demo · ${c.nota}`,
+    created_by: DEMO_USER_ID,
+    cash_register_id: c.medio === "cash" ? (caja?.id ?? null) : null,
+  }));
+  const { error } = await supabaseAdmin.from("payments").insert(filas);
   if (error) throw new Error(error.message);
 }
