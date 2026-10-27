@@ -1,0 +1,35 @@
+name: Reset de la demo (manual)
+
+# Disparo manual del reset de la clínica demo pública. El principal es Vercel
+# Cron (vercel.json); esto sirve para dejar la demo limpia al momento, por
+# ejemplo antes de una presentación o después de un deploy con datos de
+# ejemplo nuevos. El endpoint es idempotente: correrlo dos veces no duplica
+# nada. Sin schedule a propósito.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: demo-reset
+  cancel-in-progress: false
+
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Llamar a /api/demo-reset
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          # Variable de repo (Settings → Variables), como lifecycle-emails.yml.
+          APP_URL: ${{ vars.APP_URL || 'https://esmalia.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::error::Falta el secret CRON_SECRET"; exit 1; fi
+          status=$(curl -sS -o respuesta.txt -w "%{http_code}" --max-time 240 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/demo-reset")
+          echo "HTTP $status"; head -c 500 respuesta.txt; echo
+          case "$status" in
+            2??) ;;
+            *) echo "::error::demo-reset respondió $status"; exit 1 ;;
+          esac
