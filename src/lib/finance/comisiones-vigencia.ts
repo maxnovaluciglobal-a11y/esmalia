@@ -189,7 +189,8 @@ export function etiquetaRegla(
 ): string {
   if (v.kind === "none") return "Sin comisión";
   if (v.kind === "fixed") return `${formatMoney(v.fixedCents, currency)} por prestación realizada`;
-  const pct = (v.percentBps / 100).toLocaleString("es-CL", { maximumFractionDigits: 2 });
+  // "40", "12,5": sin ceros de más y con coma decimal (es-CL).
+  const pct = String(v.percentBps / 100).replace(".", ",");
   return `${pct} % sobre ${BASE_COMISION_LABELS[v.base]}`;
 }
 
