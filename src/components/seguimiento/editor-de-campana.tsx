@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mensajeDeError } from "@/lib/mensaje-error";
+import { listPatientSegments } from "@/lib/patients/segmentos.functions";
 import {
   confirmarCampana,
   guardarBorradorDeCampana,
@@ -43,6 +45,7 @@ import {
   OPCIONES_SIN_VISITA,
   type CanalDeCampana,
   type FiltroCampana,
+  type SegmentoCampana,
 } from "@/lib/seguimiento/campanas";
 import { analizarMensaje } from "@/lib/seguimiento/plantillas";
 
@@ -83,7 +86,24 @@ export function EditorDeCampana({
   const [vista, setVista] = useState<VistaPreviaDeCampana | null>(null);
   const [confirmando, setConfirmando] = useState(false);
 
-  const segmento = { tipo: "filtro" as const, filtro };
+  // PAC-06: un segmento guardado en Pacientes, o el filtro propio de la campaña.
+  const [modo, setModo] = useState<"segmento" | "filtro">(
+    inicial?.segment?.tipo === "segmento" ? "segmento" : "filtro",
+  );
+  const [segmentoId, setSegmentoId] = useState<string>(
+    inicial?.segment?.tipo === "segmento" ? inicial.segment.segmentoId : "",
+  );
+  const listarSegmentos = useServerFn(listPatientSegments);
+  const segmentos = useQuery({
+    queryKey: ["patient-segments", clinicId],
+    queryFn: () => listarSegmentos({ data: { clinicId } }),
+  });
+  const elegido = (segmentos.data ?? []).find((x) => x.id === segmentoId);
+  const segmento: SegmentoCampana =
+    modo === "segmento" && elegido
+      ? { tipo: "segmento", segmentoId: elegido.id, nombre: elegido.nombre }
+      : { tipo: "filtro", filtro };
+  const grupoListo = modo === "filtro" || Boolean(elegido);
   const datos = () => ({
     clinicId,
     id,
@@ -244,79 +264,155 @@ export function EditorDeCampana({
             <legend className="px-1 font-display text-[20px] font-medium">
               Grupo de pacientes
             </legend>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div
+              role="radiogroup"
+              aria-label="Cómo elegir el grupo"
+              className="flex flex-wrap gap-1.5"
+            >
+              <ChipFiltro
+                activo={modo === "segmento"}
+                onClick={() => {
+                  setModo("segmento");
+                  setVista(null);
+                }}
+              >
+                Segmento guardado
+              </ChipFiltro>
+              <ChipFiltro
+                activo={modo === "filtro"}
+                onClick={() => {
+                  setModo("filtro");
+                  setVista(null);
+                }}
+              >
+                Filtro de la campaña
+              </ChipFiltro>
+            </div>
+            {modo === "segmento" && (
               <div className="space-y-1.5">
-                <Label htmlFor={`${fid}-visita`}>Última visita</Label>
+                <Label htmlFor={`${fid}-segmento`}>Segmento</Label>
                 <select
-                  id={`${fid}-visita`}
-                  value={filtro.sinVisitaDesdeMeses}
-                  onChange={(e) => cambiar({ sinVisitaDesdeMeses: Number(e.target.value) })}
+                  id={`${fid}-segmento`}
+                  value={segmentoId}
+                  onChange={(e) => {
+                    setSegmentoId(e.target.value);
+                    setVista(null);
+                  }}
                   className={CAMPO}
                 >
-                  {OPCIONES_SIN_VISITA.map((m) => (
-                    <option key={m} value={m}>
-                      {m === 0 ? "Da igual" : `Hace ${m} meses o más (o nunca)`}
+                  <option value="">
+                    {(segmentos.data ?? []).length
+                      ? "Elige un segmento"
+                      : "Todavía no hay segmentos guardados"}
+                  </option>
+                  {(segmentos.data ?? []).map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.nombre}
                     </option>
                   ))}
                 </select>
+                <p className="text-sm text-muted-foreground">
+                  Los segmentos se guardan en{" "}
+                  <Link
+                    to="/pacientes"
+                    search={{
+                      q: "",
+                      sucursal: "",
+                      profesional: "",
+                      estado: "",
+                      desde: "",
+                      hasta: "",
+                      page: 1,
+                    }}
+                    className="font-semibold text-brand-700 underline-offset-4 hover:underline"
+                  >
+                    Pacientes
+                  </Link>
+                  . Las bajas y el consentimiento de cada canal se aplican igual.
+                </p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-edadmin`}>Edad desde</Label>
-                  <input
-                    id={`${fid}-edadmin`}
-                    type="number"
-                    min={0}
-                    max={120}
-                    inputMode="numeric"
-                    value={filtro.edadMinima ?? ""}
-                    onChange={(e) =>
-                      cambiar({ edadMinima: e.target.value === "" ? null : Number(e.target.value) })
-                    }
-                    className={CAMPO}
-                  />
+            )}
+            {modo === "filtro" && (
+              <>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`${fid}-visita`}>Última visita</Label>
+                    <select
+                      id={`${fid}-visita`}
+                      value={filtro.sinVisitaDesdeMeses}
+                      onChange={(e) => cambiar({ sinVisitaDesdeMeses: Number(e.target.value) })}
+                      className={CAMPO}
+                    >
+                      {OPCIONES_SIN_VISITA.map((m) => (
+                        <option key={m} value={m}>
+                          {m === 0 ? "Da igual" : `Hace ${m} meses o más (o nunca)`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${fid}-edadmin`}>Edad desde</Label>
+                      <input
+                        id={`${fid}-edadmin`}
+                        type="number"
+                        min={0}
+                        max={120}
+                        inputMode="numeric"
+                        value={filtro.edadMinima ?? ""}
+                        onChange={(e) =>
+                          cambiar({
+                            edadMinima: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className={CAMPO}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor={`${fid}-edadmax`}>hasta</Label>
+                      <input
+                        id={`${fid}-edadmax`}
+                        type="number"
+                        min={0}
+                        max={120}
+                        inputMode="numeric"
+                        value={filtro.edadMaxima ?? ""}
+                        onChange={(e) =>
+                          cambiar({
+                            edadMaxima: e.target.value === "" ? null : Number(e.target.value),
+                          })
+                        }
+                        className={CAMPO}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor={`${fid}-edadmax`}>hasta</Label>
+                <label className="flex items-center gap-2 text-[15px]">
                   <input
-                    id={`${fid}-edadmax`}
-                    type="number"
-                    min={0}
-                    max={120}
-                    inputMode="numeric"
-                    value={filtro.edadMaxima ?? ""}
-                    onChange={(e) =>
-                      cambiar({ edadMaxima: e.target.value === "" ? null : Number(e.target.value) })
-                    }
-                    className={CAMPO}
+                    type="checkbox"
+                    className="size-4"
+                    checked={filtro.sinCitaFutura}
+                    onChange={(e) => cambiar({ sinCitaFutura: e.target.checked })}
                   />
-                </div>
-              </div>
-            </div>
-            <label className="flex items-center gap-2 text-[15px]">
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={filtro.sinCitaFutura}
-                onChange={(e) => cambiar({ sinCitaFutura: e.target.checked })}
-              />
-              Solo sin cita agendada
-            </label>
-            <label className="flex items-center gap-2 text-[15px]">
-              <input
-                type="checkbox"
-                className="size-4"
-                checked={filtro.conPresupuestoPendiente}
-                onChange={(e) => cambiar({ conPresupuestoPendiente: e.target.checked })}
-              />
-              Solo con un presupuesto sin aceptar
-            </label>
+                  Solo sin cita agendada
+                </label>
+                <label className="flex items-center gap-2 text-[15px]">
+                  <input
+                    type="checkbox"
+                    className="size-4"
+                    checked={filtro.conPresupuestoPendiente}
+                    onChange={(e) => cambiar({ conPresupuestoPendiente: e.target.checked })}
+                  />
+                  Solo con un presupuesto sin aceptar
+                </label>
+              </>
+            )}
             <p className="text-sm text-muted-foreground">{describirSegmento(segmento)}</p>
             <Button
               type="button"
               variant="outline"
               onClick={() => preview.mutate()}
-              disabled={preview.isPending}
+              disabled={preview.isPending || !grupoListo}
             >
               {preview.isPending ? (
                 <Loader2 className="size-4 animate-spin" aria-hidden />

@@ -5,9 +5,10 @@
  *
  * El grupo sale de `SegmentoCampana`:
  *  - `filtro`: el filtro propio de la campaña (`cumpleFiltro`).
- *  - `segmento`: un segmento guardado del frente A (PAC-06). Se cablea en
- *    `pacientesDelSegmentoGuardado` cuando su función de servidor llegue a
- *    main; hasta entonces responde con un mensaje claro.
+ *  - `segmento`: un segmento guardado de Pacientes (PAC-06). Quién entra lo
+ *    decide `resolverSegmento` (src/lib/patients/segmentos.server.ts), la
+ *    misma regla que la lista de /pacientes. Ese resolvedor no filtra por
+ *    consentimiento: las bajas por canal las aplica `elegibilidad` acá.
  *
  * Corre con el cliente del usuario (RLS de la clínica). Los menores con tutor
  * vigente reciben en el contacto del tutor (CLI-11), leyendo los tutores de una
@@ -18,6 +19,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { mensajeDb } from "@/lib/db-errors";
 import { normalizeToWaMe } from "@/lib/messaging/telefonos";
+import { resolverSegmento } from "@/lib/patients/segmentos.server";
 import { leerTodasLasPaginas } from "@/lib/paginacion";
 import {
   destinatarioDeComunicaciones,
@@ -96,18 +98,21 @@ async function leerPacientesParaCampana(
 }
 
 /**
- * Pacientes de un segmento guardado (frente A, PAC-06). Punto único de
- * integración: cuando `ola8/pacientes` esté en main, acá se llama a su
- * función de servidor y se devuelven los ids.
+ * Pacientes de un segmento guardado (PAC-06): sus ids, con la regla de
+ * /pacientes. Si la clínica tiene más fichas que el tope de lectura, avisa
+ * en vez de mandar a una lista incompleta.
  */
 async function pacientesDelSegmentoGuardado(
-  _supabase: Cliente,
-  _clinicId: string,
-  _segmentoId: string,
+  supabase: Cliente,
+  args: { clinicId: string; userId: string; segmentId: string },
 ): Promise<Set<string>> {
-  throw new Error(
-    "Los segmentos guardados todavía no están disponibles para campañas. Usa el filtro de la campaña.",
-  );
+  const r = await resolverSegmento(supabase, args);
+  if (r.truncado) {
+    throw new Error(
+      "La clínica tiene más fichas de las que se pueden revisar de una vez: el segmento podría quedar incompleto. Usa el filtro de la campaña.",
+    );
+  }
+  return new Set(r.pacientes.map((p) => p.id));
 }
 
 async function tutoresDe(
@@ -151,6 +156,7 @@ export async function resolverDestinatarios(
   supabase: Cliente,
   args: {
     clinicId: string;
+    userId: string;
     segmento: SegmentoCampana;
     canal: CanalDeCampana;
     hoy: string;
@@ -160,11 +166,11 @@ export async function resolverDestinatarios(
   const todos = await leerPacientesParaCampana(supabase, args.clinicId);
   let grupo: PacienteParaCampana[];
   if (args.segmento.tipo === "segmento") {
-    const ids = await pacientesDelSegmentoGuardado(
-      supabase,
-      args.clinicId,
-      args.segmento.segmentoId,
-    );
+    const ids = await pacientesDelSegmentoGuardado(supabase, {
+      clinicId: args.clinicId,
+      userId: args.userId,
+      segmentId: args.segmento.segmentoId,
+    });
     grupo = todos.filter((p) => ids.has(p.id));
   } else {
     const filtro = args.segmento.filtro;

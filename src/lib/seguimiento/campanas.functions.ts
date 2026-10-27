@@ -358,6 +358,7 @@ async function vistaPrevia(
   supabase: Parameters<typeof resolverDestinatarios>[0],
   args: {
     clinicId: string;
+    userId: string;
     canal: CanalDeCampana;
     segmento: SegmentoCampana;
     asunto: string | null;
@@ -367,6 +368,7 @@ async function vistaPrevia(
   const clinica = await clinicaDeSeguimiento(supabase, args.clinicId);
   const evaluados = await resolverDestinatarios(supabase, {
     clinicId: args.clinicId,
+    userId: args.userId,
     segmento: args.segmento,
     canal: args.canal,
     hoy: clinica.hoy,
@@ -389,7 +391,10 @@ export const previsualizarCampana = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<VistaPreviaDeCampana> => {
-    const { clinica, evaluados } = await vistaPrevia(context.supabase, data);
+    const { clinica, evaluados } = await vistaPrevia(context.supabase, {
+      ...data,
+      userId: context.userId,
+    });
     const resumen = resumirElegibilidad(evaluados);
     const elegibles = evaluados.filter((e) => e.elegibilidad.ok);
     const primero = elegibles[0];
@@ -470,6 +475,7 @@ export const confirmarCampana = createServerFn({ method: "POST" })
 
       const { evaluados } = await vistaPrevia(supabase, {
         clinicId: data.clinicId,
+        userId: context.userId,
         canal: campana.channel as CanalDeCampana,
         segmento,
         asunto: campana.subject,

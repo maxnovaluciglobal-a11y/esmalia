@@ -204,6 +204,15 @@ describe("CRM-04 · WhatsApp nunca se envía solo", () => {
     expect(bloque).toContain("buildWaMeUrl");
   });
 
+  it("un segmento guardado de Pacientes entra por resolverSegmento y pasa igual por las bajas del canal", () => {
+    const fuente = leer("src/lib/seguimiento/campanas.server.ts");
+    expect(fuente).toContain('from "@/lib/patients/segmentos.server"');
+    expect(fuente).toMatch(/resolverSegmento\(supabase, args\)/);
+    // Todo el grupo (filtro o segmento) pasa por `elegibilidad`, que aplica bajas y consentimiento.
+    expect(fuente).toMatch(/elegibilidad: elegibilidad\(/);
+    expect(fuente).not.toContain("todavía no están disponibles");
+  });
+
   it("la base exige una persona para marcar un WhatsApp de campaña como abierto", () => {
     const sql = leer("supabase/migrations/20261105200000_seguimiento_de_pacientes.sql");
     expect(sql).toMatch(/new\.status = 'abierto' and auth\.uid\(\) is null/);
