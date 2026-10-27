@@ -52,6 +52,9 @@ export const TABLAS_CON_AAL2: Readonly<Record<string, string>> = {
   messages: "conversaciones con pacientes (WhatsApp, correo)",
   notifications: "avisos internos que nombran pacientes y notas",
   odontogram_marks: "odontograma",
+  online_booking_settings: "reserva en línea: reglas y procedimientos reservables de la clínica",
+  online_booking_verifications:
+    "reserva en línea: huellas de códigos y contactos (solo service_role)",
   ortho_cases: "casos de ortodoncia y su presupuesto",
   ortho_controls: "controles de ortodoncia",
   patient_consents: "consentimientos informados",

@@ -14,7 +14,7 @@ const TOPE_CORREOS_POR_CORRIDA = 300;
  * `.github/workflows/patient-emails.yml` (minuto 57), los dos con
  * `CRON_SECRET`.
  *
- * Frenos: interruptor `PATIENT_EMAILS_ENABLED` (sin él no toca la base), la
+ * Frenos: freno de emergencia `PATIENT_EMAILS_DISABLED=true` (no toca la base), la
  * configuración de cada clínica (todo apagado por defecto), ventana local
  * 8:00-20:59, la demo afuera, baja, tutor, modo de prueba de la clínica e
  * idempotencia en `patient_email_dispatches`. Ver docs/CORREOS.md.
@@ -37,8 +37,8 @@ export const Route = createFileRoute("/api/patient-emails")({
             headers: { "content-type": "application/json" },
           });
 
-        if (process.env.PATIENT_EMAILS_ENABLED !== "true") {
-          console.log("[patient-emails] apagado (PATIENT_EMAILS_ENABLED != true)");
+        if (process.env.PATIENT_EMAILS_DISABLED === "true") {
+          console.log("[patient-emails] apagado (PATIENT_EMAILS_DISABLED = true)");
           return json({ habilitado: false });
         }
 
@@ -46,16 +46,15 @@ export const Route = createFileRoute("/api/patient-emails")({
         const { correrCorreosAPacientes } =
           await import("@/lib/notificaciones-pacientes/cron.server");
         const { appOrigin } = await import("@/lib/app-origin.server");
+        const { enlaceGestionCita } = await import("@/lib/reserva/enlace-cita.server");
         try {
           const resumen = await correrCorreosAPacientes(supabaseAdmin, new Date(), {
             appUrl: appOrigin(),
             topeClinicas: TOPE_CLINICAS_POR_CORRIDA,
             topeCorreos: TOPE_CORREOS_POR_CORRIDA,
             // REC-11: botones "Confirmar asistencia" / "Cancelar o reagendar"
-            // hacia /mi-cita/:token (contrato del frente A,
-            // `enlaceGestionCita` de src/lib/reserva/enlace-cita.server). Sin
-            // él, el correo sale sin los botones.
-            enlaceGestion: null,
+            // hacia /mi-cita/:token.
+            enlaceGestion: enlaceGestionCita,
           });
           // Rastro SIEMPRE, también cuando no envía nada.
           console.log(

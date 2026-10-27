@@ -84,6 +84,7 @@ export const Route = createFileRoute("/api/demo-reset")({
         } catch (e) {
           console.error("[demo-reset] no se pudo crear el documento de ejemplo", e);
         }
+        await (await import("@/lib/reserva/demo.server")).prepararReservaDeLaDemo(supabaseAdmin);
 
         await crearEncuestasDeLaDemo(supabaseAdmin);
 

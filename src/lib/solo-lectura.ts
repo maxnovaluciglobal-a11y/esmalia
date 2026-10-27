@@ -167,6 +167,21 @@ export const ESCRITURA_EXENTA: Record<string, string> = {
     "Formulario antes de la cita (sin login): el paciente envía sus datos; no toca la ficha hasta que el equipo lo acepta.",
   abrirEncuesta: "Encuesta de satisfacción (sin login): el paciente abre el link de la clínica.",
   responderEncuesta: "Encuesta de satisfacción (sin login): el paciente responde la encuesta.",
+  abrirReserva: "Reserva en línea (sin login): el paciente abre el link público de la clínica.",
+  horasDeReserva: "Reserva en línea (sin login): el paciente mira las horas libres.",
+  pedirCodigoDeReserva:
+    "Reserva en línea (sin login): el paciente pide su código; la clínica en solo lectura no recibe reservas (se revisa adentro).",
+  confirmarReserva:
+    "Reserva en línea (sin login): crea una cita tentativa; la clínica en solo lectura no recibe reservas (se revisa adentro).",
+  verMiCita: "Gestión de la cita (sin login): el paciente abre su link firmado.",
+  confirmarMiCita:
+    "Gestión de la cita (sin login): el paciente avisa que va (eje aparte de confirmada).",
+  cancelarMiCita:
+    "Gestión de la cita (sin login): el paciente cancela su propia cita; nunca se bloquea.",
+  horasParaReagendar:
+    "Gestión de la cita (sin login): el paciente mira horas para cambiar la suya.",
+  reagendarMiCita:
+    "Gestión de la cita (sin login): el paciente cambia su hora; con la clínica en solo lectura se niega adentro.",
   submitMarketingLead: "Formulario público de la web.",
   ensureDemoClinicFresh: "Clínica demo pública (ya es de solo lectura por trigger).",
 

@@ -91,7 +91,7 @@ Cada correo de cita lleva los botones "Confirmar asistencia" / "Cancelar o reage
 
 ## Frenos (`src/lib/notificaciones-pacientes/cron.server.ts`)
 
-1. `PATIENT_EMAILS_ENABLED=true` en Vercel o el endpoint responde `{"habilitado":false}` sin tocar la base. **Hoy apagado**: encenderlo es decisión de Walter.
+1. Freno de emergencia: con `PATIENT_EMAILS_DISABLED=true` en Vercel el endpoint responde `{"habilitado":false}` sin tocar la base. Sin la variable, el cron corre; igual no sale nada hasta que la clínica encienda cada correo (todo apagado por defecto) y, en sandbox, nada llega a un paciente real.
 2. Configuración de la clínica (todo apagado por defecto) y ventana local 8:00-20:59 (`esVentanaDeCorreos`).
 3. Nunca la clínica demo. Sin `EMAIL_UNSUBSCRIBE_SECRET` (sin baja firmable) no sale nada.
 4. Baja del paciente (`email_opt_out_at`), ficha archivada o fusionada: no se le escribe. Sin correo, tampoco.

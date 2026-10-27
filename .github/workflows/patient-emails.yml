@@ -4,8 +4,8 @@ name: Correos automáticos a pacientes (disparo horario)
 # (vercel.json, minuto 27). El endpoint corre cada hora, actúa solo en la
 # ventana local de 8:00 a 20:59 de cada clínica y es idempotente (tabla
 # patient_email_dispatches, UNIQUE por cita, tipo y franja), así que un
-# reintento o un disparo manual no duplica correos. Mientras
-# PATIENT_EMAILS_ENABLED no sea "true" en Vercel, responde {"habilitado":false}
+# reintento o un disparo manual no duplica correos. Si
+# PATIENT_EMAILS_DISABLED es "true" en Vercel, responde {"habilitado":false}
 # sin tocar nada. Nunca manda WhatsApp. Ver docs/CORREOS.md.
 on:
   schedule:

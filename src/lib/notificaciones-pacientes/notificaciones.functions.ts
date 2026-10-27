@@ -45,7 +45,7 @@ export interface PantallaNotificaciones {
   resenaDeSucursal: string | null;
   /** Modo de prueba del correo de la clínica: en "sandbox" no le llega nada a un paciente real. */
   modoCorreo: "sandbox" | "production";
-  /** El interruptor general de Esmalia (`PATIENT_EMAILS_ENABLED`). */
+  /** Freno de emergencia de Esmalia (`PATIENT_EMAILS_DISABLED=true` lo apaga). */
   envioGlobalEncendido: boolean;
   nps: ResumenNps;
   comentarios: ComentarioNps[];
@@ -117,7 +117,7 @@ export const getNotificacionesPacientes = createServerFn({ method: "GET" })
       config: leerConfig(fila.data),
       resenaDeSucursal: sucursales.data?.[0]?.google_review_url?.trim() || null,
       modoCorreo: sandbox.data?.mode === "production" ? "production" : "sandbox",
-      envioGlobalEncendido: process.env.PATIENT_EMAILS_ENABLED === "true",
+      envioGlobalEncendido: process.env.PATIENT_EMAILS_DISABLED !== "true",
       nps: resumenNps(filasNps),
       comentarios: filasNps
         .filter((f) => f.responded_at && f.score !== null && f.comment?.trim())

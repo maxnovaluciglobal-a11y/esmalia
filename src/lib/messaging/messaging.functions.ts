@@ -256,6 +256,13 @@ export const sendWhatsAppFromTemplate = createServerFn({ method: "POST" })
           ...data.variables,
           paciente: patient.full_name,
         });
+        // MKT-06: el recall lleva el link de reserva de la clínica (si está
+        // encendida), prellenado con el paciente. Sigue siendo wa.me asistido.
+        if (templateKind === "hygiene_recall") {
+          const { lineaDeRecallConReserva } = await import("@/lib/reserva/recall.server");
+          const linea = await lineaDeRecallConReserva(supabase, data.clinicId, data.patientId);
+          if (linea) body = `${body}\n\n${linea}`;
+        }
         if (template.meta_status === "approved" && template.meta_template_name) {
           metaTemplate = { name: template.meta_template_name, language: template.meta_language };
         }

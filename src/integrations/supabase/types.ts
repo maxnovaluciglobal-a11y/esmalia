@@ -384,6 +384,7 @@ export type Database = {
           appointment_type_id: string | null;
           appointment_type_name: string | null;
           arrived_at: string | null;
+          booking_source: string | null;
           branch_id: string;
           clinic_id: string;
           confirmed_at: string | null;
@@ -401,6 +402,7 @@ export type Database = {
           notes: string | null;
           operatory_id: string | null;
           operatory_name: string | null;
+          patient_cancelled_at: string | null;
           patient_confirmed_at: string | null;
           patient_confirmed_via: string | null;
           patient_id: string;
@@ -419,6 +421,7 @@ export type Database = {
           appointment_type_id?: string | null;
           appointment_type_name?: string | null;
           arrived_at?: string | null;
+          booking_source?: string | null;
           branch_id: string;
           clinic_id: string;
           confirmed_at?: string | null;
@@ -436,6 +439,7 @@ export type Database = {
           notes?: string | null;
           operatory_id?: string | null;
           operatory_name?: string | null;
+          patient_cancelled_at?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id: string;
@@ -454,6 +458,7 @@ export type Database = {
           appointment_type_id?: string | null;
           appointment_type_name?: string | null;
           arrived_at?: string | null;
+          booking_source?: string | null;
           branch_id?: string;
           clinic_id?: string;
           confirmed_at?: string | null;
@@ -471,6 +476,7 @@ export type Database = {
           notes?: string | null;
           operatory_id?: string | null;
           operatory_name?: string | null;
+          patient_cancelled_at?: string | null;
           patient_confirmed_at?: string | null;
           patient_confirmed_via?: string | null;
           patient_id?: string;
@@ -3217,6 +3223,116 @@ export type Database = {
           },
         ];
       };
+      online_booking_settings: {
+        Row: {
+          bookable_appointment_type_ids: string[];
+          bookable_procedure_ids: string[];
+          clinic_id: string;
+          created_at: string;
+          enabled: boolean;
+          max_days_ahead: number;
+          min_notice_hours: number;
+          slug: string;
+          updated_at: string;
+          updated_by: string | null;
+          welcome_note: string | null;
+        };
+        Insert: {
+          bookable_appointment_type_ids?: string[];
+          bookable_procedure_ids?: string[];
+          clinic_id: string;
+          created_at?: string;
+          enabled?: boolean;
+          max_days_ahead?: number;
+          min_notice_hours?: number;
+          slug: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          welcome_note?: string | null;
+        };
+        Update: {
+          bookable_appointment_type_ids?: string[];
+          bookable_procedure_ids?: string[];
+          clinic_id?: string;
+          created_at?: string;
+          enabled?: boolean;
+          max_days_ahead?: number;
+          min_notice_hours?: number;
+          slug?: string;
+          updated_at?: string;
+          updated_by?: string | null;
+          welcome_note?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_booking_settings_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: true;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      online_booking_verifications: {
+        Row: {
+          appointment_id: string | null;
+          attempts: number;
+          clinic_id: string;
+          code_hash: string;
+          created_at: string;
+          email_hash: string;
+          expires_at: string;
+          id: string;
+          ip_hint: string | null;
+          phone_hash: string | null;
+          request_hash: string;
+          used_at: string | null;
+        };
+        Insert: {
+          appointment_id?: string | null;
+          attempts?: number;
+          clinic_id: string;
+          code_hash: string;
+          created_at?: string;
+          email_hash: string;
+          expires_at: string;
+          id?: string;
+          ip_hint?: string | null;
+          phone_hash?: string | null;
+          request_hash: string;
+          used_at?: string | null;
+        };
+        Update: {
+          appointment_id?: string | null;
+          attempts?: number;
+          clinic_id?: string;
+          code_hash?: string;
+          created_at?: string;
+          email_hash?: string;
+          expires_at?: string;
+          id?: string;
+          ip_hint?: string | null;
+          phone_hash?: string | null;
+          request_hash?: string;
+          used_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "online_booking_verifications_appointment_id_fkey";
+            columns: ["appointment_id"];
+            isOneToOne: false;
+            referencedRelation: "appointments";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "online_booking_verifications_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       operatories: {
         Row: {
           branch_id: string;
@@ -5625,6 +5741,7 @@ export type Database = {
       };
       professionals: {
         Row: {
+          attends_patients: boolean | null;
           branch_id: string | null;
           clinic_id: string;
           color: string;
@@ -5645,6 +5762,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          attends_patients?: boolean | null;
           branch_id?: string | null;
           clinic_id: string;
           color?: string;
@@ -5665,6 +5783,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          attends_patients?: boolean | null;
           branch_id?: string | null;
           clinic_id?: string;
           color?: string;
@@ -6998,6 +7117,27 @@ export type Database = {
         Args: { p_document_id: string };
         Returns: { documento_enc: string; documento_hash: string }[];
       };
+      cita_gestion_cancelar: {
+        Args: { p_appointment_id: string; p_clinic_id: string; p_motivo: string };
+        Returns: Json;
+      };
+      cita_gestion_confirmar: {
+        Args: { p_appointment_id: string; p_clinic_id: string };
+        Returns: Json;
+      };
+      cita_gestion_reagendar: {
+        Args: {
+          p_appointment_id: string;
+          p_clinic_id: string;
+          p_operatory_id: string | null;
+          p_starts_at: string;
+        };
+        Returns: Json;
+      };
+      cita_gestion_ver: {
+        Args: { p_appointment_id: string; p_clinic_id: string };
+        Returns: Json;
+      };
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };
         Returns: Database["public"]["Enums"]["app_role"];
@@ -7326,6 +7466,27 @@ export type Database = {
       registrar_mis_datos_de_firma: {
         Args: { p_clinic_id: string; p_nombre: string; p_registro: string };
         Returns: undefined;
+      };
+      reserva_en_linea_confirmar: {
+        Args: {
+          p_code_hash: string;
+          p_request_hash: string;
+          p_reserva: Json;
+          p_verification_id: string;
+        };
+        Returns: Json;
+      };
+      reserva_en_linea_contexto: { Args: { p_slug: string }; Returns: Json };
+      reserva_en_linea_preparar_codigo: {
+        Args: {
+          p_clinic_id: string;
+          p_code_hash: string;
+          p_email_hash: string;
+          p_ip: string;
+          p_phone_hash: string;
+          p_request_hash: string;
+        };
+        Returns: Json;
       };
       reset_demo_clinic: { Args: never; Returns: undefined };
       rut_es_valido: { Args: { p_rut: string }; Returns: boolean };

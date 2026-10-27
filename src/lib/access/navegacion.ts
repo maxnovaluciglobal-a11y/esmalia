@@ -240,6 +240,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         ],
       },
       {
+        to: "/reserva-en-linea",
+        label: "Reserva en línea",
+        detalle: "Link público para que tus pacientes reserven, widget para tu web y código QR",
+        permisos: ["settings:manage"],
+        sinonimos: ["reservar", "agendar en línea", "link de reserva", "widget", "qr", "web"],
+      },
+      {
         to: "/consentimientos",
         label: "Consentimientos",
         detalle: "Plantillas para firmar",
