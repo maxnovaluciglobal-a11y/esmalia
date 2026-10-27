@@ -110,8 +110,8 @@ function MembresiasPage() {
   const currency = access.clinic?.currency ?? "CLP";
   const hoy = hoyISO(tz);
   const mes = /^\d{4}-\d{2}-\d{2}$/.test(search.mes) ? mesDe(search.mes) : mesDe(hoy);
-  const veFinanzas = hasPermission(access.role, "finance:view");
-  const puedeAnular = hasPermission(access.role, "payments:reverse");
+  const veFinanzas = hasPermission(access, "finance:view");
+  const puedeAnular = hasPermission(access, "payments:reverse");
 
   const fetchPlanes = useServerFn(listPlanesMembresia);
   const planes = useQuery({

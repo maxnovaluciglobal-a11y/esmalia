@@ -7,6 +7,15 @@
 import type { Novedad } from "@/content/ayuda/tipos";
 
 export const NOVEDADES: readonly Novedad[] = [
+  // ── Cierre de la fase ───────────────────────────────────────────────────
+  {
+    id: "permisos-finanzas-caja-comisiones",
+    fecha: "2026-10-27",
+    titulo: "Permisos por persona también en finanzas, caja y comisiones",
+    texto:
+      "En Equipo → Permisos puedes dar o quitar a una persona el acceso a las finanzas, a la caja, a reversar pagos y a las comisiones del equipo, sin cambiarle el rol. La historia clínica y los pagos de asistentes siguen protegidos.",
+    enlace: { href: "/equipo", texto: "Ir a Equipo", permiso: "team:manage" },
+  },
   // ── Ola 12 ──────────────────────────────────────────────────────────────
   {
     id: "ayuda-en-cada-pantalla",

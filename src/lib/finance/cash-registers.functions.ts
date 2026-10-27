@@ -5,7 +5,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { mensajeDb } from "@/lib/db-errors";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { type ClinicRole } from "@/lib/access/access";
+import {
+  requireClinicPermission,
+  tienePermisoEnClinica,
+} from "@/lib/access/clinic-guards.server";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
 import {
@@ -65,9 +69,9 @@ async function requireCashManageRole(
   clinicId: string,
   userId: string,
 ): Promise<ClinicRole> {
-  const rol = await rolEnLaClinica(supabase, clinicId, userId);
-  if (!rol || !permissionsForRole(rol).includes("cash:manage")) throw new Error(SIN_PERMISOS_CAJA);
-  return rol;
+  // Rol + ajustes por persona (EQU-01): un `cash:manage` quitado o dado se
+  // respeta acá y, para lo quitado, también en la base (`ajuste_quita_*`).
+  return requireClinicPermission(supabase, clinicId, userId, "cash:manage", SIN_PERMISOS_CAJA);
 }
 
 type CashRegisterRow = {
@@ -230,8 +234,12 @@ export const listCashRegisters = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data, context }): Promise<CashRegister[]> => {
-    const rol = await rolEnLaClinica(context.supabase, data.clinicId, context.userId);
-    const veTodas = rol ? permissionsForRole(rol).includes("finance:view") : false;
+    const veTodas = await tienePermisoEnClinica(
+      context.supabase,
+      data.clinicId,
+      context.userId,
+      "finance:view",
+    );
     let query = context.supabase
       .from("cash_registers")
       .select(CASH_REGISTER_COLUMNS)

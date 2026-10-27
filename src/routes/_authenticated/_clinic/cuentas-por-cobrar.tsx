@@ -77,7 +77,7 @@ function CuentasPorCobrarPage() {
   const estado = search.estado ?? "por_cobrar";
   const tramo = search.tramo ?? "todos";
   const termino = search.q ?? "";
-  const puedeAbrirFichas = hasPermission(access.role, "patients:view");
+  const puedeAbrirFichas = hasPermission(access, "patients:view");
 
   const fetchSubscription = useServerFn(getMySubscription);
   const { data: sub } = useQuery({

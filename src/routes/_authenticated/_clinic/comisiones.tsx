@@ -70,10 +70,10 @@ export const Route = createFileRoute("/_authenticated/_clinic/comisiones")({
     desde: str(search.desde, primerDiaDelMes()),
     hasta: str(search.hasta, hoyISO()),
   }),
-  // ux-3 auditoría 360 v2: finance:view ve a todo el equipo; commission:view-own
+  // ux-3 auditoría 360 v2: commission:view-all ve a todo el equipo; commission:view-own
   // deja pasar a un dentist a ver SOLO su propia liquidación (el componente
   // decide qué renderiza según cuál de los dos permisos tiene el rol).
-  beforeLoad: requireAnyPermission("finance:view", "commission:view-own"),
+  beforeLoad: requireAnyPermission("commission:view-all", "commission:view-own"),
   head: () => ({
     meta: [
       { title: "Comisiones | Esmalia" },
@@ -98,7 +98,7 @@ function ComisionesPage() {
 
   // Ve todo el equipo (owner/admin/accounting) vs. solo su propia línea
   // (dentist con commission:view-own, sin finance:view).
-  const veTodo = hasPermission(access.role, "finance:view");
+  const veTodo = hasPermission(access, "finance:view");
   const puedeGestionar = access.role === "owner" || access.role === "admin";
   const soloMiProfessionalId = !veTodo ? (access.myProfessionalId ?? undefined) : undefined;
 

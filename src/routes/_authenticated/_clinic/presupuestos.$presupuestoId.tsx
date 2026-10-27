@@ -94,8 +94,8 @@ function DetallePage() {
   const clinicId = access.clinic!.id;
   const tz = access.clinic!.timezone;
   const hoy = hoyISO(tz);
-  const puedeEditar = hasPermission(access.role, "patients:manage");
-  const puedeVerLista = hasPermission(access.role, "finance:view");
+  const puedeEditar = hasPermission(access, "patients:manage");
+  const puedeVerLista = hasPermission(access, "finance:view");
   const queryClient = useQueryClient();
 
   const fetchDetalle = useServerFn(getDetallePresupuesto);

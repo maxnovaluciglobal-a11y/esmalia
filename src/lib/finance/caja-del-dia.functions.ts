@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { permisosEfectivosEnClinica } from "@/lib/access/clinic-guards.server";
 import { hoyISO } from "@/lib/clinic-operations/clinic-data";
 import { wallTimeInTzToUtc } from "@/lib/clinic-operations/appointments.functions";
 import { mensajeDb } from "@/lib/db-errors";
@@ -54,16 +54,10 @@ export const getCajaDelDia = createServerFn({ method: "GET" })
   .handler(async ({ data, context }): Promise<ResumenCajaDelDia> => {
     const { supabase, userId } = context;
 
-    const [{ data: membership }, { data: clinic, error: clinicError }] = await Promise.all([
-      supabase
-        .from("clinic_members")
-        .select("role")
-        .eq("clinic_id", data.clinicId)
-        .eq("user_id", userId)
-        .maybeSingle(),
+    const [permisos, { data: clinic, error: clinicError }] = await Promise.all([
+      permisosEfectivosEnClinica(supabase, data.clinicId, userId),
       supabase.from("clinics").select("timezone").eq("id", data.clinicId).maybeSingle(),
     ]);
-    const permisos = membership?.role ? permissionsForRole(membership.role as ClinicRole) : [];
     const veFinanzas = permisos.includes("finance:view");
     if (!veFinanzas && !permisos.includes("cash:manage")) throw new Error(SIN_PERMISOS_CAJA);
     if (clinicError) throw new Error(mensajeDb(clinicError, "No pudimos leer la clínica."));

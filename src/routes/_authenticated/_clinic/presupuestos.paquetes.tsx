@@ -59,7 +59,7 @@ function PaquetesPage() {
   const clinicId = access.clinic!.id;
   const moneda = access.clinic!.currency;
   const puedeEditar = Boolean(access.role && ROLES_QUE_EDITAN.includes(access.role));
-  const puedeVerLista = hasPermission(access.role, "finance:view");
+  const puedeVerLista = hasPermission(access, "finance:view");
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<Paquete | "nuevo" | null>(null);
 

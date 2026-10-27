@@ -47,8 +47,8 @@ export const Route = createFileRoute("/_authenticated/_clinic/mi-desempeno")({
   }),
   // COM-05: el profesional ve solo lo suyo (commission:view-own); quien ve
   // finanzas puede elegir a cualquiera. El par en el servidor es
-  // `getMiDesempeno`, que ignora el profesional pedido sin finance:view.
-  beforeLoad: requireAnyPermission("commission:view-own", "finance:view"),
+  // `getMiDesempeno`, que ignora el profesional pedido sin commission:view-all.
+  beforeLoad: requireAnyPermission("commission:view-own", "commission:view-all"),
   head: () => ({
     meta: [{ title: "Mi desempeño | Esmalia" }, { name: "robots", content: "noindex" }],
   }),

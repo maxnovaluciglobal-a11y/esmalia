@@ -34,7 +34,7 @@ import {
   MENSAJE_DOCUMENTO_DUPLICADO,
 } from "@/lib/patients/indice-ciego.server";
 import { esTipoDocumento, formatearRut } from "@/lib/patients/rut";
-import { permissionsForRole, type ClinicRole } from "@/lib/access/access";
+import { permisosEfectivosEnClinica } from "@/lib/access/clinic-guards.server";
 
 const DB_STATUS_TO_UI: Record<string, EstadoPaciente> = {
   active: "activo",
@@ -318,13 +318,7 @@ export async function cargarPacientes(
   let saldos: Map<string, { billedCents: number; paidCents: number }> | null = null;
   let permisos: readonly string[] = [];
   if (data.conSaldos || data.conCompletitud || data.conValorHistorico) {
-    const { data: membership } = await supabase
-      .from("clinic_members")
-      .select("role")
-      .eq("clinic_id", data.clinicId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    permisos = membership?.role ? permissionsForRole(membership.role as ClinicRole) : [];
+    permisos = await permisosEfectivosEnClinica(supabase, data.clinicId, userId);
   }
   const veFinanzas = permisos.includes("finance:view");
   if (data.conSaldos && veFinanzas) {

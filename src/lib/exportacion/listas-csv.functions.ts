@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { rolEnClinica } from "@/lib/access/clinic-guards.server";
+import { permisosEnClinica } from "@/lib/access/clinic-guards.server";
 import {
   CLAVES_LISTAS_CSV,
   puedeExportarLista,
@@ -41,7 +41,9 @@ export const registrarExportacionDeLista = createServerFn({ method: "POST" })
   .validator((input: unknown) => Entrada.parse(input))
   .handler(async ({ data, context }): Promise<{ exportId: string | null }> => {
     const { supabase, userId } = context;
-    const rol = await rolEnClinica(supabase, data.clinicId, userId);
+    // Rol + ajustes por persona: la misma vara que usa la pantalla.
+    const acceso = await permisosEnClinica(supabase, data.clinicId, userId);
+    const rol = acceso ? { role: acceso.rol, permissions: acceso.permisos } : null;
     if (!puedeExportarLista(rol, data.lista)) throw new Error(MENSAJE_SIN_PERMISO_LISTA);
     if (data.conDinero && !puedeVerDineroEnLista(rol, data.lista)) {
       throw new Error(MENSAJE_SIN_PERMISO_LISTA);

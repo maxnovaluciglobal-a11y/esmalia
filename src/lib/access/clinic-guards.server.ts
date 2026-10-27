@@ -99,6 +99,34 @@ export async function permisosEnClinica(
 }
 
 /**
+ * Permisos efectivos (rol + ajustes por persona) del usuario en la clínica.
+ * Para decidir QUÉ se le muestra (costos, saldos, montos): si no se pueden
+ * leer los ajustes o no es miembro, falla cerrado y devuelve `[]` — nunca
+ * inventa un permiso.
+ */
+export async function permisosEfectivosEnClinica(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  userId: string,
+): Promise<Permission[]> {
+  try {
+    return (await permisosEnClinica(supabase, clinicId, userId))?.permisos ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** ¿Tiene este permiso (rol + ajustes por persona)? Falla cerrado: `false`. */
+export async function tienePermisoEnClinica(
+  supabase: SupabaseClient<Database>,
+  clinicId: string,
+  userId: string,
+  permission: Permission,
+): Promise<boolean> {
+  return (await permisosEfectivosEnClinica(supabase, clinicId, userId)).includes(permission);
+}
+
+/**
  * Par en el servidor de `requirePermission(...)` de las rutas — mismo
  * criterio que `requireFinanceViewRole` (finance-reports.functions.ts), pero
  * para cualquier permiso de la matriz de `access.ts`, con los ajustes por

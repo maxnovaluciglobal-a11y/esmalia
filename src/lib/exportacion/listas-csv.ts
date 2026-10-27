@@ -15,7 +15,7 @@
  *   (`listas-csv.functions.ts`), y cada exportación queda anotada en
  *   `clinic_data_exports` con formato `lista_csv`.
  */
-import { hasPermission, type ClinicRole, type Permission } from "@/lib/access/access";
+import { hasPermission, type Permission, type SujetoDePermisos } from "@/lib/access/access";
 import { construirCsv, nombreArchivoCsv, type ColumnaCsv } from "@/lib/csv-export";
 import { fromCents } from "@/lib/finance/finance";
 import { fechaHoraPlanilla, fechaPlanilla } from "@/lib/formato-fecha";
@@ -59,12 +59,12 @@ export function permisoDinero(lista: ListaCsv): Permission {
   return lista === "caja" || lista === "membresias" ? "cash:manage" : "finance:view";
 }
 
-export function puedeExportarLista(rol: ClinicRole | null | undefined, lista: ListaCsv): boolean {
+export function puedeExportarLista(rol: SujetoDePermisos, lista: ListaCsv): boolean {
   return hasPermission(rol, LISTAS_CSV[lista].permiso);
 }
 
 export function puedeVerDineroEnLista(
-  rol: ClinicRole | null | undefined,
+  rol: SujetoDePermisos,
   lista: ListaCsv,
 ): boolean {
   return hasPermission(rol, permisoDinero(lista));
@@ -78,7 +78,7 @@ export interface ColumnaLista<T> extends ColumnaCsv<T> {
 /** Columnas que le corresponden al rol (sin las de dinero si no ve finanzas). */
 export function columnasParaRol<T>(
   columnas: readonly ColumnaLista<T>[],
-  rol: ClinicRole | null | undefined,
+  rol: SujetoDePermisos,
   lista: ListaCsv,
 ): ColumnaLista<T>[] {
   const conDinero = puedeVerDineroEnLista(rol, lista);

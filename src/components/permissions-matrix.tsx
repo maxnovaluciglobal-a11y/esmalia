@@ -63,7 +63,9 @@ export function PermissionsMatrix() {
             <Link to="/equipo" className="font-semibold text-foreground underline">
               Equipo
             </Link>
-            . La historia clínica nunca se abre a recepción, contabilidad, coordinación ni
+            . Sirve también para finanzas, caja y comisiones: por ejemplo, darle las finanzas a una
+            persona de recepción o quitarle la caja a alguien de contabilidad, sin cambiar su rol.
+            La historia clínica nunca se abre a recepción, contabilidad, coordinación ni
             laboratorio, y los pagos nunca a asistentes.
           </p>
         </div>

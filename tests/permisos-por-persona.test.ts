@@ -76,6 +76,9 @@ describe("EQU-02 · roles nuevos", () => {
       "inventory:view",
     ]);
     expect(permissionsForRole("reception")).not.toContain("clinical:view");
+    // Tras sumar `commission:view-all`, el resto de los roles queda igual.
+    expect(permissionsForRole("coordinator")).toContain("commission:view-all");
+    expect(permissionsForRole("accounting")).toContain("commission:view-all");
     expect(permissionsForRole("accounting")).not.toContain("clinical:view");
   });
 });
@@ -167,16 +170,94 @@ describe("EQU-01 · regla 2 con ajustes por persona", () => {
     );
   });
 
-  it("finanzas, caja y comisiones no se ajustan por persona (se integran con los frentes A y B)", () => {
-    for (const p of [
-      "finance:view",
-      "cash:manage",
-      "payments:reverse",
-      "commission:view-own",
+  it("finanzas, caja y comisiones: lo que se puede dar y quitar por persona", () => {
+    // Quitar: a quien lo trae por rol. Dar: solo a recepción y profesionales
+    // (y a quien no tiene su propia comisión); nunca a asistente ni a técnico/a.
+    for (const [permiso, otorgable, revocable] of [
+      ["finance:view", ["reception", "dentist"], ["admin", "coordinator", "accounting"]],
+      ["cash:manage", ["dentist"], ["admin", "coordinator", "reception", "accounting"]],
+      ["payments:reverse", ["reception"], ["admin", "coordinator", "accounting"]],
+      ["commission:view-own", ["reception", "accounting", "coordinator"], ["admin", "dentist"]],
+      ["commission:view-all", ["reception", "dentist"], ["admin", "coordinator", "accounting"]],
     ] as const) {
       for (const r of CLINIC_ROLES) {
-        expect(ajusteAdmitido(r, p, "grant")).toBe(false);
-        expect(ajusteAdmitido(r, p, "revoke")).toBe(false);
+        expect(ajusteAdmitido(r, permiso, "grant"), `dar ${permiso} a ${r}`).toBe(
+          (otorgable as readonly string[]).includes(r),
+        );
+        expect(ajusteAdmitido(r, permiso, "revoke"), `quitar ${permiso} a ${r}`).toBe(
+          (revocable as readonly string[]).includes(r),
+        );
+      }
+    }
+  });
+
+  it("cada área se puede dar o quitar sin romper los roles por defecto", () => {
+    // Defaults intactos: owner/admin todo; coordinación y contabilidad ven las
+    // comisiones de todos (antes salía de `finance:view`); nadie más.
+    for (const r of ["coordinator", "accounting"] as const) {
+      expect(hasPermission(r, "finance:view")).toBe(true);
+      expect(hasPermission(r, "commission:view-all")).toBe(true);
+    }
+    for (const r of ["dentist", "assistant", "reception", "lab_technician"] as const) {
+      expect(hasPermission(r, "commission:view-all"), r).toBe(false);
+      expect(hasPermission(r, "finance:view"), r).toBe(false);
+    }
+    expect(hasPermission("dentist", "commission:view-own")).toBe(true);
+
+    // Quitar finanzas a contabilidad deja caja y comisiones.
+    const sinFinanzas = permisosEfectivos("accounting", [
+      { permission: "finance:view", effect: "revoke" },
+    ]);
+    expect(sinFinanzas).not.toContain("finance:view");
+    expect(sinFinanzas).toContain("cash:manage");
+    expect(sinFinanzas).toContain("commission:view-all");
+
+    // Quitar la caja a recepción no le quita agenda ni pacientes.
+    const sinCaja = permisosEfectivos("reception", [{ permission: "cash:manage", effect: "revoke" }]);
+    expect(sinCaja).not.toContain("cash:manage");
+    expect(sinCaja).toContain("agenda:manage");
+
+    // Dar finanzas a recepción abre solo finanzas.
+    const conFinanzas = permisosEfectivos("reception", [
+      { permission: "finance:view", effect: "grant" },
+    ]);
+    expect(conFinanzas).toContain("finance:view");
+    expect(conFinanzas).not.toContain("commission:view-all");
+    expect(conFinanzas).not.toContain("payments:reverse");
+    expect(conFinanzas).not.toContain("clinical:view");
+
+    // Dar las comisiones de todos a un profesional no le abre finanzas.
+    const conComisiones = permisosEfectivos("dentist", [
+      { permission: "commission:view-all", effect: "grant" },
+    ]);
+    expect(conComisiones).toContain("commission:view-all");
+    expect(conComisiones).not.toContain("finance:view");
+  });
+
+  it("escalamiento: un asistente dental no gana pagos, caja ni comisiones por error", () => {
+    const todo = permisosEfectivos("assistant", TODO_DADO);
+    for (const p of [...PERMISOS_DE_PAGOS, "commission:view-all"] as const) {
+      expect(todo, p).not.toContain(p);
+      expect(ajusteAdmitido("assistant", p, "grant")).toBe(false);
+    }
+    // Y el técnico/a dental tampoco.
+    const tecnico = permisosEfectivos("lab_technician", TODO_DADO);
+    for (const p of PERMISOS_DE_PAGOS) expect(tecnico, p).not.toContain(p);
+    // Un "dar" que no corresponde al rol no tiene efecto (cambio de rol).
+    expect(
+      permisosEfectivos("lab_technician", [{ permission: "finance:view", effect: "grant" }]),
+    ).not.toContain("finance:view");
+  });
+
+  it("aislamiento: un ajuste de finanzas no toca historia clínica ni a otro permiso", () => {
+    for (const r of ["reception", "dentist", "coordinator", "accounting", "admin"] as const) {
+      for (const p of ["finance:view", "cash:manage", "payments:reverse"] as const) {
+        const efecto = hasPermission(r, p) ? "revoke" : "grant";
+        if (!ajusteAdmitido(r, p, efecto)) continue;
+        const antes = new Set(permissionsForRole(r));
+        const despues = new Set(permisosEfectivos(r, [{ permission: p, effect: efecto }]));
+        const cambiaron = [...PERMISSIONS].filter((x) => antes.has(x) !== despues.has(x));
+        expect(cambiaron, `${r} ${efecto} ${p}`).toEqual([p]);
       }
     }
   });
