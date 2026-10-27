@@ -2,7 +2,7 @@
  * Registro de lecturas de la ficha clínica (SEG-02): vocabulario y textos.
  *
  * Las secciones son las mismas del CHECK de `clinical_access_log`
- * (migración 20261019160000); `tests/lecturas-ficha.test.ts` compara las dos
+ * (migración 20261019160000, ampliado en 20261109100100); `tests/lecturas-ficha.test.ts` compara las dos
  * listas para que no se separen. Este archivo no toca la base: lo usan la
  * pantalla de Compliance y el helper del servidor (`lecturas-ficha.server.ts`).
  */
@@ -13,6 +13,7 @@ export const SECCIONES_FICHA = [
   "periodontograma",
   "anamnesis",
   "documentos",
+  "examenes",
 ] as const;
 
 export type SeccionFicha = (typeof SECCIONES_FICHA)[number];
@@ -24,6 +25,7 @@ export const ETIQUETA_SECCION: Record<SeccionFicha, string> = {
   periodontograma: "Periodontograma",
   anamnesis: "Anamnesis",
   documentos: "Documentos y consentimientos",
+  examenes: "Exámenes e imágenes",
 };
 
 /** Ventana de deduplicación del RPC `registrar_lectura_ficha`. Solo se usa

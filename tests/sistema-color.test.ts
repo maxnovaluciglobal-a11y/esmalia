@@ -44,6 +44,7 @@ const COBALTO_PERMITIDO: RegExp[] = [
   /(?:^|\/)hoy-panel-del-rol\.tsx$/, // panel por rol de Hoy: barra de ocupación (Ola 11)
   /(?:^|\/)resumen-nps\.tsx$/, // tarjeta en tinta del NPS: mezcla de respuestas (Ola 7)
   /^components\/ortodoncia\/seguimiento-ortodoncia\.tsx$/, // barra y % de progreso del tratamiento (Ola 9)
+  /^components\/examenes\/uso-de-almacenamiento\.tsx$/, // barra de uso del cupo de almacenamiento (Ola 13)
   /(?:^|\/)finance-reports[^/]*\.tsx?$/,
   /^components\/reportes\//, // A+ de Reportes y Operación: barras y mezclas de datos
   /^components\/marketing\//,

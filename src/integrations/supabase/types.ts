@@ -1353,6 +1353,79 @@ export type Database = {
           },
         ];
       };
+      clinical_photo_sessions: {
+        Row: {
+          archive_reason: string | null;
+          archived_at: string | null;
+          archived_by: string | null;
+          clinic_id: string;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          notes: string | null;
+          patient_id: string;
+          reason: string;
+          session_date: string;
+          stage: string | null;
+          treatment_plan_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          archive_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          patient_id: string;
+          reason: string;
+          session_date: string;
+          stage?: string | null;
+          treatment_plan_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          archive_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id?: string;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string | null;
+          patient_id?: string;
+          reason?: string;
+          session_date?: string;
+          stage?: string | null;
+          treatment_plan_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "clinical_photo_sessions_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clinical_photo_sessions_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "clinical_photo_sessions_treatment_plan_id_fkey";
+            columns: ["treatment_plan_id"];
+            isOneToOne: false;
+            referencedRelation: "treatment_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clinical_protocols: {
         Row: {
           active: boolean;
@@ -4631,6 +4704,113 @@ export type Database = {
             columns: ["patient_id"];
             isOneToOne: false;
             referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      patient_exams: {
+        Row: {
+          archive_reason: string | null;
+          archived_at: string | null;
+          archived_by: string | null;
+          clinic_id: string;
+          confirmed_at: string | null;
+          created_at: string;
+          filename: string;
+          id: string;
+          kind: string;
+          mime_type: string;
+          notes: string | null;
+          patient_id: string;
+          photo_session_id: string | null;
+          professional_id: string | null;
+          professional_name: string | null;
+          size_bytes: number;
+          status: string;
+          storage_path: string;
+          taken_on: string;
+          teeth: number[];
+          thumb_path: string | null;
+          updated_at: string;
+          uploaded_by: string | null;
+        };
+        Insert: {
+          archive_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id: string;
+          confirmed_at?: string | null;
+          created_at?: string;
+          filename: string;
+          id?: string;
+          kind: string;
+          mime_type: string;
+          notes?: string | null;
+          patient_id: string;
+          photo_session_id?: string | null;
+          professional_id?: string | null;
+          professional_name?: string | null;
+          size_bytes: number;
+          status?: string;
+          storage_path: string;
+          taken_on: string;
+          teeth?: number[];
+          thumb_path?: string | null;
+          updated_at?: string;
+          uploaded_by?: string | null;
+        };
+        Update: {
+          archive_reason?: string | null;
+          archived_at?: string | null;
+          archived_by?: string | null;
+          clinic_id?: string;
+          confirmed_at?: string | null;
+          created_at?: string;
+          filename?: string;
+          id?: string;
+          kind?: string;
+          mime_type?: string;
+          notes?: string | null;
+          patient_id?: string;
+          photo_session_id?: string | null;
+          professional_id?: string | null;
+          professional_name?: string | null;
+          size_bytes?: number;
+          status?: string;
+          storage_path?: string;
+          taken_on?: string;
+          teeth?: number[];
+          thumb_path?: string | null;
+          updated_at?: string;
+          uploaded_by?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "patient_exams_clinic_id_fkey";
+            columns: ["clinic_id"];
+            isOneToOne: false;
+            referencedRelation: "clinics";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_exams_patient_id_fkey";
+            columns: ["patient_id"];
+            isOneToOne: false;
+            referencedRelation: "patients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_exams_photo_session_id_fkey";
+            columns: ["photo_session_id"];
+            isOneToOne: false;
+            referencedRelation: "clinical_photo_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "patient_exams_professional_id_fkey";
+            columns: ["professional_id"];
+            isOneToOne: false;
+            referencedRelation: "professionals";
             referencedColumns: ["id"];
           },
         ];
@@ -8174,6 +8354,27 @@ export type Database = {
           },
         ];
       };
+      storage_quota_plans: {
+        Row: {
+          plan: string;
+          quota_bytes: number;
+          stripe_price_id: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          plan: string;
+          quota_bytes: number;
+          stripe_price_id?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          plan?: string;
+          quota_bytes?: number;
+          stripe_price_id?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       stripe_events: {
         Row: {
           clinic_id: string | null;
@@ -9409,6 +9610,17 @@ export type Database = {
       };
       shares_clinic_with: { Args: { _user_id: string }; Returns: boolean };
       storage_clinic_id_of: { Args: { _name: string }; Returns: string };
+      uso_de_almacenamiento: {
+        Args: { p_clinic_id: string };
+        Returns: {
+          cupo_bytes: number;
+          documentos_bytes: number;
+          examenes: number;
+          examenes_bytes: number;
+          plan: string;
+          usado_bytes: number;
+        }[];
+      };
       vencer_presupuestos: { Args: { p_clinic_id?: string }; Returns: number };
     };
     Enums: {

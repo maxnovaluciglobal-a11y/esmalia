@@ -41,6 +41,8 @@ import { PatientDocumentsCard } from "@/components/patient-documents-card";
 import { PatientConsentsCard } from "@/components/patient-consents-card";
 import { PatientPrescriptionsCard } from "@/components/patient-prescriptions-card";
 import { DocumentosEmitidosCard } from "@/components/documentos/documentos-emitidos-card";
+import { ExamenesDelPaciente } from "@/components/examenes/examenes-del-paciente";
+import { ExamenesDeLaPieza } from "@/components/examenes/examenes-de-la-pieza";
 import { FirmasADistanciaCard } from "@/components/firma-distancia/firmas-a-distancia";
 import { Odontogram } from "@/components/odontogram";
 import { PeriodontalChart } from "@/components/periodontal-chart";
@@ -343,6 +345,17 @@ function PacienteDetalle() {
   const setPestana = (p: PestanaFicha) =>
     void navigate({
       search: (prev) => busquedaConPestana(prev, p),
+      replace: true,
+      resetScroll: false,
+    });
+  // FIC-17: la pestaña Exámenes filtrada por pieza (desde el odontograma o
+  // desde una pieza de un examen). `null` quita el filtro.
+  const verExamenesDePieza = (pieza: number | null) =>
+    void navigate({
+      search: (prev) => ({
+        ...busquedaConPestana(prev, "examenes"),
+        ...(pieza ? { pieza } : {}),
+      }),
       replace: true,
       resetScroll: false,
     });
@@ -658,6 +671,11 @@ function PacienteDetalle() {
                   Documentos
                 </TabsTrigger>
               )}
+              {puedeVerClinico && (
+                <TabsTrigger value="examenes" className={CLASE_PESTANA}>
+                  Exámenes
+                </TabsTrigger>
+              )}
               <TabsTrigger value="mensajes" className={CLASE_PESTANA}>
                 Mensajes
               </TabsTrigger>
@@ -684,6 +702,14 @@ function PacienteDetalle() {
                 sugerenciaPresupuesto={sugerenciaPresupuesto}
                 // `edad` es 0 cuando no hay fecha de nacimiento: se trata como desconocida.
                 edad={paciente.edad > 0 ? paciente.edad : null}
+                extraDePieza={(pieza) => (
+                  <ExamenesDeLaPieza
+                    clinicId={clinicId}
+                    patientId={paciente.id}
+                    pieza={pieza}
+                    onVer={verExamenesDePieza}
+                  />
+                )}
               />
             )}
             {clinicId && (puedeVerClinico || puedeVerFinanzas) && (
@@ -966,6 +992,22 @@ function PacienteDetalle() {
                   (access.role === "owner" || access.role === "admin" || access.role === "dentist")
                 }
                 esAdministrador={access.role === "owner" || access.role === "admin"}
+              />
+            </TabsContent>
+          )}
+
+          {/* Ola 13 · FIC-17: exámenes e imágenes (IMG-01) y sesiones de fotos (IMG-02). */}
+          {puedeVerClinico && clinicId && (
+            <TabsContent value="examenes">
+              <ExamenesDelPaciente
+                clinicId={clinicId}
+                patientId={paciente.id}
+                timezone={timezone ?? undefined}
+                puedeEditar={puedeEscribirClinico}
+                puedeRestaurar={access.role === "owner" || access.role === "admin"}
+                myProfessionalId={access.myProfessionalId ?? null}
+                pieza={search.pieza ?? null}
+                onCambiarPieza={verExamenesDePieza}
               />
             </TabsContent>
           )}
