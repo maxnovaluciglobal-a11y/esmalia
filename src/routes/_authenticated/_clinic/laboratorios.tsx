@@ -51,7 +51,8 @@ import {
 } from "@/lib/clinic-operations/lab-portal-roles";
 import type { ClinicRole } from "@/lib/access/access";
 import { listPatients } from "@/lib/patients/patients.functions";
-import { exportarCsv } from "@/lib/csv-export";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla, type ColumnaLista } from "@/lib/exportacion/listas-csv";
 import { str } from "@/lib/search";
 import { cn } from "@/lib/utils";
 import { mensajeDeError } from "@/lib/mensaje-error";
@@ -512,23 +513,18 @@ function LaboratoriosPage() {
 
   const atrasadas = useMemo(() => ordenes.filter((o) => ordenAtrasada(o, hoy)), [ordenes, hoy]);
 
-  const exportar = () =>
-    exportarCsv<LabOrder>(
-      ordenes,
-      [
-        { header: "Enviado", value: (o) => o.sentOn },
-        { header: "Paciente", value: (o) => o.patientName },
-        { header: "Laboratorio", value: (o) => o.labNameSnapshot },
-        { header: "Trabajo", value: (o) => o.description },
-        { header: "Piezas", value: (o) => o.toothNumbers?.join(" ") ?? null },
-        { header: "Estado", value: (o) => LAB_ORDER_STATUS_LABELS[o.status] },
-        { header: "Comprometido", value: (o) => o.dueOn },
-        { header: "Recibido", value: (o) => o.receivedOn },
-        { header: "Costo", value: (o) => o.costCents },
-      ],
-      "ordenes-laboratorio",
-      hoy,
-    );
+  const columnasCsv: ColumnaLista<LabOrder>[] = [
+    { header: "Enviado", value: (o) => fechaPlanilla(o.sentOn, timezone) },
+    { header: "Paciente", value: (o) => o.patientName },
+    { header: "Laboratorio", value: (o) => o.labNameSnapshot },
+    { header: "Trabajo", value: (o) => o.description },
+    { header: "Piezas", value: (o) => o.toothNumbers?.join(" ") ?? null },
+    { header: "Estado", value: (o) => LAB_ORDER_STATUS_LABELS[o.status] },
+    { header: "Comprometido", value: (o) => fechaPlanilla(o.dueOn, timezone) },
+    { header: "Recibido", value: (o) => fechaPlanilla(o.receivedOn, timezone) },
+    { header: "Costo", value: (o) => montoPlanilla(o.costCents, currency), dinero: true },
+    { header: "Moneda", value: () => currency, dinero: true },
+  ];
 
   const set = (patch: Partial<LabSearch>) =>
     navigate({ search: (prev: LabSearch) => ({ ...prev, ...patch }) });
@@ -552,11 +548,15 @@ function LaboratoriosPage() {
               )}
             </p>
             <div className="flex flex-wrap gap-2">
-              {ordenes.length > 0 && (
-                <Button variant="outline" size="sm" onClick={exportar}>
-                  <Download className="size-4" /> Exportar CSV
-                </Button>
-              )}
+              <ExportarCsvLista<LabOrder>
+                clinicId={clinicId!}
+                rol={access.role}
+                lista="laboratorio"
+                filas={ordenes}
+                columnas={columnasCsv}
+                timezone={timezone ?? "America/Santiago"}
+                filtros={{ estado: search.estado }}
+              />
               <NuevoLaboratorioDialog clinicId={clinicId!} />
               <NuevaOrdenDialog clinicId={clinicId!} currency={currency} timezone={timezone} />
             </div>

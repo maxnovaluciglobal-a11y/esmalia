@@ -198,6 +198,13 @@ export const AJUSTES: readonly GrupoAjustes[] = [
         sinonimos: ["clínica", "nombre", "razón social", "dirección", "rut", "giro", "boleta"],
       },
       {
+        to: "/migracion",
+        label: "Migración de datos",
+        detalle: "Trae pacientes y citas desde otro sistema, por lotes",
+        permisos: ["settings:manage"],
+        sinonimos: ["importar", "migrar", "dentalink", "excel", "csv", "otro sistema"],
+      },
+      {
         to: "/sucursales",
         label: "Sucursales",
         detalle: "Sedes, dirección, teléfono y horarios",

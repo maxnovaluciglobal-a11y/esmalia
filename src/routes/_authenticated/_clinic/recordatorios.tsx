@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaHoraPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { WhatsAppButton } from "@/components/whatsapp-button";
 import { EmailButton } from "@/components/email-button";
@@ -209,6 +211,47 @@ function RecordatoriosPage() {
     ) as Record<OutreachTemplateKind, GrupoPorPaciente<PendingOutreachItem>[]>;
   }, [outreach]);
 
+  // EXP-04: todo lo pendiente en una sola planilla, una fila por envío.
+  const filasCsv = useMemo<FilaRecordatorioCsv[]>(
+    () => [
+      ...recordatorios.map((r) => ({
+        tipo: r.reminderKind === "appointment_checkin" ? "Aviso de 3h" : "Recordatorio de 48h",
+        paciente: r.patientName,
+        telefono: r.patientPhone,
+        correo: r.patientEmail,
+        detalle: r.treatmentLabel,
+        fecha: r.startsAt,
+        profesional: r.professionalName,
+        montoCents: null,
+        moneda: null,
+      })),
+      ...presupuestos.map((q) => ({
+        tipo: "Presupuesto sin respuesta",
+        paciente: q.patientName,
+        telefono: q.patientPhone,
+        correo: q.patientEmail,
+        detalle: `Presupuesto ${q.quoteNumber} · ${q.diasSinRespuesta} días sin respuesta`,
+        fecha: q.desde,
+        profesional: null,
+        montoCents: q.quoteTotalCents,
+        moneda: q.currency,
+      })),
+      ...outreach.map((o) => ({
+        tipo: OUTREACH_META[o.kind].label,
+        paciente: o.patientName,
+        telefono: o.patientPhone,
+        correo: null,
+        detalle: detalleSinMonto(o),
+        fecha: null,
+        profesional: null,
+        montoCents: o.balanceCents ?? o.quoteTotalCents ?? null,
+        moneda: o.currency ?? null,
+      })),
+    ],
+    [recordatorios, presupuestos, outreach],
+  );
+  const timezone = access.clinic?.timezone ?? "America/Santiago";
+
   const conteo: Record<IdSeccion, number> = {
     aviso3h: aviso3h.length,
     recordatorio48h: recordatorio48h.length,
@@ -249,12 +292,39 @@ function RecordatoriosPage() {
   return (
     <AppShell title="Recordatorios" access={access}>
       <div className="space-y-4">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
-          presupuestos que siguen sin respuesta y pacientes candidatos a un control periódico, un
-          pedido de reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes
-          mandar de a uno o con «Enviar todos»: tú revisas antes de que salga nada.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Citas que están entrando a la ventana de 48h (recordatorio) o 3h (aviso previo),
+            presupuestos que siguen sin respuesta y pacientes candidatos a un control periódico, un
+            pedido de reseña o un aviso de saldo. Cada paciente aparece una vez por sección. Puedes
+            mandar de a uno o con «Enviar todos»: tú revisas antes de que salga nada.
+          </p>
+          {clinicId && (
+            <ExportarCsvLista<FilaRecordatorioCsv>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="recordatorios"
+              filas={filasCsv}
+              timezone={timezone}
+              filtros={{ dias_presupuesto: String(diasPresupuesto) }}
+              columnas={[
+                { header: "Tipo", value: (f) => f.tipo },
+                { header: "Paciente", value: (f) => f.paciente },
+                { header: "Teléfono", value: (f) => f.telefono },
+                { header: "Correo", value: (f) => f.correo },
+                { header: "Detalle", value: (f) => f.detalle },
+                { header: "Fecha", value: (f) => fechaHoraPlanilla(f.fecha, timezone) },
+                { header: "Profesional", value: (f) => f.profesional },
+                {
+                  header: "Monto",
+                  value: (f) => montoPlanilla(f.montoCents, f.moneda),
+                  dinero: true,
+                },
+                { header: "Moneda", value: (f) => f.moneda, dinero: true },
+              ]}
+            />
+          )}
+        </div>
 
         {(isLoading || isLoadingOutreach) && (
           <p className="px-1 py-10 text-center text-sm text-muted-foreground">Cargando…</p>
@@ -618,6 +688,25 @@ function ReminderList({
 // ─── Outreach ─────────────────────────────────────────────────────────────
 
 /** Detalle de cada item según el kind — solo cambia la línea secundaria. */
+interface FilaRecordatorioCsv {
+  tipo: string;
+  paciente: string;
+  telefono: string | null;
+  correo: string | null;
+  detalle: string | null;
+  fecha: string | null;
+  profesional: string | null;
+  montoCents: number | null;
+  moneda: string | null;
+}
+
+/** Detalle para la planilla: el monto va en su propia columna (solo con finanzas). */
+function detalleSinMonto(item: PendingOutreachItem): string {
+  if (item.kind === "payment_due") return "Saldo pendiente";
+  if (item.kind === "quote_follow_up") return `Presupuesto ${item.quoteNumber ?? ""}`.trim();
+  return outreachDetail(item);
+}
+
 function outreachDetail(item: PendingOutreachItem): string {
   switch (item.kind) {
     case "hygiene_recall":

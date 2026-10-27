@@ -34,6 +34,18 @@ import { cn } from "@/lib/utils";
 type DialogoAbierto = "editar" | "exportar" | "archivar" | null;
 
 /**
+ * Botones sobre el encabezado en tinta de la ficha (A+): píldoras de 44 px,
+ * la principal en ocre y las demás con el filete de la tinta. Va dentro de
+ * un contenedor `.dark`, así que `brand` es el ocre claro (9:1 sobre tinta).
+ */
+const EN_NOCHE = {
+  principal:
+    "h-11 rounded-full border-brand bg-brand px-5 text-[15px] font-semibold text-brand-foreground hover:bg-brand/88 active:bg-brand/80",
+  secundario:
+    "h-11 rounded-full border-night-line bg-transparent px-5 text-[15px] font-semibold text-on-night hover:border-on-night hover:bg-transparent active:bg-on-night/10",
+} as const;
+
+/**
  * Acciones de la cabecera de la ficha (UX-10). Antes eran cinco botones del
  * mismo peso, con "Archivar ficha" pegado a "Cobrar", que en el celular
  * ocupaban tres filas. Ahora: "Agendar" (primaria), "Cobrar" y "WhatsApp"
@@ -45,11 +57,17 @@ export function AccionesDeLaFicha({
   access,
   paciente,
   onCobrar,
+  tono = "pagina",
 }: {
   access: ClinicAccess;
   paciente: Paciente;
   onCobrar: () => void;
+  /** "noche": sobre el encabezado en tinta de la ficha. */
+  tono?: "pagina" | "noche";
 }) {
+  const noche = tono === "noche";
+  const principal = cn(buttonVariants(), noche && EN_NOCHE.principal);
+  const secundario = cn(buttonVariants({ variant: "outline" }), noche && EN_NOCHE.secundario);
   const [dialogo, setDialogo] = useState<DialogoAbierto>(null);
   const soloLectura = useSoloLectura();
   const clinic = access.clinic;
@@ -76,7 +94,7 @@ export function AccionesDeLaFicha({
         <SegunSoloLectura
           bloqueado={
             <BloqueoEscritura>
-              <button type="button" className={buttonVariants()}>
+              <button type="button" className={principal}>
                 <CalendarPlus aria-hidden /> Agendar
               </button>
             </BloqueoEscritura>
@@ -93,7 +111,7 @@ export function AccionesDeLaFicha({
               page: 1,
               nueva: paciente.id,
             }}
-            className={buttonVariants()}
+            className={principal}
           >
             <CalendarPlus aria-hidden /> Agendar
           </Link>
@@ -101,21 +119,13 @@ export function AccionesDeLaFicha({
       )}
       {puedeCobrar && (
         <BloqueoEscritura>
-          <button
-            type="button"
-            onClick={onCobrar}
-            className={buttonVariants({ variant: "outline" })}
-          >
+          <button type="button" onClick={onCobrar} className={secundario}>
             <Wallet aria-hidden /> Cobrar
           </button>
         </BloqueoEscritura>
       )}
       {puedeEscribir && (
-        <Link
-          to="/conversaciones"
-          search={{ paciente: paciente.id }}
-          className={buttonVariants({ variant: "outline" })}
-        >
+        <Link to="/conversaciones" search={{ paciente: paciente.id }} className={secundario}>
           <MessageCircle aria-hidden /> WhatsApp
         </Link>
       )}
@@ -125,13 +135,18 @@ export function AccionesDeLaFicha({
           <DropdownMenuTrigger
             // En el celular es solo el ícono: con borde, para que se lea como botón.
             className={cn(
-              buttonVariants({ variant: "outline" }),
-              "px-3 sm:border-transparent sm:bg-transparent sm:shadow-none",
+              noche
+                ? cn(secundario, "w-11 px-0")
+                : cn(
+                    buttonVariants({ variant: "outline" }),
+                    "px-3 sm:border-transparent sm:bg-transparent sm:shadow-none",
+                  ),
             )}
             aria-label="Más acciones"
+            title="Más acciones"
           >
             <MoreHorizontal aria-hidden />
-            <span className="hidden sm:inline">Más acciones</span>
+            <span className={noche ? "sr-only" : "hidden sm:inline"}>Más acciones</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
             {puedeEditar && (
