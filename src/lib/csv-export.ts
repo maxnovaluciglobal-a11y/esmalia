@@ -31,11 +31,15 @@ export interface ColumnaCsv<T> {
  * "=cmd|..." es un vector de inyección real (CSV injection), así que esas se
  * prefijan con un apóstrofo, que Excel muestra pero no ejecuta.
  */
+const NUMERO = /^-?\d+(?:[.,]\d+)?$/;
+
 function escaparCelda(valor: string | number | null | undefined, separador: string): string {
   if (valor === null || valor === undefined) return "";
   let texto = String(valor);
 
-  if (/^[=+\-@\t\r]/.test(texto)) texto = `'${texto}`;
+  // Un número negativo ("-1500", "-12,50") no es una fórmula: sin esta
+  // excepción el apóstrofo lo volvería texto y la columna no sumaría.
+  if (/^[=+\-@\t\r]/.test(texto) && !NUMERO.test(texto)) texto = `'${texto}`;
 
   if (texto.includes(separador) || texto.includes('"') || /[\n\r]/.test(texto)) {
     return `"${texto.replace(/"/g, '""')}"`;

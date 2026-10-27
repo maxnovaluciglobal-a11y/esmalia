@@ -6805,6 +6805,10 @@ export type Database = {
         Args: { p_clinic_id: string; p_detalle?: Json };
         Returns: string;
       };
+      registrar_exportacion_de_lista: {
+        Args: { p_clinic_id: string; p_detalle?: Json; p_filas: number; p_lista: string };
+        Returns: string;
+      };
       registrar_exportacion_de_paciente: {
         Args: { p_clinic_id: string; p_detalle?: Json; p_patient_id: string };
         Returns: string;

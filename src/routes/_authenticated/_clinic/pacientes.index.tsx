@@ -6,6 +6,9 @@ import { AlertTriangle, Check, FileUp, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/app-shell";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla, type ColumnaLista } from "@/lib/exportacion/listas-csv";
+import type { Paciente } from "@/lib/clinic-operations/clinic-data";
 import { ErrorDeCarga } from "@/components/estado-error";
 import { DateField, FilterBar, Paginacion, SearchField, SelectField } from "@/components/filters";
 import { Button } from "@/components/ui/button";
@@ -428,6 +431,44 @@ function ImportarPacientesDialog({ clinicId }: { clinicId: string }) {
   );
 }
 
+/** Columnas del CSV de la lista (EXP-04): lo que muestra la tabla, legible en Excel. */
+function columnasCsvPacientes(
+  sucursales: readonly { id: string; nombre: string }[],
+  profesionales: readonly { id: string; nombre: string }[],
+  currency: string,
+  timezone: string,
+): ColumnaLista<Paciente>[] {
+  const sucursal = new Map(sucursales.map((s) => [s.id, s.nombre]));
+  const profesional = new Map(profesionales.map((p) => [p.id, p.nombre]));
+  return [
+    { header: "Nombre", value: (p) => p.nombre },
+    { header: "Documento", value: (p) => p.documento || null },
+    { header: "Fecha de nacimiento", value: (p) => fechaPlanilla(p.fechaNacimiento, timezone) },
+    { header: "Teléfono", value: (p) => p.telefono || null },
+    { header: "Correo", value: (p) => p.email || null },
+    { header: "Sucursal", value: (p) => sucursal.get(p.sucursalId) ?? null },
+    { header: "Profesional", value: (p) => profesional.get(p.profesionalId) ?? null },
+    { header: "Estado", value: (p) => etiquetaEstadoPaciente[p.estado] },
+    { header: "Última visita", value: (p) => fechaPlanilla(p.ultimaVisitaISO, timezone) },
+    { header: "Próximo control", value: (p) => p.proximoControl },
+    { header: "Etiquetas", value: (p) => p.etiquetas.join(", ") || null },
+    { header: "Saldo", value: (p) => montoPlanilla(p.saldo, currency), dinero: true },
+    { header: "Moneda", value: () => currency, dinero: true },
+    { header: "Archivada el", value: (p) => fechaPlanilla(p.archivadaEl, timezone) },
+  ];
+}
+
+/** Filtros de la URL, como texto, para el registro de la exportación. */
+function filtrosParaRegistro(search: Record<string, unknown>): Record<string, string> {
+  const salida: Record<string, string> = {};
+  for (const [clave, valor] of Object.entries(search)) {
+    if (clave === "page" || clave === "porPagina" || clave === "nuevo") continue;
+    if (valor === undefined || valor === null || valor === "") continue;
+    salida[clave] = String(valor).slice(0, 200);
+  }
+  return salida;
+}
+
 function PacientesPage() {
   const { access } = Route.useRouteContext();
   const search = Route.useSearch();
@@ -497,6 +538,8 @@ function PacientesPage() {
     [pacientes, search],
   );
 
+  const timezone = access.clinic?.timezone ?? "America/Santiago";
+
   const porPagina = search.porPagina ?? POR_PAGINA_POR_DEFECTO;
   const pagina = paginar(filtrados, search.page, porPagina);
   const columnas = columnasConDatos(pagina.items, sucursales.length);
@@ -519,7 +562,18 @@ function PacientesPage() {
   return (
     <AppShell title="Pacientes" access={access}>
       <div className="space-y-6">
-        <div className="flex items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {clinicId && (
+            <ExportarCsvLista<Paciente>
+              clinicId={clinicId}
+              rol={access.role}
+              lista="pacientes"
+              filas={filtrados}
+              columnas={columnasCsvPacientes(sucursales, profesionales, currency, timezone)}
+              timezone={timezone}
+              filtros={filtrosParaRegistro(search)}
+            />
+          )}
           {clinicId && hasPermission(access.role, "patients:manage") && (
             <>
               <ImportarPacientesDialog clinicId={clinicId} />

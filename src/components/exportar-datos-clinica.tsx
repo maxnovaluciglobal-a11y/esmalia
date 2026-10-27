@@ -78,12 +78,16 @@ export function ExportarDatosClinica({
         <p className="font-display text-lg font-semibold leading-tight">Exportar todos los datos</p>
         <p className="mt-1 text-sm text-muted-foreground">
           Descarga un archivo ZIP con todo lo que tu clínica guardó en Esmalia: pacientes con su
-          anamnesis, tutores y signos vitales, profesionales, citas, notas clínicas con todas sus
-          versiones, odontogramas, periodontogramas, ortodoncia, consentimientos, recetas,
-          presupuestos, planes de tratamiento, pagos, cajas, gastos, convenios, aranceles,
-          comisiones, mensajes, documentos y radiografías, laboratorios, inventario y los registros
-          de auditoría. Son planillas CSV que se abren en Excel, con un LEEME.txt que explica cada
-          archivo, y una ficha en PDF por paciente, lista para imprimir o entregar.
+          anamnesis, tutores y signos vitales, profesionales, agenda (citas, tipos de cita, boxes y
+          bloqueos), notas clínicas con todas sus versiones, odontogramas, periodontogramas,
+          ortodoncia, consentimientos, recetas, documentos emitidos y sus plantillas, firmas a
+          distancia, presupuestos, planes de tratamiento, arancel, especialidades y paquetes, pagos
+          con sus medios, cuentas por cobrar y cuotas, bonos, cajas, gastos, convenios, comisiones,
+          mensajes, radiografías, laboratorios, inventario, solicitudes de los pacientes sobre sus
+          datos, incidentes de seguridad y los registros de auditoría. Son planillas CSV que se
+          abren en Excel, una ficha en PDF por paciente, un LEEME.txt que explica cada archivo y
+          columna, y un manifiesto con la huella de cada archivo para comprobar que el ZIP está
+          completo.
         </p>
         <p className="mt-2 text-sm text-muted-foreground">
           Contiene datos de salud de tus pacientes: guárdalo en un lugar seguro. Cada exportación

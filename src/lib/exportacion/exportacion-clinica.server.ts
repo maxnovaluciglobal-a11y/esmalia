@@ -149,7 +149,7 @@ export async function leerPaginaDeTabla(
   let consulta = cliente
     .from(tabla.tabla)
     .select(tabla.columnas.join(","))
-    .eq("clinic_id", clinicId);
+    .eq(tabla.columnaClinica ?? "clinic_id", clinicId);
   for (const columna of tabla.orden) consulta = consulta.order(columna, { ascending: true });
   const { data, error } = await consulta.range(offset, offset + limite - 1);
   if (error) {

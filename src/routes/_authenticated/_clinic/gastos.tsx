@@ -45,7 +45,8 @@ import {
 } from "@/lib/finance/clinic-finance.functions";
 import { listBranches } from "@/lib/clinic-operations/clinic-catalog.functions";
 import { str } from "@/lib/search";
-import { exportarCsv } from "@/lib/csv-export";
+import { ExportarCsvLista } from "@/components/exportar-csv-lista";
+import { fechaPlanilla, montoPlanilla } from "@/lib/exportacion/listas-csv";
 import { mensajeDeError } from "@/lib/mensaje-error";
 
 interface GastosSearch {
@@ -418,31 +419,28 @@ function GastosPage() {
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {filtrados.length > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    exportarCsv<Expense>(
-                      filtrados,
-                      [
-                        { header: "Fecha", value: (g) => g.incurredOn },
-                        { header: "Categoría", value: (g) => g.category },
-                        { header: "Descripción", value: (g) => g.description },
-                        { header: "Proveedor", value: (g) => g.supplier },
-                        { header: "Medio de pago", value: (g) => g.methodNameSnapshot },
-                        { header: "Monto", value: (g) => g.amountCents },
-                        { header: "Moneda", value: (g) => g.currency },
-                        { header: "Notas", value: (g) => g.notes },
-                      ],
-                      "gastos",
-                      hoyISO(timezone),
-                    )
-                  }
-                >
-                  <Download className="size-4" /> Exportar CSV
-                </Button>
-              )}
+              <ExportarCsvLista<Expense>
+                clinicId={clinicId!}
+                rol={access.role}
+                lista="gastos"
+                filas={filtrados}
+                timezone={timezone ?? "America/Santiago"}
+                filtros={{ desde: search.desde, hasta: search.hasta, categoria: search.categoria }}
+                columnas={[
+                  { header: "Fecha", value: (g) => fechaPlanilla(g.incurredOn, timezone) },
+                  { header: "Categoría", value: (g) => g.category },
+                  { header: "Descripción", value: (g) => g.description },
+                  { header: "Proveedor", value: (g) => g.supplier },
+                  { header: "Medio de pago", value: (g) => g.methodNameSnapshot },
+                  {
+                    header: "Monto",
+                    value: (g) => montoPlanilla(g.amountCents, g.currency),
+                    dinero: true,
+                  },
+                  { header: "Moneda", value: (g) => g.currency, dinero: true },
+                  { header: "Notas", value: (g) => g.notes },
+                ]}
+              />
               <GastoDialog
                 clinicId={clinicId!}
                 currency={currency}

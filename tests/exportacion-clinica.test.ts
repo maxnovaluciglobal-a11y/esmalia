@@ -243,14 +243,22 @@ describe("tablas exportadas", () => {
     for (const t of TABLAS_EXPORTACION) {
       const reales = columnasDeTypes(t.tabla);
       expect(reales.length, `${t.tabla} no está en types.ts`).toBeGreaterThan(0);
-      expect(reales, t.tabla).toContain("clinic_id");
+      // `clinics` se filtra por su propio id; el resto, por clinic_id.
+      expect(reales, t.tabla).toContain(t.columnaClinica ?? "clinic_id");
       for (const c of [...t.columnas, ...t.orden]) expect(reales, `${t.tabla}.${c}`).toContain(c);
     }
   });
 
   it("no exporta valores cifrados, hashes ni tokens", () => {
+    // Excepciones deliberadas, que son evidencia y no credenciales: la huella
+    // del contenido firmado (permite verificar que la nota no cambió) y la IP
+    // desde la que el paciente aceptó o firmó (prueba de la aceptación).
+    const evidencia = new Set(["signed_content_hash", "accepted_ip", "signed_ip"]);
     for (const t of TABLAS_EXPORTACION) {
-      for (const c of t.columnas) expect(c).not.toMatch(/_enc$|_hash$|token|secret|_ip$/);
+      for (const c of t.columnas) {
+        if (evidencia.has(c)) continue;
+        expect(c, `${t.tabla}.${c}`).not.toMatch(/_enc$|_hash$|_bidx|token|secret|_ip$/);
+      }
     }
   });
 
