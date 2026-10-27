@@ -856,7 +856,10 @@ export const medirRetornoDeContactos = createServerFn({ method: "GET" })
     ]);
     // Campañas: solo owner/admin las leen. Sin permiso, se mide solo el recall.
     const filasCampanas = campanas.error ? [] : (campanas.data ?? []);
-    if (recall.error) throw new Error(mensajeDb(recall.error, "No pudimos leer el recall."));
+    if (recall.error)
+      throw new Error(
+        mensajeDb(recall.error, "No pudimos leer los mensajes de control periódico."),
+      );
 
     const contactosPorCampana = new Map<string, { patientId: string; contactadoEl: string }[]>();
     const ids = filasCampanas.map((c) => c.id);
@@ -921,7 +924,7 @@ export const medirRetornoDeContactos = createServerFn({ method: "GET" })
     return [
       {
         id: "recall",
-        nombre: "Control periódico (recall)",
+        nombre: "Control periódico",
         canal: "recall" as const,
         desde: desdeRecall,
         resultado: medir(contactosRecall),

@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   Archive,
   ArchiveRestore,
+  CalendarClock,
   CalendarPlus,
   Download,
   MessageCircle,
@@ -14,6 +15,7 @@ import {
 import { ArchivarFichaButton } from "@/components/archivar-ficha";
 import { EditarPacienteDialog } from "@/components/editar-paciente-dialog";
 import { ExportarFichaPaciente } from "@/components/exportar-ficha-paciente";
+import { ProgramarControlDialog } from "@/components/seguimiento/programar-control-dialog";
 import { BloqueoEscritura, SegunSoloLectura } from "@/components/solo-lectura";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -25,13 +27,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useSoloLectura } from "@/hooks/use-solo-lectura";
 import { hasPermission, type ClinicAccess } from "@/lib/access/access";
-import type { Paciente } from "@/lib/clinic-operations/clinic-data";
+import { hoyISO, type Paciente } from "@/lib/clinic-operations/clinic-data";
 import { puedeExportarPaciente } from "@/lib/exportacion/exportacion-clinica";
 import { puedeEditarPaciente } from "@/lib/patients/editar-paciente";
 import { EXPLICACION_BOTON_SOLO_LECTURA } from "@/lib/solo-lectura";
 import { cn } from "@/lib/utils";
 
-type DialogoAbierto = "editar" | "exportar" | "archivar" | null;
+type DialogoAbierto = "editar" | "exportar" | "archivar" | "control" | null;
 
 /**
  * Botones sobre el encabezado en tinta de la ficha (A+): píldoras de 44 px,
@@ -81,7 +83,9 @@ export function AccionesDeLaFicha({
   const puedeEditar = Boolean(clinicId) && puedeEditarPaciente(access.role);
   const puedeArchivar = Boolean(clinicId) && hasPermission(access.role, "settings:manage");
   const puedeExportar = Boolean(clinic) && puedeExportarPaciente(access.role);
-  const hayMas = puedeEditar || puedeArchivar || puedeExportar;
+  // FIC-13 (Ola 8): programar un control; mismos roles que la agenda.
+  const puedeProgramarControl = Boolean(clinicId) && puedeAgendar;
+  const hayMas = puedeEditar || puedeArchivar || puedeExportar || puedeProgramarControl;
   const archivada = Boolean(paciente.archivadaEl);
 
   const cerrar = (abierto: boolean) => {
@@ -149,6 +153,14 @@ export function AccionesDeLaFicha({
             <span className={noche ? "sr-only" : "hidden sm:inline"}>Más acciones</span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-60">
+            {puedeProgramarControl && (
+              <ItemDeMenu
+                icono={<CalendarClock aria-hidden />}
+                texto="Programar control"
+                bloqueado={soloLectura}
+                onSelect={() => setDialogo("control")}
+              />
+            )}
             {puedeEditar && (
               <ItemDeMenu
                 icono={<Pencil aria-hidden />}
@@ -200,6 +212,18 @@ export function AccionesDeLaFicha({
           generadoPor={access.fullName ?? access.email ?? "Usuario de la clínica"}
           incluirFinanzas={hasPermission(access.role, "finance:view")}
           abierto={dialogo === "exportar"}
+          onAbiertoChange={cerrar}
+        />
+      )}
+      {clinic && puedeProgramarControl && (
+        <ProgramarControlDialog
+          clinicId={clinic.id}
+          patientId={paciente.id}
+          patientName={paciente.nombre}
+          hoy={hoyISO(clinic.timezone)}
+          zona={clinic.timezone}
+          userId={access.userId}
+          abierto={dialogo === "control"}
           onAbiertoChange={cerrar}
         />
       )}

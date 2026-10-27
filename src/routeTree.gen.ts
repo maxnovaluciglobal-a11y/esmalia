@@ -80,6 +80,7 @@ import { Route as AuthenticatedClinicAgendaRouteImport } from './routes/_authent
 import { Route as AuthenticatedClinicAjustesRouteImport } from './routes/_authenticated/_clinic/ajustes'
 import { Route as AuthenticatedClinicArancelesRouteImport } from './routes/_authenticated/_clinic/aranceles'
 import { Route as AuthenticatedClinicCajasRouteImport } from './routes/_authenticated/_clinic/cajas'
+import { Route as AuthenticatedClinicCampanasRouteImport } from './routes/_authenticated/_clinic/campanas'
 import { Route as AuthenticatedClinicComisionesRouteImport } from './routes/_authenticated/_clinic/comisiones'
 import { Route as AuthenticatedClinicComplianceRouteImport } from './routes/_authenticated/_clinic/compliance'
 import { Route as AuthenticatedClinicConfiguracionDeAgendaRouteImport } from './routes/_authenticated/_clinic/configuracion-de-agenda'
@@ -110,6 +111,7 @@ import { Route as AuthenticatedClinicNotificacionesAPacientesRouteImport } from 
 import { Route as AuthenticatedClinicOrtodonciaRouteImport } from './routes/_authenticated/_clinic/ortodoncia'
 import { Route as AuthenticatedClinicPermisosRouteImport } from './routes/_authenticated/_clinic/permisos'
 import { Route as AuthenticatedClinicPlantillasDeDocumentosRouteImport } from './routes/_authenticated/_clinic/plantillas-de-documentos'
+import { Route as AuthenticatedClinicPlantillasDeMensajesRouteImport } from './routes/_authenticated/_clinic/plantillas-de-mensajes'
 import { Route as AuthenticatedClinicPreferenciasRouteImport } from './routes/_authenticated/_clinic/preferencias'
 import { Route as AuthenticatedClinicProfesionalesRouteImport } from './routes/_authenticated/_clinic/profesionales'
 import { Route as AuthenticatedClinicProtocolosClinicosRouteImport } from './routes/_authenticated/_clinic/protocolos-clinicos'
@@ -119,6 +121,7 @@ import { Route as AuthenticatedClinicReportesRouteImport } from './routes/_authe
 import { Route as AuthenticatedClinicReservaEnLineaRouteImport } from './routes/_authenticated/_clinic/reserva-en-linea'
 import { Route as AuthenticatedClinicResultadosDelPilotoRouteImport } from './routes/_authenticated/_clinic/resultados-del-piloto'
 import { Route as AuthenticatedClinicSandboxEmailRouteImport } from './routes/_authenticated/_clinic/sandbox-email'
+import { Route as AuthenticatedClinicSeguimientoRouteImport } from './routes/_authenticated/_clinic/seguimiento'
 import { Route as AuthenticatedClinicSucursalesRouteImport } from './routes/_authenticated/_clinic/sucursales'
 import { Route as AuthenticatedClinicSuscripcionRouteImport } from './routes/_authenticated/_clinic/suscripcion'
 import { Route as AuthenticatedClinicTratamientosRouteImport } from './routes/_authenticated/_clinic/tratamientos'
@@ -497,6 +500,12 @@ const AuthenticatedClinicCajasRoute =
     path: '/cajas',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicCampanasRoute =
+  AuthenticatedClinicCampanasRouteImport.update({
+    id: '/campanas',
+    path: '/campanas',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicComisionesRoute =
   AuthenticatedClinicComisionesRouteImport.update({
     id: '/comisiones',
@@ -677,6 +686,12 @@ const AuthenticatedClinicPlantillasDeDocumentosRoute =
     path: '/plantillas-de-documentos',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
+const AuthenticatedClinicPlantillasDeMensajesRoute =
+  AuthenticatedClinicPlantillasDeMensajesRouteImport.update({
+    id: '/plantillas-de-mensajes',
+    path: '/plantillas-de-mensajes',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
 const AuthenticatedClinicPreferenciasRoute =
   AuthenticatedClinicPreferenciasRouteImport.update({
     id: '/preferencias',
@@ -729,6 +744,12 @@ const AuthenticatedClinicSandboxEmailRoute =
   AuthenticatedClinicSandboxEmailRouteImport.update({
     id: '/sandbox-email',
     path: '/sandbox-email',
+    getParentRoute: () => AuthenticatedClinicRouteRoute,
+  } as any)
+const AuthenticatedClinicSeguimientoRoute =
+  AuthenticatedClinicSeguimientoRouteImport.update({
+    id: '/seguimiento',
+    path: '/seguimiento',
     getParentRoute: () => AuthenticatedClinicRouteRoute,
   } as any)
 const AuthenticatedClinicSucursalesRoute =
@@ -893,6 +914,7 @@ export interface FileRoutesByFullPath {
   '/ajustes': typeof AuthenticatedClinicAjustesRoute
   '/aranceles': typeof AuthenticatedClinicArancelesRoute
   '/cajas': typeof AuthenticatedClinicCajasRoute
+  '/campanas': typeof AuthenticatedClinicCampanasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
   '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
@@ -923,6 +945,7 @@ export interface FileRoutesByFullPath {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
+  '/plantillas-de-mensajes': typeof AuthenticatedClinicPlantillasDeMensajesRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/protocolos-clinicos': typeof AuthenticatedClinicProtocolosClinicosRoute
@@ -932,6 +955,7 @@ export interface FileRoutesByFullPath {
   '/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
+  '/seguimiento': typeof AuthenticatedClinicSeguimientoRoute
   '/sucursales': typeof AuthenticatedClinicSucursalesRoute
   '/suscripcion': typeof AuthenticatedClinicSuscripcionRoute
   '/tratamientos': typeof AuthenticatedClinicTratamientosRoute
@@ -1017,6 +1041,7 @@ export interface FileRoutesByTo {
   '/ajustes': typeof AuthenticatedClinicAjustesRoute
   '/aranceles': typeof AuthenticatedClinicArancelesRoute
   '/cajas': typeof AuthenticatedClinicCajasRoute
+  '/campanas': typeof AuthenticatedClinicCampanasRoute
   '/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/compliance': typeof AuthenticatedClinicComplianceRoute
   '/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
@@ -1047,6 +1072,7 @@ export interface FileRoutesByTo {
   '/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/permisos': typeof AuthenticatedClinicPermisosRoute
   '/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
+  '/plantillas-de-mensajes': typeof AuthenticatedClinicPlantillasDeMensajesRoute
   '/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/protocolos-clinicos': typeof AuthenticatedClinicProtocolosClinicosRoute
@@ -1056,6 +1082,7 @@ export interface FileRoutesByTo {
   '/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
+  '/seguimiento': typeof AuthenticatedClinicSeguimientoRoute
   '/sucursales': typeof AuthenticatedClinicSucursalesRoute
   '/suscripcion': typeof AuthenticatedClinicSuscripcionRoute
   '/tratamientos': typeof AuthenticatedClinicTratamientosRoute
@@ -1146,6 +1173,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/ajustes': typeof AuthenticatedClinicAjustesRoute
   '/_authenticated/_clinic/aranceles': typeof AuthenticatedClinicArancelesRoute
   '/_authenticated/_clinic/cajas': typeof AuthenticatedClinicCajasRoute
+  '/_authenticated/_clinic/campanas': typeof AuthenticatedClinicCampanasRoute
   '/_authenticated/_clinic/comisiones': typeof AuthenticatedClinicComisionesRoute
   '/_authenticated/_clinic/compliance': typeof AuthenticatedClinicComplianceRoute
   '/_authenticated/_clinic/configuracion-de-agenda': typeof AuthenticatedClinicConfiguracionDeAgendaRoute
@@ -1176,6 +1204,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/ortodoncia': typeof AuthenticatedClinicOrtodonciaRoute
   '/_authenticated/_clinic/permisos': typeof AuthenticatedClinicPermisosRoute
   '/_authenticated/_clinic/plantillas-de-documentos': typeof AuthenticatedClinicPlantillasDeDocumentosRoute
+  '/_authenticated/_clinic/plantillas-de-mensajes': typeof AuthenticatedClinicPlantillasDeMensajesRoute
   '/_authenticated/_clinic/preferencias': typeof AuthenticatedClinicPreferenciasRoute
   '/_authenticated/_clinic/profesionales': typeof AuthenticatedClinicProfesionalesRoute
   '/_authenticated/_clinic/protocolos-clinicos': typeof AuthenticatedClinicProtocolosClinicosRoute
@@ -1185,6 +1214,7 @@ export interface FileRoutesById {
   '/_authenticated/_clinic/reserva-en-linea': typeof AuthenticatedClinicReservaEnLineaRoute
   '/_authenticated/_clinic/resultados-del-piloto': typeof AuthenticatedClinicResultadosDelPilotoRoute
   '/_authenticated/_clinic/sandbox-email': typeof AuthenticatedClinicSandboxEmailRoute
+  '/_authenticated/_clinic/seguimiento': typeof AuthenticatedClinicSeguimientoRoute
   '/_authenticated/_clinic/sucursales': typeof AuthenticatedClinicSucursalesRoute
   '/_authenticated/_clinic/suscripcion': typeof AuthenticatedClinicSuscripcionRoute
   '/_authenticated/_clinic/tratamientos': typeof AuthenticatedClinicTratamientosRoute
@@ -1274,6 +1304,7 @@ export interface FileRouteTypes {
     | '/ajustes'
     | '/aranceles'
     | '/cajas'
+    | '/campanas'
     | '/comisiones'
     | '/compliance'
     | '/configuracion-de-agenda'
@@ -1304,6 +1335,7 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/plantillas-de-documentos'
+    | '/plantillas-de-mensajes'
     | '/preferencias'
     | '/profesionales'
     | '/protocolos-clinicos'
@@ -1313,6 +1345,7 @@ export interface FileRouteTypes {
     | '/reserva-en-linea'
     | '/resultados-del-piloto'
     | '/sandbox-email'
+    | '/seguimiento'
     | '/sucursales'
     | '/suscripcion'
     | '/tratamientos'
@@ -1398,6 +1431,7 @@ export interface FileRouteTypes {
     | '/ajustes'
     | '/aranceles'
     | '/cajas'
+    | '/campanas'
     | '/comisiones'
     | '/compliance'
     | '/configuracion-de-agenda'
@@ -1428,6 +1462,7 @@ export interface FileRouteTypes {
     | '/ortodoncia'
     | '/permisos'
     | '/plantillas-de-documentos'
+    | '/plantillas-de-mensajes'
     | '/preferencias'
     | '/profesionales'
     | '/protocolos-clinicos'
@@ -1437,6 +1472,7 @@ export interface FileRouteTypes {
     | '/reserva-en-linea'
     | '/resultados-del-piloto'
     | '/sandbox-email'
+    | '/seguimiento'
     | '/sucursales'
     | '/suscripcion'
     | '/tratamientos'
@@ -1526,6 +1562,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/ajustes'
     | '/_authenticated/_clinic/aranceles'
     | '/_authenticated/_clinic/cajas'
+    | '/_authenticated/_clinic/campanas'
     | '/_authenticated/_clinic/comisiones'
     | '/_authenticated/_clinic/compliance'
     | '/_authenticated/_clinic/configuracion-de-agenda'
@@ -1556,6 +1593,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/ortodoncia'
     | '/_authenticated/_clinic/permisos'
     | '/_authenticated/_clinic/plantillas-de-documentos'
+    | '/_authenticated/_clinic/plantillas-de-mensajes'
     | '/_authenticated/_clinic/preferencias'
     | '/_authenticated/_clinic/profesionales'
     | '/_authenticated/_clinic/protocolos-clinicos'
@@ -1565,6 +1603,7 @@ export interface FileRouteTypes {
     | '/_authenticated/_clinic/reserva-en-linea'
     | '/_authenticated/_clinic/resultados-del-piloto'
     | '/_authenticated/_clinic/sandbox-email'
+    | '/_authenticated/_clinic/seguimiento'
     | '/_authenticated/_clinic/sucursales'
     | '/_authenticated/_clinic/suscripcion'
     | '/_authenticated/_clinic/tratamientos'
@@ -2140,6 +2179,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicCajasRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/campanas': {
+      id: '/_authenticated/_clinic/campanas'
+      path: '/campanas'
+      fullPath: '/campanas'
+      preLoaderRoute: typeof AuthenticatedClinicCampanasRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/comisiones': {
       id: '/_authenticated/_clinic/comisiones'
       path: '/comisiones'
@@ -2350,6 +2396,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClinicPlantillasDeDocumentosRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
+    '/_authenticated/_clinic/plantillas-de-mensajes': {
+      id: '/_authenticated/_clinic/plantillas-de-mensajes'
+      path: '/plantillas-de-mensajes'
+      fullPath: '/plantillas-de-mensajes'
+      preLoaderRoute: typeof AuthenticatedClinicPlantillasDeMensajesRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
     '/_authenticated/_clinic/preferencias': {
       id: '/_authenticated/_clinic/preferencias'
       path: '/preferencias'
@@ -2411,6 +2464,13 @@ declare module '@tanstack/react-router' {
       path: '/sandbox-email'
       fullPath: '/sandbox-email'
       preLoaderRoute: typeof AuthenticatedClinicSandboxEmailRouteImport
+      parentRoute: typeof AuthenticatedClinicRouteRoute
+    }
+    '/_authenticated/_clinic/seguimiento': {
+      id: '/_authenticated/_clinic/seguimiento'
+      path: '/seguimiento'
+      fullPath: '/seguimiento'
+      preLoaderRoute: typeof AuthenticatedClinicSeguimientoRouteImport
       parentRoute: typeof AuthenticatedClinicRouteRoute
     }
     '/_authenticated/_clinic/sucursales': {
@@ -2533,6 +2593,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicAjustesRoute: typeof AuthenticatedClinicAjustesRoute
   AuthenticatedClinicArancelesRoute: typeof AuthenticatedClinicArancelesRoute
   AuthenticatedClinicCajasRoute: typeof AuthenticatedClinicCajasRoute
+  AuthenticatedClinicCampanasRoute: typeof AuthenticatedClinicCampanasRoute
   AuthenticatedClinicComisionesRoute: typeof AuthenticatedClinicComisionesRoute
   AuthenticatedClinicComplianceRoute: typeof AuthenticatedClinicComplianceRoute
   AuthenticatedClinicConfiguracionDeAgendaRoute: typeof AuthenticatedClinicConfiguracionDeAgendaRoute
@@ -2563,6 +2624,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicOrtodonciaRoute: typeof AuthenticatedClinicOrtodonciaRoute
   AuthenticatedClinicPermisosRoute: typeof AuthenticatedClinicPermisosRoute
   AuthenticatedClinicPlantillasDeDocumentosRoute: typeof AuthenticatedClinicPlantillasDeDocumentosRoute
+  AuthenticatedClinicPlantillasDeMensajesRoute: typeof AuthenticatedClinicPlantillasDeMensajesRoute
   AuthenticatedClinicPreferenciasRoute: typeof AuthenticatedClinicPreferenciasRoute
   AuthenticatedClinicProfesionalesRoute: typeof AuthenticatedClinicProfesionalesRoute
   AuthenticatedClinicProtocolosClinicosRoute: typeof AuthenticatedClinicProtocolosClinicosRoute
@@ -2572,6 +2634,7 @@ interface AuthenticatedClinicRouteRouteChildren {
   AuthenticatedClinicReservaEnLineaRoute: typeof AuthenticatedClinicReservaEnLineaRoute
   AuthenticatedClinicResultadosDelPilotoRoute: typeof AuthenticatedClinicResultadosDelPilotoRoute
   AuthenticatedClinicSandboxEmailRoute: typeof AuthenticatedClinicSandboxEmailRoute
+  AuthenticatedClinicSeguimientoRoute: typeof AuthenticatedClinicSeguimientoRoute
   AuthenticatedClinicSucursalesRoute: typeof AuthenticatedClinicSucursalesRoute
   AuthenticatedClinicSuscripcionRoute: typeof AuthenticatedClinicSuscripcionRoute
   AuthenticatedClinicTratamientosRoute: typeof AuthenticatedClinicTratamientosRoute
@@ -2590,6 +2653,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicAjustesRoute: AuthenticatedClinicAjustesRoute,
     AuthenticatedClinicArancelesRoute: AuthenticatedClinicArancelesRoute,
     AuthenticatedClinicCajasRoute: AuthenticatedClinicCajasRoute,
+    AuthenticatedClinicCampanasRoute: AuthenticatedClinicCampanasRoute,
     AuthenticatedClinicComisionesRoute: AuthenticatedClinicComisionesRoute,
     AuthenticatedClinicComplianceRoute: AuthenticatedClinicComplianceRoute,
     AuthenticatedClinicConfiguracionDeAgendaRoute:
@@ -2631,6 +2695,8 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicPermisosRoute: AuthenticatedClinicPermisosRoute,
     AuthenticatedClinicPlantillasDeDocumentosRoute:
       AuthenticatedClinicPlantillasDeDocumentosRoute,
+    AuthenticatedClinicPlantillasDeMensajesRoute:
+      AuthenticatedClinicPlantillasDeMensajesRoute,
     AuthenticatedClinicPreferenciasRoute: AuthenticatedClinicPreferenciasRoute,
     AuthenticatedClinicProfesionalesRoute:
       AuthenticatedClinicProfesionalesRoute,
@@ -2645,6 +2711,7 @@ const AuthenticatedClinicRouteRouteChildren: AuthenticatedClinicRouteRouteChildr
     AuthenticatedClinicResultadosDelPilotoRoute:
       AuthenticatedClinicResultadosDelPilotoRoute,
     AuthenticatedClinicSandboxEmailRoute: AuthenticatedClinicSandboxEmailRoute,
+    AuthenticatedClinicSeguimientoRoute: AuthenticatedClinicSeguimientoRoute,
     AuthenticatedClinicSucursalesRoute: AuthenticatedClinicSucursalesRoute,
     AuthenticatedClinicSuscripcionRoute: AuthenticatedClinicSuscripcionRoute,
     AuthenticatedClinicTratamientosRoute: AuthenticatedClinicTratamientosRoute,

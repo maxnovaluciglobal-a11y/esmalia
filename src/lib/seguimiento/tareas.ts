@@ -38,6 +38,13 @@ export interface Tarea {
 
 export type FiltroPersona = "mias" | "todas" | "sin_asignar";
 
+export type CambioDeTarea =
+  | { accion: "completar" }
+  | { accion: "descartar" }
+  | { accion: "reabrir" }
+  | { accion: "posponer"; fecha: string }
+  | { accion: "asignar"; userId: string | null };
+
 export interface BandejaAgrupada {
   vencidas: Tarea[];
   hoy: Tarea[];
