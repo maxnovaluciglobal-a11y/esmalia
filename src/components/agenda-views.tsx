@@ -22,6 +22,7 @@ import {
 } from "@/lib/clinic-operations/agenda-fechas";
 import {
   horaDeMinutos,
+  HUECO_SEMANA_MIN,
   huecosSignificativos,
   iniciales,
   rangoDeGrilla,
@@ -255,6 +256,7 @@ export function AgendaSemanaCarriles({
             citas: citasOcupacion.filter((c) => c.fecha === d && c.profesionalId === p.id),
             noAgendables: tramosNoAgendables(franjas.get(`${d}|${p.id}`) ?? []),
             desdeMin: d === hoy ? minutosAhora : null,
+            minimo: HUECO_SEMANA_MIN,
           }),
         );
       }

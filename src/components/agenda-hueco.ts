@@ -117,6 +117,13 @@ export function huecosLibres(
 export const HUECO_SIGNIFICATIVO_MIN = 30;
 
 /**
+ * En la semana los carriles son angostos (un carril por profesional y día):
+ * marcar cada hueco de 30 min la llena de ruido. Ahí solo se marcan los
+ * grandes; la vista Día sigue con `HUECO_SIGNIFICATIVO_MIN`.
+ */
+export const HUECO_SEMANA_MIN = 90;
+
+/**
  * Huecos "significativos" de un carril (A+): el tiempo atendido del día
  * (horario declarado + aperturas) que no tiene cita, no cae en un bloqueo ni
  * con la sucursal cerrada, y dura al menos `minimo`. Sin horario declarado no
