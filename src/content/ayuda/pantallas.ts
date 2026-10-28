@@ -671,8 +671,8 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["usuarios", "roles", "invitar", "permisos", "acceso", "integrante"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-equipo-v3.mp4",
-      duracion: "38 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-equipo-v3.mp4?v=3b",
+      duracion: "39 s",
       guion: "Invitar a una recepcionista, cambiarle el rol y quitarle un permiso puntual.",
     },
   },

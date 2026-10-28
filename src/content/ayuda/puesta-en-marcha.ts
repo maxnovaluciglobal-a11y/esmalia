@@ -83,7 +83,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
     texto: "En la agenda, «Nueva cita» (o la tecla N): paciente, profesional, tipo y duración.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-7-v3.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-7-v3.mp4?v=3b",
       duracion: "31 s",
       guion: "Agendar la primera cita desde la agenda y verla en Hoy.",
     },
@@ -118,7 +118,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "Una llamada corta con el equipo de Esmalia que activa WhatsApp, el portal de pacientes y efectividad.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-10-v3.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-10-v3.mp4?v=3b",
       duracion: "31 s",
       guion:
         "Walter explica qué se hace en la llamada de puesta en marcha, cuánto dura y qué queda activado al final.",

@@ -20,8 +20,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "hoy",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-primer-dia-v3.mp4",
-      duracion: "40 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-primer-dia-v3.mp4?v=3b",
+      duracion: "42 s",
       guion:
         "Entrar a la demo, recorrer el menú, mostrar Hoy con sus alertas y abrir el botón de ayuda en dos pantallas.",
     },
@@ -94,8 +94,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "ajustes",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-puesta-en-marcha-v3.mp4",
-      duracion: "31 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-puesta-en-marcha-v3.mp4?v=3b",
+      duracion: "32 s",
       guion:
         "Crear una sucursal con su box y horario, cargar tres prestaciones del arancel e importar un CSV de pacientes con vista previa.",
     },
@@ -227,7 +227,7 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "agenda",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-agenda-v3.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-agenda-v3.mp4?v=3b",
       duracion: "31 s",
       guion:
         "Agendar una cita con choque y resolverla, pasar un paciente a sala y agendar una solicitud del portal.",
@@ -265,8 +265,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "caja",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-cobrar-v3.mp4",
-      duracion: "33 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-cobrar-v3.mp4?v=3b",
+      duracion: "35 s",
       guion:
         "Abrir caja, cobrar un pago con dos medios desde la ficha, registrar un retiro y cerrar con arqueo.",
     },
