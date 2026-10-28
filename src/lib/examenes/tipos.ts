@@ -27,7 +27,7 @@ export const MB = 1024 * 1024;
 const TIPOS_PESADOS: readonly TipoExamen[] = ["cbct_dicom", "escaneo_intraoral"];
 
 /** Máximo por archivo, en bytes. */
-export const LIMITE_PESADO = 50 * MB;
+export const LIMITE_PESADO = 200 * MB;
 export const LIMITE_LIVIANO = 20 * MB;
 
 export function limitePorArchivo(tipo: TipoExamen): number {
@@ -201,7 +201,11 @@ export function problemaDeArchivo(
   if (archivo.size > limite) {
     return {
       tipo: "tamano",
-      mensaje: `El archivo pesa ${formatearBytes(archivo.size)}; el máximo para ${info.etiqueta.toLowerCase()} es ${formatearBytes(limite)}.`,
+      mensaje: `El archivo pesa ${formatearBytes(archivo.size)}; el máximo para ${info.etiqueta.toLowerCase()} es ${formatearBytes(limite)}.${
+        TIPOS_PESADOS.includes(tipo)
+          ? " Si el estudio pesa más, comprímelo en un ZIP o sube solo la serie que usas."
+          : ""
+      }`,
     };
   }
   return null;
@@ -210,10 +214,12 @@ export function problemaDeArchivo(
 /** Formato de visor que corresponde al archivo (contrato con el frente B). */
 export type FormatoVisor = "stl" | "ply" | "obj" | "dicom";
 
-export function formatoVisor(nombre: string, mime: string): FormatoVisor | null {
+export function formatoVisor(nombre: string, mime: string, tipo?: TipoExamen): FormatoVisor | null {
   const ext = extensionDe(nombre);
   if (ext === "stl" || ext === "ply" || ext === "obj") return ext;
   if (ext === "dcm" || ext === "dicom" || mime === "application/dicom") return "dicom";
+  // Un CBCT casi siempre se sube en un ZIP con todos los cortes DICOM.
+  if (ext === "zip" && tipo === "cbct_dicom") return "dicom";
   return null;
 }
 

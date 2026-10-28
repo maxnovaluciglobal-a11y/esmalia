@@ -49,6 +49,12 @@ export type CorteDicom = {
   sintaxis: string;
   littleEndian: boolean;
   pixeles: Uint8Array | null;
+  /**
+   * Los píxeles de un cuadro que viene dentro de un ZIP no se guardan todos
+   * a la vez: se vuelven a sacar del ZIP justo cuando se necesitan, así un
+   * estudio de 300 cortes no ocupa su tamaño completo en memoria.
+   */
+  cargarPixeles?: () => Uint8Array;
 };
 
 /** Sintaxis de transferencia sin compresión que se pueden leer. */

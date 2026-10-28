@@ -3,18 +3,16 @@
 // React.lazy desde visor-de-examen.tsx (chunk aparte, sin librerías).
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { QUERY_TACTIL, useMediaQuery } from "@/hooks/use-media-query";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { Cargador } from "@/lib/visores/descarga";
 import { formatoFechaDicom, nombreDeModalidad } from "@/lib/visores/dicom";
 import { distanciaEnCorte, formatoMm, type Punto2 } from "@/lib/visores/medida";
+import { esEquipoChico, limitesDelEquipo } from "@/lib/visores/limites";
+import { ejecutarEnTrabajador } from "@/lib/visores/trabajador";
 import {
-  MAX_VOXELES,
-  MAX_VOXELES_EQUIPO_CHICO,
   VENTANAS_CT,
-  abrirArchivosDicom,
   aplicarVentana,
   cantidadDeCortes,
-  construirVolumen,
   extraerCorte,
   type Plano,
   type Volumen,
@@ -33,6 +31,7 @@ import {
   LATERAL,
   PanelDatos,
   useCargaDeExamen,
+  type ContextoDePreparacion,
 } from "./controles";
 import { numero } from "@/lib/formato-fecha";
 
@@ -56,13 +55,6 @@ const HERRAMIENTAS: { id: Herramienta; label: string; ayuda: string }[] = [
   { id: "medir", label: "Medir", ayuda: "Toca dos puntos del corte" },
 ];
 
-function presupuestoDeVoxeles(): number {
-  if (typeof navigator === "undefined") return MAX_VOXELES;
-  const memoria = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
-  const tactil = typeof window !== "undefined" && window.matchMedia?.(QUERY_TACTIL).matches;
-  return (memoria !== undefined && memoria <= 4) || tactil ? MAX_VOXELES_EQUIPO_CHICO : MAX_VOXELES;
-}
-
 function leerToken(nombre: string, respaldo: string): string {
   const v = getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
   return v || respaldo;
@@ -78,8 +70,21 @@ export default function VisorDicom({
   onReintentar: () => void;
 }) {
   const preparar = useCallback(
-    (archivos: Uint8Array[]) =>
-      construirVolumen(abrirArchivosDicom(archivos), { maxVoxeles: presupuestoDeVoxeles() }),
+    async (archivos: Uint8Array[], { senal, alProgreso }: ContextoDePreparacion) => {
+      const limites = limitesDelEquipo(esEquipoChico());
+      const r = await ejecutarEnTrabajador(
+        {
+          tipo: "dicom",
+          archivos,
+          maxVoxeles: limites.voxeles,
+          maxBytes: limites.bytesDicom,
+        },
+        senal,
+        alProgreso,
+      );
+      if (r.tipo !== "dicom") throw new Error("Respuesta inesperada del procesador.");
+      return r.volumen;
+    },
     [],
   );
   const estado = useCargaDeExamen(cargar, preparar, intento);

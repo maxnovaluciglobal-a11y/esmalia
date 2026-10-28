@@ -44,36 +44,69 @@ const esZip = (b: Uint8Array) =>
 /**
  * Abre los archivos recibidos (sueltos o dentro de un ZIP) y devuelve los
  * DICOM. Ignora DICOMDIR, miniaturas y lo que no sea DICOM.
+ *
+ * De un ZIP se lee primero el índice (sin descomprimir nada) para poner un
+ * tope al tamaño descomprimido, y después cada archivo se abre de a uno solo
+ * para leer su encabezado; los píxeles se vuelven a sacar del ZIP cuando
+ * `construirVolumen` los pide (`cargarPixeles`), no se guardan todos juntos.
  */
-export function abrirArchivosDicom(archivos: Uint8Array[]): CorteDicom[] {
-  const crudos: Uint8Array[] = [];
+export function abrirArchivosDicom(
+  archivos: Uint8Array[],
+  opciones: { maxBytes?: number; alProgreso?: (fraccion: number) => void } = {},
+): CorteDicom[] {
+  const maxDescomprimido = (opciones.maxBytes ?? MAX_BYTES_DICOM) * 1.5;
+  const errorTamano = () =>
+    new ErrorDeVisor(
+      `El estudio descomprimido pasa de ${Math.round(maxDescomprimido / 1024 / 1024)} MB, más de lo que este equipo maneja bien. Exporta solo la serie que quieres ver.`,
+    );
+  type Fuente = { leer: () => Uint8Array; deZip: boolean };
+  const fuentes: Fuente[] = [];
   let total = 0;
   for (const a of archivos) {
     if (esZip(a)) {
-      let entradas: Record<string, Uint8Array>;
+      const nombres: string[] = [];
       try {
-        entradas = unzipSync(a, {
-          filter: (f) => !f.name.endsWith("/") && !/(^|\/)(DICOMDIR|__MACOSX)/i.test(f.name),
+        unzipSync(a, {
+          filter: (f) => {
+            if (f.name.endsWith("/") || /(^|\/)(DICOMDIR|__MACOSX)/i.test(f.name)) return false;
+            nombres.push(f.name);
+            total += f.originalSize;
+            return false; // solo el índice: nada se descomprime todavía
+          },
         });
       } catch {
         throw new ErrorDeVisor(
           "No se pudo abrir el ZIP: está dañado o usa un formato no soportado.",
         );
       }
-      for (const contenido of Object.values(entradas)) {
-        total += contenido.byteLength;
-        if (total > MAX_BYTES_DICOM * 1.5) {
-          throw new ErrorDeVisor(
-            `El estudio descomprimido pasa de ${Math.round((MAX_BYTES_DICOM * 1.5) / 1024 / 1024)} MB, más de lo que el navegador maneja bien. Exporta solo la serie que quieres ver.`,
-          );
-        }
-        crudos.push(contenido);
+      if (total > maxDescomprimido) throw errorTamano();
+      for (const nombre of nombres) {
+        fuentes.push({
+          deZip: true,
+          leer: () => {
+            try {
+              return unzipSync(a, { filter: (f) => f.name === nombre })[nombre];
+            } catch {
+              throw new ErrorDeVisor(
+                "No se pudo abrir el ZIP: está dañado o usa un formato no soportado.",
+              );
+            }
+          },
+        });
       }
-    } else crudos.push(a);
+    } else {
+      total += a.byteLength;
+      if (total > maxDescomprimido) throw errorTamano();
+      fuentes.push({ leer: () => a, deZip: false });
+    }
   }
   const cortes: CorteDicom[] = [];
   let primerError: unknown = null;
-  for (const c of crudos) {
+  let hechos = 0;
+  for (const fuente of fuentes) {
+    const c = fuente.leer();
+    opciones.alProgreso?.(++hechos / fuentes.length);
+    if (!c) continue;
     if (!pareceDicom(c)) {
       const propietario = formatoPropietario(c);
       if (propietario) primerError ??= new ErrorDeVisor(propietario);
@@ -81,7 +114,16 @@ export function abrirArchivosDicom(archivos: Uint8Array[]): CorteDicom[] {
     }
     try {
       const corte = parsearDicom(c);
-      if (corte.pixeles) cortes.push(corte);
+      if (!corte.pixeles) continue;
+      if (fuente.deZip) {
+        corte.pixeles = null;
+        corte.cargarPixeles = () => {
+          const px = parsearDicom(fuente.leer()).pixeles;
+          if (!px) throw new ErrorDeVisor("El DICOM está incompleto: faltan píxeles.");
+          return px;
+        };
+      }
+      cortes.push(corte);
     } catch (e) {
       primerError ??= e;
     }
@@ -121,7 +163,7 @@ export function factorDeReduccion(
 
 export function construirVolumen(
   cortesEntrada: CorteDicom[],
-  opciones: { maxVoxeles?: number } = {},
+  opciones: { maxVoxeles?: number; alProgreso?: (fraccion: number) => void } = {},
 ): Volumen {
   const maxVoxeles = opciones.maxVoxeles ?? MAX_VOXELES;
   // Una serie por vez: la que tiene más imágenes.
@@ -193,9 +235,22 @@ export function construirVolumen(
 
   let minimo = Infinity;
   let maximo = -Infinity;
+  // Un archivo con muchos cuadros se saca del ZIP una sola vez, no una por cuadro.
+  let enMemoria: { corte: CorteDicom; px: Uint8Array } | null = null;
+  const pixelesDe = (corte: CorteDicom): Uint8Array => {
+    if (corte.pixeles) return corte.pixeles;
+    if (enMemoria?.corte !== corte) {
+      enMemoria = null; // se suelta el anterior antes de sacar el siguiente
+      const px = corte.cargarPixeles?.();
+      if (!px) throw new ErrorDeVisor("El DICOM está incompleto: faltan píxeles.");
+      enMemoria = { corte, px };
+    }
+    return enMemoria.px;
+  };
   for (let z = 0; z < profundidad; z++) {
     const { corte, cuadro } = fuentes[z * f];
-    const leer = lectorDePixeles(corte, cuadro);
+    opciones.alProgreso?.(z / profundidad);
+    const leer = lectorDePixeles(corte, pixelesDe(corte), cuadro);
     const baseZ = z * ancho * alto;
     for (let y = 0; y < alto; y++) {
       for (let x = 0; x < ancho; x++) {
@@ -228,8 +283,11 @@ export function construirVolumen(
 }
 
 /** Devuelve una función (columna, fila) → valor reescalado de un cuadro. */
-function lectorDePixeles(c: CorteDicom, cuadro: number): (x: number, y: number) => number {
-  const px = c.pixeles as Uint8Array;
+function lectorDePixeles(
+  c: CorteDicom,
+  px: Uint8Array,
+  cuadro: number,
+): (x: number, y: number) => number {
   const bytes = c.bitsAsignados / 8;
   const muestras = c.muestrasPorPixel;
   const porCuadro = c.filas * c.columnas * muestras * bytes;

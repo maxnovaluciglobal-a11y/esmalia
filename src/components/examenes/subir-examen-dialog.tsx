@@ -45,7 +45,9 @@ import { fecha } from "@/lib/formato-fecha";
 import { mensajeDeError } from "@/lib/mensaje-error";
 import { cn } from "@/lib/utils";
 
-import { subirExamen } from "./subida";
+import { ErrorDeSubida } from "@/lib/examenes/subida-reanudable";
+
+import { limpiarSubidasVencidas, subirExamen } from "./subida";
 import { AvisoDeCupo } from "./uso-de-almacenamiento";
 
 export interface PreseleccionSubida {
@@ -54,6 +56,35 @@ export interface PreseleccionSubida {
   teeth?: number[];
   /** Abre la cámara apenas se abre el diálogo (botón "Tomar foto"). */
   camara?: boolean;
+}
+
+interface EnvioEnCurso {
+  nombre: string;
+  enviados: number;
+  total: number;
+  /** Segundos que faltan; null mientras no hay una velocidad estable. */
+  resto: number | null;
+  aviso: string | null;
+}
+
+/** Estima los segundos que faltan con la velocidad de los últimos ~8 s. */
+function crearMedidor() {
+  const muestras: { t: number; n: number }[] = [];
+  return (enviados: number, total: number): number | null => {
+    const t = performance.now();
+    muestras.push({ t, n: enviados });
+    while (muestras.length > 2 && t - muestras[0].t > 8000) muestras.shift();
+    const a = muestras[0];
+    const dt = (t - a.t) / 1000;
+    if (dt < 2 || enviados <= a.n) return null;
+    return Math.max(0, Math.round((total - enviados) / ((enviados - a.n) / dt)));
+  };
+}
+
+function textoDeTiempo(segundos: number): string {
+  if (segundos < 60) return `${Math.max(5, Math.ceil(segundos / 5) * 5)} s`;
+  const m = Math.ceil(segundos / 60);
+  return m === 1 ? "1 minuto" : `${m} minutos`;
 }
 
 export function SubirExamenDialog({
@@ -104,6 +135,8 @@ export function SubirExamenDialog({
   const [photoSessionId, setPhotoSessionId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [progreso, setProgreso] = useState<{ hecho: number; total: number } | null>(null);
+  const [envio, setEnvio] = useState<EnvioEnCurso | null>(null);
+  const control = useRef<AbortController | null>(null);
   const inputArchivo = useRef<HTMLInputElement>(null);
   const inputCamara = useRef<HTMLInputElement>(null);
 
@@ -144,6 +177,18 @@ export function SubirExamenDialog({
     estadoCupo !== null &&
     (estadoCupo.nivel === "lleno" || !cabeEnElCupo(estadoCupo.usado, estadoCupo.cupo, totalBytes));
   const subiendo = progreso !== null;
+
+  // Mientras sube, el navegador avisa antes de cerrar la pestaña.
+  useEffect(() => {
+    if (!subiendo || editando) return;
+    const aviso = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", aviso);
+    return () => window.removeEventListener("beforeunload", aviso);
+  }, [subiendo, editando]);
+  useEffect(() => limpiarSubidasVencidas(), []);
   const esFoto = kind === "foto_clinica";
 
   function elegir(lista: FileList | null) {
@@ -184,9 +229,41 @@ export function SubirExamenDialog({
     if (archivos.length === 0 || problemas.length > 0 || sinLugar) return;
     setProgreso({ hecho: 0, total: archivos.length });
     let subidos = 0;
+    const abortador = new AbortController();
+    control.current = abortador;
     try {
       for (const archivo of archivos) {
-        await subirExamen(archivo, { ...comunes, patientId }, { preparar, confirmar, cancelar });
+        const medidor = crearMedidor();
+        setEnvio({
+          nombre: archivo.name,
+          enviados: 0,
+          total: archivo.size,
+          resto: null,
+          aviso: null,
+        });
+        await subirExamen(
+          archivo,
+          { ...comunes, patientId },
+          { preparar, confirmar, cancelar },
+          {
+            senal: abortador.signal,
+            alProgreso: (enviados, total) => {
+              const resto = medidor(enviados, total);
+              setEnvio({ nombre: archivo.name, enviados, total, resto, aviso: null });
+            },
+            alReintento: ({ sinConexion }) =>
+              setEnvio((e) =>
+                e
+                  ? {
+                      ...e,
+                      aviso: sinConexion
+                        ? "Sin conexión. La subida continuará sola cuando vuelva internet."
+                        : "Se cortó un momento la conexión. Reintentando…",
+                    }
+                  : e,
+              ),
+          },
+        );
         subidos += 1;
         setProgreso({ hecho: subidos, total: archivos.length });
       }
@@ -195,13 +272,20 @@ export function SubirExamenDialog({
       onCerrar();
     } catch (err) {
       if (subidos > 0) onListo();
-      toast.error(
-        subidos > 0
-          ? `Se subieron ${subidos} de ${archivos.length}. ${mensajeDeError(err)}`
-          : mensajeDeError(err),
-      );
+      const cancelada = err instanceof ErrorDeSubida && err.codigo === "cancelada";
+      if (cancelada) {
+        toast.message("Subida cancelada. No se guardó nada.");
+      } else {
+        toast.error(
+          subidos > 0
+            ? `Se subieron ${subidos} de ${archivos.length}. ${mensajeDeError(err)}`
+            : mensajeDeError(err),
+        );
+      }
       setArchivos((prev) => prev.slice(subidos));
     } finally {
+      control.current = null;
+      setEnvio(null);
       setProgreso(null);
     }
   }
@@ -434,10 +518,50 @@ export function SubirExamenDialog({
             />
           </div>
 
+          {envio && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="space-y-1.5 rounded-[14px] border border-hairline p-3"
+            >
+              <div className="flex items-baseline justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium">{envio.nombre}</span>
+                <span className="cifra shrink-0 text-xs text-muted-foreground">
+                  {formatearBytes(envio.enviados)} de {formatearBytes(envio.total)}
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={`Subiendo ${envio.nombre}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round((envio.enviados / Math.max(1, envio.total)) * 100)}
+                className="h-1.5 overflow-hidden rounded-full bg-muted"
+              >
+                <div
+                  className="h-full bg-foreground transition-[width] duration-150"
+                  style={{ width: `${(envio.enviados / Math.max(1, envio.total)) * 100}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {envio.aviso ??
+                  (envio.resto !== null
+                    ? `Quedan unos ${textoDeTiempo(envio.resto)}. No cierres esta ventana.`
+                    : "Subiendo. No cierres esta ventana.")}
+              </p>
+            </div>
+          )}
+
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={onCerrar} disabled={subiendo}>
-              Cancelar
-            </Button>
+            {subiendo && !editando ? (
+              <Button type="button" variant="outline" onClick={() => control.current?.abort()}>
+                Cancelar subida
+              </Button>
+            ) : (
+              <Button type="button" variant="outline" onClick={onCerrar} disabled={subiendo}>
+                Cancelar
+              </Button>
+            )}
             <Button
               type="submit"
               disabled={

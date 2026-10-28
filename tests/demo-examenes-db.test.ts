@@ -60,9 +60,11 @@ describe("demo-reset · exámenes de la Ola 13, en la base", () => {
       "SELECT kind, status, storage_path FROM public.patient_exams WHERE clinic_id = $1",
       [DEMO_CLINIC_ID],
     );
-    expect(ex.rows).toHaveLength(5);
+    expect(ex.rows).toHaveLength(7);
     expect(ex.rows.every((r) => r.status === "listo")).toBe(true);
     expect(ex.rows.map((r) => r.kind).sort()).toEqual([
+      "cbct_dicom",
+      "escaneo_intraoral",
       "escaneo_intraoral",
       "foto_clinica",
       "foto_clinica",

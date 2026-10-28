@@ -2,7 +2,9 @@
 // desde visor-de-examen.tsx: este archivo y three.js viven en un chunk aparte.
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { cajaDe, parsearMalla, type FormatoMalla, type Malla } from "@/lib/visores/malla";
+import { esEquipoChico, limitesDelEquipo } from "@/lib/visores/limites";
+import { cajaDe, type FormatoMalla, type Malla } from "@/lib/visores/malla";
+import { ejecutarEnTrabajador } from "@/lib/visores/trabajador";
 import type { Cargador } from "@/lib/visores/descarga";
 import { formatoMm, type Punto3 } from "@/lib/visores/medida";
 import { cn } from "@/lib/utils";
@@ -19,6 +21,7 @@ import {
   LATERAL,
   PanelDatos,
   useCargaDeExamen,
+  type ContextoDePreparacion,
 } from "./controles";
 import { crearEscena, type Escena3D, type Vista } from "./escena-3d";
 import { numero } from "@/lib/formato-fecha";
@@ -64,7 +67,25 @@ export default function Visor3D({
   onReintentar: () => void;
 }) {
   const preparar = useCallback(
-    (archivos: Uint8Array[]) => parsearMalla(archivos[0], formato),
+    async (archivos: Uint8Array[], { senal, alProgreso }: ContextoDePreparacion) => {
+      const limites = limitesDelEquipo(esEquipoChico());
+      const r = await ejecutarEnTrabajador(
+        {
+          tipo: "malla",
+          formato,
+          bytes: archivos[0],
+          topes: {
+            bytes: limites.bytesMalla,
+            bytesTexto: limites.bytesMallaTexto,
+            triangulos: limites.triangulos,
+          },
+        },
+        senal,
+        alProgreso,
+      );
+      if (r.tipo !== "malla") throw new Error("Respuesta inesperada del procesador.");
+      return r.malla;
+    },
     [formato],
   );
   const estado = useCargaDeExamen(cargar, preparar, intento);
