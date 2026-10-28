@@ -65,9 +65,16 @@ describe("demo-reset · datos de Seguimiento, en la base", () => {
 
   async function verificar() {
     expect(await contar("patient_controls")).toBe(2);
-    expect(await contar("patient_controls", "AND due_on < current_date")).toBe(1);
+    expect(
+      await contar(
+        "patient_controls",
+        "AND due_on < (now() at time zone 'America/Santiago')::date",
+      ),
+    ).toBe(1);
     expect(await contar("followup_tasks")).toBeGreaterThanOrEqual(3);
-    expect(await contar("followup_tasks", "AND due_on < current_date")).toBe(1);
+    expect(
+      await contar("followup_tasks", "AND due_on < (now() at time zone 'America/Santiago')::date"),
+    ).toBe(1);
     expect(await contar("outreach_templates")).toBe(2);
     expect(await contar("outreach_campaigns", "AND status = 'borrador'")).toBe(1);
     // Nada confirmado ni despachado en la demo.
