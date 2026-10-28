@@ -117,7 +117,7 @@ Detalle de Meta en `docs/WHATSAPP_META.md`; historia de cada fase en la memoria 
 ## Herramientas
 
 - **Leer prod sin contraseña:** `npx supabase db query --linked "<sql>"` y `npx supabase db advisors --linked`, desde el checkout principal. Escribir en prod: solo migraciones con OK (regla 5).
-- **Crons:** `vercel.json` tiene `/api/demo-reset` (diario) y los horarios `/api/daily-digest` (minuto 37) y `/api/lifecycle-emails` (minuto 47). `.github/workflows/` (`daily-digest.yml`, `lifecycle-emails.yml`) los repite de respaldo en los minutos 7 y 17; el backup va en `backup.yml`.
+- **Crons:** `vercel.json` tiene `/api/demo-reset` (diario) y los horarios `/api/daily-digest` (minuto 37), `/api/lifecycle-emails` (minuto 47), `/api/patient-emails` (minuto 27) y `/api/backup-watchdog` (minuto 52; avisa por correo si no hay un backup exitoso en 32 h, `docs/BACKUPS.md` → «Alerta de backup atrasado»). `.github/workflows/` (`daily-digest.yml`, `lifecycle-emails.yml`) los repite de respaldo en los minutos 7 y 17; el backup va en `backup.yml`.
 - **Allowlists:** `ESMALIA_STAFF_EMAILS` = quién entra a `/admin`; `LEADS_NOTIFY_EMAILS` = a quién llega el aviso de lead.
 - Cambios de `vercel.json` (headers, redirects) **no se ven en local**: verificar en un preview deploy. La CSP con nonce vive en `src/router.tsx` y sí se prueba en local (`curl -sD - http://localhost:8080/auth`).
 

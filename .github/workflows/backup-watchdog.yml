@@ -1,0 +1,67 @@
+name: Vigía del backup (disparo de respaldo)
+
+# El vigía principal es Vercel Cron (vercel.json, minuto 52): llama a
+# /api/backup-watchdog, que mira las corridas de `backup.yml` en la API pública
+# de GitHub y manda un correo si no hay un backup exitoso en 32 h.
+#
+# Este workflow es el respaldo del vigía (mismo patrón que daily-digest.yml y
+# lifecycle-emails.yml): si Vercel Cron o Resend fallan, igual se entera. Hace
+# dos cosas, cada 3 horas: (1) llama al mismo endpoint; (2) por su cuenta,
+# calcula la edad del último backup exitoso con el GITHUB_TOKEN de la corrida y,
+# si pasa de 32 h, abre (o comenta) un Issue `backup-atrasado`, que es un tercer
+# canal que no depende de Resend.
+#
+# Límite honesto: corre en GitHub Actions, el mismo scheduler que atrasa el
+# backup. Si GitHub no dispara NINGÚN cron, solo avisa el vigía de Vercel.
+on:
+  schedule:
+    - cron: "12 */3 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: backup-watchdog
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      issues: write
+      contents: read
+    steps:
+      - name: Llamar a /api/backup-watchdog
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          APP_URL: ${{ vars.APP_URL || 'https://esmalia.com' }}
+        run: |
+          if [ -z "$CRON_SECRET" ]; then echo "::error::Falta el secret CRON_SECRET"; exit 1; fi
+          status=$(curl -sS -o respuesta.txt -w "%{http_code}" --retry 3 --retry-delay 20 --max-time 60 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$APP_URL/api/backup-watchdog")
+          echo "HTTP $status"; head -c 500 respuesta.txt; echo
+          [ "$status" = "200" ] || { echo "::error::backup-watchdog respondió $status"; exit 1; }
+
+      - name: Abrir un Issue si el último backup exitoso tiene más de 32 h
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const MAX_HORAS = 32; // mismo valor que MAX_HORAS_SIN_BACKUP en src/lib/backup-watchdog.ts
+            const { owner, repo } = context.repo;
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner, repo, workflow_id: "backup.yml", status: "success", per_page: 1,
+            });
+            const ultimo = data.workflow_runs[0];
+            const horas = ultimo ? (Date.now() - Date.parse(ultimo.updated_at)) / 3.6e6 : null;
+            core.info(`Último backup exitoso: ${ultimo ? ultimo.updated_at : "ninguno"} (${horas === null ? "n/a" : horas.toFixed(1)} h)`);
+            if (horas !== null && horas <= MAX_HORAS) return;
+            const body =
+              `El último backup exitoso ${ultimo ? `fue el ${ultimo.updated_at} (hace ${horas.toFixed(0)} h)` : "no existe entre los runs"}; el límite es ${MAX_HORAS} h.\n\n` +
+              `Abrir https://github.com/${owner}/${repo}/actions/workflows/backup.yml y, si no hay un run reciente, usar «Run workflow». Guía: docs/BACKUPS.md → «Alerta de backup atrasado».`;
+            const abiertos = await github.rest.issues.listForRepo({ owner, repo, state: "open", labels: "backup-atrasado" });
+            if (abiertos.data.length > 0) {
+              await github.rest.issues.createComment({ owner, repo, issue_number: abiertos.data[0].number, body });
+            } else {
+              await github.rest.issues.create({ owner, repo, title: "🔴 El backup diario de Esmalia está atrasado", body, labels: ["backup-atrasado"] });
+            }

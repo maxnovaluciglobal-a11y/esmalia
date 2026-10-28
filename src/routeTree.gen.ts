@@ -42,6 +42,7 @@ import { Route as AuthenticatedClinicRouteRouteImport } from './routes/_authenti
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSinAccesoRouteImport } from './routes/_authenticated/sin-acceso'
 import { Route as AlternativasSlugRouteImport } from './routes/alternativas.$slug'
+import { Route as ApiBackupWatchdogRouteImport } from './routes/api.backup-watchdog'
 import { Route as ApiDailyDigestRouteImport } from './routes/api.daily-digest'
 import { Route as ApiDemoResetRouteImport } from './routes/api.demo-reset'
 import { Route as ApiEvRouteImport } from './routes/api.ev'
@@ -318,6 +319,11 @@ const AuthenticatedSinAccesoRoute = AuthenticatedSinAccesoRouteImport.update({
 const AlternativasSlugRoute = AlternativasSlugRouteImport.update({
   id: '/alternativas/$slug',
   path: '/alternativas/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupWatchdogRoute = ApiBackupWatchdogRouteImport.update({
+  id: '/api/backup-watchdog',
+  path: '/api/backup-watchdog',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDailyDigestRoute = ApiDailyDigestRouteImport.update({
@@ -985,6 +991,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
   '/alternativas/$slug': typeof AlternativasSlugRoute
+  '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
   '/api/ev': typeof ApiEvRoute
@@ -1128,6 +1135,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/sin-acceso': typeof AuthenticatedSinAccesoRoute
   '/alternativas/$slug': typeof AlternativasSlugRoute
+  '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
   '/api/ev': typeof ApiEvRoute
@@ -1276,6 +1284,7 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/sin-acceso': typeof AuthenticatedSinAccesoRoute
   '/alternativas/$slug': typeof AlternativasSlugRoute
+  '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
   '/api/ev': typeof ApiEvRoute
@@ -1423,6 +1432,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sin-acceso'
     | '/alternativas/$slug'
+    | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
     | '/api/ev'
@@ -1566,6 +1576,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sin-acceso'
     | '/alternativas/$slug'
+    | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
     | '/api/ev'
@@ -1713,6 +1724,7 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/sin-acceso'
     | '/alternativas/$slug'
+    | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
     | '/api/ev'
@@ -1858,6 +1870,7 @@ export interface RootRouteChildren {
   TotemRoute: typeof TotemRoute
   V2Route: typeof V2Route
   AlternativasSlugRoute: typeof AlternativasSlugRoute
+  ApiBackupWatchdogRoute: typeof ApiBackupWatchdogRoute
   ApiDailyDigestRoute: typeof ApiDailyDigestRoute
   ApiDemoResetRoute: typeof ApiDemoResetRoute
   ApiEvRoute: typeof ApiEvRoute
@@ -2119,6 +2132,13 @@ declare module '@tanstack/react-router' {
       path: '/alternativas/$slug'
       fullPath: '/alternativas/$slug'
       preLoaderRoute: typeof AlternativasSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backup-watchdog': {
+      id: '/api/backup-watchdog'
+      path: '/api/backup-watchdog'
+      fullPath: '/api/backup-watchdog'
+      preLoaderRoute: typeof ApiBackupWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/daily-digest': {
@@ -3189,6 +3209,7 @@ const rootRouteChildren: RootRouteChildren = {
   TotemRoute: TotemRoute,
   V2Route: V2Route,
   AlternativasSlugRoute: AlternativasSlugRoute,
+  ApiBackupWatchdogRoute: ApiBackupWatchdogRoute,
   ApiDailyDigestRoute: ApiDailyDigestRoute,
   ApiDemoResetRoute: ApiDemoResetRoute,
   ApiEvRoute: ApiEvRoute,
