@@ -10280,6 +10280,7 @@ export type Database = {
           quote_id: string | null;
         }[];
       };
+      sembrar_notas_de_la_demo: { Args: never; Returns: number };
       set_patient_document_id: {
         Args: { p_document_id: string; p_patient_id: string };
         Returns: undefined;
