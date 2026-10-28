@@ -24,6 +24,10 @@
     {
       "path": "/api/patient-emails",
       "schedule": "27 * * * *"
+    },
+    {
+      "path": "/api/backup-watchdog",
+      "schedule": "52 * * * *"
     }
   ],
   "headers": [

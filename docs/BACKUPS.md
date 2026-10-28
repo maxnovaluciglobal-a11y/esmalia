@@ -213,6 +213,31 @@ scripts/restore-drill.sh \
 
 Requisitos: `age`, `node`, Postgres 16 en `/opt/homebrew/opt/postgresql@16/bin` (o `PGBIN=`). Solo imprime nombres de tabla y conteos; borra su directorio de trabajo al terminar (`KEEP=1` para inspeccionarlo, ojo que tiene datos reales).
 
+## Alerta de backup atrasado
+
+**Problema (P1 de la transferencia, 28-oct-2026):** `backup.yml` abre un Issue si UN run falla, pero no avisa si no corre o si llega muy tarde. El cron de GitHub Actions programado a las 07:15 UTC arrancó entre 12:01 y 14:19 UTC en las 8 corridas programadas del 20 al 27-oct (5 a 7 h tarde; API pública de GitHub), y GitHub desactiva los workflows programados tras 60 días sin actividad en el repo.
+
+**Qué hay (todo en el repo, sin tocar ningún secret nuevo):**
+
+1. **Vigía principal: Vercel Cron → `GET /api/backup-watchdog`** (`vercel.json`, cada hora, minuto 52; `src/routes/api.backup-watchdog.ts`, lógica pura en `src/lib/backup-watchdog.ts`). Lee las corridas de `backup.yml` en la API pública de GitHub (el repo es público, sin token) y, si no hay una corrida **exitosa** en las últimas **32 h**, manda un correo y reporta a Sentry. Es independiente de GitHub Actions: si el scheduler de Actions falla, el vigía igual lo ve.
+2. **Respaldo: `.github/workflows/backup-watchdog.yml`** (cada 3 h): llama al mismo endpoint y, por su cuenta, abre o comenta un Issue `backup-atrasado` si el último backup exitoso pasa de 32 h. Un tercer canal que no depende de Resend.
+
+**Por qué 32 h y no 25:** entre dos corridas programadas seguidas pasaron hasta 25,7 h sin que nada estuviera mal (12:35 UTC del 25-oct → 14:18 UTC del 26-oct). Con 25 h habría falsas alarmas. 32 h deja 6 h de margen y sigue significando «se saltó al menos un ciclo». Si algún día el backup pasa a dispararse desde Vercel (ver abajo), bajar `MAX_HORAS_SIN_BACKUP`.
+
+**A quién le llega:** variable de Vercel `BACKUP_ALERT_EMAILS` (lista separada por comas; poner **al menos dos casillas** distintas). Si falta, cae a `LEADS_NOTIFY_EMAILS` y luego a `ESMALIA_STAFF_EMAILS`. Mientras el problema siga, el correo se repite cada 6 h UTC (0, 6, 12 y 18), no cada hora; Sentry recibe un evento en cada corrida. Si no hay a quién avisar, el endpoint lo deja en el log como error.
+
+**Si GitHub no responde o limita por IP** el vigía no da falsa alarma: devuelve 502 («indeterminado») y lo reporta a Sentry; reintenta en una hora.
+
+**Qué NO cubre:**
+
+- Un backup que corre «en verde» pero sube algo vacío o roto: lo detecta el simulacro mensual de restauración (que además no abre Issue cuando queda `omitido`).
+- Que Vercel Cron, Resend y GitHub fallen a la vez.
+- No corrige la hora: el backup sigue saliendo 5-7 h tarde. Para adelantarlo habría que dispararlo desde Vercel con `workflow_dispatch`, lo que requiere un token de GitHub con `actions:write` (un secret nuevo: decisión de Walter, no hecha).
+
+**Para activarlo:** mergear y desplegar el PR (el cron se registra solo en el deploy; `vercel.json` no se prueba en local) y cargar `BACKUP_ALERT_EMAILS` en Vercel. Comprobar con `curl -H "Authorization: Bearer $CRON_SECRET" https://esmalia.com/api/backup-watchdog` → `{"estado":"ok",…}`. Para probar el aviso de punta a punta sin romper el backup, bajar temporalmente `MAX_HORAS_SIN_BACKUP` a 1 en una rama de preview.
+
+**Si el backup no corre o está atrasado:** abrir `https://github.com/maxnovaluciglobal-a11y/esmalia/actions/workflows/backup.yml`; si no hay una corrida reciente, «Run workflow» (rama `main`). Si el run sale rojo, el Issue `backup-fallido` dice la causa más probable (secrets de B2 o de Supabase). Si GitHub avisa que el workflow se desactivó por inactividad, reactivarlo desde esa misma página.
+
 ## Bitácora
 
 - **2026-08-17**: primer backup manual hecho a mano (no por el workflow, que todavía no tiene los secrets) — 33 tablas, 115 filas, verificado por round-trip. Cierra el riesgo de "cero backups con pacientes reales en prod" mientras se completa el setup de B2. Guardado también en iCloud junto a la clave privada (redundancia geográfica real desde el día uno, no solo local).
