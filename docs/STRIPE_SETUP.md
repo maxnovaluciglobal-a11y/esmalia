@@ -152,7 +152,7 @@ Permisos de la clave restringida (`rk_live_...`): además de los de arriba, este
 - En `/suscripcion` (ya existe): elige un plan (Solo/Clínica) y el botón "Activar suscripción · US$19,99/mes" (o el que corresponda) llama `createCheckoutSession` con ese `plan` → redirige a Stripe.
 - Completar el checkout con tarjeta de test `4242 4242 4242 4242`.
 - Verificar en la DB: `SELECT * FROM subscriptions WHERE clinic_id = ...` — debe aparecer con `status = trialing` y `trial_end` a 14 días.
-- Verificar en la DB: `SELECT * FROM stripe_events ORDER BY received_at DESC` — el evento debe estar registrado.
+- Verificar en la DB: `SELECT * FROM stripe_events ORDER BY received_at DESC` — el evento debe estar registrado y con `processed_at` no nulo.
 - Botón "Gestionar facturación" en la misma página → debe abrir el portal de Stripe.
 
 ## Rotación de keys (cuenta compartida con GastroCore)
@@ -174,4 +174,7 @@ Migración `20260814120000_*.sql` ya en el Supabase real:
 
 - `subscriptions` — 1 fila por clínica, espejo del estado Stripe. RLS: miembros leen la de su clínica; solo el webhook escribe (service_role).
 - `stripe_events` — ledger idempotente. Sin policy: nadie desde authenticated. Solo service_role via webhook.
+  - **Reclamo atómico (28-oct-2026):** antes de aplicar un evento, el webhook lo reclama con la RPC `claim_stripe_event` (`INSERT … ON CONFLICT`, migración `20261117100000`). Devuelve `claimed` (esta entrega lo aplica y después marca `processed_at`), `duplicate` (ya procesado: 200 `ok (dup)`) o `in_progress` (otra entrega lo tiene: 409, Stripe reintenta). Si aplicar falla, se borra el reclamo sin marcar y se responde 500; si la función se corta, el reclamo vence a los 300 s (`LEASE_RECLAMO_EVENTO_SEGUNDOS`). Antes la marca iba después de aplicar y dos entregas simultáneas aplicaban dos veces. Tests: `tests/stripe-webhook-concurrencia.test.ts` (base falsa) y `tests/stripe-claim-db.test.ts` (Postgres real con conexiones concurrentes).
+  - **Orden de despliegue:** aplicar la migración ANTES de mergear el código; si el código llega primero el webhook responde 500 hasta que se aplique.
+  - Cómo ver un evento colgado: `select id, type, claimed_at, processed_at from stripe_events where processed_at is null;` (un reclamo sin marcar con más de 5 min es una entrega que se cortó; el próximo reintento de Stripe lo retoma solo).
 - `has_active_subscription(clinic_id)` — helper SECURITY DEFINER para el gate.

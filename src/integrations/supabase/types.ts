@@ -8825,22 +8825,28 @@ export type Database = {
       };
       stripe_events: {
         Row: {
+          claimed_at: string | null;
           clinic_id: string | null;
           id: string;
+          processed_at: string | null;
           raw: Json | null;
           received_at: string;
           type: string;
         };
         Insert: {
+          claimed_at?: string | null;
           clinic_id?: string | null;
           id: string;
+          processed_at?: string | null;
           raw?: Json | null;
           received_at?: string;
           type: string;
         };
         Update: {
+          claimed_at?: string | null;
           clinic_id?: string | null;
           id?: string;
+          processed_at?: string | null;
           raw?: Json | null;
           received_at?: string;
           type?: string;
@@ -9615,6 +9621,10 @@ export type Database = {
       cita_gestion_ver: {
         Args: { p_appointment_id: string; p_clinic_id: string };
         Returns: Json;
+      };
+      claim_stripe_event: {
+        Args: { p_id: string; p_lease_seconds?: number; p_raw: Json; p_type: string };
+        Returns: string;
       };
       clinic_role_of: {
         Args: { _clinic_id: string; _user_id: string };

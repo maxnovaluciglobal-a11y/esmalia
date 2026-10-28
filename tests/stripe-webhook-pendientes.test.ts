@@ -39,6 +39,7 @@ function adminFalso(respuestas: Record<string, Resultado> = {}) {
     builder.insert = registrar("insert", true);
     builder.upsert = registrar("upsert", true);
     builder.update = registrar("update", true);
+    builder.delete = registrar("delete", true);
     for (const f of ["eq", "is", "or", "in"]) builder[f] = registrar(f);
     const resolver = () => respuestas[`${tabla}.${op}`] ?? { data: null, error: null };
     builder.maybeSingle = () => Promise.resolve(resolver());
@@ -46,7 +47,12 @@ function adminFalso(respuestas: Record<string, Resultado> = {}) {
       Promise.resolve(resolver()).then(ok, ko);
     return builder;
   };
-  return { admin: { from } as unknown as AdminClient, llamadas };
+  // El reclamo atómico del evento (RPC `claim_stripe_event`); por defecto lo gana esta entrega.
+  const rpc = (fn: string, args: unknown) => {
+    llamadas.push({ tabla: "rpc", op: fn, args: [args] });
+    return Promise.resolve(respuestas[`rpc.${fn}`] ?? { data: "claimed", error: null });
+  };
+  return { admin: { from, rpc } as unknown as AdminClient, llamadas };
 }
 
 function evento(parcial: { type: string; object: unknown; livemode?: boolean }): Stripe.Event {
@@ -123,7 +129,7 @@ function deps(
 const entrada = { rawBody: "{}", signature: "t=1,v1=x" };
 const filaClinica = { data: { clinic_id: "clinic-1" }, error: null };
 const marcoEvento = (ll: Llamada[]) =>
-  ll.some((l) => l.tabla === "stripe_events" && l.op === "insert");
+  ll.some((l) => l.tabla === "stripe_events" && l.op === "update");
 const updatesDe = (ll: Llamada[], tabla: string) =>
   ll.filter((l) => l.tabla === tabla && l.op === "update").map((l) => l.args[0]);
 
@@ -158,7 +164,7 @@ describe("customer.subscription.trial_will_end", () => {
 
   it("un evento repetido no vuelve a avisar (idempotencia por event.id)", async () => {
     const { admin } = adminFalso({
-      "stripe_events.select": { data: { id: "evt_1" }, error: null },
+      "rpc.claim_stripe_event": { data: "duplicate", error: null },
     });
     const ev = evento({ type: "customer.subscription.trial_will_end", object: enTrial });
     const d = deps(ev, admin, { retrieve: async () => enTrial });
