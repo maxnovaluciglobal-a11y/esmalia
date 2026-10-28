@@ -1,3 +1,4 @@
+import { PACIENTES_SIN_VISITA } from "@/lib/demo/cobertura-historial.server";
 import {
   contarFilas,
   diaRelativo,
@@ -626,7 +627,7 @@ async function sembrarMensajesDeEjemplo(ctx: ContextoDemo) {
     ];
   });
   const inactivos = ctx.pacientes
-    .filter((p) => p.estado === "inactive")
+    .filter((p) => PACIENTES_SIN_VISITA.some((d) => d.nombre === p.nombre))
     .flatMap((p) => {
       const d = datos.get(p.id);
       if (!d?.phone) return [];

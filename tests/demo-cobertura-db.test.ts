@@ -192,6 +192,47 @@ describe("demo completa · siembra por área, en la base", () => {
     expect(Number(altas.rows[0].meses)).toBeGreaterThanOrEqual(4);
   });
 
+  it("hay pacientes para Seguimiento: sin visita en 6 meses, sin cita futura, con tratamiento detenido y control vencido", async () => {
+    const dormidos = await client.query<{ n: string }>(
+      `SELECT count(*) AS n FROM public.patients p
+        WHERE p.clinic_id = $1
+          AND NOT EXISTS (SELECT 1 FROM public.appointments a
+                           WHERE a.patient_id = p.id AND a.starts_at > now())
+          AND (SELECT max(a.starts_at) FROM public.appointments a
+                WHERE a.patient_id = p.id AND a.status = 'finalizada') < now() - interval '180 days'`,
+      [CLINICA_DEMO_ID],
+    );
+    expect(Number(dormidos.rows[0].n)).toBeGreaterThanOrEqual(3);
+    const detenidos = await client.query<{ n: string }>(
+      `SELECT count(*) AS n FROM public.treatment_plans tp
+        WHERE tp.clinic_id = $1 AND tp.status = 'active'
+          AND EXISTS (SELECT 1 FROM public.treatment_items i
+                       WHERE i.plan_id = tp.id AND i.status IN ('pending', 'in_progress'))
+          AND tp.name IN ('Rehabilitación de la pieza 2.6', 'Corona de la pieza 3.6')`,
+      [CLINICA_DEMO_ID],
+    );
+    expect(Number(detenidos.rows[0].n)).toBe(2);
+    const vencidos = await client.query<{ n: string }>(
+      `SELECT count(*) AS n FROM public.patient_controls
+        WHERE clinic_id = $1 AND status = 'pendiente'
+          AND due_on < (now() AT TIME ZONE 'America/Santiago')::date`,
+      [CLINICA_DEMO_ID],
+    );
+    expect(Number(vencidos.rows[0].n)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("los pacientes nuevos conservan su primera cita de hoy y las altas se reparten en meses", async () => {
+    const nuevos = await client.query<{ n: string }>(
+      `SELECT count(*) AS n FROM public.patients p
+        WHERE p.clinic_id = $1 AND p.status = 'new'
+          AND NOT EXISTS (SELECT 1 FROM public.appointments a
+                           WHERE a.patient_id = p.id AND a.status = 'finalizada'
+                             AND a.starts_at < now() - interval '35 days')`,
+      [CLINICA_DEMO_ID],
+    );
+    expect(Number(nuevos.rows[0].n)).toBeGreaterThanOrEqual(2);
+  });
+
   it("el día cambia en UTC a las 21:00 de Santiago: lo sembrado sigue el día de la clínica", async () => {
     const { error } = await admin.rpc("reset_demo_clinic");
     expect(error).toBeNull();

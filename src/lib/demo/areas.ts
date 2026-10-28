@@ -340,4 +340,12 @@ export const AREAS_DE_LA_DEMO: readonly AreaDeLaDemo[] = [
       { columna: "completed_at", op: "hoy" },
     ],
   },
+  {
+    clave: "controles-vencidos",
+    etiqueta: "Seguimiento · controles pendientes",
+    tabla: "patient_controls",
+    minimo: 2,
+    filtros: [{ columna: "status", op: "eq", valor: "pendiente" }],
+  },
+  { clave: "mensajes-de-hoy", etiqueta: "Mensajes enviados", tabla: "messages", minimo: 40 },
 ];

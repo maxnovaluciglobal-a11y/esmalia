@@ -641,7 +641,7 @@ async function sembrarCuentasPorCobrarAnteriores(ctx: ContextoDemo) {
 
 // ─── Pacientes sin visita reciente ───────────────────────────────────────
 
-const PACIENTES_SIN_VISITA = [
+export const PACIENTES_SIN_VISITA = [
   {
     nombre: "Constanza Araya Molina",
     rut: 17_456_789,
@@ -801,6 +801,54 @@ async function sembrarSeguimientoDeLosPacientesSinVisita(
     );
     if (errItems) throw new Error(`prestaciones del plan detenido: ${errItems.message}`);
   }
+  // Lo que pagaron en su momento: la prestación hecha, un abono y el control de hace meses.
+  const { data: planDeConstanza } = await ctx.admin
+    .from("treatment_plans")
+    .select("id")
+    .eq("clinic_id", ctx.clinicId)
+    .eq("patient_id", ids[0])
+    .eq("name", casos[0].nombre)
+    .maybeSingle();
+  const { data: hecho } = planDeConstanza
+    ? await ctx.admin
+        .from("treatment_items")
+        .select("id")
+        .eq("plan_id", planDeConstanza.id)
+        .eq("status", "completed")
+        .maybeSingle()
+    : { data: null };
+  const { error: errPagos } = await ctx.admin.from("payments").insert([
+    {
+      clinic_id: ctx.clinicId,
+      patient_id: ids[0],
+      amount_cents: control.price,
+      method: "cash",
+      paid_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -560), "11:30"),
+      notes: "Pago control y limpieza",
+      created_by: USUARIO_DEMO_ID,
+      treatment_item_id: hecho?.id ?? null,
+      treatment_plan_id: planDeConstanza?.id ?? null,
+    },
+    {
+      clinic_id: ctx.clinicId,
+      patient_id: ids[1],
+      amount_cents: 40_000,
+      method: "debit_card",
+      paid_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -70), "17:10"),
+      notes: "Abono corona",
+      created_by: USUARIO_DEMO_ID,
+    },
+    {
+      clinic_id: ctx.clinicId,
+      patient_id: ids[2],
+      amount_cents: control.price,
+      method: "transfer",
+      paid_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -205), "10:40"),
+      notes: "Pago control y limpieza",
+      created_by: USUARIO_DEMO_ID,
+    },
+  ] as never);
+  if (errPagos) throw new Error(`pagos de los pacientes sin visita reciente: ${errPagos.message}`);
   const { error: errControles } = await ctx.admin.from("patient_controls").insert([
     {
       clinic_id: ctx.clinicId,
