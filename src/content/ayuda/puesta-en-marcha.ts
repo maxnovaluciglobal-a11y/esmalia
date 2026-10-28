@@ -15,7 +15,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "En Ajustes → Datos de la clínica cargas razón social, RUT y dirección: salen en tus documentos y presupuestos.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-1-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-1-v3.mp4",
       duracion: "38 s",
       guion:
         "Completar Datos de la clínica: razón social, RUT, dirección y logo en los documentos.",
@@ -60,8 +60,8 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "En Aranceles cargas tus prestaciones con su precio (o importas una planilla). Sirve para presupuestar y cobrar.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-5-v2.mp4",
-      duracion: "35 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-5-v3.mp4",
+      duracion: "33 s",
       guion:
         "Cargar tres prestaciones con precio y duración, y realinear precios con vista previa.",
     },
@@ -72,7 +72,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "En Migración de datos importas pacientes y citas desde CSV o Excel, con vista previa y reversa del lote completo.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-6-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-6-v3.mp4",
       duracion: "31 s",
       guion:
         "Importar un CSV de pacientes: vista previa, mapeo de columnas, confirmación y reversa del lote.",
@@ -83,7 +83,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
     texto: "En la agenda, «Nueva cita» (o la tecla N): paciente, profesional, tipo y duración.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-7-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-7-v3.mp4",
       duracion: "31 s",
       guion: "Agendar la primera cita desde la agenda y verla en Hoy.",
     },
@@ -106,8 +106,8 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "En Notificaciones a pacientes enciendes la confirmación y el recordatorio por correo. Todo viene apagado.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-9-v2.mp4",
-      duracion: "42 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-9-v3.mp4",
+      duracion: "39 s",
       guion:
         "Encender confirmación y recordatorio por correo y explicar el modo de prueba del correo.",
     },
@@ -118,7 +118,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       "Una llamada corta con el equipo de Esmalia que activa WhatsApp, el portal de pacientes y efectividad.",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-10-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-10-v3.mp4",
       duracion: "31 s",
       guion:
         "Walter explica qué se hace en la llamada de puesta en marcha, cuánto dura y qué queda activado al final.",
