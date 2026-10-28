@@ -46,6 +46,10 @@ const MIG_CUPO = readFileSync(
   ),
   "utf8",
 );
+const MIG_LIMITE = readFileSync(
+  new URL("../supabase/migrations/20261116100000_limite_por_archivo_200mb.sql", import.meta.url),
+  "utf8",
+);
 const MIG_EXAMENES = readFileSync(
   new URL("../supabase/migrations/20261109100100_examenes_y_fotos_clinicas.sql", import.meta.url),
   "utf8",
@@ -93,17 +97,17 @@ describe("tipos de examen", () => {
   });
 
   it("el límite por archivo es el mismo en la app y en la base", () => {
-    expect(limitePorArchivo("cbct_dicom")).toBe(50 * MB);
-    expect(limitePorArchivo("escaneo_intraoral")).toBe(50 * MB);
+    expect(limitePorArchivo("cbct_dicom")).toBe(200 * MB);
+    expect(limitePorArchivo("escaneo_intraoral")).toBe(200 * MB);
     for (const t of TIPOS_EXAMEN.filter((t) => t !== "cbct_dicom" && t !== "escaneo_intraoral")) {
       expect(limitePorArchivo(t), t).toBe(20 * MB);
     }
-    expect(MIG_CUPO).toContain(
+    expect(MIG_LIMITE).toContain(
       `when p_kind in ('cbct_dicom', 'escaneo_intraoral') then ${LIMITE_PESADO}::bigint`,
     );
-    expect(MIG_CUPO).toContain(`else ${LIMITE_LIVIANO}::bigint`);
-    // El techo del bucket es el límite más alto (y el límite global de Supabase: 50 MB).
-    expect(MIG_CUPO).toContain(`file_size_limit = ${LIMITE_PESADO}`);
+    expect(MIG_LIMITE).toContain(`else ${LIMITE_LIVIANO}::bigint`);
+    // El techo del bucket es el límite más alto (y el límite global del proyecto Supabase: 200 MB).
+    expect(MIG_LIMITE).toContain(`file_size_limit = ${LIMITE_PESADO}`);
   });
 
   it("los MIME admitidos son los del bucket", () => {
@@ -124,9 +128,17 @@ describe("tipos de examen", () => {
       "tamano",
     );
     expect(
-      problemaDeArchivo("escaneo_intraoral", { name: "arcada.stl", size: 40 * MB }),
+      problemaDeArchivo("escaneo_intraoral", { name: "arcada.stl", size: 80 * MB }),
     ).toBeNull();
-    expect(problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 51 * MB })?.tipo).toBe("tamano");
+    // Un CBCT real (100-200 MB) entra; sobre 200 MB se pide comprimir o subir la serie que se usa.
+    expect(problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 150 * MB })).toBeNull();
+    expect(problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 200 * MB })).toBeNull();
+    const grande = problemaDeArchivo("cbct_dicom", { name: "ct.zip", size: 201 * MB });
+    expect(grande?.tipo).toBe("tamano");
+    expect(grande?.mensaje).toContain("200 MB");
+    expect(problemaDeArchivo("escaneo_intraoral", { name: "a.stl", size: 201 * MB })?.tipo).toBe(
+      "tamano",
+    );
     expect(problemaDeArchivo("panoramica", { name: "pano.dcm", size: 5 * MB })).toBeNull();
     expect(problemaDeArchivo("documento", { name: "x.pdf", size: 0 })?.tipo).toBe("vacio");
     expect(acceptDe("escaneo_intraoral")).toBe(".stl,.ply,.obj,.zip");
@@ -149,6 +161,10 @@ describe("tipos de examen", () => {
     expect(formatoVisor("serie.zip", "application/dicom")).toBe("dicom");
     expect(formatoVisor("foto.jpg", "image/jpeg")).toBeNull();
     expect(formatoVisor("serie.zip", "application/zip")).toBeNull();
+    // Un CBCT subido como ZIP (lo normal) se abre en el visor DICOM; otro ZIP no.
+    expect(formatoVisor("serie.zip", "application/zip", "cbct_dicom")).toBe("dicom");
+    expect(formatoVisor("modelos.zip", "application/zip", "escaneo_intraoral")).toBeNull();
+    expect(formatoVisor("foto.jpg", "image/jpeg", "cbct_dicom")).toBeNull();
   });
 
   it("piezas, bytes y nombres seguros", () => {

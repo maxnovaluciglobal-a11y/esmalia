@@ -400,7 +400,7 @@ function TarjetaExamen({
   onPieza: (pieza: number) => void;
 }) {
   const info = INFO_TIPO[e.kind];
-  const formato = formatoVisor(e.filename, e.mimeType);
+  const formato = formatoVisor(e.filename, e.mimeType, e.kind);
   const Icono = info.familia === "documento" ? FileText : ScanLine;
   const descargar = useDescargar(clinicId);
 

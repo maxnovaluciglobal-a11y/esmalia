@@ -4,6 +4,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { Database } from "@/integrations/supabase/types";
 import { DEMO_CLINIC_ID, PACIENTE_OLA9_DEMO } from "@/lib/demo/ola9.server";
+import { arcadaDemo, arcadaInferiorDemo, cbctDemoZip } from "@/lib/visores/demo-3d";
+import { aPlyBinario, aStlBinario } from "@/lib/visores/ejemplos";
 
 /**
  * Paso de `/api/demo-reset` para la Ola 13 · frente A: exámenes y fotos de
@@ -12,7 +14,11 @@ import { DEMO_CLINIC_ID, PACIENTE_OLA9_DEMO } from "@/lib/demo/ola9.server";
  * fotos y el antes/después.
  *
  * Las imágenes se GENERAN acá (PNG de pocos KB dibujados con formas simples):
- * no hay radiografías ni fotos reales de nadie. El escaneo es un STL mínimo.
+ * no hay radiografías ni fotos reales de nadie. Los escaneos son arcadas
+ * procedurales (STL y PLY con color, ~1,5 MB cada una) y el CBCT es un fantoma
+ * de cabeza de ~110 cortes en un ZIP de pocos MB (`src/lib/visores/demo-3d.ts`):
+ * lucen bien en el visor y casi no pesan, porque la demo no escribe y no tiene
+ * que cargar el bucket con archivos grandes.
  *
  * Idempotente (si la clínica ya tiene exámenes, no hace nada; el reset borra
  * la clínica y sus filas en cascada, y los archivos se pisan con upsert en la
@@ -132,30 +138,6 @@ function sonrisa(diente: [number, number, number]): Buffer {
   });
 }
 
-/** STL ASCII mínimo (un tetraedro): para ver el botón del visor 3D. */
-function stlDeEjemplo(): Buffer {
-  const v = [
-    [0, 0, 0],
-    [10, 0, 0],
-    [5, 8, 0],
-    [5, 3, 7],
-  ];
-  const caras = [
-    [0, 2, 1],
-    [0, 1, 3],
-    [1, 2, 3],
-    [2, 0, 3],
-  ];
-  const lineas = ["solid esmalia_demo"];
-  for (const [a, b, c] of caras) {
-    lineas.push("  facet normal 0 0 0", "    outer loop");
-    for (const p of [a, b, c]) lineas.push(`      vertex ${v[p].join(" ")}`);
-    lineas.push("    endloop", "  endfacet");
-  }
-  lineas.push("endsolid esmalia_demo");
-  return Buffer.from(lineas.join("\n"), "utf8");
-}
-
 function diaEn(zona: string, offsetDias: number): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: zona,
@@ -271,10 +253,30 @@ export async function sembrarExamenesDeLaDemo(admin: Admin): Promise<void> {
         kind: "escaneo_intraoral",
         nombre: "arcada-superior.stl",
         mime: "model/stl",
-        datos: stlDeEjemplo(),
+        datos: Buffer.from(aStlBinario(arcadaDemo())),
         dias: -60,
         teeth: [],
-        notes: "Escaneo de ejemplo para el visor 3D.",
+        notes: "Escaneo de ejemplo para el visor 3D (arcada generada).",
+        sesion: null,
+      },
+      {
+        kind: "escaneo_intraoral",
+        nombre: "arcada-inferior-color.ply",
+        mime: "model/ply",
+        datos: Buffer.from(aPlyBinario(arcadaInferiorDemo())),
+        dias: -60,
+        teeth: [],
+        notes: "Escaneo de ejemplo con color (arcada generada).",
+        sesion: null,
+      },
+      {
+        kind: "cbct_dicom",
+        nombre: "cbct-ejemplo.zip",
+        mime: "application/zip",
+        datos: Buffer.from(cbctDemoZip()),
+        dias: -90,
+        teeth: [],
+        notes: "CBCT de ejemplo para el visor DICOM (cabeza sintética de 112 cortes).",
         sesion: null,
       },
     ] as const;

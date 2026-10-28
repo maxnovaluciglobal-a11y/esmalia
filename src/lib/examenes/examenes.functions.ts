@@ -270,6 +270,41 @@ const prepararSchema = z.object({
   conMiniatura: z.boolean().default(false),
 });
 
+/**
+ * Una reserva que nunca se confirmó (se cerró la pestaña, se cortó la red)
+ * ocupa cupo. La firma de subida vence a las 2 h; pasadas 3 h la reserva ya no
+ * se puede retomar y se libera al preparar la siguiente subida de la clínica.
+ */
+export const HORAS_RESERVA_VIGENTE = 3;
+
+async function liberarReservasVencidas(clinicId: string): Promise<number> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const limite = new Date(Date.now() - HORAS_RESERVA_VIGENTE * 3_600_000).toISOString();
+  const { data: vencidas } = await supabaseAdmin
+    .from("patient_exams")
+    .select("id, storage_path")
+    .eq("clinic_id", clinicId)
+    .eq("status", "pendiente")
+    .lt("created_at", limite)
+    .limit(50);
+  if (!vencidas || vencidas.length === 0) return 0;
+  const rutas = vencidas.flatMap((f) => {
+    const prefijo = f.storage_path.slice(0, f.storage_path.lastIndexOf("/") + 1);
+    return [f.storage_path, `${prefijo}miniatura.webp`];
+  });
+  await supabaseAdmin.storage.from(BUCKET_EXAMENES).remove(rutas);
+  await supabaseAdmin
+    .from("patient_exams")
+    .delete()
+    .eq("clinic_id", clinicId)
+    .eq("status", "pendiente")
+    .in(
+      "id",
+      vencidas.map((f) => f.id),
+    );
+  return vencidas.length;
+}
+
 export interface SubidaPreparada {
   examId: string;
   path: string;
@@ -290,6 +325,8 @@ export const prepararSubidaExamen = createServerFn({ method: "POST" })
     if (data.photoSessionId && data.kind !== "foto_clinica") {
       throw new Error("Solo las fotos clínicas van en una sesión de fotos.");
     }
+
+    await liberarReservasVencidas(data.clinicId).catch(() => 0);
 
     const examId = crypto.randomUUID();
     const path = `${data.clinicId}/${data.patientId}/${examId}/${nombreSeguro(data.filename)}`;

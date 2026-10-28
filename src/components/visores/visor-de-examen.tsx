@@ -21,7 +21,8 @@ import { Expand, Shrink, X } from "lucide-react";
 
 import { useDevolverFoco } from "@/hooks/use-devolver-foco";
 import { descargar, type Cargador } from "@/lib/visores/descarga";
-import { MAX_BYTES_DICOM, MAX_BYTES_MALLA } from "@/lib/visores/limites";
+import { esEquipoChico, limitesDelEquipo } from "@/lib/visores/limites";
+import { precalentarTrabajador } from "@/lib/visores/trabajador";
 import { cn } from "@/lib/utils";
 
 export type TipoExamen = "stl" | "ply" | "obj" | "dicom";
@@ -49,9 +50,17 @@ export function VisorDeExamen(props: {
 }) {
   const { tipo, url } = props;
   const cargar = useCallback<Cargador>(
-    async (alProgreso, senal) => [
-      await descargar(url, tipo === "dicom" ? MAX_BYTES_DICOM : MAX_BYTES_MALLA, alProgreso, senal),
-    ],
+    async (alProgreso, senal) => {
+      const limites = limitesDelEquipo(esEquipoChico());
+      return [
+        await descargar(
+          url,
+          tipo === "dicom" ? limites.bytesDicom : limites.bytesMalla,
+          alProgreso,
+          senal,
+        ),
+      ];
+    },
     [url, tipo],
   );
   return (
@@ -81,6 +90,9 @@ export function VisorConCargador({
   const [completa, setCompleta] = useState(false);
   const [puedeCompleta, setPuedeCompleta] = useState(false);
   const { marcador, alCerrar } = useDevolverFoco();
+
+  // El worker que prepara el modelo se carga mientras baja el archivo.
+  useEffect(() => precalentarTrabajador(), []);
 
   useEffect(() => {
     setPuedeCompleta(Boolean(document.fullscreenEnabled));

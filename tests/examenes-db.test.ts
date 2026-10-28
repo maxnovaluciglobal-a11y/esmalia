@@ -394,18 +394,18 @@ describe("Ola 13 · exámenes y fotos clínicas (SQL)", () => {
       expect(Number(f.size_bytes)).toBe(5000);
     });
 
-    it("límite por archivo: 20 MB una foto, 50 MB un CBCT (código ES002)", async () => {
+    it("límite por archivo: 20 MB una foto, 200 MB un CBCT (código ES002)", async () => {
       expect((await subir(usuarios.dentist, { size: 20 * MB })).error).toBe("");
       expect((await subir(usuarios.dentist, { size: 20 * MB + 1 })).code).toBe("ES002");
       expect(
-        (await subir(usuarios.dentist, { kind: "cbct_dicom", size: 50 * MB, nombre: "ct.zip" }))
+        (await subir(usuarios.dentist, { kind: "cbct_dicom", size: 200 * MB, nombre: "ct.zip" }))
           .error,
       ).toBe("");
       expect(
         (
           await subir(usuarios.dentist, {
             kind: "cbct_dicom",
-            size: 50 * MB + 1,
+            size: 200 * MB + 1,
             nombre: "ct.zip",
           })
         ).code,

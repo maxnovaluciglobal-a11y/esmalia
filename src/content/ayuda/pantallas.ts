@@ -195,7 +195,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
       "Notas, odontograma clínico, periodontograma y documentos se ven solo con acceso clínico (propietario, administración, profesional y asistente con permiso).",
       "Una nota firmada no se edita: se corrige con una adenda.",
       "Cada apertura de la ficha queda registrada.",
-      "Exámenes (radiografías, fotos, escaneos 3D, CBCT): cada clínica tiene un cupo de almacenamiento, 15 GB en el plan Solo y 45 GB en el plan Clínica. Avisamos al 80 % y, al llegar al 100 %, no se pueden subir más archivos hasta ampliar el cupo. Cada archivo puede pesar hasta 50 MB (20 MB las fotos y radiografías): sube solo la serie que usas, no el estudio completo.",
+      "Exámenes (radiografías, fotos, escaneos 3D, CBCT): cada clínica tiene un cupo de almacenamiento, 15 GB en el plan Solo y 45 GB en el plan Clínica. Avisamos al 80 % y, al llegar al 100 %, no se pueden subir más archivos hasta ampliar el cupo. Un CBCT o un escaneo intraoral puede pesar hasta 200 MB por estudio y las fotos y radiografías hasta 20 MB. Si el estudio pesa más, comprímelo en un ZIP o sube solo la serie que usas. Si se corta la conexión a mitad de una subida grande, la subida se retoma donde quedó.",
     ],
     palabras: [
       "ficha",

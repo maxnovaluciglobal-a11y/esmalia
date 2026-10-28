@@ -141,18 +141,31 @@ export function PanelDatos({
 }
 
 type Estado<T> =
-  | { fase: "cargando"; cargados: number; total: number | null; preparando: boolean }
+  | {
+      fase: "cargando";
+      cargados: number;
+      total: number | null;
+      preparando: boolean;
+      /** 0-1 mientras se prepara el archivo (si quien prepara lo informa). */
+      avance: number | null;
+    }
   | { fase: "error"; mensaje: string }
   | { fase: "listo"; datos: T };
 
+export type ContextoDePreparacion = {
+  /** 0-1: el avance de la preparación, para la barra. */
+  alProgreso: (fraccion: number) => void;
+  senal: AbortSignal;
+};
+
 /**
  * Descarga con el cargador y transforma los bytes con `preparar`.
- * `preparar` puede ser pesado: se le cede un cuadro al navegador antes,
- * para que el aviso "Preparando…" alcance a pintarse.
+ * `preparar` es pesado (parsear un modelo, armar un volumen): corre en un
+ * worker (`trabajador.ts`) y puede informar su avance.
  */
 export function useCargaDeExamen<T>(
   cargar: Cargador,
-  preparar: (archivos: Uint8Array[]) => T,
+  preparar: (archivos: Uint8Array[], contexto: ContextoDePreparacion) => T | Promise<T>,
   intento: number,
 ): Estado<T> {
   const [estado, setEstado] = useState<Estado<T>>({
@@ -160,6 +173,7 @@ export function useCargaDeExamen<T>(
     cargados: 0,
     total: null,
     preparando: false,
+    avance: null,
   });
   const prepararRef = useRef(preparar);
   prepararRef.current = preparar;
@@ -167,23 +181,30 @@ export function useCargaDeExamen<T>(
   useEffect(() => {
     const control = new AbortController();
     let ultimo = 0;
-    setEstado({ fase: "cargando", cargados: 0, total: null, preparando: false });
+    setEstado({ fase: "cargando", cargados: 0, total: null, preparando: false, avance: null });
     cargar((cargados, total) => {
       const ahora = performance.now();
       if (ahora - ultimo < 100) return;
       ultimo = ahora;
-      setEstado({ fase: "cargando", cargados, total, preparando: false });
+      setEstado({ fase: "cargando", cargados, total, preparando: false, avance: null });
     }, control.signal)
       .then(async (archivos) => {
         if (control.signal.aborted) return;
         setEstado((e) =>
           e.fase === "cargando"
-            ? { ...e, preparando: true }
-            : { fase: "cargando", cargados: 0, total: null, preparando: true },
+            ? { ...e, preparando: true, avance: 0 }
+            : { fase: "cargando", cargados: 0, total: null, preparando: true, avance: 0 },
         );
-        await new Promise((r) => setTimeout(r, 30));
-        if (control.signal.aborted) return;
-        const datos = prepararRef.current(archivos);
+        let ultimoAvance = 0;
+        const datos = await prepararRef.current(archivos, {
+          senal: control.signal,
+          alProgreso: (fraccion) => {
+            const ahora = performance.now();
+            if (control.signal.aborted || (fraccion < 1 && ahora - ultimoAvance < 100)) return;
+            ultimoAvance = ahora;
+            setEstado((e) => (e.fase === "cargando" ? { ...e, avance: fraccion } : e));
+          },
+        });
         if (!control.signal.aborted) setEstado({ fase: "listo", datos });
       })
       .catch((e: unknown) => {
@@ -207,14 +228,17 @@ export function EstadoCargando({
   cargados,
   total,
   preparando,
+  avance,
   que,
 }: {
   cargados: number;
   total: number | null;
   preparando: boolean;
+  avance?: number | null;
   que: string;
 }) {
   const pct = total ? Math.min(100, Math.round((cargados / total) * 100)) : null;
+  const pctPrep = avance != null ? Math.min(100, Math.round(avance * 100)) : null;
   return (
     <div role="status" className="grid h-full place-items-center p-6">
       <div className="w-full max-w-xs space-y-3 text-center">
@@ -223,12 +247,16 @@ export function EstadoCargando({
           className="mx-auto size-6 animate-spin text-muted-foreground motion-reduce:animate-none"
         />
         <p className="text-[15px] font-medium">
-          {preparando ? `Preparando ${que}…` : `Descargando ${que}…`}
+          {preparando
+            ? `Preparando ${que}…${pctPrep !== null ? ` ${pctPrep} %` : ""}`
+            : `Descargando ${que}…`}
         </p>
         <div className="h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
           <div
             className="h-full bg-foreground transition-[width] duration-150"
-            style={{ width: preparando ? "100%" : pct !== null ? `${pct}%` : "35%" }}
+            style={{
+              width: preparando ? `${pctPrep ?? 100}%` : pct !== null ? `${pct}%` : "35%",
+            }}
           />
         </div>
         <p className="cifra text-[12.5px] text-muted-foreground">

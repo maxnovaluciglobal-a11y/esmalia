@@ -29,7 +29,6 @@ import {
   WebGLRenderer,
 } from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 import type { Malla } from "@/lib/visores/malla";
 import { distancia3d, type Punto3 } from "@/lib/visores/medida";
@@ -55,9 +54,6 @@ export type OpcionesEscena = {
   alMedir(puntos: Punto3[], mm: number | null): void;
 };
 
-/** Sobre esto se omite suavizar normales (mergeVertices tarda segundos). */
-const MAX_TRIANGULOS_SUAVIZAR = 1_500_000;
-
 export function crearEscena(
   contenedor: HTMLElement,
   malla: Malla,
@@ -82,16 +78,16 @@ export function crearEscena(
   const camara = new PerspectiveCamera(35, 1, 0.1, 10_000);
 
   // Geometría.
-  let geo = new BufferGeometry();
+  // Los vértices del STL ya vienen soldados y las normales calculadas
+  // (`prepararParaRender`, en el worker): aquí solo se suben a la GPU. Un
+  // modelo sin normales (STL enorme, sin soldar) se dibuja con sombreado plano.
+  const geo = new BufferGeometry();
   geo.setAttribute("position", new BufferAttribute(malla.posiciones, 3));
   if (malla.indices) geo.setIndex(new BufferAttribute(malla.indices, 1));
   if (malla.colores) geo.setAttribute("color", new BufferAttribute(malla.colores, 3));
-  if (!malla.indices && malla.triangulos <= MAX_TRIANGULOS_SUAVIZAR) {
-    // El STL repite cada vértice por triángulo: se unen para que la luz
-    // sea suave y no se vean facetas.
-    geo = mergeVertices(geo, 1e-4);
-  }
-  geo.computeVertexNormals();
+  const sombreadoPlano = !malla.normales;
+  if (malla.normales) geo.setAttribute("normal", new BufferAttribute(malla.normales, 3));
+  else if (malla.indices) geo.computeVertexNormals();
   geo.computeBoundingBox();
   geo.computeBoundingSphere();
   const caja = geo.boundingBox ?? new Box3();
@@ -104,6 +100,7 @@ export function crearEscena(
     roughness: 0.62,
     metalness: 0,
     side: DoubleSide,
+    flatShading: sombreadoPlano && !malla.indices,
     vertexColors: false,
   });
   const modelo = new Mesh(geo, material);
