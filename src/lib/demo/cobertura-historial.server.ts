@@ -73,7 +73,7 @@ function diaDeLaSemana(dia: string): number {
 // ─── Atenciones y cobros de los 3 meses anteriores ───────────────────────
 
 async function sembrarAtencionesAnteriores(ctx: ContextoDemo) {
-  const corte = instanteDeLaClinica(ctx, diaRelativo(ctx, -30), "00:00");
+  const corte = instanteDeLaClinica(ctx, diaRelativo(ctx, -10), "00:00");
   const { count } = await ctx.admin
     .from("appointments")
     .select("id", { count: "exact", head: true })
@@ -101,8 +101,8 @@ async function sembrarAtencionesAnteriores(ctx: ContextoDemo) {
     pagada: boolean;
   };
   const visitas: Visita[] = [];
-  // Del día -31 al -100: de lunes a sábado, un puñado de citas por día.
-  for (let atras = 31; atras <= 100; atras++) {
+  // Del día -10 al -100 (la semilla SQL cubre los últimos 9): de lunes a sábado, un puñado de citas por día.
+  for (let atras = 10; atras <= 100; atras++) {
     const dia = diaRelativo(ctx, -atras);
     const dow = diaDeLaSemana(dia);
     if (dow === 7) continue;
@@ -170,7 +170,7 @@ async function sembrarAtencionesAnteriores(ctx: ContextoDemo) {
         created_by: USUARIO_DEMO_ID,
         created_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -100), "09:00"),
         started_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -100), "09:00"),
-        completed_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -31), "19:00"),
+        completed_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -10), "19:00"),
       })),
     )
     .select("id, patient_id");
