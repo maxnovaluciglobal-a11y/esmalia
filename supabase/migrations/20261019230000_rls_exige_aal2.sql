@@ -45,7 +45,9 @@
 --
 -- Idempotente (create or replace / drop policy if exists). Reversa al pie.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): APLICADA en producción antes de mergear el PR
+-- (regla 5). Este encabezado decía «NO APLICADA» mientras el PR estaba abierto.
+-- Constancia: ESTADO-EJECUCION.md (#72) y tests/mfa-rls-tablas.test.ts.
 
 begin;
 

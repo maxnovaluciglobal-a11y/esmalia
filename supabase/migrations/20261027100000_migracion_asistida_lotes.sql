@@ -42,7 +42,9 @@
 -- columnas nullable (o con default) y triggers que solo actúan sobre filas
 -- con `import_batch_id`, que el código actual nunca escribe.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): APLICADA en producción antes de mergear el PR
+-- (regla 5). Este encabezado decía «NO APLICADA» mientras el PR estaba abierto.
+-- Constancia: 00 - Gestion/ESTADO.md, #162: «2 migraciones aplicadas (backup previo)».
 
 begin;
 

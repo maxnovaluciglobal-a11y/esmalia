@@ -42,7 +42,8 @@
 -- 26-oct-2026, igual a 20261019230000) y solo agrega una condición: quien no
 -- activó el correo ve el mismo resultado que antes.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): APLICADA en producción, comprobado ese día con
+-- to_regclass('public.mfa_email_settings'). Decía «NO APLICADA» mientras el PR estaba abierto.
 -- Reversa al pie.
 
 begin;

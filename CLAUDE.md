@@ -44,7 +44,7 @@ Producción con cobro en USD por Stripe: **Solo US$19,99 y Clínica US$49,99** (
 - **MFA TOTP** obligatorio (`aal2`) para el staff de `/admin`; RLS que exige `aal2` a quien tiene MFA (`sesion_cumple_mfa()`; las tablas nuevas van en `TABLAS_CON_AAL2`, `src/lib/auth/mfa-rls.ts`). `docs/MFA.md`.
 - **Pacientes se archivan, no se borran**; las notas firmadas se corrigen con adenda; la fusión de fichas mueve todo lo del paciente salvo documentos firmados (se leen desde la ficha destino).
 - **Exportación completa** de la clínica (ZIP de CSV con manifiesto y huellas) y "Exportar CSV" en las listas; `tests/exportacion-cobertura.test.ts` exige que toda tabla o columna nueva se exporte o se excluya con motivo.
-- **Simulacro de restauración** mensual (`simulacro-restauracion.yml`): queda _omitido con motivo_ hasta que se cargue el secret `BACKUP_AGE_KEY` (`docs/BACKUPS.md`).
+- **Simulacro de restauración** mensual (`simulacro-restauracion.yml`): corre en modo real desde el 28-oct-2026 (RTO 1 min 59 s, #203; mide solo el camino de datos: no incluye crear el proyecto Supabase, OAuth/SMTP, Vercel ni DNS, `docs/BACKUPS.md`). Si el secret `BACKUP_AGE_KEY` falta, queda _omitido con motivo_ y no abre Issue.
 
 ## Reglas obligatorias
 

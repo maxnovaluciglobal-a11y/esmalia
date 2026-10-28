@@ -19,7 +19,7 @@ La lógica de decisión es pura y está en `src/lib/auth/mfa.ts`, con tests en `
 
 ### La frontera real: RLS exige `aal2` a quien activó MFA
 
-Migración `20261019230000_rls_exige_aal2.sql` (**sin aplicar, requiere OK de Walter**). Hasta ella, el desafío al iniciar sesión era solo una frontera **de interfaz**: el JWT `aal1` (solo contraseña) seguía siendo aceptado por PostgREST, y con la contraseña robada de un usuario con MFA se podía leer la historia clínica llamando `/rest/v1` directo.
+Migración `20261019230000_rls_exige_aal2.sql` (**aplicada en producción**, PR #72). Hasta ella, el desafío al iniciar sesión era solo una frontera **de interfaz**: el JWT `aal1` (solo contraseña) seguía siendo aceptado por PostgREST, y con la contraseña robada de un usuario con MFA se podía leer la historia clínica llamando `/rest/v1` directo.
 
 Patrón oficial de Supabase: una política `RESTRICTIVE` llamada `mfa_exige_aal2` en cada tabla sensible, `for all to authenticated`, con `using`/`with check` = `(select public.sesion_cumple_mfa())`. Las restrictivas se combinan con AND con las permisivas de siempre (`is_clinic_member`, `has_clinic_role`): no abren nada, solo cierran.
 
@@ -35,7 +35,7 @@ Patrón oficial de Supabase: una política `RESTRICTIVE` llamada `mfa_exige_aal2
 
 - **Función:** `public.sesion_cumple_mfa()` — `language sql stable security definer set search_path = ''`, EXECUTE solo para `authenticated` y `service_role`. Devuelve `aal = 'aal2'` **o** no existe factor `verified` en `auth.mfa_factors` para `auth.uid()` **o** es la cuenta demo.
 - **Rendimiento:** envuelta en `(select ...)` Postgres la evalúa una vez por consulta (InitPlan), no por fila; por dentro son dos búsquedas por índice. Verificado con `explain` en una base local.
-- **Tablas:** la lista vive en `src/lib/auth/mfa-rls.ts` (`TABLAS_CON_AAL2`, 36 tablas: pacientes, recetas, signos vitales, tutores y su bitácora, registro de lecturas de la ficha, historia clínica y sus versiones/revisiones/entidades/bitácora, anamnesis y su bitácora, odontograma, periodontograma, documentos, consentimientos, ortodoncia, planes de tratamiento, laboratorio, agenda, pedidos de hora, lista de espera, mensajes, avisos, leads de WhatsApp, accesos al portal, presupuestos, pagos, gastos, caja y comisiones). Más el bucket `clinical-documents` de Storage. Las demás están en `TABLAS_SIN_AAL2` con su motivo (estructura de la clínica que la app lee antes y durante `/auth/verificar`, catálogos, backend solo `service_role`).
+- **Tablas:** la lista vive en `src/lib/auth/mfa-rls.ts` (`TABLAS_CON_AAL2`, 81 tablas (verificado el 28-oct-2026 importando la lista; 62 más en `TABLAS_SIN_AAL2`, 143 en total). La lista de acá es la de la primera tanda, el código manda: pacientes, recetas, signos vitales, tutores y su bitácora, registro de lecturas de la ficha, historia clínica y sus versiones/revisiones/entidades/bitácora, anamnesis y su bitácora, odontograma, periodontograma, documentos, consentimientos, ortodoncia, planes de tratamiento, laboratorio, agenda, pedidos de hora, lista de espera, mensajes, avisos, leads de WhatsApp, accesos al portal, presupuestos, pagos, gastos, caja y comisiones). Más el bucket `clinical-documents` de Storage. Las demás están en `TABLAS_SIN_AAL2` con su motivo (estructura de la clínica que la app lee antes y durante `/auth/verificar`, catálogos, backend solo `service_role`).
 - **Guarda en CI:** `tests/mfa-rls-tablas.test.ts` falla si una migración crea una tabla que no está en ninguna de las dos listas, y si la migración no contiene exactamente el SQL que genera `sqlPoliticaAal2` para cada tabla protegida. **Tabla nueva con datos de salud, de pacientes o de dinero:** agregarla a `TABLAS_CON_AAL2` y crear la política en su propia migración con el SQL de `sqlPoliticaAal2(tabla)`.
 - **Server functions:** las que usan `context.supabase` (cliente del usuario, `requireSupabaseAuth`) reenvían el JWT tal cual a PostgREST, así que heredan el comportamiento de la tabla de arriba sin cambios de código. Las que usan `supabaseAdmin` (portal del paciente, portal del laboratorio, invitaciones, WhatsApp) no se ven afectadas.
 
@@ -61,11 +61,11 @@ Al pie de la migración, comentada. Orden: primero volver a correr la definició
 
 - **Solo desde `/preferencias`, con inicio de sesión reciente** (`sesionReciente`: menos de 10 minutos según el `amr` del JWT; el `iat` no sirve porque se renueva con cada refresh). La pantalla de acceso restringido de `/admin` ya **no** ofrece activar el factor: con una contraseña robada de staff alcanzaba para inscribir un TOTP propio y subir a `aal2`.
 - Esto es una guarda de interfaz: quien tiene la contraseña puede iniciar sesión de nuevo y llamar `mfa.enroll` desde la consola. Lo que protege de verdad al staff es **que cada integrante ya tenga su factor inscrito**. Mientras no lo tenga, la contraseña sola alcanza para inscribirlo. Por eso, después del deploy, todo el staff activa su factor de inmediato y se verifica con `select user_id, status from auth.mfa_factors`.
-- **Demo:** el cliente nunca le pide el código a `demo@esmalia.com` (`_authenticated/route.tsx` y `/auth/verificar`). `/api/demo-reset` borra sus factores en cada reset (admin API), y la migración `20261019140000_demo_sin_mfa.sql` (**sin aplicar, requiere OK de Walter**) agrega un trigger que rechaza inscribirle factores y borra los existentes.
+- **Demo:** el cliente nunca le pide el código a `demo@esmalia.com` (`_authenticated/route.tsx` y `/auth/verificar`). `/api/demo-reset` borra sus factores en cada reset (admin API), y la migración `20261019140000_demo_sin_mfa.sql` (aplicada en producción) agrega un trigger que rechaza inscribirle factores y borra los existentes.
 
 ## Código por correo (26-oct-2026)
 
-Pedido de Walter del 26-oct-2026: esperaba un correo con el código y Esmalia solo usaba Google Authenticator. Migración `20261026900000_mfa_por_correo.sql` (**sin aplicar, requiere OK de Walter**).
+Pedido de Walter del 26-oct-2026: esperaba un correo con el código y Esmalia solo usaba Google Authenticator. Migración `20261026900000_mfa_por_correo.sql` (PR #160; **aplicada en producción**, comprobado el 28-oct-2026 con `to_regclass('public.mfa_email_settings')`).
 
 ### Por qué no es un factor de Supabase
 
@@ -73,7 +73,7 @@ Supabase Auth solo tiene factores **TOTP** y **teléfono** (documentación ofici
 
 - El servidor genera el código (6 dígitos uniformes, `generarCodigo`), guarda solo `sha256("mfa-correo:" + user_id + ":" + session_id + ":" + código)` y lo manda por Resend. Vence en 10 minutos, admite 5 intentos y sirve una vez; un código nuevo anula el anterior. Límites: 1 por minuto por sesión y 5 por hora por usuario (en la base), más un límite por IP en memoria.
 - Al validarlo, la base registra la verificación **ligada al `session_id` del JWT** en `mfa_email_verifications`. Vale mientras esa sesión exista en `auth.sessions` (cerrar sesión la borra) y el usuario tenga el correo activo.
-- `public.sesion_cumple_mfa()` pasa a ser: `aal2` **o** (sin TOTP verificado **y** sin correo activo) **o** demo **o** verificación por correo vigente para esta sesión. Parte de la definición de producción (consultada en solo lectura el 26-oct-2026, igual a `20261019230000`): para quien no activó el correo no cambia nada. Las 46 políticas `mfa_exige_aal2` y el guard de las RPC la usan, así que quedan cubiertas sin tocarlas.
+- `public.sesion_cumple_mfa()` pasa a ser: `aal2` **o** (sin TOTP verificado **y** sin correo activo) **o** demo **o** verificación por correo vigente para esta sesión. Parte de la definición de producción (consultada en solo lectura el 26-oct-2026, igual a `20261019230000`): para quien no activó el correo no cambia nada. Las políticas `mfa_exige_aal2` (una por tabla de `TABLAS_CON_AAL2`, 81 al 28-oct-2026) y el guard de las RPC la usan, así que quedan cubiertas sin tocarlas.
 
 | Sesión                                                          | Resultado           |
 | --------------------------------------------------------------- | ------------------- |
