@@ -331,8 +331,10 @@ describe("citas grupales para todos los inscritos y sexo, en la base", () => {
   it("Informes corta por sexo: «prefiere no decir» es una respuesta y lo no registrado sale como sin dato", async () => {
     await servicio(`UPDATE public.patients SET sex = 'femenino' WHERE id = ANY($1)`, [[p1, p2]]);
     await servicio(`UPDATE public.patients SET sex = 'prefiere_no_decir' WHERE id = $1`, [p3]);
-    const hasta = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    const desde = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    // Ventana de ±3 días: la clínica está en America/Santiago y pasada la medianoche UTC
+    // su "hoy" y el de UTC difieren; con ±1 día la cita de hace 30 h quedaba afuera.
+    const hasta = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10);
+    const desde = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
     const filas = await servicio<{ clave: string | null; valor: string }>(
       `SELECT clave, valor FROM public.informe_metrica($1, 'pacientes_nuevos', $2::date, $3::date, 'sexo')`,
       [clinicId, desde, hasta],
