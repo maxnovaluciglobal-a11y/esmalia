@@ -22,13 +22,18 @@ import { isUndefinedColumnError } from "@/lib/db-errors";
  *    que diga ahora.
  * 2. **supabase-js nunca lanza**: devuelve `{ error }`. Cada lectura y
  *    escritura se revisa; si algo falla se reporta y se responde 500 SIN
- *    insertar en `stripe_events`, para que Stripe reintente. Antes el flujo
+ *    marcar el evento como procesado, para que Stripe reintente. Antes el flujo
  *    seguía, marcaba el evento y respondía 200: un cobro podía quedar sin
  *    registrar sin que nadie se enterara.
- * 3. **Idempotencia por `event.id`**: si ya está en `stripe_events`, 200 sin
- *    reprocesar. Todo lo que hace cada caso es idempotente (upsert por
- *    clínica, update a un estado fijo), así que un reintento tras un 500 es
- *    seguro.
+ * 3. **Idempotencia por `event.id`, con reclamo atómico previo**: antes de
+ *    aplicar se reclama el evento (RPC `claim_stripe_event`, un solo
+ *    `INSERT … ON CONFLICT`). De varias entregas simultáneas, una aplica; el
+ *    resto recibe 200 si ya terminó (`duplicate`) o 409 si sigue en curso
+ *    (`in_progress`, Stripe reintenta). Si aplicar falla, se libera el
+ *    reclamo y se responde 500; si la función se corta sin liberar, el
+ *    reclamo vence a los `LEASE_RECLAMO_EVENTO_SEGUNDOS`. Además, todo lo que
+ *    hace cada caso es idempotente (upsert por clínica, update a un estado
+ *    fijo): el reclamo evita el trabajo doble, no es lo único que protege.
  */
 
 export type AdminClient = SupabaseClient<Database>;
@@ -664,8 +669,49 @@ async function aplicarEvento(event: Stripe.Event, deps: StripeWebhookDeps): Prom
   return clinicId;
 }
 
-/** Código de Postgres para unique_violation. */
-const UNIQUE_VIOLATION = "23505";
+/**
+ * Segundos que dura el derecho a procesar un evento reclamado. Si la función
+ * se corta (timeout, deploy) con el evento reclamado y sin marcar, Stripe
+ * reintenta y, pasado este plazo, otra entrega lo vuelve a reclamar. Es más
+ * que lo que tarda el handler en el peor caso (unas pocas llamadas a Stripe).
+ */
+export const LEASE_RECLAMO_EVENTO_SEGUNDOS = 300;
+
+type ResultadoReclamo = "claimed" | "duplicate" | "in_progress";
+
+/**
+ * Reclama el evento de forma atómica ANTES de aplicarlo (RPC
+ * `claim_stripe_event`: un solo `INSERT … ON CONFLICT` en la base). De varias
+ * entregas simultáneas del mismo `event.id` exactamente una recibe `claimed`.
+ */
+async function reclamarEvento(admin: AdminClient, event: Stripe.Event): Promise<ResultadoReclamo> {
+  const { data, error } = await admin.rpc("claim_stripe_event", {
+    p_id: event.id,
+    p_type: event.type,
+    p_raw: event as unknown as Json,
+    p_lease_seconds: LEASE_RECLAMO_EVENTO_SEGUNDOS,
+  });
+  if (error) throw new ErrorDeBaseEnWebhook("reclamar stripe_events", error);
+  if (data !== "claimed" && data !== "duplicate" && data !== "in_progress") {
+    throw new Error(`claim_stripe_event devolvió un valor inesperado: ${String(data)}`);
+  }
+  return data;
+}
+
+/** Devuelve el reclamo para que el reintento de Stripe pueda aplicar el evento ya. */
+async function liberarReclamo(admin: AdminClient, eventId: string): Promise<void> {
+  try {
+    const { error } = await admin
+      .from("stripe_events")
+      .delete()
+      .eq("id", eventId)
+      .is("processed_at", null);
+    if (error) throw new ErrorDeBaseEnWebhook("liberar stripe_events", error);
+  } catch (err) {
+    // No es fatal: el reclamo vence solo a los LEASE_RECLAMO_EVENTO_SEGUNDOS.
+    console.warn("[stripe webhook] no se pudo liberar el reclamo", eventId, err);
+  }
+}
 
 export async function procesarWebhookStripe(
   input: { rawBody: string; signature: string | null },
@@ -702,37 +748,37 @@ export async function procesarWebhookStripe(
   }
 
   const { admin } = deps;
+  let reclamado = false;
   try {
-    // Idempotencia
-    const { data: exists, error: dupError } = await admin
-      .from("stripe_events")
-      .select("id")
-      .eq("id", event.id)
-      .maybeSingle();
-    if (dupError) throw new ErrorDeBaseEnWebhook("leer stripe_events", dupError);
-    if (exists) return new Response("ok (dup)", { status: 200 });
+    // Idempotencia: reclamar ANTES de aplicar. Antes el evento se marcaba
+    // después (SELECT, aplicar, INSERT), y dos entregas simultáneas pasaban
+    // las dos el SELECT y aplicaban los efectos dos veces.
+    const reclamo = await reclamarEvento(admin, event);
+    if (reclamo === "duplicate") return new Response("ok (dup)", { status: 200 });
+    if (reclamo === "in_progress") {
+      // Otra entrega lo está procesando ahora. No es 2xx: si esa falla o se
+      // corta, Stripe reintenta y entonces lo aplica (o ve que ya terminó).
+      return new Response("in progress", { status: 409 });
+    }
+    reclamado = true;
 
     const clinicId = await aplicarEvento(event, deps);
 
-    // Marcar procesado. Recién acá: si algo de arriba falló, no se llega.
-    const { error: markError } = await admin.from("stripe_events").insert({
-      id: event.id,
-      type: event.type,
-      clinic_id: clinicId,
-      raw: event as unknown as Json,
-    });
-    // Otra entrega concurrente del mismo evento ganó la carrera: ya está
-    // procesado (y lo que hicimos es idempotente), así que es un éxito.
-    if (markError && markError.code !== UNIQUE_VIOLATION) {
-      throw new ErrorDeBaseEnWebhook("insertar stripe_events", markError);
-    }
+    // Marcar procesado. Si algo de arriba falló, no se llega y el catch
+    // libera el reclamo para que Stripe reintente.
+    const { error: markError } = await admin
+      .from("stripe_events")
+      .update({ processed_at: new Date().toISOString(), clinic_id: clinicId })
+      .eq("id", event.id);
+    if (markError) throw new ErrorDeBaseEnWebhook("marcar stripe_events", markError);
 
     return new Response("ok", { status: 200 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[stripe webhook] failure", event.type, event.id, msg);
     await deps.reportarError(err, { ruta: `${RUTA} ${event.type}`, metodo: "POST" });
-    // Sin insertar en stripe_events → Stripe reintenta.
+    // Sin marcar como procesado y con el reclamo liberado → Stripe reintenta.
+    if (reclamado) await liberarReclamo(admin, event.id);
     return new Response("processing error", { status: 500 });
   }
 }

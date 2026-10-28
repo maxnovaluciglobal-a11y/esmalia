@@ -37,14 +37,21 @@ function adminFalso(respuestas: Record<string, Resultado> = {}) {
     builder.insert = registrar("insert", true);
     builder.upsert = registrar("upsert", true);
     builder.update = registrar("update", true);
+    builder.delete = registrar("delete", true);
     builder.eq = registrar("eq");
+    builder.is = registrar("is");
     const resolver = () => respuestas[`${tabla}.${op}`] ?? { data: null, error: null };
     builder.maybeSingle = () => Promise.resolve(resolver());
     builder.then = (ok: (v: Resultado) => unknown, ko?: (e: unknown) => unknown) =>
       Promise.resolve(resolver()).then(ok, ko);
     return builder;
   };
-  return { admin: { from } as unknown as AdminClient, llamadas };
+  // El reclamo atómico del evento (RPC `claim_stripe_event`); por defecto lo gana esta entrega.
+  const rpc = (fn: string, args: unknown) => {
+    llamadas.push({ tabla: "rpc", op: fn, args: [args] });
+    return Promise.resolve(respuestas[`rpc.${fn}`] ?? { data: "claimed", error: null });
+  };
+  return { admin: { from, rpc } as unknown as AdminClient, llamadas };
 }
 
 function evento(parcial: Partial<Stripe.Event> & { type: string; object: unknown }): Stripe.Event {
@@ -105,7 +112,7 @@ function deps(
 
 const entrada = { rawBody: "{}", signature: "t=1,v1=x" };
 const insertoEvento = (ll: Llamada[]) =>
-  ll.some((l) => l.tabla === "stripe_events" && l.op === "insert");
+  ll.some((l) => l.tabla === "stripe_events" && l.op === "update");
 
 describe("esClaveLive", () => {
   it("reconoce claves secretas y restringidas live", () => {
@@ -211,9 +218,9 @@ describe("webhook de Stripe: errores de escritura (COD-02)", () => {
     expect(insertoEvento(llamadas)).toBe(false);
   });
 
-  it("si falla marcar el evento (no por duplicado): 500 para que Stripe reintente", async () => {
-    const { admin } = adminFalso({
-      "stripe_events.insert": { error: { message: "disk full", code: "53100" } },
+  it("si falla marcar el evento como procesado: 500, y se libera el reclamo para que Stripe reintente", async () => {
+    const { admin, llamadas } = adminFalso({
+      "stripe_events.update": { error: { message: "disk full", code: "53100" } },
     });
     const ev = evento({ type: "customer.subscription.updated", object: subActiva });
     vi.spyOn(console, "error").mockImplementationOnce(() => {});
@@ -221,24 +228,75 @@ describe("webhook de Stripe: errores de escritura (COD-02)", () => {
     const res = await procesarWebhookStripe(entrada, deps(ev, admin));
 
     expect(res.status).toBe(500);
+    expect(llamadas.some((l) => l.tabla === "stripe_events" && l.op === "delete")).toBe(true);
   });
 
-  it("si el evento ya lo marcó otra entrega concurrente (unique_violation): 200", async () => {
-    const { admin } = adminFalso({
-      "stripe_events.insert": { error: { message: "duplicate key", code: "23505" } },
+  it("si falla el reclamo (la base no responde): 500 y no se aplica nada", async () => {
+    const { admin, llamadas } = adminFalso({
+      "rpc.claim_stripe_event": { error: { message: "pooler down" } },
+    });
+    const ev = evento({ type: "customer.subscription.updated", object: subActiva });
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+
+    const res = await procesarWebhookStripe(entrada, deps(ev, admin));
+
+    expect(res.status).toBe(500);
+    expect(llamadas.some((l) => l.tabla === "subscriptions")).toBe(false);
+    // No reclamó nada, así que no hay nada que liberar.
+    expect(llamadas.some((l) => l.op === "delete")).toBe(false);
+  });
+
+  it("si aplicar el evento falla: 500, el reclamo se libera y el evento no queda marcado", async () => {
+    const { admin, llamadas } = adminFalso({
+      "subscriptions.upsert": { error: { message: "pooler down" } },
+    });
+    const ev = evento({ type: "customer.subscription.updated", object: subActiva });
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+
+    const res = await procesarWebhookStripe(entrada, deps(ev, admin));
+
+    expect(res.status).toBe(500);
+    expect(insertoEvento(llamadas)).toBe(false);
+    const borrado = llamadas.filter((l) => l.tabla === "stripe_events" && l.op === "delete");
+    expect(borrado).toHaveLength(1);
+    // Solo libera un reclamo sin marcar: nunca borra un evento ya procesado.
+    expect(
+      llamadas.some((l) => l.op === "is" && l.args[0] === "processed_at" && l.args[1] === null),
+    ).toBe(true);
+  });
+
+  it("si otra entrega lo tiene en curso (in_progress): 409 sin aplicar ni marcar, para que Stripe reintente", async () => {
+    const { admin, llamadas } = adminFalso({
+      "rpc.claim_stripe_event": { data: "in_progress", error: null },
     });
     const ev = evento({ type: "customer.subscription.updated", object: subActiva });
 
     const res = await procesarWebhookStripe(entrada, deps(ev, admin));
 
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
+    expect(llamadas.some((l) => l.tabla === "subscriptions")).toBe(false);
+    expect(insertoEvento(llamadas)).toBe(false);
+    expect(llamadas.some((l) => l.op === "delete")).toBe(false);
+  });
+
+  it("si la RPC devuelve algo que no conocemos: 500 (no se asume que ganó)", async () => {
+    const { admin, llamadas } = adminFalso({
+      "rpc.claim_stripe_event": { data: "quizas", error: null },
+    });
+    const ev = evento({ type: "customer.subscription.updated", object: subActiva });
+    vi.spyOn(console, "error").mockImplementationOnce(() => {});
+
+    const res = await procesarWebhookStripe(entrada, deps(ev, admin));
+
+    expect(res.status).toBe(500);
+    expect(llamadas.some((l) => l.tabla === "subscriptions")).toBe(false);
   });
 });
 
 describe("webhook de Stripe: idempotencia", () => {
   it("un evento ya procesado responde 200 sin volver a escribir", async () => {
     const { admin, llamadas } = adminFalso({
-      "stripe_events.select": { data: { id: "evt_1" }, error: null },
+      "rpc.claim_stripe_event": { data: "duplicate", error: null },
     });
     const ev = evento({ type: "customer.subscription.updated", object: subActiva });
 
@@ -286,7 +344,8 @@ describe("webhook de Stripe: eventos fuera de orden", () => {
     expect(res.status).toBe(200);
     expect(d.stripe.subscriptions.retrieve).toHaveBeenCalledWith("sub_1");
     expect(upserts(llamadas)).toEqual(["active"]);
-    expect(llamadas.some((l) => l.op === "update")).toBe(false);
+    // (el único update permitido es la marca de procesado del propio evento)
+    expect(llamadas.some((l) => l.op === "update" && l.tabla !== "stripe_events")).toBe(false);
     expect(d.avisos.pagoFallido).not.toHaveBeenCalled();
   });
 
