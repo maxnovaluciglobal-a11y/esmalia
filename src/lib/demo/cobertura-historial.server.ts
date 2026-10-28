@@ -31,6 +31,7 @@ function lcg(semilla: number) {
 }
 
 const MEDIOS = [
+  "other",
   "cash",
   "debit_card",
   "debit_card",
@@ -82,6 +83,9 @@ async function sembrarAtencionesAnteriores(ctx: ContextoDemo) {
   const procs = await cargarProcedimientos(ctx);
   if (procs.length === 0 || ctx.pacientes.length === 0 || ctx.profesionales.length === 0) return;
   const clinicas = procs.filter((p) => p.price <= 250_000);
+  // Los pacientes nuevos (primera consulta hoy) no tienen atenciones anteriores.
+  const conHistorial = ctx.pacientes.filter((p) => p.estado !== "new");
+  if (conHistorial.length === 0) return;
 
   const azar = lcg(20261028);
   type Visita = {
@@ -110,7 +114,7 @@ async function sembrarAtencionesAnteriores(ctx: ContextoDemo) {
         if ((ip + k + atras) % 3 === 0) continue;
         const hora = horas[(k + ip) % horas.length];
         const proc = clinicas[Math.floor(azar() * clinicas.length)];
-        const paciente = ctx.pacientes[Math.floor(azar() * ctx.pacientes.length)];
+        const paciente = conHistorial[Math.floor(azar() * conHistorial.length)];
         const r = azar();
         visitas.push({
           paciente: paciente.id,
@@ -230,12 +234,13 @@ async function repartirAltasDePacientes(ctx: ContextoDemo) {
     .eq("clinic_id", ctx.clinicId)
     .gt("created_at", new Date(Date.now() - 2 * 86_400_000).toISOString());
   if ((count ?? 0) < 6) return;
-  for (let i = 0; i < ctx.pacientes.length; i++) {
+  const antiguos = ctx.pacientes.filter((p) => p.estado !== "new");
+  for (let i = 0; i < antiguos.length; i++) {
     const d = dias[i % dias.length];
     const { error } = await ctx.admin
       .from("patients")
       .update({ created_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -d), "10:00") })
-      .eq("id", ctx.pacientes[i].id)
+      .eq("id", antiguos[i].id)
       .eq("clinic_id", ctx.clinicId);
     if (error) throw new Error(`altas de pacientes: ${error.message}`);
   }
@@ -244,6 +249,8 @@ async function repartirAltasDePacientes(ctx: ContextoDemo) {
 // ─── Presupuestos de los meses anteriores ────────────────────────────────
 
 type PresupuestoPasado = {
+  /** Fracción del total que ya se pagó (solo los aceptados). */
+  pagado?: number;
   numero: string;
   hace: number;
   estado: "accepted" | "rejected" | "expired" | "sent";
@@ -252,6 +259,7 @@ type PresupuestoPasado = {
 
 const PRESUPUESTOS_PASADOS: readonly PresupuestoPasado[] = [
   {
+    pagado: 1,
     numero: "DEMO-0101",
     hace: 82,
     estado: "accepted",
@@ -261,6 +269,7 @@ const PRESUPUESTOS_PASADOS: readonly PresupuestoPasado[] = [
     ],
   },
   {
+    pagado: 0.6,
     numero: "DEMO-0102",
     hace: 71,
     estado: "accepted",
@@ -271,6 +280,7 @@ const PRESUPUESTOS_PASADOS: readonly PresupuestoPasado[] = [
   },
   { numero: "DEMO-0103", hace: 63, estado: "rejected", items: [["Blanqueamiento dental", 1]] },
   {
+    pagado: 1,
     numero: "DEMO-0104",
     hace: 55,
     estado: "accepted",
@@ -374,6 +384,27 @@ async function sembrarPresupuestosAnteriores(ctx: ContextoDemo) {
           .update({ created_at: creado, started_at: creado })
           .eq("id", plan.id)
           .eq("clinic_id", ctx.clinicId);
+        if (q.pagado) {
+          // La cuenta por cobrar la creó el disparador al aceptar: el pago la abona.
+          const { data: cuenta } = await ctx.admin
+            .from("receivables")
+            .select("id, amount_cents")
+            .eq("clinic_id", ctx.clinicId)
+            .eq("quote_id", quote.id)
+            .maybeSingle();
+          const { error: errPago } = await ctx.admin.from("payments").insert({
+            clinic_id: ctx.clinicId,
+            patient_id: paciente.id,
+            amount_cents: Math.round(total * q.pagado),
+            method: i % 2 === 0 ? "transfer" : "debit_card",
+            paid_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -Math.max(q.hace - 4, 2)), "12:00"),
+            notes: `Pago del presupuesto ${q.numero}`,
+            created_by: USUARIO_DEMO_ID,
+            treatment_plan_id: plan.id,
+            receivable_id: cuenta?.id ?? null,
+          } as never);
+          if (errPago) throw new Error(`pago de ${q.numero}: ${errPago.message}`);
+        }
       }
     } else if (q.estado === "rejected") {
       await ctx.admin
@@ -616,7 +647,7 @@ const PACIENTES_SIN_VISITA = [
     rut: 17_456_789,
     nacimiento: "1990-05-14",
     estado: "inactive",
-    hace: 290,
+    hace: 560,
   },
   {
     nombre: "Felipe Cortés Ibarra",
@@ -649,6 +680,7 @@ async function sembrarPacientesSinVisitaReciente(ctx: ContextoDemo) {
   const sucursal = prof?.sucursalId ?? ctx.sucursales[0]?.id ?? null;
   const procs = await cargarProcedimientos(ctx);
   const control = procs.find((p) => p.name === "Control y limpieza") ?? procs[0];
+  const ids: string[] = [];
   for (const [i, f] of PACIENTES_SIN_VISITA.entries()) {
     const correo = f.nombre
       .split(" ")[0]
@@ -673,6 +705,7 @@ async function sembrarPacientesSinVisitaReciente(ctx: ContextoDemo) {
       .select("id")
       .single();
     if (error) throw new Error(`paciente sin visita reciente: ${error.message}`);
+    ids.push(paciente.id);
     if (!prof || !sucursal || !control) continue;
     const dia = diaRelativo(ctx, -f.hace);
     const { error: errCita } = await ctx.admin.from("appointments").insert({
@@ -690,6 +723,105 @@ async function sembrarPacientesSinVisitaReciente(ctx: ContextoDemo) {
     });
     if (errCita) throw new Error(`cita de ${f.nombre}: ${errCita.message}`);
   }
+  await sembrarSeguimientoDeLosPacientesSinVisita(ctx, ids, procs);
+}
+
+/**
+ * Lo que hace que esos pacientes aparezcan en Seguimiento: un tratamiento a medias y otro
+ * aceptado sin empezar (los dos detenidos, sin cita futura) y controles pendientes, uno de ellos
+ * vencido. Con eso "Tratamientos detenidos", "Controles vencidos" y "Riesgo alto de abandono"
+ * muestran casos, y "Reactivar pacientes" tiene a quién llamar.
+ */
+async function sembrarSeguimientoDeLosPacientesSinVisita(
+  ctx: ContextoDemo,
+  ids: string[],
+  procs: Procedimiento[],
+) {
+  if (ids.length < 3) return;
+  const corona = procs.find((p) => p.name === "Corona dental") ?? procs[0];
+  const endo = procs.find((p) => p.name === "Endodoncia") ?? procs[0];
+  const control = procs.find((p) => p.name === "Control y limpieza") ?? procs[0];
+  if (!corona || !endo || !control) return;
+  const prof = ctx.profesionales[0];
+  const casos = [
+    // A medias: una prestación hecha hace año y medio y dos pendientes.
+    {
+      paciente: ids[0],
+      nombre: "Rehabilitación de la pieza 2.6",
+      creado: -575,
+      items: [
+        { proc: control, estado: "completed" as const, hace: 560 },
+        { proc: endo, estado: "pending" as const, hace: 0 },
+        { proc: corona, estado: "pending" as const, hace: 0 },
+      ],
+    },
+    // Aceptado sin empezar.
+    {
+      paciente: ids[1],
+      nombre: "Corona de la pieza 3.6",
+      creado: -75,
+      items: [{ proc: corona, estado: "pending" as const, hace: 0 }],
+    },
+  ];
+  for (const c of casos) {
+    const { data: plan, error } = await ctx.admin
+      .from("treatment_plans")
+      .insert({
+        clinic_id: ctx.clinicId,
+        patient_id: c.paciente,
+        name: c.nombre,
+        status: "active",
+        total_cents: c.items.reduce((suma, it) => suma + it.proc.price, 0),
+        created_by: USUARIO_DEMO_ID,
+        created_at: instanteDeLaClinica(ctx, diaRelativo(ctx, c.creado), "10:00"),
+        started_at: c.items.some((it) => it.estado === "completed")
+          ? instanteDeLaClinica(ctx, diaRelativo(ctx, c.creado), "10:00")
+          : null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(`plan detenido: ${error.message}`);
+    const { error: errItems } = await ctx.admin.from("treatment_items").insert(
+      c.items.map((it, pos) => ({
+        clinic_id: ctx.clinicId,
+        plan_id: plan.id,
+        procedure_id: it.proc.id,
+        name_snapshot: it.proc.name,
+        price_cents: it.proc.price,
+        status: it.estado,
+        position: pos + 1,
+        ...(it.estado === "completed"
+          ? {
+              completed_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -it.hace), "11:00"),
+              completed_by: USUARIO_DEMO_ID,
+              professional_id: prof?.id ?? null,
+            }
+          : {}),
+      })),
+    );
+    if (errItems) throw new Error(`prestaciones del plan detenido: ${errItems.message}`);
+  }
+  const { error: errControles } = await ctx.admin.from("patient_controls").insert([
+    {
+      clinic_id: ctx.clinicId,
+      patient_id: ids[2],
+      due_on: diaRelativo(ctx, -18),
+      months: 6,
+      reason: "Control semestral con limpieza",
+      status: "pendiente",
+      created_by: USUARIO_DEMO_ID,
+    },
+    {
+      clinic_id: ctx.clinicId,
+      patient_id: ids[1],
+      due_on: diaRelativo(ctx, 12),
+      months: 6,
+      reason: "Control de la corona recién instalada",
+      status: "pendiente",
+      created_by: USUARIO_DEMO_ID,
+    },
+  ]);
+  if (errControles) throw new Error(`controles pendientes: ${errControles.message}`);
 }
 
 // ─── Producción del mes en curso ─────────────────────────────────────────
@@ -714,7 +846,7 @@ async function sembrarProduccionDelMes(ctx: ContextoDemo) {
     .select("patient_id")
     .eq("clinic_id", ctx.clinicId);
   const idsAfiliados = (afiliados ?? []).map((a) => a.patient_id);
-  const conAtencion = ctx.pacientes.filter((p) => p.nombre !== PACIENTES_SIN_VISITA[0].nombre);
+  const conAtencion = ctx.pacientes.filter((p) => p.estado !== "new" && p.estado !== "inactive");
   const inicioMes = `${ctx.hoy.slice(0, 7)}-01`;
   const dias: string[] = [];
   for (let d = inicioMes; d <= ctx.hoy; d = sumarDiasCiviles(d, 1)) dias.push(d);
@@ -839,6 +971,31 @@ async function completarInventarioEsterilizacionYMembresias(ctx: ContextoDemo) {
     if (error) throw new Error(`sucursal del insumo: ${error.message}`);
   }
 
+  // Inventario: dos insumos sin mínimo definido ("Sin alerta"), para que ese filtro muestre algo.
+  const { count: sinMinimo } = await ctx.admin
+    .from("inventory_items")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", ctx.clinicId)
+    .is("min_stock", null);
+  if ((sinMinimo ?? 0) === 0) {
+    const { data: holgados } = await ctx.admin
+      .from("inventory_items")
+      .select("id, current_stock, min_stock")
+      .eq("clinic_id", ctx.clinicId)
+      .not("min_stock", "is", null)
+      .order("name", { ascending: false });
+    for (const it of (holgados ?? [])
+      .filter((x) => x.current_stock >= (x.min_stock ?? 0))
+      .slice(0, 2)) {
+      const { error } = await ctx.admin
+        .from("inventory_items")
+        .update({ min_stock: null })
+        .eq("id", it.id)
+        .eq("clinic_id", ctx.clinicId);
+      if (error) throw new Error(`insumo sin mínimo: ${error.message}`);
+    }
+  }
+
   // Esterilización: un paquete dado de baja (con su motivo), además de los usados y vigentes.
   const { count: bajas } = await ctx.admin
     .from("sterilization_packages")
@@ -891,22 +1048,54 @@ async function completarInventarioEsterilizacionYMembresias(ctx: ContextoDemo) {
     const paciente = ctx.pacientes.find((p) => !yaInscritos.has(p.id));
     if (plan && paciente) {
       const inicio = `${sumarDiasCiviles(`${ctx.hoy.slice(0, 7)}-01`, -62).slice(0, 7)}-01`;
-      const { error } = await ctx.admin.from("patient_memberships").insert({
-        clinic_id: ctx.clinicId,
-        patient_id: paciente.id,
-        plan_id: plan.id,
-        plan_name_snapshot: plan.name,
-        fee_cents: plan.fee_cents,
-        billing_period: plan.billing_period,
-        starts_on: inicio,
-        status: "cancelled",
-        cancelled_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -20), "12:00"),
-        cancelled_by: USUARIO_DEMO_ID,
-        ends_on: `${ctx.hoy.slice(0, 7)}-01`,
-        notes: "Se dio de baja por cambio de ciudad.",
-        created_by: USUARIO_DEMO_ID,
-      });
+      const { data: anulada, error } = await ctx.admin
+        .from("patient_memberships")
+        .insert({
+          clinic_id: ctx.clinicId,
+          patient_id: paciente.id,
+          plan_id: plan.id,
+          plan_name_snapshot: plan.name,
+          fee_cents: plan.fee_cents,
+          billing_period: plan.billing_period,
+          starts_on: inicio,
+          status: "cancelled",
+          cancelled_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -20), "12:00"),
+          cancelled_by: USUARIO_DEMO_ID,
+          ends_on: `${ctx.hoy.slice(0, 7)}-01`,
+          notes: "Se dio de baja por cambio de ciudad.",
+          created_by: USUARIO_DEMO_ID,
+        })
+        .select("id")
+        .single();
       if (error) throw new Error(`membresía anulada: ${error.message}`);
+      // Su cuota del mes quedó anulada (la baja la deshace). Una cuota nace pendiente y se anula
+      // después, como en la app: el disparador no admite crearla ya anulada.
+      const mesActual = `${ctx.hoy.slice(0, 7)}-01`;
+      const finDeMes = sumarDiasCiviles(`${sumarDiasCiviles(mesActual, 31).slice(0, 7)}-01`, -1);
+      const { data: cuota, error: errCuota } = await ctx.admin
+        .from("membership_charges")
+        .insert({
+          clinic_id: ctx.clinicId,
+          membership_id: anulada.id,
+          patient_id: paciente.id,
+          amount_cents: plan.fee_cents,
+          period_start: mesActual,
+          period_end: finDeMes,
+          status: "pending",
+          created_by: USUARIO_DEMO_ID,
+        } as never)
+        .select("id")
+        .single();
+      if (errCuota) throw new Error(`cuota de la membresía anulada: ${errCuota.message}`);
+      const { error: errCuotas } = await ctx.admin
+        .from("membership_charges")
+        .update({
+          status: "void",
+          void_reason: "Se anuló al darse de baja la membresía.",
+        } as never)
+        .eq("id", cuota.id)
+        .eq("clinic_id", ctx.clinicId);
+      if (errCuotas) throw new Error(`cuotas de la membresía anulada: ${errCuotas.message}`);
     }
   }
 }
@@ -1015,22 +1204,89 @@ async function asignarProfesionalAPresupuestos(ctx: ContextoDemo) {
   }
 }
 
+// ─── Plan en pausa ───────────────────────────────────────────────────────
+
+/** Un plan de tratamiento en pausa (el paciente pidió esperar), además de los vigentes y terminados. */
+async function sembrarPlanEnPausa(ctx: ContextoDemo) {
+  const { count } = await ctx.admin
+    .from("treatment_plans")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", ctx.clinicId)
+    .eq("status", "on_hold");
+  if ((count ?? 0) > 0) return;
+  const procs = await cargarProcedimientos(ctx);
+  const corona = procs.find((p) => p.name === "Corona dental") ?? procs[0];
+  const control = procs.find((p) => p.name === "Control y limpieza") ?? procs[0];
+  const paciente = ctx.pacientes[4 % ctx.pacientes.length];
+  if (!corona || !control || !paciente) return;
+  const { data: plan, error } = await ctx.admin
+    .from("treatment_plans")
+    .insert({
+      clinic_id: ctx.clinicId,
+      patient_id: paciente.id,
+      name: "Rehabilitación en pausa",
+      status: "on_hold",
+      total_cents: corona.price + control.price,
+      notes: "El paciente pidió retomar el tratamiento el próximo mes.",
+      created_by: USUARIO_DEMO_ID,
+      created_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -45), "10:00"),
+      started_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -45), "10:00"),
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(`plan en pausa: ${error.message}`);
+  const { error: errItems } = await ctx.admin.from("treatment_items").insert([
+    {
+      clinic_id: ctx.clinicId,
+      plan_id: plan.id,
+      procedure_id: control.id,
+      name_snapshot: control.name,
+      price_cents: control.price,
+      status: "completed" as const,
+      completed_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -44), "11:00"),
+      completed_by: USUARIO_DEMO_ID,
+      professional_id: ctx.profesionales[0]?.id ?? null,
+      position: 1,
+    },
+    {
+      clinic_id: ctx.clinicId,
+      plan_id: plan.id,
+      procedure_id: corona.id,
+      name_snapshot: corona.name,
+      price_cents: corona.price,
+      status: "pending" as const,
+      position: 2,
+    },
+  ]);
+  if (errItems) throw new Error(`prestaciones del plan en pausa: ${errItems.message}`);
+}
+
 export function pasosDeHistorial(admin: Admin): PasoDeSiembra[] {
   return [
     paso(admin, "atenciones y cobros anteriores", sembrarAtencionesAnteriores),
     paso(admin, "altas de pacientes en el tiempo", repartirAltasDePacientes),
     paso(admin, "pacientes sin visita reciente", sembrarPacientesSinVisitaReciente),
     paso(admin, "producción del mes en curso", sembrarProduccionDelMes),
-    paso(
-      admin,
-      "inventario, esterilización y membresías",
-      completarInventarioEsterilizacionYMembresias,
-    ),
+    paso(admin, "plan en pausa", sembrarPlanEnPausa),
     paso(admin, "presupuestos anteriores", sembrarPresupuestosAnteriores),
     paso(admin, "profesional en los presupuestos", asignarProfesionalAPresupuestos),
     paso(admin, "gastos anteriores", sembrarGastosAnteriores),
     paso(admin, "cuentas por cobrar antiguas", sembrarCuentasPorCobrarAnteriores),
     paso(admin, "paquetes de prestaciones", sembrarPaquetes),
     paso(admin, "reajuste de aranceles", sembrarReajusteDeAranceles),
+  ];
+}
+
+/**
+ * Lo que completa datos de pasos anteriores (esterilización, inventario y membresías de las olas
+ * 10 y 14): por eso va al final de la siembra.
+ */
+export function pasosDeCompletado(admin: Admin): PasoDeSiembra[] {
+  return [
+    paso(
+      admin,
+      "inventario, esterilización y membresías",
+      completarInventarioEsterilizacionYMembresias,
+    ),
   ];
 }

@@ -142,7 +142,7 @@ async function sembrarDocumentos(ctx: ContextoDemo) {
     .maybeSingle();
   if (!version) return;
   const tienen = new Set((previos ?? []).map((d) => d.patient_id));
-  const pendientes = ctx.pacientes.filter((p) => !tienen.has(p.id)).slice(0, 5);
+  const pendientes = ctx.pacientes.filter((p) => !tienen.has(p.id));
   if (pendientes.length === 0) return;
 
   const [{ cargarDatosParaDocumento }, motor, { construirContexto }] = await Promise.all([
@@ -223,8 +223,77 @@ async function sembrarExamenes(ctx: ContextoDemo) {
   }
 }
 
+// ─── Datos administrativos de cada paciente ──────────────────────────────
+
+const PREVISIONES = [
+  { plan: "fonasa", institucion: "Fonasa", tramo: "B" },
+  { plan: "isapre", institucion: "Consalud", tramo: null },
+  { plan: "isapre", institucion: "Banmédica", tramo: null },
+  { plan: "particular", institucion: null, tramo: null },
+  { plan: "fonasa", institucion: "Fonasa", tramo: "C" },
+] as const;
+const DIRECCIONES = [
+  ["Av. Providencia 1234, depto. 502", "Providencia"],
+  ["Los Leones 890", "Providencia"],
+  ["Av. Apoquindo 4500, oficina 31", "Las Condes"],
+  ["Irarrázaval 2150", "Ñuñoa"],
+  ["Av. Larraín 6700", "La Reina"],
+  ["Santa Rosa 321", "Santiago"],
+] as const;
+const CONTACTOS = [
+  ["Marcela Soto", "madre"],
+  ["Pablo Ibáñez", "pareja"],
+  ["Rosa Contreras", "hermana"],
+  ["Jorge Fuentes", "padre"],
+  ["Lucía Herrera", "amiga"],
+] as const;
+
+/**
+ * Previsión, dirección y contacto de emergencia de cada paciente (todos nacían "pendientes" y
+ * la ficha mostraba «Ficha incompleta» y «Sin contacto de emergencia»). Solo completa lo que
+ * falta: no pisa lo que la semilla ya dejó.
+ */
+async function completarDatosDeLosPacientes(ctx: ContextoDemo) {
+  const { data: filas } = await ctx.admin
+    .from("patients")
+    .select(
+      "id, health_plan, health_plan_institution, health_plan_tier, address, commune, emergency_contact_name, agreement_id",
+    )
+    .eq("clinic_id", ctx.clinicId)
+    .is("archived_at", null)
+    .order("full_name");
+  for (const [i, p] of (filas ?? []).entries()) {
+    const prev = p.agreement_id ? PREVISIONES[1] : PREVISIONES[i % PREVISIONES.length];
+    const [direccion, comuna] = DIRECCIONES[i % DIRECCIONES.length];
+    const [contacto, parentesco] = CONTACTOS[i % CONTACTOS.length];
+    const cambios: Record<string, string | null> = {};
+    if (!p.health_plan) {
+      cambios.health_plan = prev.plan;
+      cambios.health_plan_institution = prev.institucion;
+      cambios.health_plan_tier = prev.tramo;
+    }
+    if (!p.address) {
+      cambios.address = direccion;
+      cambios.commune = comuna;
+    }
+    if (!p.emergency_contact_name) {
+      cambios.emergency_contact_name = contacto;
+      cambios.emergency_contact_relationship = parentesco;
+      cambios.emergency_contact_phone = `+56 9 6123 46${String(10 + i).padStart(2, "0")}`;
+    }
+    if (Object.keys(cambios).length === 0) continue;
+    const { error } = await ctx.admin
+      .from("patients")
+      .update(cambios as never)
+      .eq("id", p.id)
+      .eq("clinic_id", ctx.clinicId);
+    if (error) throw new Error(`datos del paciente: ${error.message}`);
+  }
+}
+
 export function pasosDeFichas(admin: Admin): PasoDeSiembra[] {
   return [
+    paso(admin, "datos de todos los pacientes", completarDatosDeLosPacientes),
     paso(admin, "notas clínicas de todas las fichas", sembrarNotasClinicas),
     paso(admin, "anamnesis de todas las fichas", sembrarAnamnesis),
     paso(admin, "odontograma de todas las fichas", sembrarOdontogramas),

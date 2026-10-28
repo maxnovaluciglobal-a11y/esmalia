@@ -20,6 +20,8 @@ export const USUARIO_DEMO_ID = "139dd209-8495-415c-b6cd-6bbc63367bad";
 
 export type PacienteDemo = {
   id: string;
+  /** `new`, `active` o `inactive`. */
+  estado: string;
   nombre: string;
   nacimiento: string | null;
   sucursalId: string | null;
@@ -54,7 +56,7 @@ export async function cargarContextoDeLaDemo(admin: Admin): Promise<ContextoDemo
   const [{ data: pacientes }, { data: profesionales }, { data: sucursales }] = await Promise.all([
     admin
       .from("patients")
-      .select("id, full_name, birth_date, branch_id")
+      .select("id, full_name, birth_date, branch_id, status")
       .eq("clinic_id", clinica.id)
       .is("archived_at", null)
       .is("merged_into", null)
@@ -74,6 +76,7 @@ export async function cargarContextoDeLaDemo(admin: Admin): Promise<ContextoDemo
     hoy: diaEnLaZona(zona),
     pacientes: (pacientes ?? []).map((p) => ({
       id: p.id,
+      estado: p.status,
       nombre: p.full_name,
       nacimiento: p.birth_date,
       sucursalId: p.branch_id,

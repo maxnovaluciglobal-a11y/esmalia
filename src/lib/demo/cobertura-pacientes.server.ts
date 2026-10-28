@@ -465,6 +465,194 @@ async function sembrarSalaDeEspera(ctx: ContextoDemo) {
   }
 }
 
+// ─── Notificaciones de la persona de la demo ─────────────────────────────
+
+async function sembrarNotificaciones(ctx: ContextoDemo) {
+  const { count } = await ctx.admin
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", ctx.clinicId)
+    .eq("recipient_id", USUARIO_DEMO_ID)
+    .neq("kind", "stock_low");
+  if ((count ?? 0) > 0) return;
+  const nombre = (i: number) => ctx.pacientes[i % ctx.pacientes.length]?.nombre ?? "Un paciente";
+  const filas = [
+    {
+      kind: "inbound_message",
+      title: `${nombre(0)} escribió por WhatsApp`,
+      body: "Consulta si puede cambiar su hora de la próxima semana.",
+      link: "/conversaciones",
+      hace: 25,
+      leida: false,
+    },
+    {
+      kind: "appointment_request",
+      title: "Nueva solicitud de hora desde el portal",
+      body: `${nombre(3)} pidió una hora para un control.`,
+      link: "/agenda",
+      hace: 90,
+      leida: false,
+    },
+    {
+      kind: "patient_confirmed_appointment",
+      title: `${nombre(1)} confirmó su cita de mañana`,
+      body: null,
+      link: "/agenda",
+      hace: 240,
+      leida: true,
+    },
+    {
+      kind: "review_approved",
+      title: "Tu nota clínica fue revisada y aprobada",
+      body: "La revisión de la nota de control quedó aprobada sin cambios.",
+      link: "/dashboard",
+      hace: 1_500,
+      leida: true,
+    },
+    {
+      kind: "daily_digest",
+      title: "Resumen del día",
+      body: "Tienes citas por confirmar y un control vencido.",
+      link: "/dashboard",
+      hace: 1_900,
+      leida: true,
+    },
+  ];
+  const { error } = await ctx.admin.from("notifications").insert(
+    filas.map((f) => ({
+      clinic_id: ctx.clinicId,
+      recipient_id: USUARIO_DEMO_ID,
+      actor_id: null,
+      kind: f.kind,
+      title: f.title,
+      body: f.body,
+      link: f.link,
+      created_at: new Date(Date.now() - f.hace * 60_000).toISOString(),
+      read_at: f.leida ? new Date(Date.now() - (f.hace - 10) * 60_000).toISOString() : null,
+    })),
+  );
+  if (error) throw new Error(`notificaciones: ${error.message}`);
+}
+
+// ─── Dispositivo vinculado ───────────────────────────────────────────────
+
+/**
+ * La pantalla de sala figura como vinculada y en uso (el tótem y la del box quedan sin vincular,
+ * con su código para emparejar). El token es una huella al azar que nadie conoce: ningún
+ * dispositivo real puede usarla.
+ */
+async function sembrarDispositivoVinculado(ctx: ContextoDemo) {
+  const { data: sala } = await ctx.admin
+    .from("clinic_devices")
+    .select("id, paired_at")
+    .eq("clinic_id", ctx.clinicId)
+    .eq("kind", "sala")
+    .limit(1)
+    .maybeSingle();
+  if (!sala || sala.paired_at) return;
+  const { error } = await ctx.admin
+    .from("clinic_devices")
+    .update({
+      token_hash: hexAleatorio(),
+      paired_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -6), "08:30"),
+      last_used_at: new Date().toISOString(),
+      pairing_code_hash: null,
+      pairing_expires_at: null,
+    })
+    .eq("id", sala.id)
+    .eq("clinic_id", ctx.clinicId);
+  if (error) throw new Error(`dispositivo vinculado: ${error.message}`);
+}
+
+// ─── Mensajes de hoy y de los pacientes inactivos ────────────────────────
+
+/**
+ * Los recordatorios de las citas de hoy (salen por WhatsApp a mano desde la clínica: aquí solo
+ * queda el registro de ejemplo) y, para los pacientes que hace meses no vienen, el aviso de su
+ * control: así "Resultados del piloto", la agenda y la pestaña Mensajes de la ficha tienen qué
+ * mostrar.
+ */
+async function sembrarMensajesDeEjemplo(ctx: ContextoDemo) {
+  const desdeHoy = instanteDeLaClinica(ctx, ctx.hoy, "00:00");
+  const { count } = await ctx.admin
+    .from("messages")
+    .select("id", { count: "exact", head: true })
+    .eq("clinic_id", ctx.clinicId)
+    .eq("direction", "outbound")
+    .eq("template_kind", "appointment_reminder")
+    .gte("created_at", desdeHoy);
+  if ((count ?? 0) > 0) return;
+  const { data: citas } = await ctx.admin
+    .from("appointments")
+    .select("id, patient_id, starts_at, treatment_label")
+    .eq("clinic_id", ctx.clinicId)
+    .gte("starts_at", desdeHoy)
+    .lt("starts_at", instanteDeLaClinica(ctx, diaRelativo(ctx, 1), "00:00"))
+    .neq("status", "cancelada")
+    .order("starts_at")
+    .limit(5);
+  const { data: telefonos } = await ctx.admin
+    .from("patients")
+    .select("id, full_name, phone")
+    .eq("clinic_id", ctx.clinicId)
+    .not("phone", "is", null);
+  const datos = new Map((telefonos ?? []).map((p) => [p.id, p]));
+  const hora = (iso: string) =>
+    new Intl.DateTimeFormat("es-CL", {
+      timeZone: ctx.zona,
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(iso));
+  const recordatorios = (citas ?? []).flatMap((c) => {
+    const p = datos.get(c.patient_id);
+    if (!p?.phone) return [];
+    return [
+      {
+        clinic_id: ctx.clinicId,
+        patient_id: c.patient_id,
+        appointment_id: c.id,
+        channel: "whatsapp" as const,
+        direction: "outbound" as const,
+        recipient: p.phone.replace(/\s/g, ""),
+        body: `Hola ${p.full_name.split(" ")[0]}, te recordamos tu cita de ${c.treatment_label} hoy a las ${hora(c.starts_at)}. Responde este mensaje si necesitas cambiarla.`,
+        status: "delivered" as const,
+        template_kind: "appointment_reminder" as const,
+        sent_by: USUARIO_DEMO_ID,
+        created_at: instanteDeLaClinica(ctx, ctx.hoy, "08:00"),
+        sent_at: instanteDeLaClinica(ctx, ctx.hoy, "08:00"),
+        delivered_at: instanteDeLaClinica(ctx, ctx.hoy, "08:01"),
+      },
+    ];
+  });
+  const inactivos = ctx.pacientes
+    .filter((p) => p.estado === "inactive")
+    .flatMap((p) => {
+      const d = datos.get(p.id);
+      if (!d?.phone) return [];
+      return [
+        {
+          clinic_id: ctx.clinicId,
+          patient_id: p.id,
+          channel: "whatsapp" as const,
+          direction: "outbound" as const,
+          recipient: d.phone.replace(/\s/g, ""),
+          body: `Hola ${d.full_name.split(" ")[0]}, ya pasó un tiempo desde tu último control. Responde este mensaje y te ayudamos a agendar una hora.`,
+          status: "read" as const,
+          sent_by: USUARIO_DEMO_ID,
+          created_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -12), "10:30"),
+          sent_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -12), "10:30"),
+          delivered_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -12), "10:31"),
+          read_at: instanteDeLaClinica(ctx, diaRelativo(ctx, -12), "18:02"),
+        },
+      ];
+    });
+  const filas = [...recordatorios, ...inactivos];
+  if (filas.length === 0) return;
+  const { error } = await ctx.admin.from("messages").insert(filas as never);
+  if (error) throw new Error(`mensajes de ejemplo: ${error.message}`);
+}
+
 export function pasosDePacientes(admin: Admin): PasoDeSiembra[] {
   return [
     paso(admin, "tutor de un menor de edad", sembrarTutor),
@@ -477,5 +665,8 @@ export function pasosDePacientes(admin: Admin): PasoDeSiembra[] {
     paso(admin, "avisos enviados al paciente", sembrarAvisosEnviados),
     paso(admin, "campaña cancelada", sembrarCampanaCancelada),
     paso(admin, "sala de espera", sembrarSalaDeEspera),
+    paso(admin, "mensajes de ejemplo", sembrarMensajesDeEjemplo),
+    paso(admin, "notificaciones", sembrarNotificaciones),
+    paso(admin, "dispositivo vinculado", sembrarDispositivoVinculado),
   ];
 }

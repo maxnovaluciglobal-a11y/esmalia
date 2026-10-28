@@ -101,6 +101,8 @@ async function crearCuentasDeLaDemo(supabaseAdmin: SupabaseAdminClient) {
         // Los planes de atenciones ya realizadas y cobradas (historial, mes en curso y cobros de
         // hoy) no son cuentas por cobrar: se saldan con sus pagos.
         .not("name", "in", '("Atenciones anteriores","Tratamientos del mes","Atenciones de hoy")')
+        // PLA-07: la cuenta nace al aceptar un presupuesto, o sea, solo para planes con presupuesto.
+        .not("quote_id", "is", null)
         .order("created_at"),
       supabaseAdmin
         .from("receivables")
@@ -582,6 +584,8 @@ async function pasosDeSiembra(admin: SupabaseAdminClient): Promise<Paso[]> {
     },
     // Ola 10: finanzas, y caja por operador (después de los cobros de hoy).
     { nombre: "finanzas", correr: () => finanzas.sembrarFinanzasDeLaDemo(admin) },
+    // Historial de meses anteriores, equipo y configuración: antes de las liquidaciones.
+    ...cobertura.pasosDeHistorialDeLaDemo(admin),
     {
       nombre: "caja y comisiones",
       correr: () => cajaComisiones.sembrarCajaYComisionesDeLaDemo(admin),

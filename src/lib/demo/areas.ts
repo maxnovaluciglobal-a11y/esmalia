@@ -279,7 +279,7 @@ export const AREAS_DE_LA_DEMO: readonly AreaDeLaDemo[] = [
   },
   {
     clave: "accesos-a-fichas",
-    etiqueta: "Compliance · lecturas de fichas",
+    etiqueta: "Cumplimiento · lecturas de fichas",
     tabla: "clinical_access_log",
     minimo: 5,
   },
@@ -301,5 +301,43 @@ export const AREAS_DE_LA_DEMO: readonly AreaDeLaDemo[] = [
     etiqueta: "Comisiones · liquidaciones",
     tabla: "commission_settlements",
     minimo: 1,
+  },
+  {
+    clave: "plan-en-pausa",
+    etiqueta: "Planes de tratamiento · en pausa",
+    tabla: "treatment_plans",
+    minimo: 1,
+    filtros: [{ columna: "status", op: "eq", valor: "on_hold" }],
+  },
+  {
+    clave: "dispositivo-vinculado",
+    etiqueta: "Dispositivos · vinculados",
+    tabla: "clinic_devices",
+    minimo: 1,
+    filtros: [{ columna: "paired_at", op: "noNulo" }],
+  },
+  {
+    clave: "membresia-anulada",
+    etiqueta: "Membresías · anuladas",
+    tabla: "patient_memberships",
+    minimo: 1,
+    filtros: [{ columna: "status", op: "eq", valor: "cancelled" }],
+  },
+  {
+    clave: "paquete-dado-de-baja",
+    etiqueta: "Esterilización · bajas",
+    tabla: "sterilization_packages",
+    minimo: 1,
+    filtros: [{ columna: "status", op: "eq", valor: "descartado" }],
+  },
+  {
+    clave: "realizado-hoy",
+    etiqueta: "Caja · prestaciones realizadas hoy",
+    tabla: "treatment_items",
+    minimo: 4,
+    filtros: [
+      { columna: "status", op: "eq", valor: "completed" },
+      { columna: "completed_at", op: "hoy" },
+    ],
   },
 ];

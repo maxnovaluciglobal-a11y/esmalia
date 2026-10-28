@@ -49,7 +49,7 @@ async function sembrarDerechosDeLosTitulares(ctx: ContextoDemo) {
     {
       paciente: p[5 % p.length],
       kind: "supresion",
-      detail: "Ya no atiendo mi salud con ustedes; pido eliminar mis datos de contacto.",
+      detail: "Ya no me atiendo en esta clínica; pido eliminar mis datos de contacto.",
       destino: "respondida" as const,
       respuesta:
         "Eliminamos tus datos de contacto. Conservamos la ficha clínica por el plazo legal de resguardo.",
