@@ -1,7 +1,11 @@
 import { pasosDeClinica } from "@/lib/demo/cobertura-clinica.server";
 import { pasosDeFichas } from "@/lib/demo/cobertura-fichas.server";
 import { pasosDeCumplimiento } from "@/lib/demo/cobertura-cumplimiento.server";
-import { pasosDeCompletado, pasosDeHistorial } from "@/lib/demo/cobertura-historial.server";
+import {
+  pasosDeCompletado,
+  pasosDeHistorial,
+  pasosDePacientesInactivos,
+} from "@/lib/demo/cobertura-historial.server";
 import { pasosDePacientes } from "@/lib/demo/cobertura-pacientes.server";
 import type { Admin, PasoDeSiembra } from "@/lib/demo/contexto.server";
 
@@ -23,6 +27,7 @@ export function pasosDeHistorialDeLaDemo(admin: Admin): PasoDeSiembra[] {
 /** El resto de la cobertura: fichas, relación con el paciente y cumplimiento. */
 export function pasosDeCoberturaDeLaDemo(admin: Admin): PasoDeSiembra[] {
   return [
+    ...pasosDePacientesInactivos(admin),
     ...pasosDeFichas(admin),
     ...pasosDePacientes(admin),
     ...pasosDeCumplimiento(admin),

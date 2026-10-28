@@ -1265,7 +1265,6 @@ export function pasosDeHistorial(admin: Admin): PasoDeSiembra[] {
   return [
     paso(admin, "atenciones y cobros anteriores", sembrarAtencionesAnteriores),
     paso(admin, "altas de pacientes en el tiempo", repartirAltasDePacientes),
-    paso(admin, "pacientes sin visita reciente", sembrarPacientesSinVisitaReciente),
     paso(admin, "producción del mes en curso", sembrarProduccionDelMes),
     paso(admin, "plan en pausa", sembrarPlanEnPausa),
     paso(admin, "presupuestos anteriores", sembrarPresupuestosAnteriores),
@@ -1289,4 +1288,12 @@ export function pasosDeCompletado(admin: Admin): PasoDeSiembra[] {
       completarInventarioEsterilizacionYMembresias,
     ),
   ];
+}
+
+/**
+ * Pacientes que hace meses no vienen: se crean después de los pasos de las olas 8 a 14, que
+ * toman a los primeros pacientes de la lista para sus citas grupales y segmentos.
+ */
+export function pasosDePacientesInactivos(admin: Admin): PasoDeSiembra[] {
+  return [paso(admin, "pacientes sin visita reciente", sembrarPacientesSinVisitaReciente)];
 }

@@ -257,12 +257,15 @@ async function completarDatosDeLosPacientes(ctx: ContextoDemo) {
   const { data: filas } = await ctx.admin
     .from("patients")
     .select(
-      "id, health_plan, health_plan_institution, health_plan_tier, address, commune, emergency_contact_name, agreement_id",
+      "id, full_name, health_plan, health_plan_institution, health_plan_tier, address, commune, emergency_contact_name, agreement_id",
     )
     .eq("clinic_id", ctx.clinicId)
     .is("archived_at", null)
     .order("full_name");
+  const incompleta = (filas ?? []).find((p) => p.full_name === "Valeria Domínguez Paz")?.id;
   for (const [i, p] of (filas ?? []).entries()) {
+    // Una ficha queda incompleta a propósito: la que muestra el aviso «Ficha incompleta».
+    if (p.id === incompleta) continue;
     const prev = p.agreement_id ? PREVISIONES[1] : PREVISIONES[i % PREVISIONES.length];
     const [direccion, comuna] = DIRECCIONES[i % DIRECCIONES.length];
     const [contacto, parentesco] = CONTACTOS[i % CONTACTOS.length];
