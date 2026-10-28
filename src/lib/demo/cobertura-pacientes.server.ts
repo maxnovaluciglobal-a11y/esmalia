@@ -1,4 +1,5 @@
 import { PACIENTES_SIN_VISITA } from "@/lib/demo/cobertura-historial.server";
+import { hora } from "@/lib/formato-fecha";
 import {
   contarFilas,
   diaRelativo,
@@ -598,13 +599,6 @@ async function sembrarMensajesDeEjemplo(ctx: ContextoDemo) {
     .eq("clinic_id", ctx.clinicId)
     .not("phone", "is", null);
   const datos = new Map((telefonos ?? []).map((p) => [p.id, p]));
-  const hora = (iso: string) =>
-    new Intl.DateTimeFormat("es-CL", {
-      timeZone: ctx.zona,
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(new Date(iso));
   const recordatorios = (citas ?? []).flatMap((c) => {
     const p = datos.get(c.patient_id);
     if (!p?.phone) return [];
@@ -616,7 +610,7 @@ async function sembrarMensajesDeEjemplo(ctx: ContextoDemo) {
         channel: "whatsapp" as const,
         direction: "outbound" as const,
         recipient: p.phone.replace(/\s/g, ""),
-        body: `Hola ${p.full_name.split(" ")[0]}, te recordamos tu cita de ${c.treatment_label} hoy a las ${hora(c.starts_at)}. Responde este mensaje si necesitas cambiarla.`,
+        body: `Hola ${p.full_name.split(" ")[0]}, te recordamos tu cita de ${c.treatment_label} hoy a las ${hora(c.starts_at, ctx.zona)}. Responde este mensaje si necesitas cambiarla.`,
         status: "delivered" as const,
         template_kind: "appointment_reminder" as const,
         sent_by: USUARIO_DEMO_ID,
