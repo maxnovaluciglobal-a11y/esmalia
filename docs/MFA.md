@@ -65,7 +65,7 @@ Al pie de la migración, comentada. Orden: primero volver a correr la definició
 
 ## Código por correo (26-oct-2026)
 
-Pedido de Walter del 26-oct-2026: esperaba un correo con el código y Esmalia solo usaba Google Authenticator. Migración `20261026900000_mfa_por_correo.sql` (PR #160 mergeado el 26-oct-2026; **sin constancia escrita de que se aplicó**, confirmar con la consulta de solo lectura de `00 - Gestion/2026-10-28-progreso-transferencia.md`).
+Pedido de Walter del 26-oct-2026: esperaba un correo con el código y Esmalia solo usaba Google Authenticator. Migración `20261026900000_mfa_por_correo.sql` (PR #160; **aplicada en producción**, comprobado el 28-oct-2026 con `to_regclass('public.mfa_email_settings')`).
 
 ### Por qué no es un factor de Supabase
 

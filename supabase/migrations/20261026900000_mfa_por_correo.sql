@@ -42,9 +42,8 @@
 -- 26-oct-2026, igual a 20261019230000) y solo agrega una condición: quien no
 -- activó el correo ve el mismo resultado que antes.
 --
--- Estado (corregido el 28-oct-2026): se aplica antes de mergear el PR #160 (regla 5) y
--- el PR está mergeado, pero NO hay constancia escrita independiente de la aplicación:
--- confirmarla con la consulta de solo lectura de 00 - Gestion/2026-10-28-progreso-transferencia.md.
+-- Estado (corregido el 28-oct-2026): APLICADA en producción, comprobado ese día con
+-- to_regclass('public.mfa_email_settings'). Decía «NO APLICADA» mientras el PR estaba abierto.
 -- Reversa al pie.
 
 begin;
