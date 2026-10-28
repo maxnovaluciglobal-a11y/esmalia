@@ -156,7 +156,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["paciente", "ficha", "cartera", "buscar", "rut", "etiqueta", "segmento", "archivar"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-pacientes-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-pacientes-v3.mp4",
       duracion: "37 s",
       guion:
         "Buscar por RUT, filtrar con la franja de cifras, crear un paciente con Guardar y agendar, etiquetar dos fichas en lote y guardar un segmento.",
@@ -210,7 +210,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ficha-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ficha-v3.mp4",
       duracion: "39 s",
       guion:
         "Abrir una ficha de la demo, leer los datos clave, recorrer las pestañas, crear un presupuesto desde el odontograma y registrar un pago con Cobrar.",
@@ -292,7 +292,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-caja-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-caja-v3.mp4",
       duracion: "38 s",
       guion:
         "Abrir la caja con monto inicial, registrar un pago desde una ficha, anotar un retiro y cerrar con arqueo por billete, incluyendo el aviso de confirmación.",
@@ -350,7 +350,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["ingresos", "gastos", "produccion", "utilidad", "folios", "contador"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-finanzas-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-finanzas-v3.mp4",
       duracion: "31 s",
       guion:
         "Cambiar el período de Finanzas, leer producción por profesional y gastos por categoría, y exportar el CSV para el contador.",
@@ -389,8 +389,8 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["reportes", "estadisticas", "indicadores", "metricas", "embudo", "ocupacion"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-informes-v2.mp4",
-      duracion: "35 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-informes-v3.mp4",
+      duracion: "34 s",
       guion:
         "Abrir Cómo vamos, tocar una cifra para ver el detalle, armar un informe por profesional y guardarlo, y ver el mapa de calor de la agenda.",
     },
@@ -458,7 +458,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["campana", "marketing", "masivo", "correo", "segmento", "plantillas"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-campanas-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-campanas-v3.mp4",
       duracion: "31 s",
       guion:
         "Crear una campaña a un segmento, confirmar la cifra, enviar los correos y despachar la cola de WhatsApp a mano.",
@@ -490,7 +490,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["recordatorio", "aviso", "whatsapp", "confirmar", "48 h"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-recordatorios-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-recordatorios-v3.mp4",
       duracion: "31 s",
       guion:
         "Enviar el recordatorio de 48 h a un paciente por WhatsApp y usar Enviar todos con la cola guiada.",
@@ -518,7 +518,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["whatsapp", "mensajes", "chat", "conversacion", "responder"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-mensajes-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-mensajes-v3.mp4",
       duracion: "31 s",
       guion: "Filtrar sin responder y contestar con Abrir WhatsApp.",
     },
@@ -551,7 +551,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["reserva", "agendamiento", "online", "enlace", "qr", "widget"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-reserva-en-linea-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-reserva-en-linea-v3.mp4",
       duracion: "34 s",
       guion:
         "Configurar reglas, encender la reserva, copiar el enlace y mostrar cómo llega una reserva por confirmar a la agenda.",
@@ -671,8 +671,8 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     palabras: ["usuarios", "roles", "invitar", "permisos", "acceso", "integrante"],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-equipo-v2.mp4",
-      duracion: "37 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-equipo-v3.mp4?v=3b",
+      duracion: "39 s",
       guion: "Invitar a una recepcionista, cambiarle el rol y quitarle un permiso puntual.",
     },
   },
@@ -737,7 +737,7 @@ export const AYUDA_PANTALLAS: readonly AyudaPantalla[] = [
     ],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ajustes-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/pantalla-ajustes-v3.mp4",
       duracion: "31 s",
       guion:
         "Buscar un ajuste, usar Ver como otro rol y descargar la exportación completa de la clínica.",

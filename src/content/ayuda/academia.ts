@@ -20,8 +20,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "hoy",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-primer-dia-v2.mp4",
-      duracion: "48 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-primer-dia-v3.mp4?v=3b",
+      duracion: "42 s",
       guion:
         "Entrar a la demo, recorrer el menú, mostrar Hoy con sus alertas y abrir el botón de ayuda en dos pantallas.",
     },
@@ -55,8 +55,8 @@ export const LECCIONES: readonly Leccion[] = [
     ],
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-ayuda-y-reportar-v2.mp4",
-      duracion: "33 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-ayuda-y-reportar-v3.mp4",
+      duracion: "31 s",
       guion: "Abrir Reportar un problema, tomar la captura, tapar una zona y enviar.",
     },
   },
@@ -94,8 +94,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "ajustes",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-puesta-en-marcha-v2.mp4",
-      duracion: "38 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-puesta-en-marcha-v3.mp4?v=3b",
+      duracion: "32 s",
       guion:
         "Crear una sucursal con su box y horario, cargar tres prestaciones del arancel e importar un CSV de pacientes con vista previa.",
     },
@@ -132,8 +132,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "campanas",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-pacientes-vuelvan-v2.mp4",
-      duracion: "33 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-dueno-pacientes-vuelvan-v3.mp4",
+      duracion: "31 s",
       guion:
         "Crear un segmento de pacientes sin visita en 12 meses, lanzarle una campaña por correo y encender la reserva en línea.",
     },
@@ -227,7 +227,7 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "agenda",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-agenda-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-agenda-v3.mp4?v=3b",
       duracion: "31 s",
       guion:
         "Agendar una cita con choque y resolverla, pasar un paciente a sala y agendar una solicitud del portal.",
@@ -246,7 +246,7 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "recordatorios",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-confirmar-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-confirmar-v3.mp4",
       duracion: "31 s",
       guion:
         "Enviar los recordatorios de 48 h con la cola guiada y anotar que un paciente confirmó por teléfono.",
@@ -265,8 +265,8 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "caja",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-cobrar-v2.mp4",
-      duracion: "36 s",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-cobrar-v3.mp4?v=3b",
+      duracion: "35 s",
       guion:
         "Abrir caja, cobrar un pago con dos medios desde la ficha, registrar un retiro y cerrar con arqueo.",
     },
@@ -284,7 +284,7 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "pacientes",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-pacientes-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-recepcion-pacientes-v3.mp4",
       duracion: "31 s",
       guion: "Crear un paciente con RUT, completar su previsión y etiquetar fichas incompletas.",
     },
@@ -341,7 +341,7 @@ export const LECCIONES: readonly Leccion[] = [
     pantalla: "laboratorios",
     video: {
       estado: "listo",
-      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-tecnico-ordenes-v2.mp4",
+      url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/academia-tecnico-ordenes-v3.mp4",
       duracion: "31 s",
       guion: "Abrir una orden, revisar color y margen y seguir su estado hasta recibido.",
     },
