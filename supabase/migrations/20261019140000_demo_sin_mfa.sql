@@ -10,7 +10,9 @@
 -- supabase_auth_admin). Además se borran los factores que ya existan. Borrar
 -- no se bloquea: así el reset (`/api/demo-reset`) también puede limpiarlos.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): APLICADA en producción antes de mergear el PR
+-- (regla 5). Este encabezado decía «NO APLICADA» mientras el PR estaba abierto.
+-- Constancia: 00 - Gestion/auditorias/2026-10-18-auditoria-360-total/ESTADO-EJECUCION.md (#65).
 
 create or replace function public.bloquear_mfa_cuenta_demo()
 returns trigger

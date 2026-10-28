@@ -24,7 +24,9 @@
 -- Todas exigen owner/admin de la clínica del lote y, a quien activó MFA, una
 -- sesión aal2. Las SECURITY DEFINER revocan EXECUTE a PUBLIC y anon.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): APLICADA en producción antes de mergear el PR
+-- (regla 5). Este encabezado decía «NO APLICADA» mientras el PR estaba abierto.
+-- Constancia: 00 - Gestion/ESTADO.md, #162: «2 migraciones aplicadas (backup previo)».
 
 begin;
 

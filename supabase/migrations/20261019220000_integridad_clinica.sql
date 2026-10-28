@@ -19,7 +19,9 @@
 -- 4. Firmar exige nombre completo y número de registro del profesional; la
 --    firma guarda una foto de ambos, la fecha y el hash del contenido.
 --
--- SIN APLICAR: requiere el OK de Walter (ver la descripción del PR). Se puede
+-- Estado (corregido el 28-oct-2026): APLICADA en producción antes de mergear el PR
+-- (regla 5; ESTADO-EJECUCION.md #79). Decía «SIN APLICAR» mientras el PR estaba abierto.
+-- Se puede
 -- correr dos veces sin romper nada (IF EXISTS / CREATE OR REPLACE / DROP ...
 -- IF EXISTS) y va en una sola transacción.
 

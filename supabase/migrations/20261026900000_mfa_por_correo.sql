@@ -42,7 +42,9 @@
 -- 26-oct-2026, igual a 20261019230000) y solo agrega una condición: quien no
 -- activó el correo ve el mismo resultado que antes.
 --
--- ⚠️ NO APLICADA. Requiere OK de Walter (regla 5 del CLAUDE.md del repo).
+-- Estado (corregido el 28-oct-2026): se aplica antes de mergear el PR #160 (regla 5) y
+-- el PR está mergeado, pero NO hay constancia escrita independiente de la aplicación:
+-- confirmarla con la consulta de solo lectura de 00 - Gestion/2026-10-28-progreso-transferencia.md.
 -- Reversa al pie.
 
 begin;

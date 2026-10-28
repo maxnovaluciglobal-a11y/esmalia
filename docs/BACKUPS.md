@@ -108,10 +108,10 @@ Desde el 27-oct-2026 el ensayo de restauración corre solo: `.github/workflows/s
 
 **Modos**:
 
-- **real** (el programado): necesita el secret `BACKUP_AGE_KEY`. **Mientras no esté cargado, el simulacro queda _omitido_ con el motivo en el resumen** (job `simulacro` en gris, aviso en `preparar`): ni verde falso ni rojo.
+- **real** (el programado): necesita el secret `BACKUP_AGE_KEY`, **que ya está cargado y el modo real corrió el 28-oct-2026** (ver "Resultado real" abajo). Si el secret faltara (se borró o se rotó mal), el simulacro queda _omitido_ con el motivo en el resumen (job `simulacro` en gris, aviso en `preparar`): ni verde falso ni rojo. Ojo: un `omitido` no abre Issue, así que un simulacro que deja de ser real pasa en silencio; el resumen mensual hay que mirarlo.
 - **juguete**: arma un backup de prueba en el runner (Supabase efímero con la clínica demo que siembran las migraciones + 2 usuarios y un archivo por bucket, los scripts de backup **de verdad** y una clave `age` descartable) y lo restaura igual que el real. No usa ningún secret. Corre en cada PR que toque `scripts/simulacro/**`, los scripts de backup o `preseed.sql`, y a mano con modo `juguete`.
 
-### Lo que falta para el modo real (solo Walter)
+### Cargar o recargar el secret del modo real (solo Walter; ya hecho el 28-oct-2026)
 
 1. **Cargar la clave privada como secret** sin que pase por la pantalla ni por el portapapeles (solo la línea `AGE-SECRET-KEY-1…`, sin los comentarios del archivo):
 
@@ -145,7 +145,19 @@ El reporte queda en `./simulacro-reporte/` (cambiar con `SIMULACRO_SALIDA`). `KE
 
 ### Primer resultado (27-oct-2026, modo juguete, local)
 
-204 migraciones sin error · 136/136 tablas con el mismo conteo (521 filas) · 310 FKs, 0 huérfanos · 3/3 usuarios con su id · 4/4 archivos en 4 buckets. **RTO medido: 40 s**, casi todo levantar Supabase y aplicar migraciones (39 s); usuarios, tablas y archivos, menos de 1 s a este volumen. El primer simulacro con un backup real queda para cuando esté `BACKUP_AGE_KEY`.
+204 migraciones sin error · 136/136 tablas con el mismo conteo (521 filas) · 310 FKs, 0 huérfanos · 3/3 usuarios con su id · 4/4 archivos en 4 buckets. **RTO medido: 40 s**, casi todo levantar Supabase y aplicar migraciones (39 s); usuarios, tablas y archivos, menos de 1 s a este volumen.
+
+### Resultado real (28-oct-2026, modo real, backup de B2 del 27-oct)
+
+**1 min 59 s** (PR #203): bajar el backup, descifrar, levantar el esquema con 218 migraciones, recrear 4 usuarios de auth con su id, cargar 143 de 143 tablas con el mismo conteo y subir 5 archivos de Storage; 0 fallos. Es el primer simulacro con un backup real.
+
+**Qué NO cubre ese 1:59** (no se puede comprometer con una clínica como "RTO de Esmalia"):
+
+- Crear el proyecto Supabase real y esperar que levante, configurar Google OAuth, SMTP y plantillas de auth, y repuntar las variables de Vercel con redeploy: estimado en 45-60 min, **nunca medido**.
+- La app encima: no se probó un login, una ficha ni un documento (sin smoke test), ni que las políticas RLS se comporten igual.
+- La clave de Vault (`esmalia_document_id_key`), contraseñas y MFA de los usuarios.
+- Volumen real: la base restaurada es mínima (4 usuarios, 5 archivos); con cupos de 15/45 GB por clínica la bajada y la subida de Storage pesarían mucho más.
+- La verificación (conteos, FKs) no entra en el RTO medido.
 
 El RTO medido es el **camino de datos**. Un incidente real suma lo que no es automatizable en un runner: crear el proyecto Supabase, configurar Google OAuth/SMTP/plantillas, cambiar las variables de Vercel y redeployar (la tabla "RTO estimado" de abajo: ~45-60 min en total).
 
@@ -217,4 +229,5 @@ Requisitos: `age`, `node`, Postgres 16 en `/opt/homebrew/opt/postgresql@16/bin` 
 
 - **2026-08-17**: primer backup manual hecho a mano (no por el workflow, que todavía no tiene los secrets) — 33 tablas, 115 filas, verificado por round-trip. Cierra el riesgo de "cero backups con pacientes reales en prod" mientras se completa el setup de B2. Guardado también en iCloud junto a la clave privada (redundancia geográfica real desde el día uno, no solo local).
 - **2026-10-10**: el backup suma `auth_users` y los archivos de Storage (`storage.tar.gz.age` en `b2:<B2_BUCKET>/storage/`). Primer ensayo de restauración, local, con el backup del 18-ago: 3,0 s, 33/33 tablas, 0 huérfanos (ver "Ensayo de restauración").
-- **2026-10-27**: simulacro de restauración automático y mensual (SEG-05, `.github/workflows/simulacro-restauracion.yml`) sobre un Supabase efímero en el runner. Primer resultado en modo juguete: 40 s, todo verde. El modo real espera el secret `BACKUP_AGE_KEY` (ver "Simulacro automático").
+- **2026-10-27**: simulacro de restauración automático y mensual (SEG-05, `.github/workflows/simulacro-restauracion.yml`) sobre un Supabase efímero en el runner. Primer resultado en modo juguete: 40 s, todo verde.
+- **2026-10-28**: primer simulacro en modo **real** (secret `BACKUP_AGE_KEY` cargado): 1 min 59 s, 143/143 tablas, 218 migraciones, 4 usuarios, 5 archivos (#203). Mide solo el camino de datos; ver "Resultado real".
