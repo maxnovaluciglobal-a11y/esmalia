@@ -14,6 +14,10 @@
       "schedule": "5 5 * * *"
     },
     {
+      "path": "/api/demo-reset?solo-si-hace-falta=1",
+      "schedule": "5 * * * *"
+    },
+    {
       "path": "/api/daily-digest",
       "schedule": "37 * * * *"
     },

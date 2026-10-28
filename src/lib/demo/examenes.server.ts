@@ -96,7 +96,7 @@ const elipse = (x: number, y: number, cx: number, cy: number, rx: number, ry: nu
   ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
 
 /** Radiografía periapical esquemática: una pieza clara con su raíz. */
-function periapical(): Buffer {
+export function periapical(): Buffer {
   return pngGenerado(240, 320, (x, y) => {
     const corona = elipse(x, y, 120, 105, 62, 70);
     const raiz = elipse(x, y, 120, 215, 26, 95);
@@ -110,7 +110,7 @@ function periapical(): Buffer {
 }
 
 /** Panorámica esquemática: dos arcadas de piezas claras. */
-function panoramica(): Buffer {
+export function panoramica(): Buffer {
   return pngGenerado(640, 280, (x, y) => {
     let v = 30 + Math.abs(320 - x) / 12;
     for (let i = 0; i < 14; i++) {
