@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "La ficha clínica de Esmalia reúne en un lugar los datos del paciente, la anamnesis, el odontograma, el periodontograma, las notas clínicas, los consentimientos firmados, radiografías e imágenes, presupuestos y mensajes. Cada nota guarda versiones que no se pueden sobrescribir, se firma, puede pasar por revisión de otro profesional y deja una auditoría que escribe la base de datos.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué guarda la ficha clínica de Esmalia?",

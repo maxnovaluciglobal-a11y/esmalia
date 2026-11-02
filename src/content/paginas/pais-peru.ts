@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia es un software dental que un consultorio peruano configura al darse de alta: queda en soles y en hora de Lima. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos S/ 70 y S/ 180 de referencia, cobrados en dólares. No emite boletas ni facturas electrónicas de SUNAT.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué queda configurado cuando creas un consultorio en Perú?",

@@ -14,7 +14,6 @@ export const pagina: PaginaContenido = {
     "Estos 28 mensajes cubren lo que una recepción escribe todas las semanas: confirmar a 48 h, recordar a 3 h, reprogramar, ofrecer una hora de la lista de espera, seguir un presupuesto, saludar, llamar a control y cobrar con tacto. Cambia las variables entre llaves y pide el consentimiento del paciente antes de escribirle.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo se usan estas plantillas?",

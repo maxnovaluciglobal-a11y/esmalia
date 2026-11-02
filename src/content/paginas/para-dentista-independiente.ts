@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Si atiendes solo con un sillón, necesitas agenda con recordatorios por WhatsApp, ficha con odontograma, presupuestos y saber quién te debe. Lo demás puede esperar. El plan Solo de Esmalia cubre eso por US$19,99 al mes, para un profesional, con 14 días gratis y sin tarjeta.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué necesitas de verdad con un solo sillón?",

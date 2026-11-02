@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Patty, la IA de Esmalia, está en habilitación: la pausamos hasta tenerla sobre un proveedor de IA con contrato para datos de salud. Cuando vuelva, redactará una nota SOAP a partir de tus apuntes, pulirá la redacción, resumirá la nota y extraerá diagnósticos, tratamientos, medicamentos y alergias para que los confirmes. Propone; el profesional revisa y firma. Mientras tanto, las notas clínicas funcionan igual, sin IA.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué hará Patty dentro de Esmalia?",

@@ -16,7 +16,6 @@ export const pagina: PaginaContenido = {
     "En Chile la ficha clínica es obligatoria (Ley 20.584, art. 12) y el Decreto 41 del Minsal fija su contenido mínimo: identificación del paciente, datos de la ficha y del prestador, registro cronológico de cada atención y las decisiones del paciente, como consentimientos. Se conserva al menos 15 años y solo acceden las personas que la ley enumera.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   borrador: true,
   secciones: [
     {

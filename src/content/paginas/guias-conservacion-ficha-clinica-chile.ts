@@ -16,7 +16,6 @@ export const pagina: PaginaContenido = {
     "El Decreto 41 de 2012 del Minsal (art. 11) obliga a conservar la ficha clínica por un mínimo de 15 años, contados desde el último ingreso de información. La Ley 20.584 (art. 13) repite el piso de 15 años. Vencido el plazo, se puede destruir por un método seguro y dejando acta notarial si eres prestador privado.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   borrador: true,
   secciones: [
     {

@@ -18,7 +18,6 @@ export const pagina: PaginaContenido = {
     "Un buen presupuesto dental dice qué se va a hacer, en qué pieza, en qué orden y cuánto cuesta cada cosa, cuánto paga el paciente, hasta cuándo vale y cómo se acepta. Esta plantilla trae el detalle por pieza y por fase, los totales, las condiciones y la firma de aceptación. Imprímela o cópiala; no es un documento tributario.",
   publicado: "2026-10-20",
   actualizado: "2026-10-20",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué debe tener un presupuesto dental?",

@@ -210,7 +210,7 @@ export function PaginaContenidoView({
           <TextoEnLinea texto={pagina.resumen} />
         </p>
         <p className="mt-4 text-xs text-muted-foreground">
-          {pagina.autor.nombre}, {pagina.autor.rol.toLowerCase()} · Actualizado el{" "}
+          Equipo de Esmalia · Actualizado el{" "}
           <time dateTime={pagina.actualizado}>{fechaLarga(pagina.actualizado)}</time>
           {pagina.revisor
             ? ` · Revisado por ${pagina.revisor.nombre} (${pagina.revisor.credencial})`

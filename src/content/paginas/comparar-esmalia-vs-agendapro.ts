@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "AgendaPro es un sistema de agenda y gestión que se ofrece para varios rubros, con pagos y facturación; en Chile la ficha clínica viene desde el plan Premium ($54.900 + IVA) y la factura electrónica en Pro o como complemento. Esmalia es solo dental: ficha, odontograma FDI y WhatsApp desde US$19,99 al mes, funciona sin internet, pero no emite factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué diferencia hay entre AgendaPro y Esmalia?",

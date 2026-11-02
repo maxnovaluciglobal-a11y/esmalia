@@ -17,7 +17,6 @@ export const pagina: PaginaContenido = {
     "Un consentimiento informado odontológico explica en lenguaje simple el procedimiento, para qué sirve, sus riesgos, las alternativas y qué pasa si no se hace, y deja la firma del paciente. En Chile (Ley 20.584) y Argentina (Ley 26.529) debe ser escrito para procedimientos invasivos. Esta plantilla es genérica: adáptala con un profesional.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   borrador: true,
   secciones: [
     {

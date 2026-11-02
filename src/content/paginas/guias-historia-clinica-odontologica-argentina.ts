@@ -17,7 +17,6 @@ export const pagina: PaginaContenido = {
     "En Argentina la historia clínica la regula la Ley 26.529. Es obligatoria, cronológica, foliada y completa; el paciente es su titular y puede pedir copia, que se entrega en 48 horas. Desde la Ley 26.812, la odontológica debe identificar las piezas dentales en forma estandarizada. Se guarda al menos 10 años.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   borrador: true,
   secciones: [
     {

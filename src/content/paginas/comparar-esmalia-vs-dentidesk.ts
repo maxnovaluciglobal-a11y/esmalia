@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Dentidesk es un software dental chileno que emite boletas y facturas integradas con el SII, da 15 días de prueba y tiene fichas de especialidad; no publica precios y su WhatsApp automático está anunciado como próximo. Esmalia publica su precio (US$19,99 o US$49,99 al mes), da 14 días sin tarjeta y sigue funcionando sin internet. No emite boleta ni factura.",
   publicado: "2026-10-19",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿En qué se diferencian Esmalia y Dentidesk?",

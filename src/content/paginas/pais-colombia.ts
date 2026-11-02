@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia es un software odontológico que un consultorio colombiano configura al darse de alta: queda en pesos colombianos sin decimales y en hora de Bogotá. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $61.600 y $154.000 de referencia, cobrados en dólares. No emite factura electrónica de la DIAN.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué queda configurado cuando creas un consultorio en Colombia?",

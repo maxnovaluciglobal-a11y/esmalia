@@ -19,7 +19,6 @@ export const pagina: PaginaContenido = {
     "Para controlar los insumos de una clínica dental bastan tres hojas: un maestro de insumos con su stock mínimo, un registro de entradas y salidas con lote y vencimiento, y un recuento físico periódico. Esta plantilla trae las tres para imprimir o copiar, más cómo calcular el stock mínimo y cómo evitar que se te venzan los materiales.",
   publicado: "2026-10-20",
   actualizado: "2026-10-20",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué hojas necesita un inventario dental?",

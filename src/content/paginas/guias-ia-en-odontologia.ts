@@ -17,7 +17,6 @@ export const pagina: PaginaContenido = {
     "Esmalia usa IA en un solo lugar: Patty, que redactará notas clínicas a partir de tus apuntes y leerá los pedidos de hora que las reglas no entienden. Hoy Patty está en habilitación: no envía ningún dato a un modelo hasta tenerla sobre un proveedor con contrato para datos de salud. Agenda, recordatorios, odontograma, presupuestos y cobros funcionan sin IA.",
   publicado: "2026-10-20",
   actualizado: "2026-10-20",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Dónde usa IA Esmalia?",

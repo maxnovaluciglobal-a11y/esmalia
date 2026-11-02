@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia no manda recordatorios solos. Cada cita entra a una cola 48 horas y 3 horas antes; alguien de la clínica revisa la lista y envía cada mensaje con un toque, por wa.me o desde el número propio de la clínica conectado a Meta. Ningún mensaje sale sin que una persona lo dispare.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo funcionan los recordatorios por WhatsApp en Esmalia?",

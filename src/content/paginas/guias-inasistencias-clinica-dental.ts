@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "La tasa de inasistencia es citas en que el paciente no vino ni avisó, dividido por citas agendadas, por 100. Mídela cada mes. Para bajarla funcionan tres cosas: confirmar 48 h antes, recordar 3 h antes y tener una lista de espera para llenar el hueco. Una política de cancelación clara ayuda a sostenerlo.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo se calcula la tasa de inasistencia?",
