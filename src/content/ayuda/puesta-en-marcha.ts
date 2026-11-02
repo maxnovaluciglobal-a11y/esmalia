@@ -121,7 +121,7 @@ export const AYUDA_PUESTA_EN_MARCHA: Readonly<Record<IdPaso, AyudaPaso>> = {
       url: "https://hvfkygoguxvpmwslrccb.supabase.co/storage/v1/object/public/videos-ayuda/puesta-en-marcha-10-v3.mp4?v=3b",
       duracion: "31 s",
       guion:
-        "Walter explica qué se hace en la llamada de puesta en marcha, cuánto dura y qué queda activado al final.",
+        "El equipo de Esmalia explica qué se hace en la llamada de puesta en marcha, cuánto dura y qué queda activado al final.",
     },
   },
 };

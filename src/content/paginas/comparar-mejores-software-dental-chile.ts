@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "No hay un software dental que sea el mejor para todas las clínicas de Chile. Según su web, Dentalink tiene más de 15.000 clínicas y emite boleta electrónica si tu plan incluye el servicio. AgendaPro se ofrece para varios rubros, no solo dental. Doctocliq tiene plan gratis. Esmalia conviene si quieres WhatsApp revisado por tu equipo, IA para notas y trabajar sin internet.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo armamos esta comparativa?",

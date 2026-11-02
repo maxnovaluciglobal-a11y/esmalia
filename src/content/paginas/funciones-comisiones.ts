@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "En Esmalia cada profesional tiene una regla de comisión: un porcentaje sobre su producción o un monto fijo por procedimiento. La producción es la suma de los tratamientos marcados como realizados en el período. Al cerrar el período, los montos quedan congelados, se avisa por email a cada profesional con email cargado y luego se marca como pagado.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo calcula Esmalia la comisión de cada profesional?",

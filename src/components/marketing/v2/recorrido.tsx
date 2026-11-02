@@ -1,5 +1,5 @@
-// Recorrido comercial (/recorrido, 21-oct-2026). Es lo que Walter manda por
-// WhatsApp cuando una clínica responde el primer mensaje del kit: una página
+// Recorrido comercial (/recorrido, 21-oct-2026). Es lo que el equipo de Esmalia
+// manda cuando una clínica responde el primer mensaje del kit: una página
 // para leer en el celular, con pantallas reales de la clínica demo, y que se
 // imprime como PDF para quien lo pida. Plan aprobado:
 // 07 - Clientes y Ventas/kit-piloto/2026-10-21-plan-recorrido-comercial.md.
@@ -219,7 +219,7 @@ const DIFERENCIAS = [
   },
   {
     t: "Hablas con quien lo hace",
-    d: "Durante el piloto, el soporte es directo con el fundador por WhatsApp, con respuesta en menos de 4 horas hábiles.",
+    d: "Durante el piloto, el soporte es directo con el equipo de Esmalia por WhatsApp, con respuesta en menos de 4 horas hábiles.",
   },
 ] as const;
 
@@ -277,7 +277,7 @@ function Botones({ lugar, claro = false }: { lugar: string; claro?: boolean }) {
         onClick={() => registrarEvento("cta_click", { cta: "whatsapp", lugar })}
         className={claro ? "lv-btn lv-btn-ink" : "lv-btn lv-btn-ocre"}
       >
-        {whatsapp.esWhatsApp ? "Escribirle a Walter" : "Escribirnos"} <Flecha />
+        Escribirnos <Flecha />
       </a>
       <Link
         to="/auth"

@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Las alternativas a Dentalink más directas en Chile son Dentidesk, si necesitas boletas integradas con el SII; Doctocliq, si quieres precio publicado y plan gratis; AgendaPro, si atiendes varios rubros; y Esmalia, si buscas precio publicado, 14 días sin tarjeta, trabajo sin internet y WhatsApp revisado por tu equipo.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Por qué buscar una alternativa a Dentalink?",

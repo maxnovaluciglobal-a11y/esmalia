@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Una clínica con varios profesionales necesita que cada persona vea solo lo suyo, que las comisiones se calculen sin planilla y que la agenda muestre a cada profesional por separado. El plan Clínica de Esmalia cubre eso para hasta 3 profesionales por US$49,99 al mes, con 14 días gratis y sin tarjeta.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué cambia cuando la clínica tiene equipo?",

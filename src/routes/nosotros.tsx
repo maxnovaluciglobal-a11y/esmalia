@@ -11,7 +11,7 @@ export const Route = createFileRoute("/nosotros")({
         {
           name: "description",
           content:
-            "Esmalia es un software para clínicas dentales de Latinoamérica que construye su fundador, con soporte directo. Por qué existe y cómo se hace.",
+            "Esmalia es un software para clínicas dentales de Latinoamérica hecho por un equipo chico, con soporte directo. Por qué existe y cómo se hace.",
         },
         ...canonical.meta,
       ],
@@ -26,17 +26,15 @@ function Nosotros() {
     <LegalPage label="Empresa" title="Quiénes somos">
       <div className="flex items-start gap-4 rounded-xl border border-hairline bg-card p-5">
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-foreground font-display text-lg font-bold text-background">
-          W
+          E
         </span>
         <div>
           <p className="text-base leading-relaxed text-foreground">
-            "Soy Walter. Hice Esmalia porque vi clínicas ahogadas en planillas y recordatorios a
-            mano. Está pensado para cómo se trabaja en LatAm. Si lo pruebas y algo te traba,
-            escríbeme — te respondo yo."
+            "Hicimos Esmalia porque vimos clínicas ahogadas en planillas y recordatorios a mano.
+            Está pensado para cómo se trabaja en LatAm. Si lo pruebas y algo te traba, escríbenos:
+            te respondemos nosotros."
           </p>
-          <p className="mt-3 text-sm font-medium text-muted-foreground">
-            Walter La Madriz · fundador de Esmalia
-          </p>
+          <p className="mt-3 text-sm font-medium text-muted-foreground">Equipo de Esmalia</p>
         </div>
       </div>
 
@@ -56,9 +54,9 @@ function Nosotros() {
 
       <LegalH2>Cómo se hace</LegalH2>
       <LegalP>
-        Esmalia lo construye su fundador, con soporte directo: si escribes, te responde quien hace
-        el producto. No hay una empresa grande detrás. Eso significa que las decisiones se toman
-        rápido y el producto mejora seguido, pero también que el equipo es chico. Preferimos ser
+        Esmalia lo construye un equipo chico, con soporte directo: si escribes, te responde quien
+        hace el producto. No hay una empresa grande detrás. Eso significa que las decisiones se
+        toman rápido y el producto mejora seguido, pero también que somos pocos. Preferimos ser
         honestos con esto antes que prometer una estructura que todavía no existe.
       </LegalP>
       <LegalP>

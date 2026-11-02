@@ -10,7 +10,7 @@
 //      (cargarla en Vercel activa Calendly sin tocar código).
 //   2. WhatsApp de ventas (`VITE_SALES_WHATSAPP`) con el mensaje prellenado:
 //      hoy es lo que funciona sin configurar nada y coincide con la oferta
-//      ("hablas directo conmigo").
+//      (soporte directo por WhatsApp).
 //   3. Correo a `hola@esmalia.com`, para que el botón nunca quede muerto.
 // Nunca se publica un enlace a un evento que no existe: un 404 justo en el
 // paso que desbloquea WhatsApp, portal y efectividad es peor que no tener botón.

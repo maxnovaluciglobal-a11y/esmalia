@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Medilink se presenta como software para todas las especialidades médicas, con más de 15.000 clientes según su web; emite boletas desde el plan Pro y no publica precios. Su web no menciona odontograma. Esmalia es solo dental: odontograma FDI con periodontograma, precio publicado (US$19,99 o US$49,99 al mes) y uso sin internet. No emite boleta ni factura.",
   publicado: "2026-10-19",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿En qué se diferencian Esmalia y Medilink?",

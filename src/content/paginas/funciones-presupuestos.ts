@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "En Esmalia armas el presupuesto en la ficha del paciente, con prestaciones del arancel, pieza y superficie FDI, fases y descuentos en monto o porcentaje. Al aceptarlo, con firma opcional del paciente, se crea el plan de tratamiento con las mismas líneas. Cada pago descuenta el saldo y cada ítem muestra si está pagado.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo se arma un presupuesto dental en Esmalia?",

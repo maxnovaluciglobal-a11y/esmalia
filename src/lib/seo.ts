@@ -77,7 +77,6 @@ export function siteJsonLdScripts() {
       logo: `${SITE_URL}/icons/apple-touch-icon.png`,
       description: "Software de gestión para clínicas dentales de Latinoamérica.",
       email: "hola@esmalia.com",
-      founder: { "@type": "Person", name: "Walter La Madriz" },
       contactPoint: [
         {
           "@type": "ContactPoint",
@@ -174,7 +173,6 @@ export function contenidoHead(pagina: {
   h1: string;
   publicado: string;
   actualizado: string;
-  autor: { nombre: string; rol: string };
   revisor?: { nombre: string; credencial: string };
   faq?: { q: string; a: string }[];
   coleccionNombre: string;
@@ -210,7 +208,7 @@ export function contenidoHead(pagina: {
         inLanguage: "es",
         datePublished: pagina.publicado,
         dateModified: pagina.actualizado,
-        author: { "@type": "Person", name: pagina.autor.nombre, jobTitle: pagina.autor.rol },
+        author: { "@type": "Organization", "@id": ORGANIZATION_ID, name: "Esmalia", url: SITE_URL },
         ...(pagina.revisor
           ? {
               reviewedBy: {

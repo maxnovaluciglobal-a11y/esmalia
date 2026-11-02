@@ -48,7 +48,6 @@ export interface PaginaContenido {
   publicado: string;
   /** AAAA-MM-DD; para comparativas, la fecha en que se relevaron los datos. */
   actualizado: string;
-  autor: { nombre: string; rol: string };
   /** Revisión profesional (odontólogo, contador, abogado). Obligatoria en
    *  guías clínicas o normativas: sin revisor, esas páginas van como borrador. */
   revisor?: { nombre: string; credencial: string };

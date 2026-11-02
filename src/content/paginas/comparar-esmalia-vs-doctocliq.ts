@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Doctocliq parte más barato y tiene plan gratis: US$19, US$29 o US$49 al mes, con recordatorios automáticos y, según su web, factura electrónica como complemento en Perú, México, Ecuador y Colombia. Esmalia cuesta US$19,99 para un profesional y US$49,99 para hasta tres, funciona sin internet y deja que tu equipo revise cada WhatsApp. No factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cuánto cuesta cada uno?",

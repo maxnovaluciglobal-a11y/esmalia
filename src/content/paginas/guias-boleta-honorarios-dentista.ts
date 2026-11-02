@@ -15,7 +15,6 @@ export const pagina: PaginaContenido = {
     "En 2026 la retención de la boleta de honorarios es 15,25%, según el SII. Si te paga una empresa o una clínica con contabilidad, ella retiene y paga. Si te paga un paciente persona natural, emites sin retención y tú pagas ese 15,25% como PPM en el Formulario 29. Esmalia no emite boletas.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   borrador: true,
   secciones: [
     {

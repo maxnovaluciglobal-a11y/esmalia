@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Sí. Si se corta internet, Esmalia sigue abierta: puedes agendar, cambiar el estado de una cita, cobrar, guardar notas clínicas, marcar el odontograma y editar la anamnesis. Todo queda en una cola en el equipo y se sincroniza solo, en orden, cuando vuelve la conexión. Enviar WhatsApp y crear presupuestos sí necesitan internet.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué puedes hacer en Esmalia sin internet?",

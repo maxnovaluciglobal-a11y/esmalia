@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia es un software dental que un consultorio en México configura al darse de alta: queda en pesos mexicanos y en hora de Ciudad de México. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $340 y $850 MXN de referencia, cobrados en dólares. No emite CFDI.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué queda configurado cuando creas un consultorio en México?",

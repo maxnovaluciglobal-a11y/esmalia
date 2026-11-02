@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "El odontograma de Esmalia usa numeración FDI, con dentición permanente, temporal y mixta. Tocas una superficie (mesial, distal, oclusal, vestibular o lingual) o la pieza completa y eliges entre 29 condiciones; una pieza puede tener varias a la vez, como endodoncia y corona. Cada marca dice si es existente o por realizar, en azul o en rojo, y la historia de cada diente queda completa y con autor.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Cómo se marca una pieza en el odontograma de Esmalia?",

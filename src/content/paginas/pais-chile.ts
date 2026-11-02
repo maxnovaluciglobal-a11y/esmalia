@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia es un software dental que una clínica chilena configura en cuatro pasos: queda en pesos chilenos sin decimales y en hora de Santiago. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, unos $18.400 y $46.000 de referencia. No emite boleta ni factura electrónica del SII.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué queda configurado cuando creas una clínica en Chile?",

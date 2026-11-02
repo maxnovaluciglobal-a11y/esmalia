@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Esmalia es un software odontológico que un consultorio argentino configura en cuatro pasos: queda en pesos argentinos con centavos y en hora de Buenos Aires. Cuesta US$19,99 al mes para un profesional o US$49,99 hasta tres, cobrados en dólares. No emite facturas electrónicas de ARCA.",
   publicado: "2026-10-11",
   actualizado: "2026-10-11",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿Qué queda configurado cuando creas un consultorio en Argentina?",

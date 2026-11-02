@@ -12,7 +12,6 @@ export const pagina: PaginaContenido = {
     "Según su web, Dentalink tiene más de 16 años y más de 15.000 clínicas, y emite boleta electrónica si tu plan incluye el servicio; su precio se cotiza. Esmalia publica su precio (US$19,99 o US$49,99 al mes), da 14 días sin tarjeta, sigue funcionando sin internet y no envía WhatsApp sin que tu equipo lo revise. No emite boleta ni factura.",
   publicado: "2026-10-11",
   actualizado: "2026-10-19",
-  autor: { nombre: "Walter La Madriz", rol: "Fundador de Esmalia" },
   secciones: [
     {
       h2: "¿En qué se diferencian Esmalia y Dentalink?",
