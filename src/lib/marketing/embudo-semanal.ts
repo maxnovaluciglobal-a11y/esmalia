@@ -8,6 +8,7 @@
 // Puro: sin DB, sin red, sin `process.env`. Las lecturas y el envío están en
 // `embudo-semanal.server.ts`. Definiciones: `docs/MEDICION.md`.
 import { pTenue, renderCorreo, type CorreoRenderizado } from "@/lib/email/layout";
+import { fechaCorta } from "@/lib/formato-fecha";
 
 export const REPORTE_PARA = "maxnovaluciglobal@gmail.com";
 export const ZONA_DEL_REPORTE = "America/Santiago";
@@ -134,13 +135,8 @@ export function tocaEnviar(ahora: Date = new Date()): boolean {
 }
 
 export function etiquetaDeSemana(semana: string): string {
-  const inicio = new Date(`${semana}T00:00:00Z`);
-  const fin = new Date(inicio.getTime() + 6 * DIA_MS);
-  const f = (d: Date) =>
-    new Intl.DateTimeFormat("es", { day: "numeric", month: "short", timeZone: "UTC" })
-      .format(d)
-      .replace(".", "");
-  return `${f(inicio)} al ${f(fin)} de ${fin.getUTCFullYear()}`;
+  const fin = restarDias(semana, -6);
+  return `${fechaCorta(semana)} al ${fechaCorta(fin)} de ${fin.slice(0, 4)}`;
 }
 
 /** "+3 (+50 %)", "−2 (−40 %)" o "sin cambio". */
