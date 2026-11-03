@@ -6,7 +6,13 @@ name: Embudo semanal (disparo de respaldo)
 on:
   schedule:
     - cron: "42 15-20 * * 1"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "cron, dry_run o preview (manda una copia marcada como vista previa)"
+        type: choice
+        options: [preview, dry_run, cron]
+        default: preview
 
 concurrency:
   group: embudo-semanal
@@ -22,10 +28,11 @@ jobs:
         env:
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
           APP_URL: ${{ vars.APP_URL || 'https://esmalia.com' }}
+          MODO: ${{ inputs.modo || 'cron' }}
         run: |
           if [ -z "$CRON_SECRET" ]; then echo "::error::Falta el secret CRON_SECRET"; exit 1; fi
           status=$(curl -sS -o respuesta.txt -w "%{http_code}" --retry 3 --retry-delay 20 --max-time 120 \
             -H "Authorization: Bearer $CRON_SECRET" \
-            "$APP_URL/api/embudo-semanal")
+            "$APP_URL/api/embudo-semanal?modo=$MODO")
           echo "HTTP $status"; head -c 300 respuesta.txt; echo
           [ "$status" = "200" ] || { echo "::error::embudo-semanal respondió $status"; exit 1; }

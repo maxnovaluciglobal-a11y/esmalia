@@ -74,7 +74,7 @@ El mismo reporte que recibe MOY IQ: seis números con su variación y los leads 
 
 Metas al 31-dic-2026, aprobadas por Walter el 02-nov-2026 (`FILAS_DEL_REPORTE`): 3 clínicas piloto activas y 1 clínica pagando. Se excluyen las clínicas demo y las creadas por correos internos (`esCorreoInterno`). No hay foto guardada: la semana anterior se recalcula, así que una clínica que canceló sale también de las **activas** de la semana anterior (el mismo límite de la North Star). Disparo: Vercel Cron los lunes de 15 a 20 UTC en el minuto 12 y `embudo-semanal.yml` en el 42; el endpoint solo envía de 12:00 a 16:59 hora de Chile. Las horas siguientes a las 12 son reintentos: la clave `embudo-semanal/<lunes>` hace que Resend no repita el correo durante 24 h.
 
-Con `Authorization: Bearer $CRON_SECRET`, `/api/embudo-semanal?modo=dry_run` devuelve los números sin enviar y `?modo=preview` manda una copia con el asunto `[Vista previa]`.
+Con `Authorization: Bearer $CRON_SECRET`, `/api/embudo-semanal?modo=dry_run` devuelve los números sin enviar y `?modo=preview` manda una copia con el asunto `[Vista previa]`. Sin leer el secreto: `gh workflow run embudo-semanal.yml -f modo=preview`.
 
 ## Consultas
 
