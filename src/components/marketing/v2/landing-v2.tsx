@@ -25,7 +25,7 @@ import { PattyChip } from "./patty-chip";
 import { PattySeccion } from "./patty-seccion";
 import { PreciosV2 } from "./precios-v2";
 import { ReservaEnVivo } from "./reserva-en-vivo";
-import { FaqCorta, TestimoniosReservados, TodaviaNo } from "./secciones-finales";
+import { FaqCorta, TodaviaNo } from "./secciones-finales";
 import { TimelinePrueba } from "./timeline-prueba";
 import { WordmarkGigante } from "./wordmark-gigante";
 
@@ -63,7 +63,6 @@ export function LandingV2() {
         <TodaviaNo />
         <FranjaSeguridad className="max-w-none w-[min(1320px,100%-48px)] px-0 max-[720px]:w-[calc(100%-32px)]" />
         <PreciosV2 />
-        <TestimoniosReservados />
         <FaqCorta />
         <CtaFinal />
       </main>

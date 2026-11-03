@@ -29,7 +29,7 @@ function Terminos() {
     <LegalPage
       label="Legal"
       title="Términos de servicio"
-      updated="Versión 4 · 20 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 4 · 20 de octubre de 2026 · MAXNOVA & LUCI GLOBAL LLC"
     >
       <LegalNotice>
         Esmalia está en etapa de piloto: plan Solo a US$19,99/mes (1 profesional), plan Clínica a
@@ -52,7 +52,7 @@ function Terminos() {
       <LegalP>
         Esmalia es un software como servicio (SaaS) para la gestión de clínicas dentales: agenda,
         fichas clínicas, odontograma, presupuestos, cobranza y mensajería por WhatsApp. Lo opera
-        MAXNOVA &amp; LUCI Global LLC, una LLC constituida en Florida, Estados Unidos ("Esmalia",
+        MAXNOVA &amp; LUCI GLOBAL LLC, una LLC constituida en Florida, Estados Unidos ("Esmalia",
         "nosotros"). Al crear una cuenta o usar la aplicación, la clínica acepta estos términos, la{" "}
         <a href="/privacidad" className={enlace}>
           Política de privacidad
@@ -193,7 +193,7 @@ function Terminos() {
 
       <LegalH2>8. Propiedad intelectual</LegalH2>
       <LegalP>
-        El software de Esmalia, su diseño y su marca son propiedad de MAXNOVA &amp; LUCI Global LLC.
+        El software de Esmalia, su diseño y su marca son propiedad de MAXNOVA &amp; LUCI GLOBAL LLC.
         Te damos una licencia para usarlo mientras tengas una cuenta activa; no se te transfiere
         ninguna propiedad sobre el software. Los datos que cargas siguen siendo tuyos como se
         describe en la sección 3. Si nos mandas sugerencias, podemos usarlas para mejorar Esmalia

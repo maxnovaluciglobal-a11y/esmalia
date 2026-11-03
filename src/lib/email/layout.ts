@@ -201,7 +201,7 @@ export interface EntradaLayout {
 }
 
 export const LINEA_MARCA = "Esmalia · software para clínicas dentales";
-export const LINEA_EMPRESA = "MAXNOVA & LUCI Global LLC";
+export const LINEA_EMPRESA = "MAXNOVA & LUCI GLOBAL LLC";
 
 export function renderCorreo(e: EntradaLayout): CorreoRenderizado {
   const app = e.appUrl.replace(/\/+$/, "");

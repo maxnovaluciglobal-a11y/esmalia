@@ -69,7 +69,7 @@ function Nosotros() {
 
       <LegalH2>La empresa detrás</LegalH2>
       <LegalP>
-        Esmalia es operado por MAXNOVA &amp; LUCI Global LLC, una LLC constituida en Estados Unidos.
+        Esmalia es operado por MAXNOVA &amp; LUCI GLOBAL LLC, una LLC constituida en Estados Unidos.
         Más detalles de cómo tratamos los datos de tu clínica y tus pacientes están en la{" "}
         <a href="/privacidad" className="text-brand-700 underline underline-offset-2">
           Política de Privacidad

@@ -198,6 +198,15 @@ export function SiteFooter() {
             Software de gestión dental · Hecho para Latinoamérica
             <Lock className="size-3" /> tus datos son tuyos
           </span>
+          <span className="text-xs">
+            Un producto de{" "}
+            <a
+              href="https://maxnovaluci.com/es/"
+              className="underline underline-offset-2 transition-colors hover:text-foreground"
+            >
+              MAXNOVA &amp; LUCI GLOBAL LLC
+            </a>
+          </span>
         </div>
       </div>
     </footer>
