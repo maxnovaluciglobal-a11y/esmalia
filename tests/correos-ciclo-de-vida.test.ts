@@ -203,8 +203,8 @@ function revisarLayout(nombre: string, correo: { html: string; text: string }) {
     `<img src="${APP}/brand/esmalia-wordmark-email.png" width="150" height="42" alt="Esmalia"`,
   );
   expect(correo.html, nombre).toContain("Esmalia · software para clínicas dentales");
-  expect(correo.html, nombre).toContain("MAXNOVA &amp; LUCI Global LLC");
-  expect(correo.text, nombre).toContain("MAXNOVA & LUCI Global LLC");
+  expect(correo.html, nombre).toContain("MAXNOVA &amp; LUCI GLOBAL LLC");
+  expect(correo.text, nombre).toContain("MAXNOVA & LUCI GLOBAL LLC");
   expect(correo.html, nombre).not.toContain("<svg");
 }
 

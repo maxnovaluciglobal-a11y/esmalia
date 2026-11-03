@@ -37,7 +37,7 @@ function Privacidad() {
     <LegalPage
       label="Legal"
       title="Política de privacidad"
-      updated="Versión 4 · 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 4 · 19 de octubre de 2026 · MAXNOVA & LUCI GLOBAL LLC"
     >
       <LegalNotice>
         Tu clínica es la responsable de los datos de sus pacientes; Esmalia los procesa como
@@ -70,7 +70,7 @@ function Privacidad() {
 
       <LegalH2>1. Quién es responsable y qué papel cumple cada uno</LegalH2>
       <LegalP>
-        Esmalia lo opera MAXNOVA &amp; LUCI Global LLC, una LLC constituida en el estado de Florida,
+        Esmalia lo opera MAXNOVA &amp; LUCI GLOBAL LLC, una LLC constituida en el estado de Florida,
         Estados Unidos. Para cualquier consulta de privacidad, escríbenos a{" "}
         <Correo a="privacidad@esmalia.com" />. Ese correo lo lee el equipo que opera Esmalia, no un
         buzón automático.

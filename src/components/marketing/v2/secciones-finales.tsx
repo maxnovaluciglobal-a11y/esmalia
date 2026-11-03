@@ -1,5 +1,5 @@
-// Bloques finales de la landing A+: "Todavía no hacemos", espacios para
-// testimonios de clínicas fundadoras (ninguno inventado) y FAQ corta.
+// Bloques finales de la landing A+: "Todavía no hacemos" y FAQ corta.
+// Sin testimonios hasta que haya clínicas reales que los den (nunca inventados).
 import { Link } from "@tanstack/react-router";
 
 import { FAQ_CORTA } from "./faq-corta-datos";
@@ -41,26 +41,6 @@ export function TodaviaNo() {
                 <b>{n.t}</b>
                 <span>{n.d}</span>
               </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
-export function TestimoniosReservados() {
-  return (
-    <section className="lv-tst" aria-labelledby="lv-tst-h">
-      <div className="lv-wrap">
-        <h2 className="lv-h-sec lv-h-sm" id="lv-tst-h">
-          Las primeras clínicas <em>lo van a contar.</em>
-        </h2>
-        <ul className="lv-tst-grid">
-          {[1, 2, 3].map((i) => (
-            <li key={i} className="lv-ph">
-              <p>Espacio para testimonio de clínica fundadora.</p>
-              <span>Nombre · clínica · ciudad</span>
             </li>
           ))}
         </ul>

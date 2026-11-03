@@ -37,7 +37,7 @@ function Dpa() {
     <LegalPage
       label="Legal"
       title="Acuerdo de tratamiento de datos"
-      updated="Versión 2 — 19 de octubre de 2026 · MAXNOVA & LUCI Global LLC"
+      updated="Versión 2 — 19 de octubre de 2026 · MAXNOVA & LUCI GLOBAL LLC"
     >
       <LegalNotice>
         Este acuerdo fija las reglas con las que Esmalia trata los datos de los pacientes de tu
@@ -61,7 +61,7 @@ function Dpa() {
       <LegalH2>1. Partes y objeto</LegalH2>
       <LegalP>
         Las partes son la clínica que tiene una cuenta en Esmalia (la "clínica") y MAXNOVA &amp;
-        LUCI Global LLC, una LLC constituida en Florida, Estados Unidos, que opera Esmalia
+        LUCI GLOBAL LLC, una LLC constituida en Florida, Estados Unidos, que opera Esmalia
         ("Esmalia"). Este acuerdo regula cómo Esmalia trata, por cuenta de la clínica, los datos
         personales de pacientes y de otras personas que la clínica carga o recibe a través de la
         aplicación: identidad, contacto, historia clínica, odontograma, documentos, citas,
