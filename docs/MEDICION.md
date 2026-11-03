@@ -59,6 +59,23 @@ Los eventos anteriores a este cambio no tienen la marca: los del 07-oct y 09-oct
 - Para el conteo real de suscripciones, usar igual `subscriptions` (consulta de la North Star): el evento es para el embudo.
 - `ia_usada` y `clinica_semana_activa` (propuestos en la auditoría) no están implementados.
 
+## Reporte semanal por correo
+
+El mismo reporte que recibe MOY IQ: seis números con su variación y los leads por origen, solo conteos, a `maxnovaluciglobal@gmail.com` (constante `REPORTE_PARA`, no hay forma de pedir otro destinatario). Sale desde `EMAIL_FROM` los lunes a las 12:00 hora de Chile por `/api/embudo-semanal`. Código: `src/lib/marketing/embudo-semanal.ts` (reglas y correo, puro) y `embudo-semanal.server.ts` (lecturas y envío). Semana de lunes a domingo en hora de Chile.
+
+| Número  | De dónde sale                                                                                                                          |
+| ------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Visitas | Sesiones únicas de `page_view` sin `interno`                                                                                           |
+| Altas   | Eventos `registro_completado` sin `interno`                                                                                            |
+| Activas | Clínicas reales con suscripción `trialing` o `active` y al menos una cita gestionada en la semana (misma definición que la North Star) |
+| Pruebas | `suscripcion_activada` con `estado = trialing`                                                                                         |
+| Pagos   | Clínicas con un evento real de Stripe (`livemode`) de compra directa o de paso de prueba a activa. Una renovación no cuenta            |
+| Bajas   | Clínicas con un evento real de Stripe de cancelación pedida (`cancel_at_period_end`) o aplicada (`customer.subscription.deleted`)      |
+
+Metas al 31-dic-2026, aprobadas por Walter el 02-nov-2026 (`FILAS_DEL_REPORTE`): 3 clínicas piloto activas y 1 clínica pagando. Se excluyen las clínicas demo y las creadas por correos internos (`esCorreoInterno`). No hay foto guardada: la semana anterior se recalcula, así que una clínica que canceló sale también de las **activas** de la semana anterior (el mismo límite de la North Star). Disparo: Vercel Cron los lunes de 15 a 20 UTC en el minuto 12 y `embudo-semanal.yml` en el 42; el endpoint solo envía de 12:00 a 16:59 hora de Chile. Las horas siguientes a las 12 son reintentos: la clave `embudo-semanal/<lunes>` hace que Resend no repita el correo durante 24 h.
+
+Con `Authorization: Bearer $CRON_SECRET`, `/api/embudo-semanal?modo=dry_run` devuelve los números sin enviar y `?modo=preview` manda una copia con el asunto `[Vista previa]`. Sin leer el secreto: `gh workflow run embudo-semanal.yml -f modo=preview`.
+
 ## Consultas
 
 Semanas de lunes a domingo en hora de Chile. Correr con `psql` contra producción (solo lectura).

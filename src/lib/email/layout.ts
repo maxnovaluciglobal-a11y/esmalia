@@ -86,6 +86,21 @@ export type Bloque =
       tono?: "neutro" | "sube" | "baja";
     }
   | { tipo: "tabla"; filas: { etiqueta: string; valor: string; nota?: string }[] }
+  /** Tabla con encabezados: la primera columna es texto y las demás, cifras a la derecha. */
+  | {
+      tipo: "cuadro";
+      encabezados: string[];
+      filas: {
+        titulo: string;
+        nota?: string;
+        /** Objetivo de la fila, debajo de la nota y en ocre. */
+        meta?: string;
+        celdas: string[];
+        /** Última columna; `tono` le da color. */
+        cierre: string;
+        tono?: "neutro" | "sube" | "baja";
+      }[];
+    }
   | {
       tipo: "recuadro";
       titulo: string;
@@ -95,6 +110,9 @@ export type Bloque =
 
 export const p = (...partes: Inline[]): Bloque => ({ tipo: "parrafo", partes });
 export const pTenue = (...partes: Inline[]): Bloque => ({ tipo: "parrafo", partes, tenue: true });
+
+const colorDeTono = (tono?: "neutro" | "sube" | "baja") =>
+  tono === "sube" ? COLORES.exito : tono === "baja" ? COLORES.peligro : COLORES.tenue;
 
 const estiloParrafo = (tenue = false) =>
   `margin:0 0 16px 0;font-family:${FUENTE_TEXTO};font-size:16px;line-height:1.6;color:${tenue ? COLORES.tenue : COLORES.tinta};`;
@@ -124,8 +142,7 @@ function bloqueHtml(b: Bloque): string {
         )
         .join("")}</table>`;
     case "cifra": {
-      const colorDetalle =
-        b.tono === "sube" ? COLORES.exito : b.tono === "baja" ? COLORES.peligro : COLORES.tenue;
+      const colorDetalle = colorDeTono(b.tono);
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 24px 0;border-top:1px solid ${COLORES.borde};border-bottom:1px solid ${COLORES.borde};"><tr><td style="padding:20px 0;"><div style="font-family:${FUENTE_TEXTO};font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:${COLORES.tenue};">${escapeHtml(b.etiqueta)}</div><div style="margin-top:6px;font-family:${FUENTE_TITULO};font-size:40px;line-height:1.1;font-weight:600;color:${COLORES.tinta};">${escapeHtml(b.valor)}</div>${b.detalle ? `<div style="margin-top:6px;font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.4;color:${colorDetalle};">${escapeHtml(b.detalle)}</div>` : ""}</td></tr></table>`;
     }
     case "tabla":
@@ -135,6 +152,24 @@ function bloqueHtml(b: Bloque): string {
             `<tr><td valign="top" style="padding:10px 12px 10px 0;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.4;color:${COLORES.tenue};">${escapeHtml(f.etiqueta)}</td><td valign="top" align="right" style="padding:10px 0;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:16px;line-height:1.4;color:${COLORES.tinta};font-weight:600;">${escapeHtml(f.valor)}${f.nota ? `<div style="font-size:13px;font-weight:400;color:${COLORES.tenue};">${escapeHtml(f.nota)}</div>` : ""}</td></tr>`,
         )
         .join("")}</table>`;
+    case "cuadro": {
+      const celda = `padding:10px 0 10px 10px;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.3;white-space:nowrap;`;
+      const encabezado = (texto: string, i: number) =>
+        `<th align="${i === 0 ? "left" : "right"}" style="padding:0 0 8px ${i === 0 ? "0" : "10px"};border-bottom:2px solid ${COLORES.tinta};font-family:${FUENTE_TEXTO};font-size:12px;line-height:1.3;font-weight:600;color:${COLORES.tinta};">${escapeHtml(texto)}</th>`;
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;"><tr>${b.encabezados.map(encabezado).join("")}</tr>${b.filas
+        .map(
+          (f) =>
+            `<tr><td valign="top" style="padding:10px 0;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.3;color:${COLORES.tinta};font-weight:600;">${escapeHtml(f.titulo)}${f.nota ? `<div style="font-size:13px;font-weight:400;color:${COLORES.tenue};">${escapeHtml(f.nota)}</div>` : ""}${f.meta ? `<div style="font-size:13px;font-weight:400;color:${COLORES.ocre};">${escapeHtml(f.meta)}</div>` : ""}</td>${f.celdas
+              .map(
+                (c) =>
+                  `<td valign="top" align="right" style="${celda}color:${COLORES.tinta};">${escapeHtml(c)}</td>`,
+              )
+              .join(
+                "",
+              )}<td valign="top" align="right" style="${celda}color:${colorDeTono(f.tono)};">${escapeHtml(f.cierre)}</td></tr>`,
+        )
+        .join("")}</table>`;
+    }
     case "recuadro":
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;"><tr><td bgcolor="${COLORES.ocreSuave}" style="padding:18px 20px;background:${COLORES.ocreSuave};border-left:3px solid ${COLORES.ocre};border-radius:4px;"><div style="margin:0 0 6px 0;font-family:${FUENTE_TEXTO};font-size:13px;letter-spacing:0.06em;text-transform:uppercase;color:${COLORES.ocre};font-weight:600;">${escapeHtml(b.titulo)}</div><div style="font-family:${FUENTE_TEXTO};font-size:16px;line-height:1.55;color:${COLORES.tinta};">${inlineHtml(b.partes)}</div>${b.enlace ? `<div style="margin-top:10px;font-family:${FUENTE_TEXTO};font-size:15px;"><a href="${escapeHtml(b.enlace.href)}" style="color:${COLORES.ocre};font-weight:600;text-decoration:underline;">${escapeHtml(b.enlace.texto)}</a></div>` : ""}</td></tr></table>`;
   }
@@ -162,6 +197,15 @@ function bloqueTexto(b: Bloque): string {
     case "tabla":
       return b.filas
         .map((f) => `- ${f.etiqueta}: ${f.valor}${f.nota ? ` (${f.nota})` : ""}`)
+        .join("\n");
+    case "cuadro":
+      return b.filas
+        .map((f) => {
+          const celdas = f.celdas
+            .map((c, i) => `${b.encabezados[i + 1] ?? ""}: ${c}`)
+            .concat(`${b.encabezados[f.celdas.length + 1] ?? ""}: ${f.cierre}`);
+          return `- ${f.titulo}: ${celdas.join(" · ")}${f.meta ? `\n  ${f.meta}` : ""}`;
+        })
         .join("\n");
     case "recuadro":
       return [
