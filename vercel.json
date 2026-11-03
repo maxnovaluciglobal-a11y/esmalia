@@ -32,6 +32,10 @@
     {
       "path": "/api/backup-watchdog",
       "schedule": "52 * * * *"
+    },
+    {
+      "path": "/api/embudo-semanal",
+      "schedule": "12 15-20 * * 1"
     }
   ],
   "headers": [

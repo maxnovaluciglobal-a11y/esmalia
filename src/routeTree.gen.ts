@@ -45,6 +45,7 @@ import { Route as AlternativasSlugRouteImport } from './routes/alternativas.$slu
 import { Route as ApiBackupWatchdogRouteImport } from './routes/api.backup-watchdog'
 import { Route as ApiDailyDigestRouteImport } from './routes/api.daily-digest'
 import { Route as ApiDemoResetRouteImport } from './routes/api.demo-reset'
+import { Route as ApiEmbudoSemanalRouteImport } from './routes/api.embudo-semanal'
 import { Route as ApiEvRouteImport } from './routes/api.ev'
 import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiLifecycleEmailsRouteImport } from './routes/api.lifecycle-emails'
@@ -334,6 +335,11 @@ const ApiDailyDigestRoute = ApiDailyDigestRouteImport.update({
 const ApiDemoResetRoute = ApiDemoResetRouteImport.update({
   id: '/api/demo-reset',
   path: '/api/demo-reset',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEmbudoSemanalRoute = ApiEmbudoSemanalRouteImport.update({
+  id: '/api/embudo-semanal',
+  path: '/api/embudo-semanal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiEvRoute = ApiEvRouteImport.update({
@@ -994,6 +1000,7 @@ export interface FileRoutesByFullPath {
   '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
+  '/api/embudo-semanal': typeof ApiEmbudoSemanalRoute
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
@@ -1138,6 +1145,7 @@ export interface FileRoutesByTo {
   '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
+  '/api/embudo-semanal': typeof ApiEmbudoSemanalRoute
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
@@ -1287,6 +1295,7 @@ export interface FileRoutesById {
   '/api/backup-watchdog': typeof ApiBackupWatchdogRoute
   '/api/daily-digest': typeof ApiDailyDigestRoute
   '/api/demo-reset': typeof ApiDemoResetRoute
+  '/api/embudo-semanal': typeof ApiEmbudoSemanalRoute
   '/api/ev': typeof ApiEvRoute
   '/api/health': typeof ApiHealthRoute
   '/api/lifecycle-emails': typeof ApiLifecycleEmailsRoute
@@ -1435,6 +1444,7 @@ export interface FileRouteTypes {
     | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
+    | '/api/embudo-semanal'
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
@@ -1579,6 +1589,7 @@ export interface FileRouteTypes {
     | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
+    | '/api/embudo-semanal'
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
@@ -1727,6 +1738,7 @@ export interface FileRouteTypes {
     | '/api/backup-watchdog'
     | '/api/daily-digest'
     | '/api/demo-reset'
+    | '/api/embudo-semanal'
     | '/api/ev'
     | '/api/health'
     | '/api/lifecycle-emails'
@@ -1873,6 +1885,7 @@ export interface RootRouteChildren {
   ApiBackupWatchdogRoute: typeof ApiBackupWatchdogRoute
   ApiDailyDigestRoute: typeof ApiDailyDigestRoute
   ApiDemoResetRoute: typeof ApiDemoResetRoute
+  ApiEmbudoSemanalRoute: typeof ApiEmbudoSemanalRoute
   ApiEvRoute: typeof ApiEvRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiLifecycleEmailsRoute: typeof ApiLifecycleEmailsRoute
@@ -2153,6 +2166,13 @@ declare module '@tanstack/react-router' {
       path: '/api/demo-reset'
       fullPath: '/api/demo-reset'
       preLoaderRoute: typeof ApiDemoResetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/embudo-semanal': {
+      id: '/api/embudo-semanal'
+      path: '/api/embudo-semanal'
+      fullPath: '/api/embudo-semanal'
+      preLoaderRoute: typeof ApiEmbudoSemanalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/ev': {
@@ -3212,6 +3232,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBackupWatchdogRoute: ApiBackupWatchdogRoute,
   ApiDailyDigestRoute: ApiDailyDigestRoute,
   ApiDemoResetRoute: ApiDemoResetRoute,
+  ApiEmbudoSemanalRoute: ApiEmbudoSemanalRoute,
   ApiEvRoute: ApiEvRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiLifecycleEmailsRoute: ApiLifecycleEmailsRoute,
