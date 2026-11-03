@@ -93,6 +93,8 @@ export type Bloque =
       filas: {
         titulo: string;
         nota?: string;
+        /** Objetivo de la fila, debajo de la nota y en ocre. */
+        meta?: string;
         celdas: string[];
         /** Última columna; `tono` le da color. */
         cierre: string;
@@ -157,7 +159,7 @@ function bloqueHtml(b: Bloque): string {
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 24px 0;"><tr>${b.encabezados.map(encabezado).join("")}</tr>${b.filas
         .map(
           (f) =>
-            `<tr><td valign="top" style="padding:10px 0;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.3;color:${COLORES.tinta};font-weight:600;">${escapeHtml(f.titulo)}${f.nota ? `<div style="font-size:13px;font-weight:400;color:${COLORES.tenue};">${escapeHtml(f.nota)}</div>` : ""}</td>${f.celdas
+            `<tr><td valign="top" style="padding:10px 0;border-bottom:1px solid ${COLORES.borde};font-family:${FUENTE_TEXTO};font-size:15px;line-height:1.3;color:${COLORES.tinta};font-weight:600;">${escapeHtml(f.titulo)}${f.nota ? `<div style="font-size:13px;font-weight:400;color:${COLORES.tenue};">${escapeHtml(f.nota)}</div>` : ""}${f.meta ? `<div style="font-size:13px;font-weight:400;color:${COLORES.ocre};">${escapeHtml(f.meta)}</div>` : ""}</td>${f.celdas
               .map(
                 (c) =>
                   `<td valign="top" align="right" style="${celda}color:${COLORES.tinta};">${escapeHtml(c)}</td>`,
@@ -202,7 +204,7 @@ function bloqueTexto(b: Bloque): string {
           const celdas = f.celdas
             .map((c, i) => `${b.encabezados[i + 1] ?? ""}: ${c}`)
             .concat(`${b.encabezados[f.celdas.length + 1] ?? ""}: ${f.cierre}`);
-          return `- ${f.titulo}: ${celdas.join(" · ")}`;
+          return `- ${f.titulo}: ${celdas.join(" · ")}${f.meta ? `\n  ${f.meta}` : ""}`;
         })
         .join("\n");
     case "recuadro":

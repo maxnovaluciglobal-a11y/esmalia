@@ -33,12 +33,30 @@ export const ESTADOS_DE_CITA_GESTIONADA = [
 export type ClaveMetrica = "visitas" | "altas" | "activas" | "pruebas" | "pagos" | "bajas";
 export type Metricas = Record<ClaveMetrica, number>;
 
-export const FILAS_DEL_REPORTE: { clave: ClaveMetrica; titulo: string; ayuda: string }[] = [
+/** Metas aprobadas por Walter el 02-nov-2026 (propuesta GOB-05 de la auditoría 360). */
+export const FECHA_DE_LAS_METAS = "31-dic-2026";
+
+export const FILAS_DEL_REPORTE: {
+  clave: ClaveMetrica;
+  titulo: string;
+  ayuda: string;
+  meta?: string;
+}[] = [
   { clave: "visitas", titulo: "Visitas al sitio", ayuda: "sesiones en páginas públicas" },
   { clave: "altas", titulo: "Altas", ayuda: "cuentas nuevas registradas" },
-  { clave: "activas", titulo: "Clínicas activas", ayuda: "con al menos una cita gestionada" },
+  {
+    clave: "activas",
+    titulo: "Clínicas activas",
+    ayuda: "con al menos una cita gestionada",
+    meta: "3 clínicas piloto activas",
+  },
   { clave: "pruebas", titulo: "Pruebas iniciadas", ayuda: "suscripciones en prueba" },
-  { clave: "pagos", titulo: "Pagos", ayuda: "clínicas que pasaron a pago" },
+  {
+    clave: "pagos",
+    titulo: "Pagos",
+    ayuda: "clínicas que pasaron a pago",
+    meta: "1 clínica pagando",
+  },
   { clave: "bajas", titulo: "Bajas", ayuda: "cancelaciones pedidas o aplicadas" },
 ];
 
@@ -289,9 +307,10 @@ export function armarReporte(
       {
         tipo: "cuadro",
         encabezados: ["Número", "Semana", "Anterior", "Variación"],
-        filas: FILAS_DEL_REPORTE.map(({ clave, titulo, ayuda }) => ({
+        filas: FILAS_DEL_REPORTE.map(({ clave, titulo, ayuda, meta }) => ({
           titulo,
           nota: ayuda,
+          ...(meta ? { meta: `Meta al ${FECHA_DE_LAS_METAS}: ${meta}` } : {}),
           celdas: [String(actual[clave]), String(anterior[clave])],
           cierre: variacion(actual[clave], anterior[clave]),
           tono: tonoDeVariacion(clave, actual[clave], anterior[clave]),

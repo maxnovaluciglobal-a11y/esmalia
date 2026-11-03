@@ -217,6 +217,13 @@ describe("armarReporte", () => {
     );
   });
 
+  it("muestra las metas aprobadas solo en activas y pagos", () => {
+    const correo = armarReporte(datos, { appUrl: "https://esmalia.com" });
+    expect(correo.html).toContain("Meta al 31-dic-2026: 3 clínicas piloto activas");
+    expect(correo.text).toContain("Meta al 31-dic-2026: 1 clínica pagando");
+    expect(correo.text.match(/Meta al /g)).toHaveLength(2);
+  });
+
   it("marca la vista previa y escapa el origen", () => {
     const correo = armarReporte(datos, { appUrl: "https://esmalia.com", vistaPrevia: true });
     expect(correo.subject.startsWith("[Vista previa] ")).toBe(true);
